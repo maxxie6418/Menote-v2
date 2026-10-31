@@ -6,6 +6,7 @@ import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { APP_VERSION_LABEL } from "../lib/version";
+import { SyncBadge } from "../features/sync";
 
 interface SidebarProps {
   userId: string;
@@ -117,7 +118,12 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         <button type="button" className="mn-iconbtn" aria-label="退出登录" title="退出登录" onClick={onLogout}>
           <LogOut />
         </button>
-        {!collapsed && <span className="mn-foot-version">{APP_VERSION_LABEL}</span>}
+        {!collapsed && (
+          <>
+            <SyncBadge />
+            <span className="mn-foot-version">{APP_VERSION_LABEL}</span>
+          </>
+        )}
         <button type="button" className="mn-iconbtn" aria-label="打开系统状态" title="系统状态与健康检查" onClick={onOpenStatus}>
           <Activity />
         </button>

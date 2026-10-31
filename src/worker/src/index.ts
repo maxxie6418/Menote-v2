@@ -6,12 +6,14 @@ import { authRoutes } from "./routes/auth";
 import { attachmentRoutes } from "./routes/attachments";
 import { healthRoutes } from "./routes/health";
 import { monitorRoutes } from "./routes/monitor";
+import { syncRoutes } from "./routes/sync";
 
 /* 仅装配：路由注册与请求观察（FR-DEP-4/工程设计 §4，入口 ≤200 行）。 */
 const app = new Hono<AppEnv>()
   .route("/", healthRoutes)
   .route("/", authRoutes)
   .route("/", attachmentRoutes)
+  .route("/", syncRoutes)
   .route("/", monitorRoutes);
 
 export default {

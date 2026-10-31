@@ -44,3 +44,11 @@ export async function setAttachmentRefs(
   await db.prepare("UPDATE attachments SET ref_count = ? WHERE user_id = ? AND sha256 = ?")
     .bind(Math.max(0, refCount), userId, sha256).run();
 }
+
+/** 引用对齐时补齐缺失的元数据行（不覆盖既有 size/mime；计数另设）。 */
+export async function ensureAttachmentRow(db: D1Database, userId: string, sha256: string): Promise<void> {
+  await db.prepare(
+    `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, 0, 'application/octet-stream', 0)
+     ON CONFLICT (user_id, sha256) DO NOTHING`,
+  ).bind(userId, sha256).run();
+}

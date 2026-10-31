@@ -1,0 +1,230 @@
+import type { Item, TopicNode, UserSetting } from "@menote/shared";
+import type { SyncTombstone } from "@menote/shared";
+
+/** 拉取（G2 §4）：游标 = sync_log.seq；先墓碑后条目由客户端落库顺序保证。 */
+
+export interface LogEntry {
+  seq: number;
+  entity: "item" | "topic";
+  entityId: string;
+  op: "upsert" | "delete";
+}
+
+export async function readLogPage(db: D1Database, userId: string, cursor: number, limit: number): Promise<{ entries: LogEntry[]; hasMore: boolean; oldestSeq: number | null }> {
+  const rows = await db.prepare(
+    "SELECT seq, entity, entity_id, op FROM sync_log WHERE user_id = ? AND seq > ? ORDER BY seq LIMIT ?",
+  ).bind(userId, cursor, limit + 1).all<{ seq: number; entity: string; entity_id: string; op: string }>();
+  const hasMore = rows.results.length > limit;
+  const page = rows.results.slice(0, limit);
+  const oldest = await db.prepare("SELECT MIN(seq) AS s FROM sync_log WHERE user_id = ?").bind(userId).first<{ s: number | null }>();
+  return {
+    entries: page.map((row) => ({
+      seq: row.seq, entity: row.entity === "topic" ? "topic" : "item",
+      entityId: row.entity_id, op: row.op === "delete" ? "delete" : "upsert",
+    })),
+    hasMore,
+    oldestSeq: oldest?.s ?? null,
+  };
+}
+
+function rowToItem(row: Record<string, unknown>): Item {
+  const encSelf = Number(row.enc_self) === 1;
+  const inEncSpace = Number(row.in_enc_space) === 1;
+  const scope = encSelf ? "self" : inEncSpace ? "private_space" : "plain";
+  const base = {
+    id: String(row.id), userId: String(row.user_id), type: String(row.type) as Item["type"],
+    topicId: (row.topic_id as string | null) ?? null, groupId: (row.group_id as string | null) ?? null,
+    tags: JSON.parse(String(row.tags_json)) as string[],
+    status: (row.status as Item["status"] | null) ?? null,
+    attachmentHashes: JSON.parse(String(row.attachment_hashes_json)) as string[],
+    source: String(row.source), rev: Number(row.rev), metaRev: Number(row.meta_rev),
+    contentHash: String(row.content_hash), pinned: Number(row.pinned) === 1, starred: Number(row.starred) === 1,
+    createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
+    deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+  };
+  const title = row.title === null || row.title === undefined ? null : String(row.title);
+  if (base.type === "memo") {
+    return { ...base, type: "memo", title, content: { scope: "plain", markdown: String(row.content_markdown ?? "") } };
+  }
+  if (scope === "plain") {
+    return { ...base, type: base.type as "note" | "table", title: title ?? "", content: { scope: "plain", markdown: String(row.content_markdown ?? "") } };
+  }
+  const ciphertext = row.content_ciphertext instanceof Uint8Array
+    ? new TextDecoder().decode(row.content_ciphertext)
+    : String(row.content_ciphertext ?? "");
+  return {
+    ...base, type: base.type as "note" | "table", title: title ?? "",
+    content: { scope, ciphertext },
+  };
+}
+
+export async function readItems(db: D1Database, userId: string, ids: string[]): Promise<Item[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await db.prepare(
+    `SELECT * FROM items WHERE user_id = ? AND id IN (${placeholders})`,
+  ).bind(userId, ...ids).all<Record<string, unknown>>();
+  return rows.results.map(rowToItem);
+}
+
+export async function readTopics(db: D1Database, userId: string, ids: string[]): Promise<TopicNode[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await db.prepare(
+    `SELECT * FROM topic_nodes WHERE user_id = ? AND id IN (${placeholders})`,
+  ).bind(userId, ...ids).all<Record<string, unknown>>();
+  return rows.results.map((row) => ({
+    id: String(row.id), userId: String(row.user_id),
+    parentId: row.parent_id === null || row.parent_id === undefined ? null : String(row.parent_id),
+    name: String(row.name), depth: Number(row.depth) === 1 ? 1 : 0,
+    isEncSpace: Number(row.is_enc_space) === 1,
+    deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+  }));
+}
+
+export function toTombstone(entry: LogEntry, userId: string, deletedAt: number): SyncTombstone {
+  return { id: entry.entityId, userId, entity: entry.entity, deletedAt };
+}
+
+/** 全量重同步：按当前表状态分页（不经 sync_log）。 */
+export async function readAllItemsPage(db: D1Database, userId: string, offset: number, limit: number): Promise<Item[]> {
+  const rows = await db.prepare(
+    "SELECT * FROM items WHERE user_id = ? ORDER BY created_at LIMIT ? OFFSET ?",
+  ).bind(userId, limit, offset).all<Record<string, unknown>>();
+  return rows.results.map(rowToItem);
+}
+
+export async function readAllTopics(db: D1Database, userId: string): Promise<TopicNode[]> {
+  return readTopics(db, userId,
+    (await db.prepare("SELECT id FROM topic_nodes WHERE user_id = ?").bind(userId).all<{ id: string }>()).results.map((row) => row.id));
+}
+
+export async function readSettings(db: D1Database, userId: string): Promise<UserSetting[]> {
+  const rows = await db.prepare(
+    "SELECT user_id, key, is_secret, value_json, value_ciphertext, rev FROM user_settings WHERE user_id = ?",
+  ).bind(userId).all<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number }>();
+  return rows.results.map((row) => ({
+    userId: row.user_id,
+    key: row.key,
+    ...(row.is_secret === 1
+      ? { sensitivity: "secret" as const, ciphertext: row.value_ciphertext instanceof Uint8Array ? new TextDecoder().decode(row.value_ciphertext) : String(row.value_ciphertext ?? "") }
+      : { sensitivity: "ordinary" as const, value: row.value_json === null ? null : JSON.parse(row.value_json) }),
+  }));
+}
+
+/* ---------- 写侧（服务层编排用；SQL 只在 db 层） ---------- */
+
+export interface ItemState {
+  rev: number; metaRev: number; contentHash: string;
+  updatedAt: number; deletedAt: number | null; type: string; attachmentHashesJson: string;
+}
+
+export async function readItemState(db: D1Database, userId: string, id: string): Promise<ItemState | null> {
+  const row = await db.prepare(
+    "SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type, attachment_hashes_json FROM items WHERE id = ? AND user_id = ?",
+  ).bind(id, userId).first<{ rev: number; meta_rev: number; content_hash: string; updated_at: number; deleted_at: number | null; type: string; attachment_hashes_json: string }>();
+  return row ? {
+    rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash, updatedAt: row.updated_at,
+    deletedAt: row.deleted_at, type: row.type, attachmentHashesJson: row.attachment_hashes_json,
+  } : null;
+}
+
+export async function readTopicDeletedAt(db: D1Database, userId: string, id: string): Promise<number | null | undefined> {
+  const row = await db.prepare("SELECT deleted_at FROM topic_nodes WHERE id = ? AND user_id = ?")
+    .bind(id, userId).first<{ deleted_at: number | null }>();
+  return row ? row.deleted_at : undefined;
+}
+
+export async function appendSyncLog(
+  db: D1Database, userId: string, entity: "item" | "topic", entityId: string,
+  op: "upsert" | "delete", rev: number, metaRev: number, now: number,
+): Promise<void> {
+  await db.prepare(
+    "INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).bind(userId, entity, entityId, op, rev, metaRev, now).run();
+}
+
+export interface SyncOperationRecord {
+  result: string; rev: number; metaRev: number; contentHash: string | null;
+}
+
+export async function readSyncOperation(db: D1Database, userId: string, operationId: string): Promise<SyncOperationRecord | null> {
+  const row = await db.prepare(
+    "SELECT result, rev, meta_rev, content_hash FROM sync_operations WHERE user_id = ? AND operation_id = ?",
+  ).bind(userId, operationId).first<{ result: string; rev: number; meta_rev: number; content_hash: string | null }>();
+  return row ? { result: row.result, rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash } : null;
+}
+
+export async function recordSyncOperation(
+  db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
+  result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, operation_id) DO NOTHING`,
+  ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now).run();
+}
+
+export async function upsertItemRow(
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
+       tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
+       enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (id) DO UPDATE SET
+       type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
+       content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
+       tags_json = excluded.tags_json, attachment_hashes_json = excluded.attachment_hashes_json, status = excluded.status,
+       source = excluded.source, rev = MAX(rev, excluded.rev), meta_rev = MAX(meta_rev, excluded.meta_rev),
+       content_hash = excluded.content_hash, pinned = excluded.pinned, starred = excluded.starred,
+       updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device`,
+  ).bind(
+    item.id, userId, item.type, item.topicId, item.groupId, item.title,
+    item.content.scope === "plain" ? item.content.markdown : null,
+    item.content.scope === "plain" ? null : item.content.ciphertext,
+    JSON.stringify(item.tags), JSON.stringify(item.attachmentHashes), item.status, item.source,
+    rev, metaRev, item.contentHash, item.pinned ? 1 : 0, item.starred ? 1 : 0,
+    item.content.scope === "self" ? 1 : 0, item.content.scope === "private_space" ? 1 : 0,
+    item.createdAt, item.updatedAt, item.deletedAt, deviceId,
+  ).run();
+}
+
+export async function markItemDeleted(
+  db: D1Database, userId: string, deviceId: string, id: string, deletedAt: number,
+): Promise<void> {
+  await db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
+    .bind(deletedAt, deviceId, id, userId).run();
+}
+
+export async function upsertTopicRow(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): Promise<void> {
+  await db.prepare(
+    `INSERT INTO topic_nodes (id, user_id, parent_id, name, depth, is_enc_space, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (id) DO UPDATE SET name = excluded.name, deleted_at = excluded.deleted_at`,
+  ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt).run();
+}
+
+export async function countItemReferences(db: D1Database, userId: string, sha256: string): Promise<number> {
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS n FROM items WHERE user_id = ? AND deleted_at IS NULL
+     AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`,
+  ).bind(userId, sha256).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export async function readItemAttachmentHashes(db: D1Database, userId: string, id: string): Promise<string[]> {
+  const row = await db.prepare("SELECT attachment_hashes_json FROM items WHERE id = ? AND user_id = ?")
+    .bind(id, userId).first<{ attachment_hashes_json: string }>();
+  try {
+    return JSON.parse(row?.attachment_hashes_json ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
+export async function purgeSyncOperations(db: D1Database, userId: string, before: number): Promise<void> {
+  await db.prepare("DELETE FROM sync_operations WHERE user_id = ? AND created_at < ?").bind(userId, before).run();
+}

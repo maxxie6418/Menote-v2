@@ -53,7 +53,9 @@ export interface SyncConflictDetail {
 export type SyncOperationResult =
   | { operationId: string; result: "applied"; rev: number; metaRev: number }
   | { operationId: string; result: "duplicate"; rev: number; metaRev: number; contentHash: string | null }
-  | { operationId: string; result: "conflict"; detail: SyncConflictDetail };
+  | { operationId: string; result: "conflict"; detail: SyncConflictDetail }
+  /** 不可重试拒绝（载荷非法/实体缺失）；客户端移入失败列表，不入重试。 */
+  | { operationId: string; result: "rejected"; code: string };
 
 export interface SyncPushResponse {
   results: SyncOperationResult[];

@@ -240,3 +240,7 @@
 .mn-attachrow { display: flex; align-items: center; gap: var(--app-space-sm); font-size: var(--app-size-chip); }
 .mn-attachrow a { color: var(--app-link); font-family: var(--app-font-mono); }
 .mn-attachmeta { color: var(--app-fg-faint); margin-right: auto; }
+
+/* ---------- G6 同步状态指示 ---------- */
+.mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); white-space: nowrap; }
+.mn-syncbadge.err { color: var(--app-danger); }

@@ -6,8 +6,10 @@ import { SystemStatusPage } from "./SystemStatusPage";
 import { MemoWorkspace } from "../features/memo";
 import { NoteDocument } from "../features/notes";
 import type { BrowseSection } from "../services/contentHooks";
+import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
+import { requestSync } from "../services/syncEngine";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */
@@ -61,6 +63,28 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
+
+  // G6 同步调度（G2 §3 触发时机）：打开、本地写入后 300ms、重新可见、网络恢复、每 5 分钟。
+  useEffect(() => {
+    let timer: number | undefined;
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void requestSync(userId); }, 300);
+    };
+    const off = subscribeLocalChanges(schedule);
+    const onVisible = () => { if (document.visibilityState === "visible") void requestSync(userId); };
+    const interval = window.setInterval(() => { void requestSync(userId); }, 5 * 60_000);
+    window.addEventListener("online", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    void requestSync(userId);
+    return () => {
+      off();
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+      window.removeEventListener("online", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [userId]);
 
   const topics = useTopics(userId);
   const items = useSectionItems(userId, section);
