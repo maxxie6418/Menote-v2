@@ -38,7 +38,7 @@ Menote-v2/
     ├── worker/             # Cloudflare Worker API
     │   └── src/
     │       ├── index.ts                 # 仅装配（路由注册 + 中间件挂载），禁业务逻辑
-    │       ├── routes/                  # auth / sync / attachments / mcp / backup / monitor / admin
+    │       ├── routes/                  # auth / sync / attachments / trash / restore / backup / monitor / admin（mcp/admin 为 M4）
     │       ├── services/                # 业务服务（sessions、tokens、sync、mcp、backup、crypto、envelope、snapshot、monitor）
     │       ├── jobs/                    # Cron：snapshot / backup-push / cleanup（孤儿、审计）
     │       ├── db/                      # D1 访问层（迁移 SQL 文件 + 查询模块）
@@ -98,6 +98,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
 | `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
 | `backup` | 备份目标管理面板（CRUD/凭据复显/推送一次）（G9） | FR-BAK-1/2/8 |
+| `markdown` | MarkdownView 渲染组件（react-markdown+gfm，任务复选框互写、附件 URL 解析）（G5/E2） | FR-STYLE-1、FR-MEMO-3 |
 | `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
 
 跨模块规则：**feature 之间禁止深引用**——只能 import 对方模块的公共入口（`index.ts`）或经 services/stores；违反在 DoD 结构检查中拦截。
