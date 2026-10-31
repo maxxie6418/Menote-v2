@@ -115,3 +115,28 @@ test("local data persists across reconnection (刷新不丢)", async () => {
   assert.equal(row.content.markdown, "内容。");
   assert.equal(row.rev, 2);
 });
+
+test("isBlankDraft and the startup sweep honor the three gates (FR-VER-7)", async () => {
+  await resetLocalDb();
+  const blank = await content.createNote(USER);
+  assert.equal(content.isBlankDraft(blank), true);
+  const typed = await content.saveItemContent(USER, (await content.createNote(USER)).id, "有内容了");
+  assert.equal(content.isBlankDraft(typed), false);
+  const renamed = await content.saveItemMeta(USER, (await content.createNote(USER)).id, { title: "正式标题" });
+  assert.equal(content.isBlankDraft(renamed), false);
+  const memo = await content.createMemo(USER, "");
+  assert.equal(content.isBlankDraft(memo), false, "Memo 不适用空白种子闸门");
+  // 闸三：超期空白种子连同 create 操作一并回收
+  const stale = { ...blank, createdAt: Date.now() - 25 * 3_600_000 };
+  await dbModule.localDb.items.put(stale);
+  const swept = await content.sweepBlankDrafts(USER, Date.now());
+  assert.equal(swept, 1, "超期空白种子连同 create 操作一并回收");
+  assert.equal(await dbModule.localDb.items.get(blank.id), undefined);
+  assert.equal((await outboxRows()).some((row) => row.entityId === blank.id), false);
+  // 闸一：已有真实编辑的种子不动
+  const edited = await content.createNote(USER);
+  await content.saveItemContent(USER, edited.id, "改过");
+  const aged = await dbModule.localDb.items.get(edited.id);
+  await dbModule.localDb.items.put({ ...aged, createdAt: Date.now() - 48 * 3_600_000 });
+  assert.equal(await content.sweepBlankDrafts(USER, Date.now()), 0);
+});

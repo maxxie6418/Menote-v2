@@ -47,3 +47,11 @@ export async function listTrashedItems(userId: string): Promise<Item[]> {
   return localDb.items.where("userId").equals(userId)
     .filter((row) => row.deletedAt !== null).toArray();
 }
+
+/** 最近编辑：全部非删除条目按 updatedAt 倒序（含未归类）。 */
+export async function listRecentItems(userId: string, limit = 200): Promise<Item[]> {
+  const rows = await localDb.items.where("userId").equals(userId)
+    .filter((row) => row.deletedAt === null && row.type !== "memo").toArray();
+  rows.sort((a, b) => b.updatedAt - a.updatedAt);
+  return rows.slice(0, limit);
+}

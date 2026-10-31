@@ -1,21 +1,27 @@
 import { LayoutGrid, List, Menu } from "lucide-react";
+import type { ReactNode } from "react";
+import type { Item } from "@menote/shared";
 import type { LayoutMode, MobilePane, ViewMode } from "./AppShell";
-import { NoteDocument, NoteGrid, NoteList } from "../features/notes";
+import { NoteGrid, NoteList } from "../features/notes";
 
 interface MainLayoutProps {
   layout: LayoutMode;
   viewMode: ViewMode;
   onViewMode: (mode: ViewMode) => void;
-  selectedSection: "all" | "inbox" | "drafts";
+  title: string;
+  items: Item[] | undefined;
+  selectedNoteId: string | null;
+  onSelectNote: (id: string) => void;
+  emptyTitle: string;
+  emptyDetail: string;
+  document: ReactNode;
   mobilePane: MobilePane;
   onBackToList: () => void;
   onOpenDrawer: () => void;
 }
 
-const sectionTitle = { all: "全部笔记", inbox: "收件箱", drafts: "草稿箱" } as const;
-
-/* 主区骨架（M1.2）：清单/网格双布局壳与空态；内容列表在 M2 接入业务后填充。 */
-export function MainLayout({ layout, viewMode, onViewMode, selectedSection, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+/* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, emptyTitle, emptyDetail, document, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const singlePane = layout === "tablet" || layout === "mobile";
   const showList = !singlePane || mobilePane === "list";
   const showDoc = !singlePane || mobilePane === "doc";
@@ -31,7 +37,7 @@ export function MainLayout({ layout, viewMode, onViewMode, selectedSection, mobi
                   <Menu />
                 </button>
               )}
-              <span className="mn-listhead-title">{sectionTitle[selectedSection]}</span>
+              <span className="mn-listhead-title">{title}</span>
             </span>
             <span className="mn-vt" role="group" aria-label="视图切换">
               <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
@@ -42,10 +48,12 @@ export function MainLayout({ layout, viewMode, onViewMode, selectedSection, mobi
               </button>
             </span>
           </div>
-          {viewMode === "list" ? <NoteList /> : <NoteGrid />}
+          {viewMode === "list"
+            ? <NoteList items={items} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={emptyTitle} emptyDetail={emptyDetail} />
+            : <NoteGrid items={items} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={emptyTitle} emptyDetail={emptyDetail} />}
         </section>
       )}
-      {showDoc && <NoteDocument onBack={onBackToList} showBack={singlePane} crumb={sectionTitle[selectedSection]} />}
+      {showDoc && document}
     </main>
   );
 }

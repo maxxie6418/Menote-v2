@@ -4,6 +4,7 @@ import { toOutboxRow } from "../db/outboxRepo";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { newId, sha256Hex } from "../lib/hash";
+import { notifyLocalChange } from "../lib/broadcast";
 
 /**
  * 内容统一命令链路（E1 骨架）：读一律以本地库为源；写 = 本地变更 + outbox 入队同一 Dexie 事务，
@@ -48,6 +49,7 @@ export async function createTopic(userId: string, name: string, parentId: string
     await localDb.topics.put(topic);
     await localDb.outbox.add(outboxTopic(topic, "upsert"));
   });
+  notifyLocalChange();
   return topic;
 }
 
@@ -59,6 +61,7 @@ export async function renameTopic(userId: string, id: string, name: string): Pro
     await localDb.topics.put(next);
     await localDb.outbox.add(outboxTopic(next, "upsert"));
   });
+  notifyLocalChange();
   return next;
 }
 
@@ -70,6 +73,7 @@ export async function softDeleteTopic(userId: string, id: string): Promise<void>
     await localDb.topics.put(next);
     await localDb.outbox.add(outboxTopic(next, "delete"));
   });
+  notifyLocalChange();
 }
 
 /* ---------- Note / 表格文档 ---------- */
@@ -90,6 +94,7 @@ export async function createNote(
     await localDb.items.put(item);
     await localDb.outbox.add(outboxUpsert(item, 0, 0, item.contentHash));
   });
+  notifyLocalChange();
   return item;
 }
 
@@ -123,6 +128,7 @@ export async function saveItemContent(userId: string, id: string, markdown: stri
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash));
   });
+  notifyLocalChange();
   return next;
 }
 
@@ -146,6 +152,7 @@ export async function saveItemMeta(userId: string, id: string, patch: ItemMetaPa
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
   });
+  notifyLocalChange();
   return next;
 }
 
@@ -161,6 +168,46 @@ export async function softDeleteItem(userId: string, id: string): Promise<void> 
       payload: { deletedAt: next.deletedAt },
     }, Date.now()));
   });
+  notifyLocalChange();
+}
+
+/* ---------- 空白草稿三道闸（FR-VER-7：种子从不上传，本地兜底回收） ---------- */
+
+export const BLANK_TITLE = "无标题";
+const BLANK_SWEEP_MAX_AGE_MS = 24 * 3_600_000;
+
+/** 正文无可见字符且标题未改的种子；Memo 不适用（随手记录本就短小）。 */
+export function isBlankDraft(item: Item): boolean {
+  if (item.type === "memo" || item.deletedAt !== null) return false;
+  if (item.title !== BLANK_TITLE) return false;
+  if (item.content.scope !== "plain") return false;
+  return !/\S/.test(item.content.markdown);
+}
+
+/** 启动兜底扫描（带宽限期 24h）：①非 create 状态不动（已有真实编辑）；②队列有 create 之外
+ *  的待推操作不动；③仍空白才本地回收（连同其 create 操作一并移除，种子永不上传）。 */
+export async function sweepBlankDrafts(userId: string, now = Date.now()): Promise<number> {
+  const seeds = await localDb.items.where("userId").equals(userId)
+    .filter((row) => isBlankDraft(row) && now - row.createdAt > BLANK_SWEEP_MAX_AGE_MS)
+    .toArray();
+  let swept = 0;
+  for (const seed of seeds) {
+    if (seed.rev > 1 || seed.metaRev > 1) continue;
+    const pending = await localDb.outbox.where("entityId").equals(seed.id).toArray();
+    const hasRealWork = pending.some((row) => {
+      if (row.action !== "upsert") return true;
+      const payloadItem = (row.payload as { item?: Item }).item;
+      return payloadItem?.rev !== 1 || payloadItem.metaRev !== 1;
+    });
+    if (hasRealWork) continue;
+    await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+      await localDb.items.delete(seed.id);
+      await localDb.outbox.bulkDelete(pending.map((row) => row.seq!).filter((seq) => seq !== undefined));
+    });
+    swept += 1;
+  }
+  if (swept > 0) notifyLocalChange();
+  return swept;
 }
 
 /* ---------- 查询（读以本地库为源） ---------- */
