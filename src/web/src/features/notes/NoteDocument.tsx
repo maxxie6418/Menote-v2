@@ -4,6 +4,7 @@ import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
+import { splitFrontmatter } from "../../lib/frontmatter";
 import { TableBlockDialog } from "../table";
 import { useItem } from "../../services/contentHooks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
@@ -75,9 +76,15 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   }, [item, draft, title]);
 
   const flush = useCallback(async (overrideMarkdown?: string) => {
-    if (!item) return;
-    const value = overrideMarkdown ?? getMarkdownRef.current?.() ?? draft;
-    if (item.content.scope !== "plain" || value === null || value === item.content.markdown) return;
+    if (!item || item.content.scope !== "plain") return;
+    // 编辑器/预览只处理正文（FR-PROP-1：YAML 由属性区管理）；保存前把正文拼回 frontmatter。
+    const currentFull = draft ?? item.content.markdown;
+    const editorValue = overrideMarkdown ?? getMarkdownRef.current?.() ?? null;
+    const { frontText } = splitFrontmatter(currentFull);
+    const value = editorValue === null ? currentFull : frontText ? `${frontText}
+
+${editorValue}` : editorValue;
+    if (value === null || value === item.content.markdown) return;
     setSaveState({ kind: "saving" });
     try {
       const saved = await saveItemContent(userId, item.id, value);
@@ -242,16 +249,24 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           />
         </div>
         {plain && mode === "preview" && (
-          <MarkdownView markdown={draft ?? plain.markdown} className="md-body mn-doc-preview" />
+          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body mn-doc-preview" />
         )}
         {plain && mode === "edit" && (
           <NoteEditor
             mode="edit"
             kind={editorKind}
-            externalMarkdown={plain.markdown}
-            onInput={(value) => setDraft(value)}
+            externalMarkdown={splitFrontmatter(plain.markdown).body}
+            onInput={(value) => {
+              const { frontText } = splitFrontmatter(draft ?? plain.markdown);
+              setDraft(frontText ? `${frontText}
+
+${value}` : value);
+            }}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
-            registerApplyExternal={(apply) => { applyExternalRef.current = apply; }}
+            registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
+              if (apply) applyExternalRef.current = (markdown: string) => apply(splitFrontmatter(markdown).body);
+              else applyExternalRef.current = null;
+            }}
           />
         )}
       </div>
