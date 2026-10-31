@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@menote/shared": "workspace:*",
+    "dexie": "^4.4.7",
     "lucide-react": "^1.65.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
