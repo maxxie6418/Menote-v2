@@ -4,6 +4,7 @@ body { background: var(--app-bg-side); color: var(--app-fg); font-family: var(--
 button { font: inherit; }
 .app-shell { min-height: var(--app-viewport-height); }
 .app-header { display: flex; align-items: center; gap: var(--app-space-md); padding: var(--app-space-md) var(--app-space-xl); border-bottom: var(--app-line) solid var(--app-border); background: var(--app-surface); }
+.app-footer { padding: var(--app-space-md) var(--app-space-xl); border-top: var(--app-line) solid var(--app-border); color: var(--app-fg-subtle); font-family: var(--app-font-mono); font-size: var(--app-font-small); }
 .app-wordmark { font-weight: var(--app-weight-medium); }
 .app-stage { color: var(--app-fg-subtle); font-size: var(--app-font-small); }
 .app-main { padding: var(--app-main-top) var(--app-space-lg) var(--app-space-2xl); }

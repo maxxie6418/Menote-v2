@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { HealthResponse } from "@menote/shared";
 import { getReadiness } from "./services/health";
 import { MonitorPanel } from "./features/monitor";
+import { APP_VERSION_LABEL } from "./version";
 
 export default function App() {
   const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
@@ -29,5 +30,6 @@ export default function App() {
         <button type="button" className="app-button" onClick={() => { if (health !== "checking") setAttempt((value) => value + 1); }} aria-disabled={health === "checking"}>重新检查</button>
       </section>
     </main>
+    <footer className="app-footer">{APP_VERSION_LABEL}</footer>
   </div>;
 }
