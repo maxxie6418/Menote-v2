@@ -7,7 +7,7 @@ import { MemoWorkspace } from "../features/memo";
 import { NoteDocument } from "../features/notes";
 import type { BrowseSection } from "../services/contentHooks";
 import { useSectionItems, useTopics } from "../services/contentHooks";
-import { createNote, sweepBlankDrafts } from "../services/contentService";
+import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */
@@ -148,6 +148,13 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             onBack={() => setMobilePane("list")}
             showBack={layout === "tablet" || layout === "mobile"}
             crumb={title}
+            onExtractDoc={async (content) => {
+              const created = await createNote(userId, { title: "表格文档" });
+              await saveItemContent(userId, created.id, content);
+              setSection({ kind: "drafts" });
+              setNoteId(created.id);
+              setMobilePane("doc");
+            }}
           />
         ) : (
           <article className="mn-doc" aria-label="文档区">

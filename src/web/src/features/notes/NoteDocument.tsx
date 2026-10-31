@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Pencil, Tag, Trash2, FolderInput } from "lucide-react";
+import { ChevronLeft, Eye, Pencil, Tag, Trash2, FolderInput, Table } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
+import { PropertyPanel } from "../props";
+import { TableBlockDialog } from "../table";
 import { useItem } from "../../services/contentHooks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
 import { OrganizeDialog } from "./OrganizeDialog";
@@ -17,19 +19,39 @@ interface NoteDocumentProps {
   onBack: () => void;
   showBack: boolean;
   crumb: string;
+  /** FR-TBL-3：表格抽出为独立表格文档（fields: + 表格主体）。 */
+  onExtractDoc: (content: string) => void;
 }
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; message: string };
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
-export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb }: NoteDocumentProps) {
+export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, onExtractDoc }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [draft, setDraft] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
+  const [tableDialog, setTableDialog] = useState(false);
   const getMarkdownRef = useRef<(() => string) | null>(null);
+  const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
+
+  /** 统一文档更新链路（FR-PROP-3）：属性区/表格写回与正文草稿合并后保存，并回灌编辑器。 */
+  const saveFullMarkdown = useCallback(async (next: string) => {
+    if (!item) return;
+    setDraft(next);
+    setSaveState({ kind: "saving" });
+    try {
+      const saved = await saveItemContent(userId, item.id, next);
+      const savedMarkdown = saved.content.scope === "plain" ? saved.content.markdown : "";
+      setDraft(savedMarkdown);
+      applyExternalRef.current?.(savedMarkdown);
+      setSaveState({ kind: "idle" });
+    } catch (cause) {
+      setSaveState({ kind: "error", message: String(cause) });
+    }
+  }, [item, userId]);
 
   // noteId 变化时初始化（父组件以 key 重挂载，这里兜底异步到达）。
   useEffect(() => {
@@ -124,6 +146,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         saveState={saveState} onRetry={() => void flush()}
         extra={(
           <>
+            <button type="button" className="mn-iconbtn" aria-label="表格结构化编辑" title="表格结构化编辑" onClick={() => setTableDialog(true)}>
+              <Table />
+            </button>
             {unfiled && (
               <button type="button" className="mn-iconbtn" aria-label="整理到主题" title="整理到主题" onClick={() => setOrganizing(true)}>
                 <FolderInput />
@@ -142,6 +167,12 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           onBlur={() => { if (title !== null) void flushTitle(title); }}
           key={item.id}
         />
+        {plain && (
+          <PropertyPanel
+            markdown={draft ?? plain.markdown}
+            onSave={(next) => void saveFullMarkdown(next)}
+          />
+        )}
         <div className="mn-doc-tags" aria-label="标签">
           <Tag className="mn-doc-tags-icon" />
           {item.tags.map((tag) => (
@@ -170,9 +201,18 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
             externalMarkdown={plain.markdown}
             onInput={(value) => setDraft(value)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
+            registerApplyExternal={(apply) => { applyExternalRef.current = apply; }}
           />
         )}
       </div>
+      {tableDialog && (
+        <TableBlockDialog
+          markdown={draft ?? (plain ? plain.markdown : "")}
+          onSave={(next) => { setTableDialog(false); void saveFullMarkdown(next); }}
+          onClose={() => setTableDialog(false)}
+          onExtract={(content) => { setTableDialog(false); void onExtractDoc(content); }}
+        />
+      )}
       {organizing && (
         <OrganizeDialog
           item={item} topics={topics} onDone={() => { setOrganizing(false); onBack(); }}

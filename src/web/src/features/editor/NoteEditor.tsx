@@ -11,10 +11,12 @@ interface NoteEditorProps {
   onInput: (markdown: string) => void;
   /** 宿主注册取值器：切换模式/卸载/保存前由上层取真实当前值。 */
   registerGetMarkdown: (get: (() => string) | null) => void;
+  /** 属性区/表格等结构化写回合并进编辑器（FR-PROP-3 统一链路）：强制刷新并清除脏标记。 */
+  registerApplyExternal: (apply: ((markdown: string) => void) | null) => void;
 }
 
 /** 编辑器宿主（工程设计 3.2）：仅编辑态挂载适配器；预览态由上层渲染 MarkdownView。 */
-export function NoteEditor({ mode, externalMarkdown, onInput, registerGetMarkdown }: NoteEditorProps) {
+export function NoteEditor({ mode, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<EditorAdapter | null>(null);
   const dirtyRef = useRef(false);
@@ -29,8 +31,13 @@ export function NoteEditor({ mode, externalMarkdown, onInput, registerGetMarkdow
     });
     adapterRef.current = adapter;
     registerGetMarkdown(() => adapter.getMarkdown());
+    registerApplyExternal((markdown) => {
+      dirtyRef.current = false;
+      adapter.loadMarkdown(markdown);
+    });
     return () => {
       registerGetMarkdown(null);
+      registerApplyExternal(null);
       adapterRef.current = null;
       adapter.destroy();
       dirtyRef.current = false;

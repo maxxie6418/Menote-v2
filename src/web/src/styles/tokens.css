@@ -139,6 +139,7 @@
   --app-todopanel-width: 14rem;    /* E2 todo 侧板 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
+  --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
   --app-tree-indent-rest: calc(100% - var(--app-tree-indent)); /* E2 分组输入缩进余宽 */
   /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
   --md-body-size: 0.875rem;

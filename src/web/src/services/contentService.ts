@@ -35,6 +35,16 @@ function requireItem(userId: string, id: string): Promise<Item> {
   });
 }
 
+/** 写命令串行队列：正文自动保存、标题防抖与属性区预览态编辑走同一链路（FR-PROP-3），
+ *  读-改-写按序执行，避免并发相互覆盖（FR-PROP-3 的「统一文档更新链路」）。 */
+let writeChain: Promise<unknown> = Promise.resolve();
+
+function enqueueWrite<T>(write: () => Promise<T>): Promise<T> {
+  const next = writeChain.then(write, write);
+  writeChain = next.catch(() => {});
+  return next;
+}
+
 /* ---------- 主题与分组 ---------- */
 
 export async function createTopic(userId: string, name: string, parentId: string | null = null): Promise<TopicNode> {
@@ -115,7 +125,11 @@ export async function createMemo(userId: string, markdown: string, tags: string[
 }
 
 /** 正文保存（E2 自动保存复用）：rev+1、contentHash 重算、outbox 带 baseRev 供服务端冲突检测。 */
-export async function saveItemContent(userId: string, id: string, markdown: string): Promise<Item> {
+export function saveItemContent(userId: string, id: string, markdown: string): Promise<Item> {
+  return enqueueWrite(() => saveItemContentInner(userId, id, markdown));
+}
+
+async function saveItemContentInner(userId: string, id: string, markdown: string): Promise<Item> {
   const current = await requireItem(userId, id);
   if (current.content.scope !== "plain") throw new Error("加密条目正文经加密门面保存（G7）");
   const contentHash = await sha256Hex(markdown);
@@ -142,7 +156,11 @@ export interface ItemMetaPatch {
   starred?: boolean;
 }
 
-export async function saveItemMeta(userId: string, id: string, patch: ItemMetaPatch): Promise<Item> {
+export function saveItemMeta(userId: string, id: string, patch: ItemMetaPatch): Promise<Item> {
+  return enqueueWrite(() => saveItemMetaInner(userId, id, patch));
+}
+
+async function saveItemMetaInner(userId: string, id: string, patch: ItemMetaPatch): Promise<Item> {
   const current = await requireItem(userId, id);
   if (patch.groupId && !patch.topicId) throw new Error("分组归属必须同时指定主题（D1 约束同构）");
   const next: Item = {

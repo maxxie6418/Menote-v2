@@ -204,3 +204,33 @@
 /* ---------- 侧栏账户（G1） ---------- */
 .mn-foot-account { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 [data-sidebar="collapsed"] .mn-sb-foot { gap: var(--app-space-2); }
+
+/* ---------- E3 属性区 ---------- */
+.mn-propbar { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); padding: var(--app-space-6) var(--app-space-10); }
+.mn-propbar-head { display: flex; align-items: center; gap: var(--app-space-6); width: var(--app-full-size); border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-space-2) var(--app-zero); font-family: var(--app-font); }
+.mn-propbar-head svg { width: var(--app-icon-xs); height: var(--app-icon-xs); transition: transform var(--app-motion-fast) var(--app-ease); }
+.mn-propbar-head svg.closed { transform: rotate(-90deg); }
+.mn-propbar-add { display: flex; align-items: center; gap: var(--app-space-2); border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-zero); }
+.mn-propbar-add:hover { color: var(--app-fg); }
+.mn-propbar-add svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-proplist { margin: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-2); }
+.mn-proprow { display: flex; align-items: center; gap: var(--app-space-sm); }
+.mn-propkey { width: var(--app-prop-key-width); color: var(--app-fg-subtle); font-size: var(--app-size-chip); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-propvalue { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; margin: var(--app-zero); }
+.mn-propinput { flex: 1; min-width: var(--app-zero); height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
+.mn-propinput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-propselect { height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); flex: 1; }
+.mn-propmulti { display: flex; flex-wrap: wrap; gap: var(--app-space-6); }
+.mn-propmulti-option { display: flex; align-items: center; gap: var(--app-space-2); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
+.mn-proprow-add { flex-wrap: wrap; gap: var(--app-space-6); }
+.mn-proprow-actions { display: flex; gap: var(--app-space-6); }
+
+/* ---------- E3 表格结构化编辑 ---------- */
+.mn-dialog-wide { width: var(--app-dialog-wide); }
+.mn-tablegrid { overflow-x: auto; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-tablegrid-row { display: flex; border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-tablegrid-row:last-child { border-bottom: var(--app-zero); }
+.mn-tablegrid-row.head { background: var(--app-surface-sunken); }
+.mn-tablegrid-row > [role="gridcell"] { flex: 1; min-width: var(--app-note-grid-min); }
+.mn-tablegrid-input { width: var(--app-full-size); height: var(--app-prop-height); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
+.mn-tablegrid-input:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
