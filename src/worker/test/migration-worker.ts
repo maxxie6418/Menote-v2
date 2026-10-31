@@ -1,6 +1,6 @@
 import { migrations } from "../src/db/migrations";
-import { migrateSchema, schemaStatus } from "../src/services/schema";
-import { requestSummary, sampleRequest } from "../src/services/monitor";
+import { migrateSchema, schemaStatus } from "../src/services/schemaService";
+import { requestSummary, sampleRequest } from "../src/services/monitorService";
 
 export default {
   async fetch(request: Request, env: { DB: D1Database }): Promise<Response> {

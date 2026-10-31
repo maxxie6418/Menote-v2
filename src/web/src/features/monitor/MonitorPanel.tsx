@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_MONITOR_PREFERENCES, type MonitorPreferences, type MonitorSummary } from "@menote/shared";
-import { getMonitorSummary } from "../../services/monitor";
-import { loadMonitorPreferences, saveMonitorPreferences, validPreferences } from "../../services/monitor-preferences";
+import { getMonitorSummary } from "../../services/monitorService";
+import { loadMonitorPreferences, saveMonitorPreferences, validPreferences } from "../../services/monitorPreferencesService";
 
 export default function MonitorPanel({ refresh }: { refresh: number }) {
   const [period, setPeriod] = useState<MonitorSummary["period"]>("utc_day");

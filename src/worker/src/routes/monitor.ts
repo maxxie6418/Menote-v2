@@ -1,4 +1,4 @@
-import { requestSummary } from "../services/monitor";
+import { requestSummary } from "../services/monitorService";
 
 export async function monitorRoute(request: Request, env: Env): Promise<Response> {
   if (request.method !== "GET") return new Response(null, { status: 405, headers: { Allow: "GET" } });

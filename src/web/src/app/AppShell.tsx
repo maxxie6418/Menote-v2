@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
-import { SystemStatusPage } from "../status/SystemStatusPage";
+import { SystemStatusPage } from "./SystemStatusPage";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */

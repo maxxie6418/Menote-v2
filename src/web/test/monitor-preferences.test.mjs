@@ -6,7 +6,7 @@ import { indexedDB } from "fake-indexeddb";
 
 globalThis.indexedDB = indexedDB;
 const result = await build({
-  entryPoints: [fileURLToPath(new URL("../src/services/monitor-preferences.ts", import.meta.url))],
+  entryPoints: [fileURLToPath(new URL("../src/services/monitorPreferencesService.ts", import.meta.url))],
   bundle: true, write: false, format: "esm", platform: "browser",
 });
 const service = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);

@@ -1,6 +1,6 @@
 import { Activity, AlignLeft, Clock, FileText, Inbox, Lock, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
 import type { LayoutMode } from "./AppShell";
-import { APP_VERSION_LABEL } from "../version";
+import { APP_VERSION_LABEL } from "../lib/version";
 
 interface SidebarProps {
   layout: LayoutMode;

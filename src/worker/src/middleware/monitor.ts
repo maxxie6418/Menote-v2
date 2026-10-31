@@ -1,4 +1,4 @@
-import { sampleRequest } from "../services/monitor";
+import { sampleRequest } from "../services/monitorService";
 
 /** Monitoring must never change the result of the underlying request. */
 export function observeRequest(env: Env, ctx: ExecutionContext): void {

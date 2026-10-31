@@ -1,5 +1,5 @@
 import type { HealthResponse } from "@menote/shared";
-import { readiness } from "../services/health";
+import { readiness } from "../services/healthService";
 
 export async function healthRoute(request: Request, env: Env): Promise<Response> {
   const path = new URL(request.url).pathname;

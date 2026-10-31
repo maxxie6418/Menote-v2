@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import type { HealthResponse } from "@menote/shared";
 import { ArrowLeft } from "lucide-react";
-import { getReadiness } from "../services/health";
+import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
-import { APP_VERSION_LABEL } from "../version";
+import { APP_VERSION_LABEL } from "../lib/version";
 
 interface SystemStatusPageProps {
   onBack: () => void;

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
-const result = await build({ entryPoints: [fileURLToPath(new URL("../src/version.ts", import.meta.url))], bundle: true, write: false, format: "esm", platform: "browser", define: { __APP_VERSION__: '"0.0.1"', __APP_BUILD_COMMIT__: '"abc1234"', __APP_BUILD_TIME__: '"2026-10-31T00:00:00Z"' } });
+const result = await build({ entryPoints: [fileURLToPath(new URL("../src/lib/version.ts", import.meta.url))], bundle: true, write: false, format: "esm", platform: "browser", define: { __APP_VERSION__: '"0.0.1"', __APP_BUILD_COMMIT__: '"abc1234"', __APP_BUILD_TIME__: '"2026-10-31T00:00:00Z"' } });
 const version = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
 
 test("version label combines version, commit and build time", () => {

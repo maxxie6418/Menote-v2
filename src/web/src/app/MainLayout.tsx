@@ -1,8 +1,6 @@
 import { LayoutGrid, List, Menu } from "lucide-react";
 import type { LayoutMode, MobilePane, ViewMode } from "./AppShell";
-import { NoteDocument } from "../notes/NoteDocument";
-import { NoteGrid } from "../notes/NoteGrid";
-import { NoteList } from "../notes/NoteList";
+import { NoteDocument, NoteGrid, NoteList } from "../features/notes";
 
 interface MainLayoutProps {
   layout: LayoutMode;

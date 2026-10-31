@@ -1,6 +1,6 @@
 import { DEFAULT_MONITOR_PREFERENCES, type MonitorSummary } from "@menote/shared";
 import { insertRequestSample, readRequestSamples } from "../db/monitor";
-import { ledgerReady } from "./schema";
+import { ledgerReady } from "./schemaService";
 
 // A 1% sample bounds writes to approximately one per 100 API invocations.
 export const REQUEST_SAMPLE_RATE = 0.01;

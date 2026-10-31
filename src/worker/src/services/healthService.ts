@@ -1,5 +1,5 @@
 import type { HealthResponse } from "@menote/shared";
-import { migrateSchema } from "./schema";
+import { migrateSchema } from "./schemaService";
 
 /** Checks and initializes only when all mandatory configuration is present. */
 export async function readiness(env: Env): Promise<HealthResponse> {
