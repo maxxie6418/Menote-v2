@@ -36,7 +36,7 @@ async function realignAttachmentRefs(ctx: ApplyContext, hashes: string[]): Promi
   for (const sha256 of new Set(hashes)) {
     if (!/^[0-9a-f]{64}$/.test(sha256)) continue;
     await ensureAttachmentRow(ctx.db, ctx.userId, sha256);
-    await setAttachmentRefs(ctx.db, ctx.userId, sha256, await countItemReferences(ctx.db, ctx.userId, sha256));
+    await setAttachmentRefs(ctx.db, ctx.userId, sha256, await countItemReferences(ctx.db, ctx.userId, sha256), ctx.now);
   }
 }
 

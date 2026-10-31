@@ -37,12 +37,29 @@ export async function deleteAttachmentIfUnreferenced(db: D1Database, userId: str
   return true;
 }
 
-/** G6 推送应用时按正文哈希列表对齐引用计数。 */
+/** G6 推送应用时按正文哈希列表对齐引用计数；归零进入孤儿观察期（30 天后真删，G10）。 */
 export async function setAttachmentRefs(
-  db: D1Database, userId: string, sha256: string, refCount: number,
+  db: D1Database, userId: string, sha256: string, refCount: number, now = Date.now(),
 ): Promise<void> {
-  await db.prepare("UPDATE attachments SET ref_count = ? WHERE user_id = ? AND sha256 = ?")
-    .bind(Math.max(0, refCount), userId, sha256).run();
+  await db.prepare(
+    `UPDATE attachments SET ref_count = ?,
+       orphaned_at = CASE WHEN ? > 0 THEN NULL ELSE COALESCE(orphaned_at, ?) END
+     WHERE user_id = ? AND sha256 = ?`,
+  ).bind(Math.max(0, refCount), Math.max(0, refCount), now, userId, sha256).run();
+}
+
+export interface OrphanRow { userId: string; sha256: string }
+
+/** 孤儿期已满（30 天）的附件清单。 */
+export async function listExpiredOrphans(db: D1Database, cutoff: number): Promise<OrphanRow[]> {
+  const rows = await db.prepare(
+    "SELECT user_id, sha256 FROM attachments WHERE ref_count = 0 AND orphaned_at IS NOT NULL AND orphaned_at <= ? LIMIT 200",
+  ).bind(cutoff).all<{ user_id: string; sha256: string }>();
+  return rows.results.map((row) => ({ userId: row.user_id, sha256: row.sha256 }));
+}
+
+export async function deleteAttachmentRow(db: D1Database, userId: string, sha256: string): Promise<void> {
+  await db.prepare("DELETE FROM attachments WHERE user_id = ? AND sha256 = ?").bind(userId, sha256).run();
 }
 
 /** 引用对齐时补齐缺失的元数据行（不覆盖既有 size/mime；计数另设）。 */
