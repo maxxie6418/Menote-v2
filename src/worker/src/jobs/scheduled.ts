@@ -12,9 +12,26 @@ export interface ScheduledJob {
 export const scheduledJobs: ScheduledJob[] = [
   {
     name: "backup_push",
-    description: "备份分片推送与断点续传（G9 接入）",
-    enabled: false,
-    run: () => {},
+    description: "备份分片推送（daily/weekly 到期目标，G9）",
+    enabled: true,
+    run: async (env) => {
+      const { listDueTargets, recordTargetResult } = await import("../db/backup");
+      const { pushBackup, openSecret } = await import("../services/backupService");
+      const now = Date.now();
+      for (const target of await listDueTargets(env.DB, now)) {
+        try {
+          const secret = await openSecret(Reflect.get(env, "AUTH_PEPPER") as string, target.secret_ciphertext ?? "");
+          const result = await pushBackup(
+            { db: env.DB, userId: target.user_id, bucket: env.BUCKET },
+            { kind: target.kind === "s3" ? "s3" : "webdav", endpoint: target.endpoint ?? "", bucket: target.bucket, username: target.username, secret },
+          );
+          const message = result.ok ? `ok:${new Date().toISOString()}:${result.shards} 分片` : `失败:${result.error}`;
+          await recordTargetResult(env.DB, target.user_id, target.id, message);
+        } catch (error) {
+          await recordTargetResult(env.DB, target.user_id, target.id, `失败:${String(error).slice(0, 200)}`);
+        }
+      }
+    },
   },
   {
     name: "cleanup",

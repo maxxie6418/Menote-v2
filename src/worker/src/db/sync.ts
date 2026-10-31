@@ -27,7 +27,7 @@ export async function readLogPage(db: D1Database, userId: string, cursor: number
   };
 }
 
-function rowToItem(row: Record<string, unknown>): Item {
+export function rowToItem(row: Record<string, unknown>): Item {
   const encSelf = Number(row.enc_self) === 1;
   const inEncSpace = Number(row.in_enc_space) === 1;
   const scope = encSelf ? "self" : inEncSpace ? "private_space" : "plain";

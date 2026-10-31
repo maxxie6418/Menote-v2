@@ -256,3 +256,12 @@
 .mn-diff-line.added { background: var(--app-accent-subtle); }
 .mn-diff-line.removed { background: var(--app-surface-sunken); text-decoration: line-through; color: var(--app-fg-faint); }
 .mn-trashactions { display: flex; gap: var(--app-space-sm); align-items: center; }
+
+/* ---------- G9 备份面板 ---------- */
+.mn-backuplist { list-style: none; margin: var(--app-space-sm) var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-4); }
+.mn-backuprow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); font-size: var(--app-size-chip); }
+.mn-backupname { color: var(--app-fg); }
+.mn-backupsecret { font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-muted); word-break: break-all; width: var(--app-full-size); }
+.mn-backupform { display: flex; flex-wrap: wrap; gap: var(--app-space-6); margin-top: var(--app-space-sm); align-items: center; }
+.mn-backupform .mn-propinput { flex: 1; min-width: var(--app-note-grid-min); }
+.mn-backupform .mn-auth-submit { margin-top: var(--app-zero); }
