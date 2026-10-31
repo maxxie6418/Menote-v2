@@ -66,7 +66,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const items = useSectionItems(userId, section);
 
   if (view === "status") {
-    return <SystemStatusPage onBack={() => setView("main")} />;
+    return <SystemStatusPage onBack={() => setView("main")} userId={user.id} />;
   }
 
   const account = { username: user.username, role: user.role };

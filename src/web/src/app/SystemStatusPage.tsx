@@ -4,14 +4,17 @@ import { ArrowLeft } from "lucide-react";
 import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
 import { APP_VERSION_LABEL } from "../lib/version";
+import { AttachmentListPanel } from "../features/attachments";
 
 interface SystemStatusPageProps {
   onBack: () => void;
+  /** G5：登录后提供附件管理（FR-SYNC-8）。 */
+  userId?: string;
 }
 
 /* 系统状态页：健康自检、资源监控与版本信息（从 M1 应用状态页迁移）。
    数据一律经 services，UI 不直连网络。 */
-export function SystemStatusPage({ onBack }: SystemStatusPageProps) {
+export function SystemStatusPage({ onBack, userId }: SystemStatusPageProps) {
   const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -41,6 +44,8 @@ export function SystemStatusPage({ onBack }: SystemStatusPageProps) {
           {health === "ready" && <MonitorPanel refresh={attempt} />}
           <button type="button" className="app-button" onClick={() => { if (health !== "checking") setAttempt((value) => value + 1); }} aria-disabled={health === "checking"}>重新检查</button>
         </section>
+        {userId && <AttachmentListPanel userId={userId} />}
+      
       </main>
       <footer className="app-footer">{APP_VERSION_LABEL}</footer>
     </div>

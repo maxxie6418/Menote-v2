@@ -3,6 +3,7 @@ import { dispatchScheduled } from "./jobs/scheduled";
 import { observeRequest } from "./middleware/monitor";
 import type { AppEnv } from "./middleware/session";
 import { authRoutes } from "./routes/auth";
+import { attachmentRoutes } from "./routes/attachments";
 import { healthRoutes } from "./routes/health";
 import { monitorRoutes } from "./routes/monitor";
 
@@ -10,6 +11,7 @@ import { monitorRoutes } from "./routes/monitor";
 const app = new Hono<AppEnv>()
   .route("/", healthRoutes)
   .route("/", authRoutes)
+  .route("/", attachmentRoutes)
   .route("/", monitorRoutes);
 
 export default {

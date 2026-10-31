@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Pencil, Tag, Trash2, FolderInput, Table } from "lucide-react";
+import { ChevronLeft, Download, Eye, Paperclip, Pencil, Tag, Trash2, FolderInput, Table } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -7,6 +7,7 @@ import { PropertyPanel } from "../props";
 import { TableBlockDialog } from "../table";
 import { useItem } from "../../services/contentHooks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
+import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -34,6 +35,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
   const [tableDialog, setTableDialog] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
 
@@ -128,6 +132,25 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
     await saveItemMeta(userId, item.id, { tags: [...item.tags, tag] });
   };
 
+  /** 附件上传（FR-SYNC-7）：sha256 内容寻址，插入相对路径引用（追加在正文末尾，M3 打磨光标插入）。 */
+  const onUploadPicked = async (file: File | undefined) => {
+    if (!file || uploading || !item) return;
+    setUploading(true);
+    try {
+      const result = await uploadAttachment(file);
+      if ("error" in result) {
+        setSaveState({ kind: "error", message: result.error });
+        return;
+      }
+      const latest = getMarkdownRef.current?.() ?? draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
+      const next = `${latest.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`;
+      await saveFullMarkdown(next);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (!item) {
     return (
       <article className="mn-doc" aria-label="文档区">
@@ -146,8 +169,14 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         saveState={saveState} onRetry={() => void flush()}
         extra={(
           <>
+            <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+              <Paperclip />
+            </button>
             <button type="button" className="mn-iconbtn" aria-label="表格结构化编辑" title="表格结构化编辑" onClick={() => setTableDialog(true)}>
               <Table />
+            </button>
+            <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
+              <Download />
             </button>
             {unfiled && (
               <button type="button" className="mn-iconbtn" aria-label="整理到主题" title="整理到主题" onClick={() => setOrganizing(true)}>
@@ -213,6 +242,29 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           onExtract={(content) => { setTableDialog(false); void onExtractDoc(content); }}
         />
       )}
+      {exporting && item && (
+        <div className="mn-overlay" role="presentation">
+          <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="导出">
+            <p className="mn-dialog-title">导出「{item.title}」</p>
+            {hasAttachmentRefs(item) && (
+              <p className="mn-auth-hint">纯 Markdown 导出时附件引用会断链；zip 导出会随行附件目录。</p>
+            )}
+            {item.content.scope !== "plain" && (
+              <p className="mn-auth-hint">已加密内容导出须先解锁（C-1：锁定态只能取得密文）。</p>
+            )}
+            <div className="mn-dialog-actions">
+              <button type="button" className="mn-auth-submit" onClick={() => { void exportNoteZip(userId, item); setExporting(false); }}>
+                导出 zip（含附件）
+              </button>
+              <button type="button" className="mn-auth-link" onClick={() => { exportNoteMarkdown(item); setExporting(false); }}>
+                纯 Markdown
+              </button>
+              <button type="button" className="mn-auth-link" onClick={() => setExporting(false)}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <input ref={fileInputRef} type="file" hidden aria-hidden="true" onChange={(event) => void onUploadPicked(event.target.files?.[0])} />
       {organizing && (
         <OrganizeDialog
           item={item} topics={topics} onDone={() => { setOrganizing(false); onBack(); }}

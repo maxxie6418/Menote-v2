@@ -1,12 +1,19 @@
 import { useMemo, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { attachmentUrl } from "../../services/attachmentService";
 
 interface MarkdownViewProps {
   markdown: string;
   /** 传入时任务复选框可点击（FR-MEMO-3）；不传则复选框只读（Note 预览态）。 */
   onToggleTask?: (ordinal: number, checked: boolean) => void;
   className?: string;
+}
+
+/** 相对附件引用解析为鉴权 URL（FR-SYNC-7）；会话 cookie 授权。 */
+function resolveSrc(src: string | undefined): string | undefined {
+  const match = typeof src === "string" ? src.match(/^attachments\/([0-9a-f]{64})--/) : null;
+  return match ? attachmentUrl(match[1]!) : src;
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
@@ -29,6 +36,16 @@ export function MarkdownView({ markdown, onToggleTask, className }: MarkdownView
           onChange={(event) => onToggleTask(ordinal, event.target.checked)}
         />
       );
+    },
+    img(props) {
+      const { node, ...rest } = props as { node?: unknown; src?: unknown; alt?: unknown; [key: string]: unknown };
+      void node;
+      const src = typeof rest.src === "string" ? rest.src : undefined;
+      const alt = typeof rest.alt === "string" ? rest.alt : "";
+      const imgProps: Record<string, unknown> = { ...rest };
+      delete imgProps.src;
+      delete imgProps.alt;
+      return <img src={resolveSrc(src)} alt={alt} loading="lazy" {...imgProps} />;
     },
   };
   return (
