@@ -9,8 +9,8 @@ Menote V2：浏览器访问的本地优先笔记应用（Memo + Note 双形态�
 ## 2. 仓库结构（必须遵守）
 
 - 全部代码在 `src/` 下（pnpm workspaces 指向 `src/*`）：`src/web`（前端）、`src/worker`（Worker API）、`src/shared`（类型与契约）。
-- 根目录白名单：`README.md`、`AGENTS.md`、`package.json`、`pnpm-workspace.yaml`、`wrangler.jsonc`、`pnpm-lock.yaml`、`.gitignore`、`wiki/`、`archive/`、`draft/`、`todo/`、`src/`。**新增文件必须归位到对应目录，不得散落根目录。**
-- 文档进 `wiki/`（现行）/ `archive/`（历史），不进根目录。
+- 根目录白名单：`README.md`、`AGENTS.md`、`DESIGN.md`、`package.json`、`pnpm-workspace.yaml`、`wrangler.jsonc`、`pnpm-lock.yaml`、`.gitignore`、`wiki/`、`archive/`、`draft/`、`todo/`、`src/`。**新增文件必须归位到对应目录，不得散落根目录。**
+- 文档进 `wiki/`（现行）/ `archive/`（历史）；负责人确认的核心视觉规范 `DESIGN.md` 保留在根目录。
 
 ## 3. 分层规则（必须遵守）
 

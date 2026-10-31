@@ -1,0 +1,28 @@
+* { box-sizing: border-box; }
+html, body, #root { min-height: var(--app-full-size); margin: var(--app-zero); }
+body { background: var(--app-bg-side); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-font-body); line-height: var(--app-leading-body); }
+button { font: inherit; }
+.app-shell { min-height: var(--app-viewport-height); }
+.app-header { display: flex; align-items: center; gap: var(--app-space-md); padding: var(--app-space-md) var(--app-space-xl); border-bottom: var(--app-line) solid var(--app-border); background: var(--app-surface); }
+.app-wordmark { font-weight: var(--app-weight-medium); }
+.app-stage { color: var(--app-fg-subtle); font-size: var(--app-font-small); }
+.app-main { padding: var(--app-main-top) var(--app-space-lg) var(--app-space-2xl); }
+.status-panel { max-width: var(--app-main-width); margin: var(--app-zero) auto; }
+.app-eyebrow { color: var(--app-fg-subtle); font-size: var(--app-font-small); font-weight: var(--app-weight-medium); }
+h1 { margin: var(--app-space-sm) var(--app-zero); font-size: var(--app-font-title); line-height: var(--app-leading-title); }
+.app-description, .status-detail { color: var(--app-fg-muted); }
+.status-card { margin: var(--app-space-xl) var(--app-zero); padding: var(--app-space-lg); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); }
+.status-title { margin: var(--app-zero); font-weight: var(--app-weight-medium); }
+.status-detail { margin: var(--app-space-xs) var(--app-zero) var(--app-zero); }
+.app-button { min-height: var(--app-button-height); padding: var(--app-space-xs) var(--app-space-lg); border: var(--app-zero); border-radius: var(--app-radius); background: var(--app-accent); color: var(--app-accent-text); font-weight: var(--app-weight-medium); cursor: pointer; }
+.app-button:focus-visible { outline: var(--app-focus-width) solid var(--app-fg); outline-offset: var(--app-focus-width); }
+.app-button[aria-disabled="true"] { cursor: wait; }
+
+.monitor-label, .monitor-settings { display: block; margin-top: var(--app-space-md); }
+.monitor-fields { display: flex; flex-wrap: wrap; gap: var(--app-space-md); margin: var(--app-space-md) var(--app-zero); }
+.monitor-fields label { display: grid; gap: var(--app-space-xs); }
+.monitor-fields input { max-width: var(--app-field-width); }
+input, select { font: inherit; color: var(--app-fg); background: var(--app-surface); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-space-xs); }
+input:focus-visible, select:focus-visible, summary:focus-visible { outline: var(--app-focus-width) solid var(--app-fg); outline-offset: var(--app-focus-width); }
+
+.monitor-trend { padding-left: var(--app-space-lg); color: var(--app-fg-muted); }

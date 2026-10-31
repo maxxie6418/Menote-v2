@@ -1,1 +1,8 @@
 /.workbuddy/
+
+node_modules/
+dist/
+.wrangler/
+.dev.vars*
+.env*
+/draft/tmp/

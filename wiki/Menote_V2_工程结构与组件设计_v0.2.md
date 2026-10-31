@@ -14,6 +14,7 @@
 Menote-v2/
 ├── README.md               # 项目入口
 ├── AGENTS.md               # 开发纪律（人类与 Agent 共用，M1 DoD 依据）
+├── DESIGN.md               # 核心视觉规范
 ├── package.json            # 根工作区清单
 ├── pnpm-workspace.yaml     # 工作区指向 src/*
 ├── wrangler.jsonc          # 根级部署配置（main → src/worker 入口；Static Assets → src/web 产物）
@@ -49,7 +50,7 @@ Menote-v2/
             └── constants/              # 限制常量（分页、大小上限、限速）
 ```
 
-- 根目录白名单（新增文件一律归位）：`README.md`、`AGENTS.md`、`package.json`、`pnpm-workspace.yaml`、`wrangler.jsonc`、`pnpm-lock.yaml`、`.gitignore`、`wiki/`、`archive/`、`draft/`、`todo/`、`src/`。
+- 根目录白名单（新增文件一律归位）：`README.md`、`AGENTS.md`、`DESIGN.md`、`package.json`、`pnpm-workspace.yaml`、`wrangler.jsonc`、`pnpm-lock.yaml`、`.gitignore`、`wiki/`、`archive/`、`draft/`、`todo/`、`src/`。
 - `[实施定]` wrangler 配置放根级还是 `src/worker/` 内：以 Deploy to Cloudflare 按钮对 monorepo 的实际支持为准，M1 验证后定。
 
 ## 2. 工作区与构建
