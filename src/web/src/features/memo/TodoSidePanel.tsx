@@ -69,8 +69,9 @@ export function TodoSidePanel({ userId, memos, open, onToggle }: TodoSidePanelPr
             {!collapsed && (
               <ul className="mn-todolist">
                 {items.map((memo) => (
-                  <li key={memo.id} className="mn-todoitem" draggable
+                  <li key={memo.id} className={`mn-todoitem ${status}`} draggable
                     onDragStart={(event) => event.dataTransfer.setData("text/menote-item", memo.id)}>
+                    <span className={`mn-todo-dot ${status}`} aria-hidden="true" />
                     <input
                       type="checkbox" aria-label={status === "done" ? "取消完成" : "标记完成"}
                       checked={status === "done"}

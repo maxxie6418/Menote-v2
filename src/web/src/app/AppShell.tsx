@@ -12,6 +12,7 @@ import { useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
 import { lockIfIdle } from "../services/keyring";
+import { SettingsDialog } from "../features/settings";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */
@@ -62,6 +63,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [noteId, setNoteId] = useState<string | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [todoOpen, setTodoOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const userId = user.id;
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
@@ -127,8 +129,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
       onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
+      onOpenSettings={() => { setSettingsOpen(true); setDrawerOpen(false); }}
     />
   );
+  const settingsDialog = settingsOpen ? <SettingsDialog userId={userId} onClose={() => setSettingsOpen(false)} /> : null;
 
   if (section.kind === "memos") {
     return (
@@ -143,6 +147,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           onOpenDrawer={() => setDrawerOpen(true)}
           onOpenStatus={() => setView("status")}
         />
+        {settingsDialog}
       </div>
     );
   }
@@ -270,6 +275,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           </button>
         </nav>
       )}
+      {settingsDialog}
     </div>
   );
 }

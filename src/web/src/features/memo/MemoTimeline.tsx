@@ -23,9 +23,22 @@ export function MemoTimeline({ userId, memos, onDragItem }: MemoTimelineProps) {
       </div>
     );
   }
+  // design mgroup：按日分组，分组标题带延展线。
+  const groups: Array<{ label: string; memos: Item[] }> = [];
+  for (const memo of memos) {
+    const label = new Date(memo.createdAt).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.memos.push(memo);
+    else groups.push({ label, memos: [memo] });
+  }
   return (
     <div className="mn-timeline" aria-label="Memo 时间线">
-      {memos.map((memo) => <MemoCard key={memo.id} userId={userId} memo={memo} onDragItem={onDragItem} />)}
+      {groups.map((group) => (
+        <section key={group.label}>
+          <p className="mn-mgroup">{group.label}</p>
+          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} memo={memo} onDragItem={onDragItem} />)}
+        </section>
+      ))}
     </div>
   );
 }
@@ -51,7 +64,7 @@ function MemoCard({ userId, memo, onDragItem }: { userId: string; memo: Item; on
     <article className="mn-memo-card" draggable={!editing}
       onDragStart={(event) => onDragItem(event, memo.id)}>
       <div className="mn-memo-meta">
-        <time>{new Date(memo.createdAt).toLocaleString(undefined, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
+        <time>{new Date(memo.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
         <span className="mn-memo-actions">
           {!editing && (
             <button type="button" className="mn-minibtn" aria-label="编辑 Memo" onClick={() => { setValue(memo.content.scope === "plain" ? memo.content.markdown : ""); setEditing(true); }}>

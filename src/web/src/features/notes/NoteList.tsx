@@ -1,6 +1,7 @@
+import { FileText } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
-import { formatItemMeta } from "./format";
+import { formatItemMeta, noteSnippet } from "./format";
 
 interface NoteListProps {
   items: Item[] | undefined;
@@ -22,11 +23,10 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail 
           className={item.id === selectedId ? "mn-note-row on" : "mn-note-row"}
           onClick={() => onSelect(item.id)}
         >
+          <FileText className="mn-note-row-icon" aria-hidden="true" />
           <span className="mn-note-row-title">{item.title}</span>
-          <span className="mn-note-row-meta">
-            {item.tags.length > 0 && <span className="mn-note-row-tags">{item.tags.map((tag) => `#${tag}`).join(" ")}</span>}
-            <span>{formatItemMeta(item)}</span>
-          </span>
+          <span className="mn-note-row-meta">{formatItemMeta(item)}</span>
+          <span className="mn-note-row-desc">{noteSnippet(item) || "（空白）"}</span>
         </button>
       ))}
     </div>

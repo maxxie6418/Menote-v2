@@ -122,3 +122,13 @@ export function useLockVersion(): number {
   useEffect(() => subscribeLockState(() => setVersion(getLockVersion())), []);
   return version;
 }
+
+/** 已启用加密的条目数（设置·恢复码区展示用）。 */
+export function useEncryptedCount(userId: string): number {
+  return useData(async () => {
+    if (!userId) return 0;
+    const { localDb } = await import("../db/localDb");
+    return localDb.items.where("userId").equals(userId)
+      .filter((item) => item.content.scope !== "plain").count();
+  }, [userId], Boolean(userId)) ?? 0;
+}

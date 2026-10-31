@@ -4,8 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
 import { APP_VERSION_LABEL } from "../lib/version";
-import { AttachmentListPanel } from "../features/attachments";
-import { BackupPanel } from "../features/backup";
 
 interface SystemStatusPageProps {
   onBack: () => void;
@@ -45,8 +43,6 @@ export function SystemStatusPage({ onBack, userId }: SystemStatusPageProps) {
           {health === "ready" && <MonitorPanel refresh={attempt} />}
           <button type="button" className="app-button" onClick={() => { if (health !== "checking") setAttempt((value) => value + 1); }} aria-disabled={health === "checking"}>重新检查</button>
         </section>
-        {userId && <BackupPanel userId={userId} />}
-        {userId && <AttachmentListPanel userId={userId} />}
       
       </main>
       <footer className="app-footer">{APP_VERSION_LABEL}</footer>

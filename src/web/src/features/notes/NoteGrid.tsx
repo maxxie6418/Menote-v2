@@ -1,6 +1,7 @@
+import { FileText } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
-import { formatItemMeta } from "./format";
+import { formatItemMeta, noteSnippet } from "./format";
 
 interface NoteGridProps {
   items: Item[] | undefined;
@@ -11,9 +12,7 @@ interface NoteGridProps {
 }
 
 function snippet(item: Item): string {
-  if (item.content.scope !== "plain") return "已加密";
-  const text = item.content.markdown.replace(/[#>*`\-\[\]]/g, "").trim();
-  return text.slice(0, 80);
+  return noteSnippet(item);
 }
 
 /** 网格视图（FR-IA-7），卡片进入独立阅读区。 */

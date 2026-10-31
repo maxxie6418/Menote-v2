@@ -21,6 +21,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   onCloseDrawer: () => void;
   onOpenStatus: () => void;
+  onOpenSettings: () => void;
 }
 
 const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean =>
@@ -28,7 +29,7 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
 
 /* 侧栏（FR-IA-4 顺序：快速输入 / 新建笔记 / Memo 时间线 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
    搜索入口仍未定不放侧栏（E5 后置）；私人空间固定入口保持锁定态（G7）。 */
-export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenStatus }: SidebarProps) {
+export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenStatus, onOpenSettings }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -49,7 +50,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
               {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
             </button>
           )}
-          <button type="button" className="mn-iconbtn" aria-disabled="true" title="设置将在后续版本开放" aria-label="设置（未开放）">
+          <button type="button" className="mn-iconbtn" aria-label="打开设置" title="设置" onClick={onOpenSettings}>
             <SlidersHorizontal />
           </button>
         </span>

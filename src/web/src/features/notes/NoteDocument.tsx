@@ -179,7 +179,6 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
     <article className="mn-doc" aria-label="文档区">
       <DocBar
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
-        saveState={saveState} onRetry={() => void flush()}
         extra={(
           <>
             <button type="button" className="mn-iconbtn" aria-label="版本历史" title="版本历史" onClick={() => setHistory(true)}>
@@ -253,6 +252,16 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           />
         )}
       </div>
+      <div className="mn-doc-foot">
+        <span>{(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).length} 字符</span>
+        <span className="mn-doc-foot-right">
+          {saveState.kind === "saving" && "保存中…"}
+          {saveState.kind === "error" && (
+            <button type="button" className="mn-savestate err" onClick={() => { void flush(); }}>保存失败 · 重试</button>
+          )}
+          {saveState.kind === "idle" && "已保存"}
+        </span>
+      </div>
       {tableDialog && (
         <TableBlockDialog
           markdown={draft ?? (plain ? plain.markdown : "")}
@@ -317,12 +326,10 @@ interface DocBarProps {
   mode: "edit" | "preview";
   onMode: (mode: "edit" | "preview") => void;
   actionsDisabled?: boolean;
-  saveState?: SaveState;
-  onRetry?: () => void;
   extra?: React.ReactNode;
 }
 
-function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, saveState, onRetry, extra }: DocBarProps) {
+function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, extra }: DocBarProps) {
   return (
     <div className="mn-docbar">
       <span className="mn-docbar-left">
@@ -334,10 +341,6 @@ function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, saveSt
         <span className="mn-crumb">{crumb}</span>
       </span>
       <span className="mn-docbar-right">
-        {saveState?.kind === "saving" && <span className="mn-savestate">保存中…</span>}
-        {saveState?.kind === "error" && (
-          <button type="button" className="mn-savestate err" onClick={onRetry}>保存失败 · 重试</button>
-        )}
         {extra}
         <span className="mn-vt" role="group" aria-label="编辑/预览切换">
           <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"}

@@ -136,7 +136,14 @@
   --app-button-height: 2.5rem;
   --app-auth-card-width: min(22rem, 100%); /* G1 认证卡片 */
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
-  --app-todopanel-width: 14rem;    /* E2 todo 侧板 */
+  --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
+  --app-settings-dialog: 40.5rem;  /* 设置对话框 648px */
+  --app-lock-card: 21.625rem;      /* 锁定卡 346px */
+  --app-settings-height: 33.125rem; /* 设置对话框 530px */
+  --app-dlg-head-height: 50px;      /* 设置对话框头 */
+  --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
+  --app-memo-time-col: 38px;        /* Memo 时间列 */
+  --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Lock } from "lucide-react";
 import { generateRecoveryCode } from "../../services/cryptoService";
 
 /** 启用单篇加密（FR-ENC-2/3/6）：独立单篇密码；恢复码生成并一次性展示（明文永不入库）。 */
@@ -81,7 +82,8 @@ export function UnlockPanel({ onUnlock, error }: {
   const [busy, setBusy] = useState(false);
   return (
     <div className="mn-unlockpanel">
-      <p className="mn-empty-title">此笔记已加密</p>
+      <span className="mn-unlockmark" aria-hidden="true"><Lock /></span>
+      <h3 className="mn-unlocktitle">此笔记已加密</h3>
       <p className="mn-auth-hint">{useRecovery ? "输入恢复码解锁。" : "输入单篇密码解锁。"}</p>
       <input
         className="mn-propinput mn-unlockinput" type="password" value={credential} autoFocus
