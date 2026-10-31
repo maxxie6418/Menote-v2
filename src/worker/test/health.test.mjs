@@ -55,7 +55,7 @@ test("both resources and secret initialize schema; unknown routes do not expose 
     assert.equal((await req(mf, "/api/health/ready", { method: "POST" })).status, 405);
     assert.equal((await req(mf, "/api/other")).status, 404);
     const database = await mf.getD1Database("DB");
-    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 21);
+    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 22);
   });
 });
 
@@ -73,7 +73,7 @@ test("newer schema is not reported as ready", async () => {
   await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
     assert.equal((await req(mf, "/api/health/ready")).status, 200);
     const database = await mf.getD1Database("DB");
-    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (22, 'future')").run();
+    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (23, 'future')").run();
     assert.equal((await req(mf, "/api/health/ready")).status, 503);
   });
 });

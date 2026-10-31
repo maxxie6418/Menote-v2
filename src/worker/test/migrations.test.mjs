@@ -26,7 +26,7 @@ test("initialization and repeat are idempotent, including concurrent calls", asy
     for (const response of responses) assert.equal(await response.text(), "ready");
     assert.equal(await (await request(mf)).text(), "ready");
     const versions = await db.prepare("SELECT version, name FROM schema_migrations").all();
-    assert.deepEqual(versions.results, [{ version: 1, name: "0001_monitor_samples" }, { version: 2, name: "0002_monitor_index" }, { version: 3, name: "0003_users" }, { version: 4, name: "0004_topics" }, { version: 5, name: "0005_items" }, { version: 6, name: "0006_attachments" }, { version: 7, name: "0007_monitor_hourly" }, { version: 8, name: "0008_item_versions" }, { version: 9, name: "0009_version_insert_guard" }, { version: 10, name: "0010_version_update_guard" }, { version: 11, name: "0011_item_encryption_guard" }, { version: 12, name: "0012_mcp_tokens" }, { version: 13, name: "0013_mcp_audit" }, { version: 14, name: "0014_backup_targets" }, { version: 15, name: "0015_user_settings" }, { version: 16, name: "0016_backup_target_name" }, { version: 17, name: "0017_backup_target_enabled" }, { version: 18, name: "0018_user_credentials" }, { version: 19, name: "0019_app_settings" }, { version: 20, name: "0020_sessions" }, { version: 21, name: "0021_login_throttle" }]);
+    assert.deepEqual(versions.results, [{ version: 1, name: "0001_monitor_samples" }, { version: 2, name: "0002_monitor_index" }, { version: 3, name: "0003_users" }, { version: 4, name: "0004_topics" }, { version: 5, name: "0005_items" }, { version: 6, name: "0006_attachments" }, { version: 7, name: "0007_monitor_hourly" }, { version: 8, name: "0008_item_versions" }, { version: 9, name: "0009_version_insert_guard" }, { version: 10, name: "0010_version_update_guard" }, { version: 11, name: "0011_item_encryption_guard" }, { version: 12, name: "0012_mcp_tokens" }, { version: 13, name: "0013_mcp_audit" }, { version: 14, name: "0014_backup_targets" }, { version: 15, name: "0015_user_settings" }, { version: 16, name: "0016_backup_target_name" }, { version: 17, name: "0017_backup_target_enabled" }, { version: 18, name: "0018_user_credentials" }, { version: 19, name: "0019_app_settings" }, { version: 20, name: "0020_sessions" }, { version: 21, name: "0021_login_throttle" }, { version: 22, name: "0022_job_runs" }]);
     const table = await db.prepare("SELECT name FROM sqlite_master WHERE name = 'monitor_samples'").first();
     assert.equal(table.name, "monitor_samples");
   });
@@ -36,9 +36,9 @@ test("failed upgrade rolls back its schema and version and can be retried", asyn
   await databaseTest(async (mf, db) => {
     assert.equal((await request(mf, "/fail")).status, 500);
     assert.equal(await db.prepare("SELECT name FROM sqlite_master WHERE name = 'test_upgrade'").first(), null);
-    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 21);
-    assert.equal(await (await request(mf, "/upgrade")).text(), "ready");
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 22);
+    assert.equal(await (await request(mf, "/upgrade")).text(), "ready");
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 23);
     assert.equal(await (await request(mf)).text(), "incompatible");
   });
 });
@@ -132,7 +132,7 @@ test("monitor refuses reads and writes when the schema is newer or renamed", asy
     assert.equal(await (await request(mf)).text(), "ready");
     await request(mf, "/sample");
     assert.equal((await db.prepare("SELECT sample_count FROM monitor_hourly").first()).sample_count, 1);
-    await db.prepare("INSERT INTO schema_migrations (version, name) VALUES (22, 'future')").run();
+    await db.prepare("INSERT INTO schema_migrations (version, name) VALUES (23, 'future')").run();
     await request(mf, "/sample");
     assert.equal((await db.prepare("SELECT sample_count FROM monitor_hourly").first()).sample_count, 1);
     assert.equal((await request(mf, "/summary")).status, 503);

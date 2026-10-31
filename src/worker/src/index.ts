@@ -13,7 +13,9 @@ const app = new Hono<AppEnv>()
   .route("/", monitorRoutes);
 
 export default {
-  scheduled: dispatchScheduled,
+  scheduled(controller, env, ctx) {
+    return dispatchScheduled(env, ctx);
+  },
   fetch(request, env, ctx) {
     observeRequest(env, ctx, request);
     return app.fetch(request, env, ctx);
