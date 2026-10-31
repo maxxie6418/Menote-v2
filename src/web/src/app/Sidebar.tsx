@@ -1,4 +1,4 @@
-import { Activity, AlignLeft, Clock, FileText, Inbox, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
+import { Activity, AlignLeft, Clock, FileText, Inbox, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star, Trash2 } from "lucide-react";
 import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "./AppShell";
 import type { BrowseSection } from "../services/contentHooks";
@@ -74,6 +74,11 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "starred" }); }}>
           <Star />
           {!collapsed && "收藏"}
+        </a>
+        <a href="#" className={isSection(section, "trash") ? "on" : ""}
+          onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "trash" }); }}>
+          <Trash2 />
+          {!collapsed && "回收站"}
         </a>
       </nav>
       <div className="mn-duo" role="group" aria-label="收集入口">

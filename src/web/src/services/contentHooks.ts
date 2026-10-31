@@ -59,7 +59,7 @@ export function useTrashedItems(userId: string): Item[] {
 
 /** 侧栏导航分区（UI 会话级状态，不含内容）。 */
 export type BrowseSection =
-  | { kind: "recent" | "inbox" | "drafts" | "memos" | "starred" }
+  | { kind: "recent" | "inbox" | "drafts" | "memos" | "starred" | "trash" }
   | { kind: "topic"; id: string }
   | { kind: "tag"; tag: string };
 
@@ -104,11 +104,13 @@ export function useSectionItems(userId: string, section: BrowseSection): Item[] 
   const recent = useRecentItems(userId);
   const tag = useTagItems(userId, section.kind === "tag" ? section.tag : "");
   const starred = useStarredItems(userId);
+  const trash = useTrashedItems(userId);
   if (section.kind === "topic") return topic;
   if (section.kind === "inbox") return inbox;
   if (section.kind === "drafts") return drafts;
   if (section.kind === "tag") return tag;
   if (section.kind === "starred") return starred;
+  if (section.kind === "trash") return trash;
   return recent;
 }
 

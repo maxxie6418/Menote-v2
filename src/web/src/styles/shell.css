@@ -244,3 +244,15 @@
 /* ---------- G6 同步状态指示 ---------- */
 .mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); white-space: nowrap; }
 .mn-syncbadge.err { color: var(--app-danger); }
+
+/* ---------- G8 版本与回收站 ---------- */
+.mn-versionlist { list-style: none; margin: var(--app-zero); padding: var(--app-zero); max-height: var(--app-space-2xl); overflow-y: auto; display: flex; flex-direction: column; gap: var(--app-space-2); }
+.mn-versionrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); width: var(--app-full-size); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); cursor: pointer; border-radius: var(--app-radius-sm); text-align: left; }
+.mn-versionrow:hover { background: var(--app-hover); }
+.mn-versionrow.on { background: var(--app-selected); color: var(--app-fg); }
+.mn-versionmeta { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-diff { display: grid; grid-template-columns: 1fr 1fr; gap: var(--app-space-sm); overflow: auto; max-height: var(--app-space-2xl); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); padding: var(--app-space-6); }
+.mn-diff-line { margin: var(--app-zero); font-family: var(--md-code-font); font-size: var(--app-size-micro); line-height: var(--app-leading-nav); white-space: pre-wrap; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }
+.mn-diff-line.added { background: var(--app-accent-subtle); }
+.mn-diff-line.removed { background: var(--app-surface-sunken); text-decoration: line-through; color: var(--app-fg-faint); }
+.mn-trashactions { display: flex; gap: var(--app-space-sm); align-items: center; }

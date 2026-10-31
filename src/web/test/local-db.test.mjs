@@ -140,3 +140,35 @@ test("isBlankDraft and the startup sweep honor the three gates (FR-VER-7)", asyn
   await dbModule.localDb.items.put({ ...aged, createdAt: Date.now() - 48 * 3_600_000 });
   assert.equal(await content.sweepBlankDrafts(USER, Date.now()), 0);
 });
+
+test("version archive, throttle, capacity trim and restore (FR-VER-1/2/3)", async () => {
+  await resetLocalDb();
+  const note = await content.createNote(USER);
+  await content.saveItemContent(USER, note.id, "第一版");
+  const rows1 = await dbModule.localDb.versions.where("itemId").equals(note.id).toArray();
+  assert.equal(rows1.length, 1, "保存前封存了种子内容");
+  assert.equal(rows1[0].content, "");
+  // 10 分钟节流内不重复封存
+  await content.saveItemContent(USER, note.id, "第二版");
+  const rows2 = await dbModule.localDb.versions.where("itemId").equals(note.id).toArray();
+  assert.equal(rows2.length, 1);
+  // 恢复：先封存当前稿再写回
+  const target = rows2[0].id;
+  const restored = await content.restoreVersion(USER, note.id, target);
+  assert.equal(restored.content.markdown, "");
+  const afterRestore = await dbModule.localDb.versions.where("itemId").equals(note.id).toArray();
+  assert.equal(afterRestore.some((row) => row.reason === "restore"), true, "恢复前封存当前稿");
+  assert.equal((await dbModule.localDb.items.get(note.id)).content.markdown, "");
+});
+
+test("trash restore clears the tombstone and enqueue an upsert (FR-VER-6)", async () => {
+  await resetLocalDb();
+  const note = await content.createNote(USER);
+  await content.softDeleteItem(USER, note.id);
+  assert.equal((await content.queries.trashed(USER)).some((row) => row.id === note.id), true);
+  await content.restoreFromTrash(USER, note.id);
+  const restored = await dbModule.localDb.items.get(note.id);
+  assert.equal(restored.deletedAt, null);
+  const rows = await outboxRows();
+  assert.equal(rows[rows.length - 1].action, "upsert", "恢复以 upsert 传播（复活语义）");
+});

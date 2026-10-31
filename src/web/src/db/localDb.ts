@@ -34,6 +34,20 @@ export interface WrapRow {
   wraps: KeyWrap[];
 }
 
+/** 版本快照（G8，FR-VER-1）：封存写入前的一份全文；加密条目只存密文（FR-VER-5）。 */
+export interface VersionRow {
+  id?: number;
+  itemId: string;
+  userId: string;
+  title: string;
+  /** plain 作用域存 Markdown；加密条目存信封字符串（FR-VER-5 只存密文）。 */
+  content: string;
+  scope: "plain" | "sealed";
+  rev: number;
+  reason: "autosave" | "session" | "restore" | "manual";
+  createdAt: number;
+}
+
 /** E1 表集；版本历史（G8）与同步游标推进（G6）随对应工作项扩展。 */
 class MenoteLocalDb extends Dexie {
   topics!: Table<TopicNode, string>;
@@ -41,6 +55,7 @@ class MenoteLocalDb extends Dexie {
   settings!: Table<UserSetting, [string, string]>;
   outbox!: Table<OutboxRow, number>;
   wraps!: Table<WrapRow, string>;
+  versions!: Table<VersionRow, number>;
   meta!: Table<MetaRow, string>;
 
   constructor() {
@@ -51,6 +66,7 @@ class MenoteLocalDb extends Dexie {
       settings: "[userId+key], userId",
       outbox: "++seq, entityId, nextRetryAt",
       wraps: "itemId",
+      versions: "++id, itemId, createdAt, userId",
       meta: "key",
     });
   }

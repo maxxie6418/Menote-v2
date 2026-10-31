@@ -4,7 +4,8 @@ import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "./SystemStatusPage";
 import { MemoWorkspace } from "../features/memo";
-import { NoteDocument } from "../features/notes";
+import { NoteDocument, TrashItemPanel } from "../features/notes";
+import { purgeItemsPermanently } from "../services/contentService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
@@ -39,14 +40,15 @@ function useLayoutMode(): LayoutMode {
   return mode;
 }
 
-const SECTION_TITLES: Record<"recent" | "inbox" | "drafts" | "starred", string> = {
-  recent: "全部笔记", inbox: "收件箱", drafts: "草稿箱", starred: "收藏",
+const SECTION_TITLES: Record<"recent" | "inbox" | "drafts" | "starred" | "trash", string> = {
+  recent: "全部笔记", inbox: "收件箱", drafts: "草稿箱", starred: "收藏", trash: "回收站",
 };
-const SECTION_EMPTY: Record<"recent" | "inbox" | "drafts" | "starred", [string, string]> = {
+const SECTION_EMPTY: Record<"recent" | "inbox" | "drafts" | "starred" | "trash", [string, string]> = {
   recent: ["还没有笔记", "点「新建笔记」先写再分类；内容自动保存在本机。"],
   inbox: ["收件箱是空的", "外部采集与 Agent 新建的笔记会落到这里，整理后自动移出。"],
   drafts: ["草稿箱是空的", "新建笔记若未指定归属，会先收在这里。"],
   starred: ["还没有收藏", "在文档里点星标，收藏的笔记会出现在这里。"],
+  trash: ["回收站是空的", "移入回收站的内容会出现在这里，可恢复或永久删除。"],
 };
 
 /* 主界面（M1.2 骨架 + E2 内容闭环）：三栏真数据、列表/网格、Memo 视图与 todo 侧板。 */
@@ -141,6 +143,60 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           onOpenDrawer={() => setDrawerOpen(true)}
           onOpenStatus={() => setView("status")}
         />
+      </div>
+    );
+  }
+
+  if (section.kind === "trash") {
+    const trashItem = noteId ? items?.find((row) => row.id === noteId) : undefined;
+    return (
+      <div className="mn-shell" {...shellProps}>
+        {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
+        {sidebar}
+        <MainLayout
+          layout={layout}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+          title="回收站"
+          items={items}
+          selectedNoteId={noteId}
+          onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); }}
+          emptyTitle="回收站是空的"
+          emptyDetail="移入回收站的内容会出现在这里，可恢复或永久删除。"
+          headerExtra={(
+            <button type="button" className="mn-minibtn" aria-label="清空回收站"
+              onClick={async () => {
+                if (!items || items.length === 0 || !window.confirm(`清空回收站（${items.length} 项）？永久删除不可恢复。`)) return;
+                await purgeItemsPermanently(userId, items.map((row) => row.id));
+                setNoteId(null);
+              }}>
+              清空回收站
+            </button>
+          )}
+          mobilePane={mobilePane}
+          onBackToList={() => setMobilePane("list")}
+          onOpenDrawer={() => setDrawerOpen(true)}
+          document={trashItem ? (
+            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => setMobilePane("list")} showBack={layout === "tablet" || layout === "mobile"} />
+          ) : (
+            <article className="mn-doc" aria-label="文档区">
+              <div className="mn-docbar"><span className="mn-docbar-left"><span className="mn-crumb">回收站</span></span></div>
+              <div className="mn-empty" role="status">
+                <div>
+                  <p className="mn-empty-title">选择一项</p>
+                  <p className="mn-empty-detail">恢复或永久删除在选中之后操作。</p>
+                </div>
+              </div>
+            </article>
+          )}
+        />
+        {layout === "mobile" && (
+          <nav className="mn-bottomnav" aria-label="主导航">
+            <button type="button" className={mobilePane === "list" ? "on" : ""} onClick={() => setMobilePane("list")}>清单</button>
+            <button type="button" className={mobilePane === "doc" ? "on" : ""} onClick={() => setMobilePane("doc")}>文档</button>
+            <button type="button" onClick={() => setView("status")}>状态</button>
+          </nav>
+        )}
       </div>
     );
   }

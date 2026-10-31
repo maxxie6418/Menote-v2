@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
+import { ChevronLeft, Clock, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -10,6 +10,7 @@ import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/co
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 import { EncryptedNoteView } from "./EncryptedNoteView";
+import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
 import { setSessionKey } from "../../services/keyring";
 import { enableItemEncryption } from "../../services/contentService";
@@ -41,6 +42,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [tableDialog, setTableDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [encrypting, setEncrypting] = useState(false);
+  const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
@@ -180,6 +182,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         saveState={saveState} onRetry={() => void flush()}
         extra={(
           <>
+            <button type="button" className="mn-iconbtn" aria-label="版本历史" title="版本历史" onClick={() => setHistory(true)}>
+              <Clock />
+            </button>
             <button type="button" className="mn-iconbtn" aria-label="启用单篇加密" title="启用单篇加密（独立密码+恢复码）" onClick={() => setEncrypting(true)}>
               <Shield />
             </button>
@@ -255,6 +260,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           onClose={() => setTableDialog(false)}
           onExtract={(content) => { setTableDialog(false); void onExtractDoc(content); }}
         />
+      )}
+      {history && item && (
+        <HistoryPanel userId={userId} itemId={item.id} currentMarkdown={draft ?? item.content.markdown} onClose={() => setHistory(false)} />
       )}
       {encrypting && item && (
         <EncryptSetupDialog

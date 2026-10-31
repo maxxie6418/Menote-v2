@@ -15,13 +15,14 @@ interface MainLayoutProps {
   emptyTitle: string;
   emptyDetail: string;
   document: ReactNode;
+  headerExtra?: ReactNode;
   mobilePane: MobilePane;
   onBackToList: () => void;
   onOpenDrawer: () => void;
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, emptyTitle, emptyDetail, document, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const singlePane = layout === "tablet" || layout === "mobile";
   const showList = !singlePane || mobilePane === "list";
   const showDoc = !singlePane || mobilePane === "doc";
@@ -39,6 +40,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
               )}
               <span className="mn-listhead-title">{title}</span>
             </span>
+            {headerExtra}
             <span className="mn-vt" role="group" aria-label="视图切换">
               <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
                 <List />
