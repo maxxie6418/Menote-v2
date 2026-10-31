@@ -15,7 +15,7 @@ Menote V2 是一款通过浏览器使用的本地优先笔记应用，面向个�
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmaxxie6418%2FMenote-v2)
 
-该入口使用仓库默认分支；当前远端默认分支为 `dev`，尚无 `main`。此入口现阶段只用于隔离测试，不应连接生产 D1/R2；尚未完成云端一键导入验收。Deploy to Cloudflare 会在你的 GitHub 账号中创建仓库副本，并尝试配置资源和构建。
+该入口使用仓库默认分支；当前远端默认分支为 `dev`，`main` 已按负责人要求建立。此入口目前取默认的 `dev`，只用于隔离测试，不应连接生产 D1/R2；正式环境应单独绑定 `main`。云端一键导入尚未完成验收。Deploy to Cloudflare 会在你的 GitHub 账号中创建仓库副本，并尝试配置资源和构建。
 
 Cloudflare 构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`：在 Cloudflare Worker 的 Secrets 中安全设置，不要将值提交到仓库或作为公开变量。R2 可能需要在 Cloudflare 账号级先开通；生产部署应跟踪 `main`。预览或测试资源必须与生产 D1/R2 隔离，未验证前不要启用预览环境。
 
