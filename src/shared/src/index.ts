@@ -9,7 +9,10 @@ export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./cont
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
 export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment } from "./types/item";
-export type { SyncTombstone, SyncPage, OutboxOperation } from "./contracts/sync";
+export type {
+  SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
+  SyncConflictDetail, SyncOperationResult, SyncPushResponse,
+} from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
 export type { OpaqueCiphertext, McpToken, McpAudit, BackupTarget } from "./types/integrations";
 export type { UserSetting, MonitorSample } from "./types/settings";
