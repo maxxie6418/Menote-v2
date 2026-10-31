@@ -10,6 +10,7 @@ export default function MonitorPanel({ refresh }: { refresh: number }) {
   const [preferences, setPreferences] = useState<MonitorPreferences>({ ...DEFAULT_MONITOR_PREFERENCES });
   const [draft, setDraft] = useState<MonitorPreferences>({ ...DEFAULT_MONITOR_PREFERENCES });
   const [message, setMessage] = useState("");
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -22,11 +23,21 @@ export default function MonitorPanel({ refresh }: { refresh: number }) {
     setSummary(null);
     setMonitorState("loading");
     getMonitorSummary(period, controller.signal).then((value) => {
+      if (controller.signal.aborted) return;
       setSummary(value);
       setMonitorState(value ? "ready" : "unavailable");
     }).catch(() => {});
     return () => controller.abort();
-  }, [period, refresh]);
+  }, [period, refresh, tick]);
+  useEffect(() => {
+    const now = Date.now();
+    const date = new Date(now);
+    const boundary = period === "utc_day"
+      ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1)
+      : Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
+    const timer = setTimeout(() => setTick((value) => value + 1), Math.min(60_000, Math.max(1, boundary - now)));
+    return () => clearTimeout(timer);
+  }, [period, tick]);
 
   async function save() {
     if (!validPreferences(draft)) { setMessage("请输入正整数额度，且阈值须递增并在 1–100 之间。"); return; }

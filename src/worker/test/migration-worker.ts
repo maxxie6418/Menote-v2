@@ -13,7 +13,7 @@ export default {
       await sampleRequest(env.DB, 1_800_000_001_000, 0);
       return new Response("sampled");
     }
-    const registry = route === "/upgrade"
+    const registry = route === "/up-to-v15" ? migrations.slice(0, 15) : route === "/upgrade"
       ? [...migrations, { version: migrations.length + 1, name: "next_test", statements: ["CREATE TABLE test_upgrade (id INTEGER)"] }]
       : route === "/fail"
         ? [...migrations, { version: migrations.length + 1, name: "next_test", statements: ["CREATE TABLE test_upgrade (id INTEGER)", "invalid sql"] }]

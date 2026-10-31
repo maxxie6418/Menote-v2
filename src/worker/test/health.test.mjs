@@ -10,8 +10,9 @@ const bundle = await build({
 });
 
 async function withWorker(env, run) {
-  const mf = new Miniflare({ workers: [{ config: {
+  const mf = new Miniflare({ unsafeTriggerHandlers: true, workers: [{ config: {
     name: "health-test", compatibilityDate: "2026-10-30", env,
+    triggers: [{ type: "scheduled", schedule: "0 * * * *" }],
     manifest: { mainModule: "main.mjs", modules: {
       "main.mjs": { type: "esm", contents: bundle.outputFiles[0].text },
     } },
@@ -42,7 +43,7 @@ test("both resources and secret initialize schema; unknown routes do not expose 
     assert.equal((await req(mf, "/api/health/ready", { method: "POST" })).status, 405);
     assert.equal((await req(mf, "/api/other")).status, 404);
     const database = await mf.getD1Database("DB");
-    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 15);
+    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 17);
   });
 });
 
@@ -60,7 +61,7 @@ test("newer schema is not reported as ready", async () => {
   await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
     assert.equal((await req(mf, "/api/health/ready")).status, 200);
     const database = await mf.getD1Database("DB");
-    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (16, 'future')").run();
+    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (18, 'future')").run();
     assert.equal((await req(mf, "/api/health/ready")).status, 503);
   });
 });
@@ -116,5 +117,17 @@ test("migration failure is unavailable and does not expose SQL or internal excep
     assert.equal(response.status, 503);
     assert.equal(await response.text(), JSON.stringify({ status: "unavailable" }));
     assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 0);
+  });
+});
+
+
+test("scheduled placeholder runs without creating application tables", async () => {
+  await withWorker({ DB: db, BUCKET: bucket }, async (mf) => {
+    const response = await req(mf, "/cdn-cgi/local/scheduled?cron=0+*+*+*+*");
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "ok");
+    const database = await mf.getD1Database("DB");
+    const row = await database.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','items','monitor_samples')").first();
+    assert.equal(row.n, 0);
   });
 });

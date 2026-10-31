@@ -14,6 +14,8 @@ import mcpTokens from "./0012_mcp_tokens.sql";
 import mcpAudit from "./0013_mcp_audit.sql";
 import backupTargets from "./0014_backup_targets.sql";
 import userSettings from "./0015_user_settings.sql";
+import backupTargetName from "./0016_backup_target_name.sql";
+import backupTargetEnabled from "./0017_backup_target_enabled.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -32,4 +34,6 @@ export const migrations = [
   { version: 13, name: "0013_mcp_audit", statements: [mcpAudit] },
   { version: 14, name: "0014_backup_targets", statements: [backupTargets] },
   { version: 15, name: "0015_user_settings", statements: [userSettings] },
+  { version: 16, name: "0016_backup_target_name", statements: [backupTargetName] },
+  { version: 17, name: "0017_backup_target_enabled", statements: [backupTargetEnabled] },
 ] as const satisfies readonly SchemaMigration[];

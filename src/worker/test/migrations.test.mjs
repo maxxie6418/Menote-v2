@@ -26,7 +26,7 @@ test("initialization and repeat are idempotent, including concurrent calls", asy
     for (const response of responses) assert.equal(await response.text(), "ready");
     assert.equal(await (await request(mf)).text(), "ready");
     const versions = await db.prepare("SELECT version, name FROM schema_migrations").all();
-    assert.deepEqual(versions.results, [{ version: 1, name: "0001_monitor_samples" }, { version: 2, name: "0002_monitor_index" }, { version: 3, name: "0003_users" }, { version: 4, name: "0004_topics" }, { version: 5, name: "0005_items" }, { version: 6, name: "0006_attachments" }, { version: 7, name: "0007_monitor_hourly" }, { version: 8, name: "0008_item_versions" }, { version: 9, name: "0009_version_insert_guard" }, { version: 10, name: "0010_version_update_guard" }, { version: 11, name: "0011_item_encryption_guard" }, { version: 12, name: "0012_mcp_tokens" }, { version: 13, name: "0013_mcp_audit" }, { version: 14, name: "0014_backup_targets" }, { version: 15, name: "0015_user_settings" }]);
+    assert.deepEqual(versions.results, [{ version: 1, name: "0001_monitor_samples" }, { version: 2, name: "0002_monitor_index" }, { version: 3, name: "0003_users" }, { version: 4, name: "0004_topics" }, { version: 5, name: "0005_items" }, { version: 6, name: "0006_attachments" }, { version: 7, name: "0007_monitor_hourly" }, { version: 8, name: "0008_item_versions" }, { version: 9, name: "0009_version_insert_guard" }, { version: 10, name: "0010_version_update_guard" }, { version: 11, name: "0011_item_encryption_guard" }, { version: 12, name: "0012_mcp_tokens" }, { version: 13, name: "0013_mcp_audit" }, { version: 14, name: "0014_backup_targets" }, { version: 15, name: "0015_user_settings" }, { version: 16, name: "0016_backup_target_name" }, { version: 17, name: "0017_backup_target_enabled" }]);
     const table = await db.prepare("SELECT name FROM sqlite_master WHERE name = 'monitor_samples'").first();
     assert.equal(table.name, "monitor_samples");
   });
@@ -36,9 +36,9 @@ test("failed upgrade rolls back its schema and version and can be retried", asyn
   await databaseTest(async (mf, db) => {
     assert.equal((await request(mf, "/fail")).status, 500);
     assert.equal(await db.prepare("SELECT name FROM sqlite_master WHERE name = 'test_upgrade'").first(), null);
-    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 15);
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 17);
     assert.equal(await (await request(mf, "/upgrade")).text(), "ready");
-    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 16);
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 18);
     assert.equal(await (await request(mf)).text(), "incompatible");
   });
 });
@@ -132,11 +132,11 @@ test("monitor refuses reads and writes when the schema is newer or renamed", asy
     assert.equal(await (await request(mf)).text(), "ready");
     await request(mf, "/sample");
     assert.equal((await db.prepare("SELECT sample_count FROM monitor_hourly").first()).sample_count, 1);
-    await db.prepare("INSERT INTO schema_migrations (version, name) VALUES (16, 'future')").run();
+    await db.prepare("INSERT INTO schema_migrations (version, name) VALUES (18, 'future')").run();
     await request(mf, "/sample");
     assert.equal((await db.prepare("SELECT sample_count FROM monitor_hourly").first()).sample_count, 1);
     assert.equal((await request(mf, "/summary")).status, 503);
-    await db.prepare("DELETE FROM schema_migrations WHERE version = 16").run();
+    await db.prepare("DELETE FROM schema_migrations WHERE version = 18").run();
     await db.prepare("UPDATE schema_migrations SET name = 'altered' WHERE version = 1").run();
     await request(mf, "/sample");
     assert.equal((await db.prepare("SELECT sample_count FROM monitor_hourly").first()).sample_count, 1);
@@ -163,5 +163,23 @@ test("trend buckets use UTC period boundaries and never fabricate empty samples"
     assert.equal(monthly.estimatedRequests, 200);
     assert.equal(monthly.points.length, 2);
     assert.ok(monthly.points.every((point) => point.sampleCount === 1));
+  });
+});
+
+
+test("backup target upgrade preserves records without enabling them", async () => {
+  await databaseTest(async (mf, db) => {
+    assert.equal(await (await request(mf, "/up-to-v15")).text(), "ready");
+    await db.prepare("INSERT INTO users (id,username,role,created_at) VALUES ('a','alice','owner',1)").run();
+    await db.prepare("INSERT INTO backup_targets (id,user_id,kind,endpoint,secret_ciphertext,delete_policy,schedule) VALUES ('b','a','webdav','https://example.invalid','opaque','append_only','daily')").run();
+    assert.equal(await (await request(mf)).text(), "ready");
+    const old = await db.prepare("SELECT name, enabled FROM backup_targets WHERE id='b'").first();
+    assert.equal(old.name, null);
+    assert.equal(old.enabled, 0);
+    await db.prepare("UPDATE backup_targets SET name='test target', enabled=1 WHERE id='b'").run();
+    const updated = await db.prepare("SELECT name, enabled FROM backup_targets WHERE id='b'").first();
+    assert.equal(updated.name, "test target");
+    assert.equal(updated.enabled, 1);
+    await assert.rejects(db.prepare("UPDATE backup_targets SET enabled=2 WHERE id='b'").run());
   });
 });

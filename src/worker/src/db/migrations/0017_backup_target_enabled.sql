@@ -1,0 +1,1 @@
+ALTER TABLE backup_targets ADD COLUMN enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1))

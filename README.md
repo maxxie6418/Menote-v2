@@ -17,6 +17,8 @@ Menote V2 是一款通过浏览器使用的本地优先笔记应用，面向个�
 
 该入口使用仓库默认分支；当前远端默认分支为 `dev`，`main` 已按负责人要求建立。此入口目前取默认的 `dev`，只用于隔离测试，不应连接生产 D1/R2；正式环境应单独绑定 `main`。云端一键导入尚未完成验收。Deploy to Cloudflare 会在你的 GitHub 账号中创建仓库副本，并尝试配置资源和构建。
 
-Cloudflare 构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`：在 Cloudflare Worker 的 Secrets 中安全设置，不要将值提交到仓库或作为公开变量。R2 可能需要在 Cloudflare 账号级先开通；生产部署应跟踪 `main`。预览或测试资源必须与生产 D1/R2 隔离，未验证前不要启用预览环境。
+M1 尚无登录功能：健康检查和安装级监控接口可由访问者调用。当前只允许使用可丢弃的测试数据，不要导入真实笔记、凭据或其他敏感内容。M2 完成认证、用户隔离与恢复演练前不得接入正式数据。
+
+Cloudflare 构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`：在 Cloudflare Worker 的 Secrets 中安全设置，不要将值提交到仓库或作为公开变量。R2 可能需要在 Cloudflare 账号级先开通；生产部署应跟踪 `main`。预览或测试资源必须与生产 D1/R2 隔离，未验证前不要启用预览环境。仓库配置显式关闭版本 URL；Workers Builds 的分支预览是独立开关，应在 Worker 的 Build → Branch control 中确认关闭，直到完成隔离验证。已部署的旧版本是否启用上述功能，需要在 Cloudflare 控制台单独检查。
 
 `AUTH_PEPPER` 遗失或轮换涉及安全迁移；在兼容轮换方案完成前，不要将重置 Secret 当作普通故障恢复步骤。

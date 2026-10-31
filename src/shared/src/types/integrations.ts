@@ -31,6 +31,8 @@ export interface McpAudit {
 export interface BackupTarget {
   id: string;
   userId: string;
+  name: string | null;
+  enabled: boolean;
   kind: "webdav" | "s3";
   endpoint: string;
   bucket: string | null;

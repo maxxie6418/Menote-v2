@@ -19,5 +19,11 @@
     {
       "binding": "BUCKET"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  },
+  "preview_urls": false
 }

@@ -4,15 +4,24 @@ import type { MonitorSummary } from "@menote/shared";
 const CACHE_MS = 60_000;
 const cache = new Map<MonitorSummary["period"], { at: number; value: MonitorSummary }>();
 
+function periodStart(period: MonitorSummary["period"], now: number): number {
+  const date = new Date(now);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), period === "utc_day" ? date.getUTCDate() : 1);
+}
+
 export async function getMonitorSummary(period: MonitorSummary["period"], signal: AbortSignal): Promise<MonitorSummary | null> {
+  const startedAt = Date.now();
   const existing = cache.get(period);
-  if (existing && Date.now() - existing.at < CACHE_MS) return existing.value;
+  if (existing && startedAt >= existing.at && startedAt - existing.at < CACHE_MS &&
+      periodStart(period, existing.at) === periodStart(period, startedAt)) return existing.value;
   try {
     const response = await fetch(`/api/monitor?period=${period}`, { signal, cache: "no-store" });
     if (!response.ok) return null;
     const result: unknown = await response.json();
-    if (!validSummary(result, period)) return null;
-    cache.set(period, { at: Date.now(), value: result });
+    const receivedAt = Date.now();
+    if (signal.aborted || !validSummary(result, period) || receivedAt < startedAt ||
+        periodStart(period, startedAt) !== periodStart(period, receivedAt)) return null;
+    cache.set(period, { at: startedAt, value: result });
     return result;
   } catch (error) {
     if (signal.aborted) throw error;
