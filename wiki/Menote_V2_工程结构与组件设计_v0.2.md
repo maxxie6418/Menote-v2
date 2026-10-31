@@ -114,9 +114,9 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
-**app/**：`Sidebar`（导航顺序按 FR-IA-4）、`MainLayout`（列表/网格双布局壳）。
+**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/监控/版本入口页，M1.2）。
 **tree/**：`TopicTree`（仅主题+分组）、`TreeNode`、`LockBadge`。
-**notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）。
+**notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
 **editor/**：`EditorHost`、`SourceEditor`、`WysiwygEditor`（M3）、`SelectionToolbar`、`MarkdownPreview`、`SourceModeMenuItem`。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
