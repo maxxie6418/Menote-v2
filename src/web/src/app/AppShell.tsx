@@ -10,6 +10,7 @@ import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
+import { lockIfIdle } from "../services/keyring";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */
@@ -63,6 +64,12 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
+
+  // FR-ENC-4 不活动自动锁定（默认 15 分钟）：周期检查，锁定触发全局重渲染。
+  useEffect(() => {
+    const timer = window.setInterval(() => { lockIfIdle(); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // G6 同步调度（G2 §3 触发时机）：打开、本地写入后 300ms、重新可见、网络恢复、每 5 分钟。
   useEffect(() => {

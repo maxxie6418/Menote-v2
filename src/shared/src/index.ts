@@ -11,7 +11,7 @@ export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contrac
 export type { Item, StoredContent, Attachment } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
-  SyncConflictDetail, SyncOperationResult, SyncPushResponse,
+  SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap,
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
 export type { OpaqueCiphertext, McpToken, McpAudit, BackupTarget } from "./types/integrations";

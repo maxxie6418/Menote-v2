@@ -1,5 +1,6 @@
 import type { Item, SyncOperationResult, TopicNode } from "@menote/shared";
 import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
+import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
 import { deleteOutboxRows, listPendingOutbox, markOutboxError } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
@@ -103,6 +104,11 @@ async function drainOutbox(deviceId: string): Promise<void> {
   for (;;) {
     const pending = await listPendingOutbox(PUSH_BATCH);
     if (pending.length === 0) return;
+    // 加密条目：随操作携带本地包装块（G7）。
+    for (const row of pending) {
+      const stored = await localDb.wraps.get(row.entityId);
+      if (stored) row.wraps = stored.wraps;
+    }
     const results = await postPush(deviceId, pending);
     if (results === null) {
       // 网络/服务端不可用：整批指数退避。
@@ -140,6 +146,10 @@ async function pullUpdates(userId: string): Promise<void> {
       items?: Item[]; topics?: TopicNode[]; tombstones?: { id: string; entity: "item" | "topic" }[];
       nextCursor?: unknown; hasMore?: boolean; fullResync?: boolean;
     };
+    // 包装块随页落库（G7：加密条目他端解锁的依据）。
+    for (const group of (body as { wraps?: Array<{ itemId: string; wraps: KeyWrap[] }> }).wraps ?? []) {
+      await localDb.wraps.put({ itemId: group.itemId, wraps: group.wraps });
+    }
     if (fullResync) {
       const keep = await pendingEntityIds();
       const allItems = await localDb.items.toArray();

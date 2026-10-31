@@ -1,6 +1,7 @@
 import type { Item, TopicNode } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
+import { putItemWraps, putTopicWraps } from "../db/keyWraps";
 import {
   appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readItemAttachmentHashes,
   readItemState, readSyncOperation, recordSyncOperation, upsertItemRow, upsertTopicRow,
@@ -65,6 +66,9 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
     try { return JSON.parse(current.attachmentHashesJson) as string[]; } catch { return []; }
   })() : [];
   await upsertItemRow(ctx.db, ctx.userId, ctx.deviceId, item, rev, metaRev);
+  if (operation.wraps && operation.wraps.length > 0) {
+    await putItemWraps(ctx.db, ctx.userId, item.id, operation.wraps, ctx.now);
+  }
   await appendSyncLog(ctx.db, ctx.userId, "item", item.id, "upsert", rev, metaRev, ctx.now);
   await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", item.id, "applied", rev, metaRev, item.contentHash, ctx.now);
   // 引用对齐覆盖旧+新引用集合：移除引用后计数同样要下降（FR-SYNC-7）。
@@ -93,6 +97,9 @@ async function applyTopic(ctx: ApplyContext, operation: OutboxOperation): Promis
   if (!topic || topic.id !== operation.entityId) throw new SyncRejected("invalid_payload");
   const deletedAt = operation.action === "delete" ? topic.deletedAt ?? ctx.now : topic.deletedAt;
   await upsertTopicRow(ctx.db, ctx.userId, topic, operation.action === "delete" ? deletedAt : topic.deletedAt);
+  if (operation.wraps && operation.wraps.length > 0 && operation.action === "upsert") {
+    await putTopicWraps(ctx.db, ctx.userId, topic.id, operation.wraps, ctx.now);
+  }
   await appendSyncLog(ctx.db, ctx.userId, "topic", topic.id, operation.action, 0, 0, ctx.now);
   await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "topic", topic.id, "applied", 0, 0, null, ctx.now);
   void deletedAt;

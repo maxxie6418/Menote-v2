@@ -6,6 +6,7 @@ import {
   readAllItemsPage, readAllTopics, readItems, readLogPage, readSettings, readTopics, toTombstone,
 } from "../db/sync";
 import { applyOperation } from "../services/syncService";
+import { readItemWrapGroups } from "../db/keyWraps";
 import { ensureSchemaReady } from "../services/authService";
 
 /** 同步路由（G6，按 G2 定稿）。推送逐操作独立事务；拉取游标 = sync_log.seq。 */
@@ -57,8 +58,10 @@ syncRoutes.get("/api/sync/pull", resolveSession, requireSession, async (c) => {
   if (oldestSeq !== null && oldestSeq > cursor + 1) {
     const items = await readAllItemsPage(db, userId, 0, PAGE_LIMIT);
     const topics = await readAllTopics(db, userId);
+    const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
+    const wraps = await readItemWrapGroups(db, userId, encryptedIds);
     return c.json({
-      items, topics, tombstones: [], settings: await readSettings(db, userId),
+      items, topics, tombstones: [], wraps, settings: await readSettings(db, userId),
       nextCursor: String(oldestSeq - 1), hasMore: items.length === PAGE_LIMIT, fullResync: true,
     }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -67,11 +70,13 @@ syncRoutes.get("/api/sync/pull", resolveSession, requireSession, async (c) => {
   const topicIds = page.entries.filter((entry) => entry.entity === "topic").map((entry) => entry.entityId);
   const items = await readItems(db, userId, itemIds);
   const topics = await readTopics(db, userId, topicIds);
+  const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
+  const wraps = await readItemWrapGroups(db, userId, encryptedIds);
   const tombstones = page.entries.filter((entry) => entry.op === "delete")
     .map((entry) => toTombstone(entry, userId, now));
   void RETENTION_MS;
   return c.json({
-    items, topics, tombstones, settings: await readSettings(db, userId),
+    items, topics, tombstones, wraps, settings: await readSettings(db, userId),
     nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(cursor),
     hasMore: page.hasMore, fullResync: false,
   }, { headers: { "Cache-Control": "no-store" } });

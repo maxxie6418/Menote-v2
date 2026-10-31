@@ -152,3 +152,19 @@ test("push requires a session and rejects malformed payloads as rejected results
     assert.equal(result.result, "rejected");
   });
 });
+
+test("encrypted items carry key wraps through push and pull (G7)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const wrap = { wrapper: "password", kdfSalt: "c2FsdA==", kdfIterations: 600000, iv: "aXYxMg==", ciphertext: "d3JhcA==", generation: 0 };
+    const item = itemOp("enc1", { rev: 1, markdown: "" });
+    item.payload.item.content = { scope: "self", ciphertext: "aXYxMjpzZWFsZWQ=" };
+    item.payload.item.title = "加密笔记";
+    item.wraps = [wrap];
+    let response = await post(mf, cookie, [item]);
+    assert.equal((await response.json()).results[0].result, "applied");
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    assert.equal(page.items.find((row) => row.id === "enc1").content.scope, "self");
+    assert.deepEqual(page.wraps, [{ itemId: "enc1", wraps: [wrap] }]);
+  });
+});

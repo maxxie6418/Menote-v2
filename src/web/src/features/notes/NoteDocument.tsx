@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Download, Eye, Paperclip, Pencil, Tag, Trash2, FolderInput, Table } from "lucide-react";
+import { ChevronLeft, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -9,6 +9,10 @@ import { useItem } from "../../services/contentHooks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
+import { EncryptedNoteView } from "./EncryptedNoteView";
+import { EncryptSetupDialog } from "../encryption";
+import { setSessionKey } from "../../services/keyring";
+import { enableItemEncryption } from "../../services/contentService";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -36,10 +40,13 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [organizing, setOrganizing] = useState(false);
   const [tableDialog, setTableDialog] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [encrypting, setEncrypting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
+  // 加密完成后本组件被 EncryptedNoteView 分支替代；此函数仅为类型占位。
+  function setPlainDraftAfterEncryption(): void { /* EncryptedNoteView 接管 */ }
 
   /** 统一文档更新链路（FR-PROP-3）：属性区/表格写回与正文草稿合并后保存，并回灌编辑器。 */
   const saveFullMarkdown = useCallback(async (next: string) => {
@@ -160,7 +167,11 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
     );
   }
 
-  const plain = item.content.scope === "plain" ? item.content : null;
+  if (item.content.scope !== "plain") {
+    return <EncryptedNoteView userId={userId} item={item} crumb={crumb} showBack={showBack} onBack={onBack} />;
+  }
+
+  const plain = item.content;
 
   return (
     <article className="mn-doc" aria-label="文档区">
@@ -169,6 +180,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         saveState={saveState} onRetry={() => void flush()}
         extra={(
           <>
+            <button type="button" className="mn-iconbtn" aria-label="启用单篇加密" title="启用单篇加密（独立密码+恢复码）" onClick={() => setEncrypting(true)}>
+              <Shield />
+            </button>
             <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
             </button>
@@ -240,6 +254,18 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           onSave={(next) => { setTableDialog(false); void saveFullMarkdown(next); }}
           onClose={() => setTableDialog(false)}
           onExtract={(content) => { setTableDialog(false); void onExtractDoc(content); }}
+        />
+      )}
+      {encrypting && item && (
+        <EncryptSetupDialog
+          onCancel={() => setEncrypting(false)}
+          onConfirm={async (password, code) => {
+            const latest = getMarkdownRef.current?.() ?? draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
+            const result = await enableItemEncryption(userId, item.id, latest, password, code);
+            setSessionKey(item.id, result.key);
+            setPlainDraftAfterEncryption();
+            return "ok";
+          }}
         />
       )}
       {exporting && item && (

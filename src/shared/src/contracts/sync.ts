@@ -2,7 +2,18 @@ import type { Item } from "../types/item";
 import type { TopicNode } from "../types/identity";
 import type { UserSetting } from "../types/settings";
 
-/** G2 定稿：游标 = 服务端 sync_log.seq（单库单调）；冲突/幂等语义见管理线计划「专项设计」。 */
+/** G2 定稿：游标 = 服务端 sync_log.seq（单库单调）；冲突/幂等语义见管理线计划「专项设计」。
+ *  G7 补充：加密条目的密钥包装块随 upsert 同步（payload.wraps / SyncPage.wraps），否则他端无法解锁。 */
+
+/** 密钥包装块（G4 设计 §2；b64 编码传输）。 */
+export interface KeyWrap {
+  wrapper: "password" | "recovery" | "topic";
+  kdfSalt: string;
+  kdfIterations: number;
+  iv: string;
+  ciphertext: string;
+  generation: number;
+}
 
 export interface SyncTombstone {
   id: string;
@@ -16,6 +27,8 @@ export interface SyncPage {
   topics: TopicNode[];
   tombstones: SyncTombstone[];
   settings: UserSetting[];
+  /** 加密条目的包装块（按条目分组随页返回，G7）。 */
+  wraps: Array<{ itemId: string; wraps: KeyWrap[] }>;
   nextCursor: string | null;
   hasMore: boolean;
   fullResync: boolean;
@@ -35,6 +48,8 @@ export interface OutboxOperation {
   contentHash?: string;
   attachmentRefs?: string[];
   payload: unknown;
+  /** 加密条目：随载荷携带密码/恢复码/主题包装块（G7）。 */
+  wraps?: KeyWrap[];
 }
 
 export interface SyncPushRequest {

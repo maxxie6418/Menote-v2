@@ -111,3 +111,12 @@ export function useSectionItems(userId: string, section: BrowseSection): Item[] 
   if (section.kind === "starred") return starred;
   return recent;
 }
+
+import { subscribeLockState, getLockVersion } from "./keyring";
+
+/** 锁定状态版本号（G7）：解锁/锁定时触发重渲染。 */
+export function useLockVersion(): number {
+  const [version, setVersion] = useState(getLockVersion);
+  useEffect(() => subscribeLockState(() => setVersion(getLockVersion())), []);
+  return version;
+}

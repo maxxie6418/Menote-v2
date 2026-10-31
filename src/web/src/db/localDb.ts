@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Item, TopicNode, UserSetting } from "@menote/shared";
+import type { Item, KeyWrap, TopicNode, UserSetting } from "@menote/shared";
 import type { SyncEntity } from "@menote/shared";
 
 /** 本地运行时权威副本（主文档 6.1：IndexedDB 权威 + D1 同步权威）。
@@ -16,6 +16,8 @@ export interface OutboxRow {
   contentHash?: string;
   attachmentRefs?: string[];
   payload: unknown;
+  /** 加密条目：随操作推送的包装块（G7）。 */
+  wraps?: KeyWrap[];
   queuedAt: number;
   retries: number;
   nextRetryAt: number | null;
@@ -27,12 +29,18 @@ export interface MetaRow {
   value: unknown;
 }
 
+export interface WrapRow {
+  itemId: string;
+  wraps: KeyWrap[];
+}
+
 /** E1 表集；版本历史（G8）与同步游标推进（G6）随对应工作项扩展。 */
 class MenoteLocalDb extends Dexie {
   topics!: Table<TopicNode, string>;
   items!: Table<Item, string>;
   settings!: Table<UserSetting, [string, string]>;
   outbox!: Table<OutboxRow, number>;
+  wraps!: Table<WrapRow, string>;
   meta!: Table<MetaRow, string>;
 
   constructor() {
@@ -42,6 +50,7 @@ class MenoteLocalDb extends Dexie {
       items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
       settings: "[userId+key], userId",
       outbox: "++seq, entityId, nextRetryAt",
+      wraps: "itemId",
       meta: "key",
     });
   }

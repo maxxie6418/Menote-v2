@@ -22,6 +22,7 @@ import sessions from "./0020_sessions.sql";
 import loginThrottle from "./0021_login_throttle.sql";
 import jobRuns from "./0022_job_runs.sql";
 import syncEngine from "./0023_sync_engine.sql";
+import keyWraps from "./0024_key_wraps.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -48,4 +49,5 @@ export const migrations = [
   { version: 21, name: "0021_login_throttle", statements: [loginThrottle] },
   { version: 22, name: "0022_job_runs", statements: [jobRuns] },
   { version: 23, name: "0023_sync_engine", statements: [syncEngine] },
+  { version: 24, name: "0024_key_wraps", statements: [keyWraps] },
 ] as const satisfies readonly SchemaMigration[];
