@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 视觉风格探索 v1</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:#0F1113;color:#E9EBED;
+    font:15px/1.65 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1260px;margin:0 auto;padding:52px 28px 96px}
+
+  /* ---------- page header ---------- */
+  .kicker{font:500 11px/1 ui-monospace,Consolas,monospace;letter-spacing:0;color:#7C858D;text-transform:uppercase}
+  h1{font-size:32px;line-height:1.3;margin:14px 0 12px;font-weight:600}
+  .lede{max-width:76ch;color:#A8B0B7;font-size:14.5px;line-height:1.8;margin:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .tag{font-size:11.5px;color:#9AA3AA;border:1px solid #262A2E;background:#15181A;border-radius:4px;padding:3px 9px}
+  .jump{display:flex;flex-wrap:wrap;gap:6px;margin-top:26px;padding-top:20px;border-top:1px solid #1F2326}
+  .jump a{font-size:12.5px;color:#C3CAD0;text-decoration:none;padding:5px 11px;border:1px solid #262A2E;border-radius:4px;background:#15181A}
+  .jump a:hover{border-color:#3A4046;color:#fff}
+
+  /* ---------- style section ---------- */
+  .style-block{margin-top:64px;scroll-margin-top:24px}
+  .sb-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .letter{font:600 12px/1 ui-monospace,Consolas,monospace;color:#0F1113;background:#E9EBED;border-radius:3px;padding:4px 7px}
+  .sb-head h2{font-size:20px;margin:0;font-weight:600}
+  .sb-head .pos{color:#8E979E;font-size:13px}
+  .sb-line{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+  .chip-k{font-size:11.5px;color:#8E979E;border:1px solid #23272B;border-radius:999px;padding:2px 9px}
+
+  .frame{margin-top:18px;background:#0B0D0E;border:1px solid #22262A;border-radius:14px;padding:16px;overflow-x:auto}
+  .frame::-webkit-scrollbar{height:8px}
+  .frame::-webkit-scrollbar-thumb{background:#2A2F33;border-radius:4px}
+
+  .tokens{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:16px;font-size:12px;color:#838C93}
+  .sw{display:flex;align-items:center;gap:7px}
+  .sw i{width:13px;height:13px;border-radius:3px;display:block;border:1px solid rgba(255,255,255,.16)}
+  .sw b{color:#C6CDD3;font-weight:500}
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;margin-top:16px;font-size:13px;line-height:1.7}
+  .notes>div{color:#98A1A8}
+  .notes b{display:inline-block;color:#DDE2E6;font-weight:500;margin-right:8px}
+  @media(max-width:760px){.notes{grid-template-columns:1fr}}
+
+  /* ---------- shared app skeleton (token-driven) ---------- */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:236px 288px minmax(0,1fr);
+    height:704px;overflow:hidden;
+    background:var(--canvas);color:var(--text);
+    font-family:var(--font-ui);font-size:13px;
+    border:1px solid var(--line-strong);border-radius:var(--app-radius,8px);
+    box-shadow:var(--app-shadow,none);
+  }
+  svg{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+  /* sidebar */
+  .sb{display:flex;flex-direction:column;gap:10px;padding:14px 12px 12px;background:var(--side-bg);border-right:1px solid var(--line);min-width:0}
+  .sb-top{display:flex;align-items:center;justify-content:space-between;padding:0 4px 4px}
+  .wordmark{font-size:15px;font-weight:600;letter-spacing:0}
+  .icon-btn{width:26px;height:26px;display:grid;place-items:center;background:none;border:0;padding:0;border-radius:var(--r-sm);color:var(--text-3);cursor:pointer;flex:none}
+  .icon-btn svg{width:15px;height:15px}
+  .memo-input{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px dashed var(--line-strong);border-radius:var(--r-md);color:var(--text-3);font-size:12.5px;background:var(--input-bg)}
+  .mi-key{font-family:var(--font-mono);font-size:10px;padding:0 4px;border:1px solid var(--line);border-radius:3px;line-height:15px;color:var(--text-3);flex:none}
+  .new-note{display:flex;align-items:center;justify-content:center;gap:7px;height:34px;border:0;border-radius:var(--r-md);background:var(--accent);color:var(--accent-ink);font-family:var(--font-ui);font-size:13px;font-weight:500;cursor:pointer}
+  .new-note svg{width:15px;height:15px;stroke-width:2}
+  .nav{display:flex;flex-direction:column;gap:1px;margin-top:2px}
+  .nav-item{display:flex;align-items:center;gap:9px;height:30px;padding:0 8px;border-radius:var(--r-sm);color:var(--text-2);text-decoration:none;cursor:pointer}
+  .nav-item svg{width:15px;height:15px;flex:none;color:var(--text-3)}
+  .badge{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);border:1px solid var(--line);border-radius:999px;padding:0 5px;line-height:14px}
+  .tree{display:flex;flex-direction:column;gap:1px;margin-top:6px;min-height:0}
+  .tree-label{font-size:10.5px;color:var(--text-3);padding:0 8px 4px;text-transform:var(--label-transform,none)}
+  .tree-row{display:flex;align-items:center;gap:7px;height:29px;padding:0 8px;border-radius:var(--r-sm);color:var(--text-2);font-size:12.5px;cursor:pointer}
+  .tree-row svg{width:14px;height:14px;flex:none;color:var(--text-3)}
+  .tree-row.lvl2{padding-left:28px;color:var(--text-3)}
+  .tree-row.is-current{background:var(--row-active);color:var(--text);font-weight:500}
+  .lock-state{margin-left:auto;font-size:10px;color:var(--text-3);border:1px solid var(--line);border-radius:3px;padding:0 4px;line-height:14px}
+  .sb-foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding:8px 4px 0;border-top:1px solid var(--line);color:var(--text-3);font-size:12px}
+  .avatar{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:10px;font-weight:600;flex:none}
+  .sb-foot .icon-btn{margin-left:auto}
+
+  /* list column */
+  .list{display:flex;flex-direction:column;min-width:0;background:var(--list-bg);border-right:1px solid var(--line)}
+  .list-head{padding:13px 14px 10px;border-bottom:1px solid var(--line)}
+  .lh-crumb{font-size:11.5px;color:var(--text-3);margin-bottom:7px}
+  .lh-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .count{font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
+  .view-toggle{display:flex;gap:1px}
+  .view-toggle .icon-btn{width:22px;height:22px;border-radius:var(--r-sm)}
+  .view-toggle .icon-btn.on{background:var(--seg-bg);color:var(--text)}
+  .rows{padding:6px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+  .row{padding:9px 10px;border-radius:var(--r-md);border-left:2px solid transparent;cursor:pointer}
+  .row.is-active{background:var(--row-active);border-left-color:var(--accent)}
+  .row-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text)}
+  .row-title svg{width:12px;height:12px;color:var(--text-3);flex:none}
+  .row-ex{font-size:11.5px;color:var(--text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row-meta{display:flex;gap:9px;margin-top:5px;font-family:var(--font-mono);font-size:10px;color:var(--text-3)}
+
+  /* document column */
+  .doc{display:flex;flex-direction:column;min-width:0;background:var(--doc-bg)}
+  .doc-bar{height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;border-bottom:1px solid var(--line);flex:none}
+  .db-crumb{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .db-actions{display:flex;align-items:center;gap:8px}
+  .seg{display:flex;padding:2px;border-radius:var(--r-sm);background:var(--seg-bg);font-size:11.5px}
+  .seg span{padding:2px 11px;border-radius:var(--r-sm);color:var(--text-3)}
+  .seg .on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.10)}
+  .doc-body{flex:1;min-height:0;padding:24px 40px 0;overflow:hidden}
+  .doc-title{margin:0 0 16px;font-size:27px;line-height:1.35;font-weight:600;font-family:var(--font-display)}
+  .props{border:1px solid var(--line);border-radius:var(--r-md);background:var(--props-bg);padding:10px 14px 12px;display:grid;grid-template-columns:1fr 1fr;gap:7px 26px;margin-bottom:22px}
+  .props-head{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--text-3);text-transform:var(--label-transform,none);margin-bottom:1px}
+  .props-head svg{width:12px;height:12px}
+  .props-head .n{font-family:var(--font-mono);font-size:10px;border:1px solid var(--line);border-radius:3px;padding:0 4px}
+  .prop{display:flex;align-items:center;gap:10px;font-size:12.5px;min-width:0}
+  .p-key{width:32px;flex:none;color:var(--text-3);font-size:11.5px}
+  .p-val{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip{background:var(--accent-soft);color:var(--accent-text);border-radius:999px;padding:1px 9px;font-size:11.5px}
+  .p-link{color:var(--accent-text);text-decoration:underline;text-underline-offset:2px}
+  .prose{font-family:var(--font-body);font-size:13.5px;line-height:1.85;color:var(--text)}
+  .prose h2{font-family:var(--font-display);font-size:14.5px;font-weight:600;margin:0 0 8px;color:var(--text)}
+  .prose p{margin:0 0 11px;color:var(--text-2)}
+  .prose ul{margin:0 0 11px;padding-left:17px;color:var(--text-2)}
+  .prose ul li{margin-bottom:2px}
+  .prose code{font-family:var(--font-mono);font-size:11.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+  .prose blockquote{margin:0 0 11px;padding:4px 0 4px 12px;border-left:2px solid var(--accent);color:var(--text-2);font-size:13px}
+  .prose pre{margin:0 0 11px;padding:9px 12px;background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.75;color:var(--text-2);overflow:hidden}
+  .tasks{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--text-2)}
+  .task{display:flex;align-items:center;gap:8px}
+  .box{width:12px;height:12px;border:1.5px solid var(--line-strong);border-radius:2px;flex:none;display:grid;place-items:center;color:var(--accent)}
+  .box.done{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .box svg{width:9px;height:9px;stroke-width:2.6}
+  .task.done span{color:var(--text-3);text-decoration:line-through}
+  .doc-foot{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);flex:none}
+
+  /* ---------- per-style token sets ---------- */
+  .s-a{
+    --canvas:#FAF8F3;--side-bg:#F6F2E9;--list-bg:#FAF7F1;--doc-bg:#FFFDF9;
+    --surface:#FFFDF9;--input-bg:#FBF7EF;--props-bg:#FCF9F2;--code-bg:#F4F0E6;
+    --line:#E6DED0;--line-strong:#D6CAB7;
+    --text:#1D1A14;--text-2:#56503F;--text-3:#8B8474;
+    --accent:#3B5C7A;--accent-ink:#FBFAF6;--accent-soft:rgba(59,92,122,.10);--accent-text:#33526E;
+    --row-active:rgba(59,92,122,.075);--seg-bg:rgba(29,26,20,.05);
+    --r-sm:2px;--r-md:3px;--app-radius:5px;--label-transform:none;
+    --font-ui:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    --font-display:"Songti SC","Noto Serif SC","Source Han Serif SC",Georgia,"SimSun",serif;
+    --font-body:"Songti SC","Noto Serif SC","Source Han Serif SC",Georgia,"SimSun",serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  .s-a .prose,.s-a .doc-title{font-size-adjust:.52}
+  .s-a .prose{font-size:14px}
+  .s-a .doc-title{font-size:30px}
+  .s-a .props{border-style:dashed}
+
+  .s-b{
+    --canvas:#16181A;--side-bg:#141618;--list-bg:#171A1C;--doc-bg:#1B1E21;
+    --surface:#22262A;--input-bg:#191C1F;--props-bg:#1E2124;--code-bg:#131618;
+    --line:#2A2F33;--line-strong:#3A4146;
+    --text:#E7EAEC;--text-2:#A2AAB1;--text-3:#757E86;
+    --accent:#7C9CFF;--accent-ink:#121619;--accent-soft:rgba(124,156,255,.16);--accent-text:#A8BDFF;
+    --row-active:rgba(124,156,255,.10);--seg-bg:#22262A;
+    --r-sm:3px;--r-md:5px;--app-radius:8px;--label-transform:uppercase;
+    --font-ui:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    --font-display:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-body:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  .s-b .tree-label,.s-b .props-head,.s-b .p-key,.s-b .lh-crumb{font-size:10px}
+  .s-b .doc-title{font-size:25px}
+  .s-b .sb{gap:9px}
+
+  .s-c{
+    --canvas:#F5EDE2;--side-bg:#F2E8DA;--list-bg:#F7F0E5;--doc-bg:#FFFCF7;
+    --surface:#FFFCF7;--input-bg:#FFF8EE;--props-bg:#FCF5EA;--code-bg:#F6EDE0;
+    --line:#E9DCC8;--line-strong:#DFCBB0;
+    --text:#2C2218;--text-2:#63533F;--text-3:#94816B;
+    --accent:#B4502B;--accent-ink:#FFF7F1;--accent-soft:rgba(180,80,43,.12);--accent-text:#A2492A;
+    --row-active:rgba(180,80,43,.085);--seg-bg:rgba(44,34,24,.06);
+    --r-sm:6px;--r-md:10px;--app-radius:14px;--label-transform:none;
+    --font-ui:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    --font-display:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-body:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  .s-c .new-note{box-shadow:0 2px 6px rgba(180,80,43,.24)}
+  .s-c .row{border-radius:var(--r-md)}
+  .s-c .seg span{padding:2px 12px}
+  .s-c .doc-title{font-size:28px}
+  .s-c .props{border-style:solid;box-shadow:0 1px 2px rgba(44,34,24,.04)}
+
+  .s-d{
+    --canvas:#FFFFFF;--side-bg:#FFFFFF;--list-bg:#FCFCFC;--doc-bg:#FFFFFF;
+    --surface:#FFFFFF;--input-bg:#FAFAFA;--props-bg:#FFFFFF;--code-bg:#F5F5F5;
+    --line:#E5E5E5;--line-strong:#111111;
+    --text:#0A0A0A;--text-2:#4C4C4C;--text-3:#8A8A8A;
+    --accent:#1B4DFF;--accent-ink:#FFFFFF;--accent-soft:rgba(27,77,255,.075);--accent-text:#1B4DFF;
+    --row-active:rgba(27,77,255,.065);--seg-bg:#F2F2F2;
+    --r-sm:0px;--r-md:2px;--app-radius:2px;--label-transform:uppercase;
+    --font-ui:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    --font-display:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-body:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  .s-d .app{border-color:#111}
+  .s-d .sb{border-right:1px solid #111}
+  .s-d .list{border-right:1px solid #111}
+  .s-d .doc-title{font-size:37px;line-height:1.22;font-weight:700;margin-bottom:18px}
+  .s-d .tree-label,.s-d .props-head{font-size:10px}
+  .s-d .memo-input{border-style:solid}
+  .s-d .new-note{background:#111;color:#fff}
+  .s-d .avatar{background:#111;color:#fff}
+  .s-d .props{border:1px solid var(--line);border-left:2px solid #111;border-radius:0}
+  .s-d .seg .on{box-shadow:none;border:1px solid #111;color:#0A0A0A}
+  .s-d .new-note{border-radius:0}
+  .s-d .row.is-active{border-left-color:#111;background:rgba(0,0,0,.035)}
+  .s-d .chip{border-radius:0;padding:1px 7px}
+
+  /* ---------- compare table ---------- */
+  .cmp{margin-top:22px;border:1px solid #22262A;border-radius:12px;overflow:hidden;background:#121517}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid #202427;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  thead th{font-size:11px;color:#8A9299;font-weight:500;text-transform:uppercase;background:#15181A}
+  tbody td:first-child{color:#7E868D;white-space:nowrap;width:118px}
+  tbody td{color:#C2C9CF;line-height:1.65}
+
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid #1F2326;color:#8A9299;font-size:13px;line-height:1.8}
+  footer b{color:#DDE2E6;font-weight:500}
+  footer ol{margin:10px 0 0;padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Menote V2 · 视觉风格探索 v1 · 2026-10-31</div>
+    <h1>四个可落地的视觉方向</h1>
+    <p class="lede">
+      同一套信息架构在四套 token 下的呈现：侧栏（Memo 输入 → 新建笔记 → 收件箱/草稿箱 → 最近/收藏 → 主题树 → 私人空间）、
+      笔记清单（穿透聚合）、文档区（标题 → 属性区 → 正文）。四张界面共用同一个结构骨架，差别只在颜色、字体、形状与密度——
+      这也是需求 C-5「主题与逻辑解耦」的验证方式：定稿后换主题等于换一层变量，不重写组件。
+    </p>
+    <div class="meta-row">
+      <span class="tag">分支 · 产品</span>
+      <span class="tag">模式 · 编辑型知识工作区</span>
+      <span class="tag">共识约束 · 克制、低饱和、无装饰渐变</span>
+      <span class="tag">默认浅色，B 为深色向</span>
+    </div>
+    <nav class="jump">
+      <a href="#a">A 纸白 · 墨</a>
+      <a href="#b">B 石墨 · 仪器</a>
+      <a href="#c">C 暖陶 · 手帐</a>
+      <a href="#d">D 净白 · 网格</a>
+      <a href="#cmp">横向对比</a>
+    </nav>
+  </header>
+
+  <!-- A -->
+  <section class="style-block" id="a">
+    <div class="sb-head">
+      <span class="letter">A</span>
+      <h2>纸白 · 墨</h2>
+      <span class="pos">把编辑器做成一本可以长期写的书</span>
+    </div>
+    <div class="sb-line">
+      <span class="chip-k">谱系 · 中文书籍排版 + iA Writer</span>
+      <span class="chip-k">字体 · 宋体正文</span>
+      <span class="chip-k">密度 · 舒适偏疏</span>
+      <span class="chip-k">强调 · 靛青唯一</span>
+    </div>
+    <div class="frame"><div class="shell s-a"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FAF8F3"></i>画布 <b>#FAF8F3</b></span>
+      <span class="sw"><i style="background:#F6F2E9"></i>侧栏 <b>#F6F2E9</b></span>
+      <span class="sw"><i style="background:#1D1A14"></i>正文 <b>#1D1A14</b></span>
+      <span class="sw"><i style="background:#3B5C7A"></i>强调 <b>#3B5C7A</b></span>
+      <span class="sw"><i style="background:#E6DED0"></i>描边 <b>#E6DED0</b></span>
+      <span>圆角 <b>2 / 3px</b></span>
+      <span>正文 <b>14px / 1.85</b></span>
+    </div>
+    <div class="notes">
+      <div><b>适合</b>长文写作与阅读为主的场景：Note 是主体，Memo 当便签。纸色 + 宋体让「内容解耦」（C-1）在观感上也成立——写出来的就是一篇 md 文档。</div>
+      <div><b>代价</b>中文宋体需自托管 Noto Serif SC 子集（约 1–2MB），否则 Windows 回退 SimSun 在 14px 下发虚。深色态需另调一套纸感，不能直接反转。</div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="style-block" id="b">
+    <div class="sb-head">
+      <span class="letter">B</span>
+      <h2>石墨 · 仪器</h2>
+      <span class="pos">高频使用者的工作台，信息密度优先</span>
+    </div>
+    <div class="sb-line">
+      <span class="chip-k">谱系 · Linear / Raycast</span>
+      <span class="chip-k">字体 · 无衬线 + 等宽元数据</span>
+      <span class="chip-k">密度 · 紧凑</span>
+      <span class="chip-k">强调 · 冷蓝唯一</span>
+    </div>
+    <div class="frame"><div class="shell s-b"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#16181A"></i>画布 <b>#16181A</b></span>
+      <span class="sw"><i style="background:#1B1E21"></i>文档 <b>#1B1E21</b></span>
+      <span class="sw"><i style="background:#E7EAEC"></i>正文 <b>#E7EAEC</b></span>
+      <span class="sw"><i style="background:#7C9CFF"></i>强调 <b>#7C9CFF</b></span>
+      <span class="sw"><i style="background:#2A2F33"></i>描边 <b>#2A2F33</b></span>
+      <span>圆角 <b>3 / 5px</b></span>
+      <span>正文 <b>13.5px / 1.85</b></span>
+    </div>
+    <div class="notes">
+      <div><b>适合</b>每天多次进出、以检索与整理为主：等宽字承载时间、字数、属性键名，三栏割据清晰，扫读快。也是最容易做成「专业感」的一版。</div>
+      <div><b>代价</b>深色是主场，浅色态才是兼容工作；长文阅读舒适度低于 A/C。对「私人笔记」的情感温度偏冷，需要靠 Memo 区做软化。</div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="style-block" id="c">
+    <div class="sb-head">
+      <span class="letter">C</span>
+      <h2>暖陶 · 手帐</h2>
+      <span class="pos">先是一本自己的本子，其次才是工具</span>
+    </div>
+    <div class="sb-line">
+      <span class="chip-k">谱系 · Bear / Things 的触感</span>
+      <span class="chip-k">字体 · 全部无衬线</span>
+      <span class="chip-k">密度 · 松弛</span>
+      <span class="chip-k">强调 · 砖红唯一</span>
+    </div>
+    <div class="frame"><div class="shell s-c"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#F5EDE2"></i>画布 <b>#F5EDE2</b></span>
+      <span class="sw"><i style="background:#F2E8DA"></i>侧栏 <b>#F2E8DA</b></span>
+      <span class="sw"><i style="background:#2C2218"></i>正文 <b>#2C2218</b></span>
+      <span class="sw"><i style="background:#B4502B"></i>强调 <b>#B4502B</b></span>
+      <span class="sw"><i style="background:#E9DCC8"></i>描边 <b>#E9DCC8</b></span>
+      <span>圆角 <b>6 / 10 / 14px</b></span>
+      <span>正文 <b>13.5px / 1.85</b></span>
+    </div>
+    <div class="notes">
+      <div><b>适合</b>私人记录占主导的用法：Memo 时间线、生活主题、todo 面板在这一版最自然。大圆角与大点击区也最适合未来 Android 端沿用。</div>
+      <div><b>代价</b>暖色 + 圆角容易滑向「可爱」，需要靠克制的字重和留白压住；截图缩小时层次会比 A/D 弱，密集清单页要额外加分隔。</div>
+    </div>
+  </section>
+
+  <!-- D -->
+  <section class="style-block" id="d">
+    <div class="sb-head">
+      <span class="letter">D</span>
+      <h2>净白 · 网格</h2>
+      <span class="pos">结构自己说话，几乎不装饰</span>
+    </div>
+    <div class="sb-line">
+      <span class="chip-k">谱系 · 瑞士网格 / 编辑设计</span>
+      <span class="chip-k">字体 · 无衬线，强字号对比</span>
+      <span class="chip-k">密度 · 中等偏疏</span>
+      <span class="chip-k">强调 · 电蓝仅用于焦点</span>
+    </div>
+    <div class="frame"><div class="shell s-d"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FFFFFF"></i>画布 <b>#FFFFFF</b></span>
+      <span class="sw"><i style="background:#FCFCFC"></i>清单 <b>#FCFCFC</b></span>
+      <span class="sw"><i style="background:#0A0A0A"></i>正文 <b>#0A0A0A</b></span>
+      <span class="sw"><i style="background:#1B4DFF"></i>强调 <b>#1B4DFF</b></span>
+      <span class="sw"><i style="background:#111111"></i>结构线 <b>#111</b></span>
+      <span>圆角 <b>0 / 2px</b></span>
+      <span>正文 <b>13.5px / 1.85</b></span>
+    </div>
+    <div class="notes">
+      <div><b>适合</b>相信「少即是多」、并且愿意接受高对比的一版。1px 黑线划分三栏，标题 37px 拉开层级，界面几乎没有彩色，加密/锁定这类状态反而更醒目。</div>
+      <div><b>代价</b>零圆角在深色模式和高分屏上偏硬；对 Memo 这种「随手写」的轻量感有冲突，需要单独定义 Memo 区的软处理。</div>
+    </div>
+  </section>
+
+  <!-- compare -->
+  <section class="style-block" id="cmp">
+    <div class="sb-head"><h2>横向对比</h2><span class="pos">按你自己的使用比例选，而不是按好看程度</span></div>
+    <div class="cmp">
+      <table>
+        <thead>
+          <tr><th></th><th>A 纸白 · 墨</th><th>B 石墨 · 仪器</th><th>C 暖陶 · 手帐</th><th>D 净白 · 网格</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>一句话</td><td>可以长期写的书</td><td>高频工作台</td><td>自己的本子</td><td>结构即装饰</td></tr>
+          <tr><td>画布</td><td>暖米白 + 纸感描边</td><td>深石墨，靠层次区分而非描边</td><td>米黄陶土色，柔和大圆角</td><td>纯白 + 1px 黑结构线</td></tr>
+          <tr><td>字体</td><td>宋体正文 / 宋体标题 / 等宽元数据</td><td>全无衬线 + 等宽小标签</td><td>全无衬线，字重统一</td><td>无衬线，标题与正文强对比</td></tr>
+          <tr><td>最适合</td><td>Note 为主，长文与阅读</td><td>检索、整理、键盘操作频繁</td><td>Memo / 生活记录为主</td><td>偏好极简、界面即排版</td></tr>
+          <tr><td>主题扩展</td><td>需一套独立深色（不是反转）</td><td>浅色为兼容态，工作量小</td><td>深色需重配暖色阶</td><td>深色反相即可，最省事</td></tr>
+          <tr><td>主要风险</td><td>中文字体加载与回退</td><td>情感温度偏低，长文偏累</td><td>易滑向「可爱」，密度不足</td><td>零圆角在 Memo 区过硬</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <b>你定一个方向后，我会做的是：</b>
+    <ol>
+      <li>写 <code>DESIGN.md</code>（九节：定位 / 谱系 / 排版 / 色彩 / 形状与层级 / 组件规则 / 交互不变式 / 禁止项 / 验收清单），把颜色、字号、间距、圆角全部落成 CSS 变量。</li>
+      <li>补关键组件的完整状态：悬停 / 选中 / 禁用 / 加载 / 空状态 / 错误 / 锁定与解锁 / 私人空间锁屏。</li>
+      <li>做可点击原型：Memo 展开、属性区点击编辑、列表↔网格切换、todo 侧板拖拽，跑 375 / 768 / 1024 / 1440 四个宽度。</li>
+    </ol>
+    <div style="margin-top:14px">
+      <b>也可以组合：</b>例如「A 的正文排版 + B 的三栏密度 + C 的 Memo 区」，或「C 为主、私人空间转 D 的硬结构」。告诉我倾向与理由，我按组合再出一版。
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var S = function(p){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>'; };
+  var ic = {
+    search: S('<circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/>'),
+    plus:   S('<path d="M12 5v14M5 12h14"/>'),
+    inbox:  S('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    file:   S('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/>'),
+    clock:  S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    star:   S('<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>'),
+    lock:   S('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+    down:   S('<path d="m6 9 6 6 6-6"/>'),
+    right:  S('<path d="m9 6 6 6-6 6"/>'),
+    more:   S('<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>'),
+    list:   S('<path d="M4 7h16M4 12h16M4 17h10"/>'),
+    grid:   S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+    sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
+    check:  S('<path d="m4 12 5 5L20 6"/>')
+  };
+
+  var rows = [
+    {t:'材质工作流', ex:'基础层只负责底色与粗糙度，细节层控制磨损位置…', m:['2026-10-30','1,240 字'], on:true},
+    {t:'场景灯光规范', ex:'Lumen 与烘焙的分界，取决于是否需要动态时间…', m:['2026-10-28','加密'], lock:true},
+    {t:'程序化资产拆分', ex:'Houdini 出片与引擎内参数化的取舍…', m:['2026-10-26','3,180 字']},
+    {t:'蓝图命名约定', ex:'动词前缀 + 对象名 + 变体后缀，避免中文命名…', m:['2026-10-24','860 字']},
+    {t:'渲染采样对比', ex:'16 与 8 采样在远景观测下的差异记录…', m:['2026-10-21','抽样']},
+    {t:'地形层材质', ex:'四层混合上限与虚拟纹理的取舍…', m:['2026-10-18','暂存']}
+  ];
+
+  var listHTML = rows.map(function(r){
+    return '<div class="row'+(r.on?' is-active':'')+'">'
+      + '<div class="row-title">'+(r.lock?ic.lock:'')+r.t+'</div>'
+      + '<div class="row-ex">'+r.ex+'</div>'
+      + '<div class="row-meta"><span>'+r.m[0]+'</span><span>'+r.m[1]+'</span></div>'
+      + '</div>';
+  }).join('');
+
+  var shell = ''
+  + '<div class="app">'
+  +   '<aside class="sb">'
+  +     '<div class="sb-top"><span class="wordmark">Menote</span>'
+  +       '<button class="icon-btn" aria-label="搜索">'+ic.search+'</button></div>'
+  +     '<div class="memo-input"><span>记一条 Memo…</span><span class="mi-key">⌘↵</span></div>'
+  +     '<button class="new-note">'+ic.plus+'新建笔记</button>'
+  +     '<nav class="nav">'
+  +       '<a class="nav-item">'+ic.inbox+'收件箱<span class="badge">3</span></a>'
+  +       '<a class="nav-item">'+ic.file+'草稿箱<span class="badge">2</span></a>'
+  +       '<a class="nav-item">'+ic.clock+'最近编辑</a>'
+  +       '<a class="nav-item">'+ic.star+'收藏</a>'
+  +     '</nav>'
+  +     '<div class="tree">'
+  +       '<div class="tree-label">主题</div>'
+  +       '<div class="tree-row">'+ic.lock+'私人空间<span class="lock-state">锁定</span></div>'
+  +       '<div class="tree-row">'+ic.down+'游戏美术</div>'
+  +       '<div class="tree-row lvl2 is-current">UE5</div>'
+  +       '<div class="tree-row lvl2">Houdini</div>'
+  +       '<div class="tree-row">'+ic.right+'产品设计</div>'
+  +       '<div class="tree-row">'+ic.right+'阅读清单</div>'
+  +     '</div>'
+  +     '<div class="sb-foot"><span class="avatar">M</span><span>maxxie</span>'
+  +       '<button class="icon-btn" aria-label="设置">'+ic.sliders+'</button></div>'
+  +   '</aside>'
+  +   '<section class="list">'
+  +     '<div class="list-head">'
+  +       '<div class="lh-crumb">游戏美术 / UE5</div>'
+  +       '<div class="lh-row"><span class="count">12 篇</span>'
+  +         '<div class="view-toggle">'
+  +           '<button class="icon-btn on" aria-label="列表布局">'+ic.list+'</button>'
+  +           '<button class="icon-btn" aria-label="网格布局">'+ic.grid+'</button>'
+  +         '</div></div>'
+  +     '</div>'
+  +     '<div class="rows">'+listHTML+'</div>'
+  +   '</section>'
+  +   '<article class="doc">'
+  +     '<div class="doc-bar">'
+  +       '<div class="db-crumb">游戏美术 · UE5 · 12 篇中的第 1 篇</div>'
+  +       '<div class="db-actions"><div class="seg"><span class="on">编辑</span><span>预览</span></div>'
+  +         '<button class="icon-btn" aria-label="更多操作">'+ic.more+'</button></div>'
+  +     '</div>'
+  +     '<div class="doc-body">'
+  +       '<h1 class="doc-title">材质工作流</h1>'
+  +       '<div class="props">'
+  +         '<div class="props-head">属性<span class="n">4</span>'+ic.down+'</div>'
+  +         '<div class="prop"><span class="p-key">状态</span><span class="p-val chip">进行中</span></div>'
+  +         '<div class="prop"><span class="p-key">更新</span><span class="p-val">2026-10-30</span></div>'
+  +         '<div class="prop"><span class="p-key">标签</span><span class="p-val">UE5 · 材质</span></div>'
+  +         '<div class="prop"><span class="p-key">来源</span><span class="p-val p-link">figma.com/file/8c2a</span></div>'
+  +       '</div>'
+  +       '<div class="prose">'
+  +         '<h2>一、分层原则</h2>'
+  +         '<p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>'
+  +         '<ul><li>基础层：底色 + 粗糙度，命名 <code>M_&lt;角色&gt;_Base</code></li>'
+  +           '<li>细节层：平铺遮罩，靠世界坐标 UV 对齐</li>'
+  +           '<li>混合层：边缘磨损与高度混合，仅近景启用</li></ul>'
+  +         '<blockquote>任何一层出问题，都能单独回滚，不需要重做整份材质。</blockquote>'
+  +         '<pre># sampler defaults\nSampleCount  16\nTemporalAA   true\n# 远景观测需降至 8</pre>'
+  +         '<div class="tasks">'
+  +           '<div class="task done"><span class="box done">'+ic.check+'</span><span>整理材质命名与分组</span></div>'
+  +           '<div class="task"><span class="box"></span><span>补齐采样对照表（16 / 8）</span></div>'
+  +         '</div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="doc-foot"><span>已保存 · Markdown</span><span>1,240 字</span></div>'
+  +   '</article>'
+  + '</div>';
+
+  document.querySelectorAll('.shell').forEach(function(el){ el.innerHTML = shell; });
+})();
+</script>
+</body>
+</html>

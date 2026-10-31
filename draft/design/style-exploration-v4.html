@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 方向 04：简洁 · 紧凑 · 高效</title>
+<style>
+  :root{
+    --canvas:#FBF8F1;
+    --paper:#FDFBF6;
+    --side:#F4EFE4;
+    --tint:#F0EADC;
+    --hair:#E5DCC9;
+    --hair-2:#EFE8D9;
+    --ink:#191610;
+    --text-2:#57503F;
+    --text-3:#6E6656;
+    --text-4:#8A8171;
+    --brand:#F6821F;
+    --brand-text:#B4530F;
+    --serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+    --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;letter-spacing:0}
+  .wrap{max-width:1252px;margin:0 auto;padding:0 32px 96px}
+
+  header.masthead{padding:56px 0 28px;border-bottom:1px solid var(--hair)}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--text-4);display:flex;align-items:center;gap:9px;margin-bottom:14px}
+  .eyebrow::before{content:"";width:16px;height:1px;background:var(--brand);flex:none}
+  h1{font-family:var(--serif);font-weight:500;font-size:36px;line-height:1.2;margin:0 0 6px;max-width:900px}
+  h1 em{font-style:italic;color:var(--brand-text)}
+  .intro{font-size:14.5px;color:var(--text-2);max-width:740px;margin:14px 0 0;line-height:1.72}
+  nav.jump{display:flex;flex-wrap:wrap;gap:20px;padding:18px 0 0}
+  nav.jump a{font-size:12px;color:var(--text-3);text-decoration:none;display:inline-flex;align-items:baseline;gap:6px}
+  nav.jump a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--brand)}
+  nav.jump .n{font-family:var(--mono);font-size:9.5px;color:var(--text-4)}
+
+  section{margin-top:46px;scroll-margin-top:20px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .sec-head .idx{font-family:var(--mono);font-size:11px;color:var(--brand-text);width:26px;flex:none}
+  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:20px;margin:0}
+  .sec-head .of{font-size:11.5px;color:var(--text-4)}
+  .sec-intro{font-size:13px;color:var(--text-2);max-width:780px;margin:0 0 16px 38px}
+  @media(max-width:680px){.sec-intro{margin-left:0}}
+
+  .frame{border:1px solid var(--hair);border-radius:7px;overflow:hidden;margin-left:38px;background:var(--paper)}
+  @media(max-width:680px){.frame{margin-left:0}}
+  .frame.dark{border-color:#2C261E;background:#17150F}
+
+  .tokens{display:flex;flex-wrap:wrap;gap:7px 18px;margin:11px 0 0 38px;font-size:10.5px;color:var(--text-3)}
+  @media(max-width:680px){.tokens{margin-left:0}}
+  .sw{display:flex;align-items:center;gap:6px}
+  .sw i{width:10px;height:10px;border-radius:2px;border:1px solid rgba(25,22,16,.12);display:block}
+  .sw b{color:var(--text-2);font-weight:400;font-family:var(--mono);font-size:10px}
+
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px;margin:10px 0 0 38px;font-size:12px;line-height:1.65;color:var(--text-3)}
+  .notes b{color:var(--ink);font-weight:600}
+  @media(max-width:680px){.notes{grid-template-columns:1fr;margin-left:0}}
+
+  .tbl{margin:16px 0 0 38px}
+  @media(max-width:680px){.tbl{margin-left:0}}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:7px 14px 7px 0;border-bottom:1px solid var(--hair-2);vertical-align:top;line-height:1.6}
+  thead th{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--text-4);font-weight:400;border-bottom:1px solid var(--hair)}
+  tbody td:first-child{color:var(--ink);width:17%}
+  tbody td:nth-child(2){color:var(--text-4);width:22%}
+  tbody td:last-child{color:var(--text-2)}
+  td .mono{font-family:var(--mono);font-size:10.5px}
+
+  /* ============================================================
+     应用
+     ============================================================ */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:216px 302px minmax(0,1fr);
+    height:700px;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:12.5px;overflow:hidden;
+  }
+  svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+  /* --- sidebar：后退一档的底色，靠明度分区 --- */
+  .sb{display:flex;flex-direction:column;padding:12px 10px 10px;background:var(--side);border-right:1px solid var(--hair);min-width:0}
+  .sb-top{display:flex;align-items:center;justify-content:space-between;padding:0 4px;margin-bottom:10px}
+  .brand{font-family:var(--serif);font-size:16px;font-weight:500;line-height:1.2}
+  .sb-top .ic{border:0;background:none;color:var(--text-3);cursor:pointer;padding:2px;display:grid;place-items:center;border-radius:4px}
+  .sb-top .ic:hover{color:var(--ink);background:var(--tint)}
+  .sb-top .ic svg{width:14px;height:14px}
+
+  .search{
+    display:flex;align-items:center;gap:7px;height:28px;padding:0 8px;margin-bottom:6px;
+    background:var(--paper);border:1px solid var(--hair);border-radius:6px;color:var(--text-3);font-size:11.5px;
+  }
+  .search svg{width:12px;height:12px;color:var(--text-4);flex:none}
+  .search .kbd{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-4);border:1px solid var(--hair);border-radius:3px;padding:0 3px;line-height:13px}
+
+  .memo{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:7px 8px;margin-bottom:6px;border:1px dashed var(--hair);
+    border-radius:6px;color:var(--text-4);font-size:11.5px;background:rgba(255,255,255,.45);
+  }
+  .memo .kbd{font-family:var(--mono);font-size:9px;color:var(--text-4);flex:none}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:6px;height:28px;margin-bottom:10px;
+    border:0;border-radius:6px;background:var(--ink);color:var(--paper);
+    font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:opacity 120ms;
+  }
+  .btn:hover{opacity:.86}
+  .btn svg{width:12px;height:12px;stroke-width:2}
+
+  .nav{display:flex;flex-direction:column;gap:1px;margin-bottom:8px}
+  .nav a, .tree a{
+    display:flex;align-items:center;gap:8px;height:27px;padding:0 7px;border-radius:5px;
+    color:var(--text-2);text-decoration:none;font-size:12px;
+  }
+  .nav a:hover, .tree a:hover{background:var(--tint);color:var(--ink)}
+  .nav a svg, .tree a svg{width:13px;height:13px;color:var(--text-4);flex:none}
+  .nav a:hover svg, .tree a:hover svg{color:var(--text-2)}
+  .nav .cnt{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--text-4)}
+  .nav .cnt.hot{color:var(--brand-text)}
+
+  .divider{height:1px;background:var(--hair);margin:6px 7px 8px}
+
+  .tree{display:flex;flex-direction:column;gap:1px}
+  .tree a.l2{padding-left:22px;color:var(--text-2)}
+  .tree a.on{background:var(--tint);color:var(--ink);font-weight:600}
+  .tree a.on::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--brand);flex:none;margin-left:-1px}
+  .tree .lock{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-4);display:flex;align-items:center;gap:3px}
+  .tree .lock svg{width:8px;height:8px}
+  .tree a.add{color:var(--text-4)}
+  .tree a.add:hover{color:var(--brand-text);background:transparent}
+
+  .sb-foot{margin-top:auto;display:flex;align-items:center;gap:7px;padding:8px 5px 0;border-top:1px solid var(--hair);font-size:11px;color:var(--text-3)}
+  .ava{width:19px;height:19px;border-radius:999px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--mono);font-size:9px;flex:none}
+
+  /* --- list --- */
+  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--hair);min-width:0;background:var(--paper)}
+  .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px 9px;border-bottom:1px solid var(--hair)}
+  .list-head .t{font-family:var(--mono);font-size:10px;color:var(--text-3);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .list-head .t .n{color:var(--text-4)}
+  .list-tools{display:flex;align-items:center;gap:8px}
+  .vt{display:flex;gap:2px;background:var(--tint);border-radius:5px;padding:1.5px}
+  .vt span{width:20px;height:18px;display:grid;place-items:center;border-radius:4px;color:var(--text-4)}
+  .vt span.on{background:var(--paper);color:var(--ink)}
+  .vt svg{width:11px;height:11px}
+
+  .rows{display:flex;flex-direction:column;padding:4px 5px;min-height:0;overflow:hidden}
+  .nrow{
+    position:relative;display:grid;grid-template-columns:1fr auto;gap:1px 8px;
+    padding:7px 9px;border-radius:6px;cursor:pointer;transition:background 110ms;
+  }
+  .nrow:hover{background:var(--tint)}
+  .nrow.on{background:var(--tint)}
+  .nrow.on::before{
+    content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;
+    border-radius:1px;background:var(--brand);
+  }
+  .nr-t{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;color:var(--ink);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nr-t svg{width:10px;height:10px;color:var(--text-4);flex:none}
+  .nr-m{font-family:var(--mono);font-size:9.5px;color:var(--text-4);line-height:1.7;white-space:nowrap}
+  .nr-d{grid-column:1/-1;font-size:11px;color:var(--text-3);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* --- document --- */
+  .doc{display:flex;flex-direction:column;min-width:0}
+  .doc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 22px;border-bottom:1px solid var(--hair);flex:none}
+  .crumb{font-family:var(--mono);font-size:9.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-r{display:flex;align-items:center;gap:12px;flex:none}
+  .modes{display:flex;background:var(--tint);border-radius:5px;padding:1.5px}
+  .modes span{font-size:11px;padding:2px 9px;border-radius:4px;color:var(--text-3);line-height:15px}
+  .modes span.on{background:var(--paper);color:var(--ink);font-weight:600}
+  .icon-b{border:0;background:none;color:var(--text-3);cursor:pointer;padding:0;display:grid;place-items:center}
+  .icon-b:hover{color:var(--ink)}
+  .icon-b svg{width:13px;height:13px}
+
+  .doc-in{padding:14px 26px 0;overflow:hidden;flex:1;min-height:0}
+  .kicker{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+  .kicker::before{content:"";width:14px;height:1.5px;background:var(--brand);flex:none}
+  .kicker span{font-family:var(--mono);font-size:9.5px;color:var(--text-4);text-transform:uppercase}
+  .doc-title{font-family:var(--serif);font-size:24px;font-weight:500;line-height:1.32;margin:0 0 12px;color:var(--ink)}
+
+  .props{
+    display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;
+    padding:7px 0;border-top:1px solid var(--hair-2);border-bottom:1px solid var(--hair-2);
+    margin-bottom:16px;
+  }
+  .prop{display:flex;align-items:baseline;gap:6px;font-size:11.5px;min-width:0}
+  .prop .k{font-family:var(--mono);font-size:9.5px;color:var(--text-4);text-transform:uppercase}
+  .prop .v{color:var(--ink);white-space:nowrap}
+  .prop .v.state::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--brand);margin-right:5px;vertical-align:1.5px}
+  .prop .v .lnk{color:var(--brand-text);text-decoration:none;border-bottom:1px solid rgba(246,130,31,.35)}
+  .prop:hover{background:rgba(246,130,31,.06);border-radius:3px;padding:1px 4px;margin:-1px -4px}
+
+  .prose{font-size:12.5px;line-height:1.8;color:var(--text-2)}
+  .prose h2{font-family:var(--serif);font-size:13.5px;font-weight:600;color:var(--ink);margin:0 0 5px;line-height:1.5}
+  .prose p{margin:0 0 8px}
+  .prose ul{margin:0 0 8px;padding-left:15px}
+  .prose li{margin-bottom:0}
+  .prose li::marker{color:var(--text-4)}
+  .prose code{font-family:var(--mono);font-size:10.5px;color:var(--text-2);background:var(--tint);border-radius:3px;padding:0 3px}
+  .prose blockquote{margin:0 0 8px;padding:1px 0 1px 10px;border-left:2px solid var(--brand);color:var(--text-2)}
+  .prose pre{
+    margin:0 0 8px;padding:8px 10px;background:var(--tint);border-radius:6px;
+    font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--text-2);overflow:hidden;
+  }
+  .prose table{width:100%;border-collapse:collapse;margin:0 0 9px;font-size:11.5px;table-layout:fixed}
+  .prose th{font-family:var(--mono);font-size:9px;color:var(--text-3);font-weight:400;text-align:left;padding:0 8px 4px 0;border-bottom:1px solid var(--hair)}
+  .prose td{padding:4px 8px 4px 0;border-bottom:1px solid var(--hair-2);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prose td:first-child{color:var(--ink)}
+  .tasks{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--text-2)}
+  .task{display:flex;align-items:center;gap:7px}
+  .box{width:11px;height:11px;border:1px solid var(--text-4);border-radius:3px;flex:none;display:grid;place-items:center;color:transparent}
+  .box.done{background:var(--brand);border-color:var(--brand);color:#191610}
+  .box svg{width:7px;height:7px;stroke-width:3}
+  .task.done span{color:var(--text-4);text-decoration:line-through}
+
+  .doc-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
+    padding:7px 26px 8px;border-top:1px solid var(--hair-2);
+    font-family:var(--mono);font-size:9.5px;color:var(--text-4);
+  }
+
+  /* ---------- themes ---------- */
+  .s-light{
+    --canvas:#FBF8F1;--paper:#FDFBF6;--side:#F4EFE4;--tint:#F0EADC;
+    --hair:#E5DCC9;--hair-2:#EFE8D9;
+    --ink:#191610;--text-2:#57503F;--text-3:#6E6656;--text-4:#8A8171;
+    --brand:#F6821F;--brand-text:#B4530F;
+  }
+  .s-dark{
+    --canvas:#17150F;--paper:#1A1710;--side:#121009;--tint:#262117;
+    --hair:#302A21;--hair-2:#282218;
+    --ink:#F4EFE4;--text-2:#B6AD9E;--text-3:#A1978A;--text-4:#877E70;
+    --brand:#F6821F;--brand-text:#FBAD41;
+  }
+  .s-dark .btn{background:#EDE7DA;color:#17150F}
+  .s-dark .memo{background:rgba(255,255,255,.03);border-color:#3A3329}
+  .s-dark .search{background:#1F1B13;border-color:#302A21}
+  .s-dark .vt span.on{background:#332C21}
+  .s-dark .modes span.on{background:#332C21}
+
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-3)}
+  footer .k{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--text-2)}
+  footer b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Menote V2 · Direction 04 · 2026-10-31</div>
+    <h1>简洁不等于<em>空</em>：加一层底色，减一圈间距</h1>
+    <p class="intro">
+      v3 为了减重把行高和间距一起放开了，结果是松散——"轻"被误当成"空"。v4 把密度调回来：
+      侧栏后退一档底色形成分区，清单行收到 54px，属性压成一行四项；装饰只加两处，都在有语义的位置。
+    </p>
+    <nav class="jump">
+      <a href="#fix"><span class="n">01</span>这一版动在哪</a>
+      <a href="#light"><span class="n">02</span>浅色</a>
+      <a href="#dark"><span class="n">03</span>深色</a>
+      <a href="#rule"><span class="n">04</span>装饰预算</a>
+    </nav>
+  </header>
+
+  <section id="fix">
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>这一版动在哪</h2>
+      <span class="of">八项，四加四减</span>
+    </div>
+    <p class="sec-intro">加的都是「几乎不增加噪声」的手段——底色层、形状、一条短线；减的都是空白与冗余间距。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>项目</th><th>v3</th><th>v4</th></tr></thead>
+        <tbody>
+          <tr><td>侧栏分区</td><td class="mono">与主区同色，仅一条线</td><td class="mono">后退一档底色 #F4EFE4</td></tr>
+          <tr><td>清单行</td><td class="mono">62px，行间无关系</td><td class="mono">54px，标题＋日期同排，摘要一行</td></tr>
+          <tr><td>选中态</td><td class="mono">通栏色块＋贴边橙条</td><td class="mono">6px 圆角块＋内缩 2px 橙条</td></tr>
+          <tr><td>属性区</td><td class="mono">两列四行，90px 高</td><td class="mono">一行四项，上下发丝线，34px 高</td></tr>
+          <tr><td>主按钮</td><td class="mono">1px 描边</td><td class="mono">墨色实心 28px（仍不占大色块）</td></tr>
+          <tr><td>装饰记号</td><td class="mono">0 处</td><td class="mono">1 处：标题上方 14×1.5 橙短线</td></tr>
+          <tr><td>控件形状</td><td class="mono">纯文字，无形状</td><td class="mono">编辑/预览、列表/网格改为浅槽分段</td></tr>
+          <tr><td>文档标题</td><td class="mono">27px</td><td class="mono">24px（腾出首屏给正文）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="light">
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>浅色</h2>
+      <span class="of">纸白 · 侧栏后退一档</span>
+    </div>
+    <p class="sec-intro">侧栏用一层更暖的底退到后面，主区和文档留在纸面上。分区靠明度，不靠边框——这是唯一新增的"面"，也是唯一不会增加线条数量的装饰。</p>
+    <div class="frame"><div class="shell s-light"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FDFBF6"></i>主区 <b>#FDFBF6</b></span>
+      <span class="sw"><i style="background:#F4EFE4"></i>侧栏 <b>#F4EFE4</b></span>
+      <span class="sw"><i style="background:#F0EADC"></i>选中 <b>#F0EADC</b></span>
+      <span class="sw"><i style="background:#E5DCC9"></i>发丝线 <b>#E5DCC9</b></span>
+      <span class="sw"><i style="background:#191610"></i>墨 <b>#191610</b></span>
+      <span class="sw"><i style="background:#F6821F"></i>橙 <b>#F6821F</b></span>
+      <span>行高 <b>54</b></span>
+      <span>首屏清单 <b>11 行</b></span>
+    </div>
+    <div class="notes">
+      <div><b>为什么选中不用边框</b>一旦用了边框，六条里就有一条被"框住"，视线全被它钉住。圆角块＋内缩橙条给出同样明确的位置反馈，但保留了行与行的同一性。</div>
+      <div><b>密度的代价</b>54px 行高下摘要只能一行，长标题会截断。这是刻意的：清单用于定位，不用于阅读——摘要够判断"是不是这篇"即可。</div>
+    </div>
+  </section>
+
+  <section id="dark">
+    <div class="sec-head">
+      <span class="idx">03</span>
+      <h2>深色</h2>
+      <span class="of">暖炭 · 侧栏再退一档</span>
+    </div>
+    <p class="sec-intro">深色下"后退"要靠压暗，所以侧栏比主区更暗。选中块用 26 号暖褐，橙条不变——两套主题里，橙承担的角色完全一致。</p>
+    <div class="frame dark"><div class="shell s-dark"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#1A1710"></i>主区 <b>#1A1710</b></span>
+      <span class="sw"><i style="background:#121009"></i>侧栏 <b>#121009</b></span>
+      <span class="sw"><i style="background:#262117"></i>选中 <b>#262117</b></span>
+      <span class="sw"><i style="background:#302A21"></i>发丝线 <b>#302A21</b></span>
+      <span class="sw"><i style="background:#F4EFE4"></i>墨 <b>#F4EFE4</b></span>
+      <span class="sw"><i style="background:#FBAD41"></i>橙字 <b>#FBAD41</b></span>
+      <span>行高 <b>54</b></span>
+      <span>主按钮 <b>浅实心</b></span>
+    </div>
+    <div class="notes">
+      <div><b>主按钮反色</b>深色下墨色实心会沉进背景，所以按钮改为浅色实心＋深字——这是唯一一处刻意反相，因为它必须是最亮的一块。</div>
+      <div><b>风险</b>深色侧栏（#121009）比主区暗两档，大屏上可能显得"塌"。若如此，把侧栏提到 #16130D，只保留一档差。</div>
+    </div>
+  </section>
+
+  <section id="rule">
+    <div class="sec-head">
+      <span class="idx">04</span>
+      <h2>装饰预算</h2>
+      <span class="of">防止下次又跑偏</span>
+    </div>
+    <p class="sec-intro">"适当装饰"如果没有上限，下一轮一定会加回去。三条可量化的约束，写进 DESIGN.md 当作门禁。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>约束</th><th>数值</th><th>判定方式</th></tr></thead>
+        <tbody>
+          <tr><td>一屏内的视觉手段</td><td class="mono">≤ 3 类</td><td>底色层 / 形状 / 强调色，三者可叠加但不得同时出现"边框＋投影"</td></tr>
+          <tr><td>橙色面积</td><td class="mono">≤ 2%</td><td>只标记三种语义：当前位置、进行中、可点击。不承担按钮与标题</td></tr>
+          <tr><td>密度基准</td><td class="mono">54 / 27 / 12.5</td><td>清单行高 54、侧栏行高 27、正文 12.5px；1440 宽下清单至少 11 行可见</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="k">加一层底色，减一圈间距。</div>
+    <div>方向认可后：<b>DESIGN.md</b>（九节）＋ 组件全状态 ＋ 可点击原型，跑 375 / 768 / 1024 / 1440。</div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var S = function(p){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>'; };
+  var ic = {
+    search:S('<circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/>'),
+    plus:  S('<path d="M12 5v14M5 12h14"/>'),
+    inbox: S('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    file:  S('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/>'),
+    clock: S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    star:  S('<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>'),
+    lock:  S('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+    down:  S('<path d="m6 9 6 6 6-6"/>'),
+    right: S('<path d="m9 6 6 6-6 6"/>'),
+    more:  S('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+    list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
+    grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+    sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
+    check: S('<path d="m4 12 5 5L20 6"/>')
+  };
+
+  var rows = [
+    {t:'材质工作流', d:'基础层只负责底色与粗糙度，细节层控制磨损位置', m:'10-30', on:true},
+    {t:'场景灯光规范', d:'Lumen 与烘焙的分界，取决于是否需要动态时间', m:'10-28', lock:true},
+    {t:'程序化资产拆分', d:'Houdini 出片与引擎内参数化的取舍', m:'10-26'},
+    {t:'蓝图命名约定', d:'动词前缀 + 对象名 + 变体后缀，避免中文命名', m:'10-24'},
+    {t:'渲染采样对比', d:'16 与 8 采样在远景观测下的差异记录', m:'10-21'},
+    {t:'地形层材质', d:'四层混合上限与虚拟纹理的取舍', m:'10-18'},
+    {t:'后处理栈顺序', d:'Bloom 与色调映射的先后，决定高光溢出形态', m:'10-16', lock:true},
+    {t:'动画蓝图接口', d:'状态机与蒙太奇的边界划分', m:'10-14', lock:true},
+    {t:'性能预算表', d:'每帧 16.6ms 的拆账，按镜头类型分档', m:'10-11'},
+    {t:'世界分区设置', d:'Cell 尺寸与流送距离的联动', m:'10-08'}
+  ];
+
+  var rowsHTML = rows.map(function(r){
+    return '<div class="nrow'+(r.on?' on':'')+'">'
+      + '<div class="nr-t">'+r.t+(r.lock?ic.lock:'')+'</div>'
+      + '<div class="nr-m">'+r.m+'</div>'
+      + '<div class="nr-d">'+r.d+'</div>'
+      + '</div>';
+  }).join('');
+
+  var shell = ''
+  + '<div class="app">'
+  +   '<aside class="sb">'
+  +     '<div class="sb-top"><span class="brand">Menote</span>'
+  +       '<button class="ic" aria-label="设置">'+ic.sliders+'</button></div>'
+  +     '<div class="search">'+ic.search+'<span>搜索笔记</span><span class="kbd">⌘K</span></div>'
+  +     '<div class="memo"><span>记一条 Memo…</span><span class="kbd">⌘↵</span></div>'
+  +     '<button class="btn">'+ic.plus+'新建笔记</button>'
+  +     '<nav class="nav">'
+  +       '<a href="#">'+ic.inbox+'收件箱<span class="cnt hot">3</span></a>'
+  +       '<a href="#">'+ic.file+'草稿箱<span class="cnt">2</span></a>'
+  +       '<a href="#">'+ic.clock+'最近编辑</a>'
+  +       '<a href="#">'+ic.star+'收藏</a>'
+  +     '</nav>'
+  +     '<div class="divider"></div>'
+  +     '<div class="tree">'
+  +       '<a href="#">'+ic.lock+'私人空间<span class="lock">锁定</span></a>'
+  +       '<a href="#">'+ic.down+'游戏美术</a>'
+  +       '<a href="#" class="l2 on">UE5</a>'
+  +       '<a href="#" class="l2">Houdini</a>'
+  +       '<a href="#">'+ic.right+'产品设计</a>'
+  +       '<a href="#">'+ic.right+'阅读清单</a>'
+  +       '<a href="#" class="add">+ 新建主题</a>'
+  +     '</div>'
+  +     '<div class="sb-foot"><span class="ava">M</span><span>maxxie</span></div>'
+  +   '</aside>'
+  +   '<div class="list-col">'
+  +     '<div class="list-head">'
+  +       '<span class="t">UE5 <span class="n">12 篇</span></span>'
+  +       '<div class="list-tools"><div class="vt"><span class="on">'+ic.list+'</span><span>'+ic.grid+'</span></div></div>'
+  +     '</div>'
+  +     '<div class="rows">'+rowsHTML+'</div>'
+  +   '</div>'
+  +   '<article class="doc">'
+  +     '<div class="doc-bar">'
+  +       '<div class="crumb">游戏美术 / UE5 / 第 1 篇</div>'
+  +       '<div class="bar-r"><div class="modes"><span class="on">编辑</span><span>预览</span></div>'
+  +         '<button class="icon-b" aria-label="更多操作">'+ic.more+'</button></div>'
+  +     '</div>'
+  +     '<div class="doc-in">'
+  +       '<div class="kicker"><span>Note · UE5</span></div>'
+  +       '<h1 class="doc-title">材质工作流</h1>'
+  +       '<div class="props">'
+  +         '<div class="prop"><span class="k">状态</span><span class="v state">进行中</span></div>'
+  +         '<div class="prop"><span class="k">更新</span><span class="v">2026-10-30</span></div>'
+  +         '<div class="prop"><span class="k">标签</span><span class="v">UE5 · 材质</span></div>'
+  +         '<div class="prop"><span class="k">来源</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>'
+  +       '</div>'
+  +       '<div class="prose">'
+  +         '<h2>一、分层原则</h2>'
+  +         '<p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>'
+  +         '<ul><li>基础层：底色 + 粗糙度，命名 <code>M_&lt;角色&gt;_Base</code></li>'
+  +           '<li>细节层：平铺遮罩，靠世界坐标 UV 对齐</li>'
+  +           '<li>混合层：边缘磨损与高度混合，仅近景启用</li></ul>'
+  +         '<blockquote>任何一层出问题，都能单独回滚，不需要重做整份材质。</blockquote>'
+  +         '<pre># sampler defaults\nSampleCount  16\nTemporalAA   true\n# 远景观测需降至 8</pre>'
+  +         '<table><thead><tr><th>层</th><th>贴图</th><th>分辨率</th><th>说明</th></tr></thead>'
+  +           '<tbody><tr><td>基础层</td><td>BaseColor / Roughness</td><td>2K</td><td>全场景共用</td></tr>'
+  +           '<tr><td>细节层</td><td>Mask</td><td>1K</td><td>平铺，世界坐标对齐</td></tr>'
+  +           '<tr><td>混合层</td><td>Height</td><td>2K</td><td>仅近景启用</td></tr></tbody></table>'
+  +         '<div class="tasks">'
+  +           '<div class="task done"><span class="box done">'+ic.check+'</span><span>整理材质命名与分组</span></div>'
+  +           '<div class="task"><span class="box"></span><span>补齐采样对照表（16 / 8）</span></div>'
+  +         '</div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="doc-foot"><span>已保存 · Markdown</span><span>1,240 字</span></div>'
+  +   '</article>'
+  + '</div>';
+
+  document.querySelectorAll('.shell').forEach(function(el){ el.innerHTML = shell; });
+})();
+</script>
+</body>
+</html>

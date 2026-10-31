@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 方向 08：细节校准</title>
+<style>
+  :root{
+    --canvas:#FCFCFB;
+    --paper:#FFFFFF;
+    --tint:#F4F4F2;
+    --line:#E6E6E3;
+    --line-2:#F0F0ED;
+    --ink:#1A1A18;
+    --text-2:#4E504D;
+    --text-3:#6C6F6B;
+    --text-4:#93968F;
+    --brand:#F6821F;
+    --brand-text:#B4530F;
+    --brand-tint:#FEF2E7;
+    --link:#0051C3;
+    --serif:ui-serif,Georgia,“Songti SC”,“Source Han Serif SC”,“SimSun”,serif;
+    --sans:system-ui,-apple-system,“Segoe UI”,“PingFang SC”,“Microsoft YaHei”,“Noto Sans SC”,Roboto,sans-serif;
+    --mono:ui-monospace,“SF Mono”,Menlo,Consolas,“Cascadia Mono”,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased;letter-spacing:0}
+  .wrap{max-width:1252px;margin:0 auto;padding:0 32px 104px}
+
+  header.masthead{padding:58px 0 30px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--text-4);display:flex;align-items:center;gap:9px;margin-bottom:16px}
+  .eyebrow::before{content:“”;width:16px;height:1.5px;background:var(--brand);flex:none}
+  h1{font-family:var(--serif);font-weight:500;font-size:37px;line-height:1.26;margin:0 0 8px;max-width:940px}
+  h1 em{font-style:normal;color:var(--brand-text)}
+  .intro{font-size:14.5px;color:var(--text-2);max-width:790px;margin:14px 0 0;line-height:1.8}
+  .intro + .intro{margin-top:10px}
+  nav.jump{display:flex;flex-wrap:wrap;gap:22px;padding:20px 0 0}
+  nav.jump a{font-size:12px;color:var(--text-3);text-decoration:none;display:inline-flex;align-items:baseline;gap:6px}
+  nav.jump a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--brand)}
+  nav.jump .n{font-family:var(--mono);font-size:9.5px;color:var(--text-4)}
+
+  section{margin-top:46px;scroll-margin-top:20px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .sec-head .idx{font-family:var(--mono);font-size:11px;color:var(--brand-text);width:26px;flex:none}
+  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:21px;margin:0}
+  .sec-head .of{font-size:11.5px;color:var(--text-4)}
+  .sec-intro{font-size:13px;color:var(--text-2);max-width:800px;margin:0 0 18px 38px}
+  @media(max-width:680px){.sec-intro{margin-left:0}}
+
+  .frame{border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-left:38px;background:var(--paper)}
+  @media(max-width:680px){.frame{margin-left:0}}
+  .frame.dark{border-color:#2B2F33;background:#191B1D}
+
+  .tokens{display:flex;flex-wrap:wrap;gap:7px 18px;margin:12px 0 0 38px;font-size:10.5px;color:var(--text-3)}
+  @media(max-width:680px){.tokens{margin-left:0}}
+  .sw{display:flex;align-items:center;gap:6px}
+  .sw i{width:10px;height:10px;border-radius:2px;border:1px solid rgba(26,26,24,.14);display:block}
+  .sw b{color:var(--text-2);font-weight:400;font-family:var(--mono);font-size:10px}
+
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:8px 28px;margin:11px 0 0 38px;font-size:12px;line-height:1.7;color:var(--text-3)}
+  .notes b{color:var(--ink);font-weight:600}
+  @media(max-width:680px){.notes{grid-template-columns:1fr;margin-left:0}}
+
+  .tbl{margin:18px 0 0 38px}
+  @media(max-width:680px){.tbl{margin-left:0}}
+  table.cmp{width:100%;border-collapse:collapse;font-size:12px}
+  table.cmp th,table.cmp td{text-align:left;padding:8px 14px 8px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.62}
+  table.cmp thead th{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;color:var(--text-4);font-weight:400;border-bottom:1px solid var(--line)}
+  table.cmp tbody td:first-child{color:var(--ink);width:13%}
+  table.cmp tbody td:nth-child(2){width:30%}
+  table.cmp tbody td:last-child{color:var(--text-2)}
+  td .mono{font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+
+  .callout{
+    margin:18px 0 0 38px;padding:12px 14px;background:var(--brand-tint);border-radius:6px;
+    font-size:12.5px;line-height:1.75;color:var(--text-2);
+  }
+  .callout b{color:var(--brand-text)}
+  @media(max-width:680px){.callout{margin-left:0}}
+
+  /* ============================================================
+     应用
+     ============================================================ */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:248px 340px minmax(0,1fr);
+    height:792px;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:12.5px;overflow:hidden;
+  }
+  svg{stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- 区域一：侧栏 ---------- */
+  .sb{display:flex;flex-direction:column;padding:12px 10px 10px;background:var(--side);border-right:1px solid var(--line);min-width:0}
+  .sb-top{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:8px}
+  .brand{font-family:var(--serif);font-size:17px;font-weight:500;line-height:1.2}
+  .sb-top .ic{border:0;background:none;color:var(--text-3);cursor:pointer;padding:2px;display:grid;place-items:center;border-radius:4px}
+  .sb-top .ic:hover{color:var(--ink);background:var(--hover)}
+  .sb-top .ic svg{width:14px;height:14px}
+
+  /* 1 工具：搜索 —— 无边框的一行入口，形态与 Memo 输入面不同 */
+  .search-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:5px;color:var(--text-3);font-size:12px;cursor:pointer}
+  .search-row:hover{background:var(--hover);color:var(--ink)}
+  .search-row svg{width:13px;height:13px;color:var(--text-4);flex:none}
+  .search-row .kbd{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-4)}
+  .hr{height:1px;background:var(--line);margin:13px 8px 15px;flex:none}
+
+  /* 2 记录：Memo 输入 → 新建 → 回看 */
+  .memo{
+    display:flex;align-items:flex-start;gap:8px;padding:8px 9px;margin-bottom:7px;
+    border:1px dashed var(--line);border-radius:6px;color:var(--text-3);font-size:11.5px;background:var(--paper);
+  }
+  .memo .dot-mark{width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none;margin-top:5px}
+  .memo .kbd{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-4);flex:none}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:6px;height:32px;margin:0 0 12px;
+    border:0;border-radius:6px;background:var(--brand);color:#241505;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(120,60,0,.16);
+    transition:background 130ms cubic-bezier(.2,.6,.3,1);
+  }
+  .btn:hover{background:#E5760F}
+  .btn svg{width:13px;height:13px;stroke-width:2.2}
+
+  .nav{display:flex;flex-direction:column;gap:1px;margin-bottom:14px}
+  .nav a, .tree a{
+    display:flex;align-items:center;gap:8px;height:29px;padding:0 8px;border-radius:5px;
+    color:var(--text-2);text-decoration:none;font-size:12px;
+  }
+  .nav a:hover, .tree a:hover{background:var(--hover);color:var(--ink)}
+  .nav a svg, .tree a svg{width:13px;height:13px;color:var(--text-3);flex:none}
+  .nav a:hover svg, .tree a:hover svg{color:var(--text-2)}
+
+  .cnt{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--brand-text);
+    background:var(--brand-tint);border-radius:999px;padding:0 5px;line-height:15px}
+  .cnt.plain{color:var(--text-4);background:none;padding:0}
+
+  /* 3 待整理：收件箱 / 草稿箱 并排，白色小块与灰底分离 */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px}
+  .duo a{
+    display:flex;align-items:center;gap:6px;height:34px;padding:0 8px;border-radius:6px;
+    background:var(--paper);color:var(--text-2);text-decoration:none;font-size:11.5px;
+    transition:box-shadow 110ms;
+  }
+  .duo a:hover{box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
+  .duo svg{width:13px;height:13px;color:var(--text-3);flex:none}
+
+  /* 4 结构：主题组标题 + 树 + 私人空间 */
+  .sec-label{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:3px}
+  .sec-label .lb{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--text-4)}
+  .sec-label .mini{width:18px;height:18px;display:grid;place-items:center;border:0;background:none;color:var(--text-4);cursor:pointer;border-radius:4px}
+  .sec-label .mini:hover{background:var(--hover);color:var(--ink)}
+  .sec-label .mini svg{width:12px;height:12px}
+
+  .tree{display:flex;flex-direction:column;gap:1px;margin-bottom:14px}
+  .tree a.l2{padding-left:26px}
+  .tree a.on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:inset 2px 0 0 var(--brand)}
+  .tree .lock{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-4);display:flex;align-items:center;gap:3px}
+  .tree .lock svg{width:8px;height:8px}
+  .tree a.priv{margin-top:5px}
+
+  /* 5 标签 */
+  .tags{display:flex;flex-wrap:wrap;gap:5px;padding:0 8px 2px}
+  .tag-chip{
+    display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:999px;
+    background:var(--paper);color:var(--text-2);font-size:11.5px;text-decoration:none;
+    transition:box-shadow 130ms cubic-bezier(.2,.6,.3,1),color 130ms;
+  }
+  .tag-chip .hash{font-family:var(--mono);font-size:10px;color:var(--text-4)}
+  .tag-chip .n{font-family:var(--mono);font-size:9.5px;color:var(--text-4);font-variant-numeric:tabular-nums}
+  .tag-chip:hover{box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
+  .tag-chip.more{background:none;color:var(--text-4);padding:0 2px;font-size:11px}
+  .tag-chip.more:hover{box-shadow:none;color:var(--brand-text)}
+
+  .sb-foot{
+    margin-top:auto;display:flex;align-items:center;gap:7px;padding:9px 8px 2px;
+    border-top:1px solid var(--line);font-size:11px;color:var(--text-3);
+  }
+  .sb-foot .sync{margin-left:auto;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--text-4)}
+  .sb-foot .sync .ok{width:5px;height:5px;border-radius:50%;background:#5F8B3F;flex:none}
+  .ava{width:19px;height:19px;border-radius:999px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--mono);font-size:9px;flex:none}
+
+  /* ---------- 区域二：笔记清单 ---------- */
+  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--line);min-width:0;background:var(--paper)}
+  .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+  .list-head .t{font-family:var(--mono);font-size:10px;color:var(--text-2);text-transform:uppercase;display:flex;align-items:center;gap:7px}
+  .list-head .t .n{color:var(--text-4);font-weight:400}
+  .list-tools{display:flex;align-items:center;gap:6px}
+  .vt{display:flex;gap:2px;background:var(--tint);border-radius:5px;padding:1.5px}
+  .vt span{width:20px;height:18px;display:grid;place-items:center;border-radius:4px;color:var(--text-4)}
+  .vt span.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 1px rgba(26,26,24,.08)}
+  .vt svg{width:11px;height:11px}
+
+  .rows{display:flex;flex-direction:column;padding:4px 0 8px;min-height:0;overflow:hidden}
+  .grp{
+    font-size:10.5px;color:var(--text-3);
+    padding:14px 16px 6px;display:flex;align-items:center;gap:9px;
+  }
+  .grp::after{content:“”;flex:1;height:1px;background:var(--line-2)}
+
+  .nrow{
+    position:relative;display:grid;grid-template-columns:16px 1fr auto;gap:2px 10px;
+    align-items:baseline;padding:9px 14px;cursor:pointer;
+    transition:background 130ms cubic-bezier(.2,.6,.3,1);
+  }
+  .nrow:not(:last-child)::after{content:“”;position:absolute;left:40px;right:14px;bottom:0;height:1px;background:var(--line-2)}
+  .nrow:hover{background:var(--hover)}
+  .nrow:hover::after,.nrow.on::after{opacity:0}
+  .nrow.on{background:var(--sel);box-shadow:inset 3px 0 0 var(--brand)}
+  .nc-ic{grid-row:1/3;align-self:start;display:flex;align-items:flex-start;padding-top:2px;color:var(--text-4)}
+  .nc-ic svg{width:13px;height:13px}
+  .nrow.on .nc-ic{color:var(--brand-text)}
+  .nr-t{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nr-m{font-family:var(--mono);font-size:10px;color:var(--text-4);line-height:1.6;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .nr-d{grid-column:2/-1;font-size:12px;color:var(--text-3);line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nrow.on .nr-d{color:var(--text-2)}
+
+  /* ---------- 区域三：文档 ---------- */
+  .doc{display:flex;flex-direction:column;min-width:0}
+  .doc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 34px;border-bottom:1px solid var(--line);flex:none}
+  .crumb{font-family:var(--mono);font-size:9.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-r{display:flex;align-items:center;gap:12px;flex:none}
+  .modes{display:flex;background:var(--tint);border-radius:5px;padding:1.5px}
+  .modes span{font-size:11px;padding:2px 9px;border-radius:4px;color:var(--text-3);line-height:15px}
+  .modes span.on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.08)}
+  .icon-b{border:0;background:none;color:var(--text-3);cursor:pointer;padding:0;display:grid;place-items:center}
+  .icon-b:hover{color:var(--ink)}
+  .icon-b svg{width:13px;height:13px}
+
+  .doc-in{padding:24px 34px 0;overflow:hidden;flex:1;min-height:0}
+  .kicker{display:flex;align-items:center;gap:7px;margin-bottom:12px}
+  .kicker::before{content:"";width:14px;height:1.5px;background:var(--brand);flex:none}
+  .kicker span{font-family:var(--mono);font-size:9.5px;color:var(--text-4);text-transform:uppercase}
+  .doc-title{font-family:var(--serif);font-size:32px;font-weight:500;line-height:1.32;margin:0 0 18px;color:var(--ink)}
+
+  .props{display:grid;grid-template-columns:1fr 1fr;column-gap:34px;margin-bottom:24px}
+  .prop{display:flex;align-items:baseline;gap:12px;height:32px;font-size:12.5px;min-width:0;border-bottom:1px solid var(--line-2)}
+  .prop .k{width:30px;flex:none;color:var(--text-3);font-size:11.5px}
+  .prop .v{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+  .pill-b{
+    display:inline-flex;align-items:center;gap:5px;background:var(--brand-tint);color:var(--brand-text);
+    border-radius:999px;padding:0 8px;font-size:11px;line-height:18px;font-weight:600;
+  }
+  .pill-b::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none}
+  .prop .v .tc{
+    display:inline-flex;align-items:center;height:19px;padding:0 8px;border-radius:999px;
+    background:var(--tint);color:var(--text-2);font-size:10.5px;margin-right:4px;
+  }
+  .prop .v .lnk{color:var(--link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
+  .prop .v .lnk:hover{border-bottom-color:var(--link)}
+
+  .prose{font-size:14px;line-height:1.78;color:var(--text-2)}
+  .prose h2{font-size:14px;font-weight:600;color:var(--ink);margin:0 0 6px;line-height:1.5}
+  .prose p{margin:0 0 14px}
+  .prose ul{margin:0 0 11px;padding-left:17px}
+  .prose li{margin-bottom:1px}
+  .prose li::marker{color:var(--text-4)}
+  .prose code{font-family:var(--mono);font-size:11px;color:var(--text-2);background:var(--tint);border-radius:3px;padding:1px 4px}
+  .prose blockquote{margin:0 0 11px;padding:2px 0 2px 11px;border-left:2px solid var(--brand);color:var(--text-2)}
+  .prose pre{
+    margin:0 0 11px;padding:10px 12px;background:var(--tint);border-radius:6px;
+    font-family:var(--mono);font-size:11px;line-height:1.72;color:var(--text-2);overflow:hidden;
+  }
+  .prose table{width:100%;border-collapse:collapse;margin:0 0 12px;font-size:12px;table-layout:fixed}
+  .prose th:nth-child(1),.prose td:nth-child(1){width:14%}
+  .prose th:nth-child(2),.prose td:nth-child(2){width:38%}
+  .prose th:nth-child(3),.prose td:nth-child(3){width:16%}
+  .prose th:nth-child(4),.prose td:nth-child(4){width:32%}
+  .prose th{font-family:var(--mono);font-size:9.5px;color:var(--text-3);font-weight:400;text-align:left;padding:0 8px 5px 0;border-bottom:1px solid var(--line)}
+  .prose td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line-2);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prose td:first-child{color:var(--ink)}
+  .tasks{display:flex;flex-direction:column;gap:5px;font-size:13.5px;color:var(--text-2)}
+  .task{display:flex;align-items:center;gap:8px}
+  .box{width:13px;height:13px;border:1px solid var(--text-4);border-radius:3px;flex:none;display:grid;place-items:center;color:transparent}
+  .box.done{background:var(--brand);border-color:var(--brand);color:#fff}
+  .box svg{width:8px;height:8px;stroke-width:3}
+  .task.done span{color:var(--text-4);text-decoration:line-through}
+
+  .doc-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
+    padding:9px 34px 10px;border-top:1px solid var(--line-2);
+    font-family:var(--mono);font-size:9.5px;color:var(--text-4);
+  }
+
+  /* ---------- themes ---------- */
+  .s-light{
+    --paper:#FFFFFF;--side:#F1F1EE;--tint:#F4F4F2;--sel:#FEF6EE;--hover:#F6F6F4;
+    --line:#E6E6E3;--line-2:#F0F0ED;
+    --ink:#1A1A18;--text-2:#4E504D;--text-3:#6C6F6B;--text-4:#93968F;
+    --brand:#F6821F;--brand-text:#B4530F;--brand-tint:#FEF2E7;--link:#0051C3;
+  }
+  .s-dark{
+    --paper:#1A1C1E;--side:#131518;--tint:#232629;--sel:#2B2118;--hover:#222528;
+    --line:#2C3033;--line-2:#24282B;
+    --ink:#E9EBED;--text-2:#A7ADB2;--text-3:#8A9095;--text-4:#6E7479;
+    --brand:#F6821F;--brand-text:#FBAD41;--brand-tint:#3A2716;--link:#7FA8FF;
+  }
+  .s-dark .btn{background:#F6821F;color:#1A1208}
+  .s-dark .btn:hover{background:#FF9A3C}
+  .s-dark .vt span.on,.s-dark .modes span.on{background:#33383C;box-shadow:none}
+  .s-dark .box.done{color:#1A1208}
+  .s-dark .memo{background:#1D2023;border-color:#2E3235}
+  .s-dark .duo a{background:#1F2225}
+
+  footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-3)}
+  footer .k{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--text-2)}
+  footer b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Menote V2 · Direction 08 · 2026-10-31</div>
+    <h1>结构定了，<em>剩下的是细节</em></h1>
+    <p class="intro">
+“太像模板”通常不是审美不够，是处处均匀：每个日期都写成同一种格式、每档字号都精确到半像素、每个图标都同一个尺寸。
+      设计感往往来自“不均匀但合理”——该紧凑的地方紧凑，该松的地方松，同一类信息在不同情境下用不同形态。
+    </p>
+    <p class="intro">
+      这一版在 v7 的结构上做两件事：把标签改成胶囊（侧栏与属性区统一），以及一轮针对“看起来像模板”的细节校准——
+      时间格式混排、按基线对齐、图标与字号同视重、收窄字号档位。
+    </p>
+    <nav class="jump">
+      <a href="#order"><span class="n">01</span>五个区段</a>
+      <a href="#search"><span class="n">02</span>两个输入入口</a>
+      <a href="#light"><span class="n">03</span>浅色</a>
+      <a href="#dark"><span class="n">04</span>深色</a>
+      <a href="#craft"><span class="n">05</span>细节校准</a>
+      <a href="#doc"><span class="n">06</span>需要联动改文档</a>
+    </nav>
+  </header>
+
+  <section id="order">
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>五个区段</h2>
+      <span class="of">从上到下，重要度递减</span>
+    </div>
+    <p class="sec-intro">判断顺序的标准只有一条：用户一天里最常伸手去够的东西，必须在最短的鼠标路径上。</p>
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>段</th><th>内容</th><th>为什么在这</th></tr></thead>
+        <tbody>
+          <tr><td>1 工具</td><td class="mono">品牌 · 搜索</td><td>全局检索，不属于任何一类内容；放最高处，随时可达</td></tr>
+          <tr><td>2 记录</td><td class="mono">Memo 输入 · 新建笔记 · Memo 时间线／最近编辑／收藏</td><td>最高频的动作在最上；写完的入口紧接着“回看”的入口</td></tr>
+          <tr><td>3 待整理</td><td class="mono">收件箱 / 草稿箱（并排）</td><td>两个“收进来还没归类”的入口，等权并置；紧贴主题树，因为它们下一步就是归类到树里</td></tr>
+          <tr><td>4 结构</td><td class="mono">主题（＋新建）· 主题树 · 私人空间</td><td>树是结构主体；新建主题跟着标题走，不再沉到底部；私人空间是树里的固定节点</td></tr>
+          <tr><td>5 标签</td><td class="mono">材质 8 · 光照 5 · 全部标签</td><td>跨主题检索，低频但必备；放最下，不抢结构的注意力</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div><b>为什么收件箱草稿箱并排</b>它们是同一件事的两个入口（“待归类”），不是两条独立导航。并排成两个小块后，纵向省下 30px，主题树整体上移，结构更靠近视觉中心。</div>
+      <div><b>为什么私人空间在树里</b>它不是导航项，是一个不可排序的固定主题。放进树的最末位，既保持“主题”的语义，也不会和收件箱这类功能入口混在一起。</div>
+    </div>
+  </section>
+
+  <section id="search">
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>两个输入入口</h2>
+      <span class="of">同形相邻 = 必然混淆</span>
+    </div>
+    <p class="sec-intro">搜索和 Memo 都是“输入”，但一个是检索工具（得到结果就离开），一个是内容生产（写进库里）。两者相邻且同形，用户会先点错一次。</p>
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>做法</th><th>改前</th><th>改后</th></tr></thead>
+        <tbody>
+          <tr><td>位置</td><td class="mono">紧挨 Memo 上方</td><td class="mono">上移到工具区，与 Memo 之间加一条分隔线</td></tr>
+          <tr><td>形态</td><td class="mono">带边框的输入框</td><td class="mono">无边框的一行入口，hover 才出底色</td></tr>
+          <tr><td>距离</td><td class="mono">8px</td><td class="mono">分隔线上下各 10–11px</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div><b>形态不同比距离更有效</b>即使把两者拉开 40px，两个都是带边框的输入框仍然会被读成“两个搜索”。搜索改成无边框的行、Memo 保留虚线输入面，一眼就能分开。</div>
+      <div><b>Memo 保留虚线框的原因</b>它是“待填写”的状态，虚线在视觉上天然表达“这里可以写”。搜索是“去找已有的”，不需要这个暗示。</div>
+    </div>
+  </section>
+
+  <section id="light">
+    <div class="sec-head">
+      <span class="idx">03</span>
+      <h2>浅色</h2>
+      <span class="of">灰侧栏 · 白清单 · 白文档</span>
+    </div>
+    <p class="sec-intro">侧栏从上到下：搜索 → Memo／新建／回看 → 收件箱草稿箱 → 主题树含私人空间 → 标签。两处白色小块（收件箱／草稿箱）是这一段里唯一的“实体”，因为它们需要被快点到。</p>
+    <div class="frame"><div class="shell s-light"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FFFFFF"></i>主区 <b>#FFFFFF</b></span>
+      <span class="sw"><i style="background:#F1F1EE"></i>侧栏 <b>#F1F1EE</b></span>
+      <span class="sw"><i style="background:#FDF3EA"></i>选中 <b>#FDF3EA</b></span>
+      <span class="sw"><i style="background:#FEF2E7"></i>橙浅层 <b>#FEF2E7</b></span>
+      <span class="sw"><i style="background:#F6821F"></i>橙 <b>#F6821F</b></span>
+      <span class="sw"><i style="background:#0051C3"></i>链接 <b>#0051C3</b></span>
+      <span>侧栏宽 <b>248</b></span>
+      <span>画布高 <b>792</b></span>
+    </div>
+  </section>
+
+  <section id="dark">
+    <div class="sec-head">
+      <span class="idx">04</span>
+      <h2>深色</h2>
+      <span class="of">同一套层级，换一层色</span>
+    </div>
+    <p class="sec-intro">深色只在明度上做同样的五段：搜索行、Memo 虚线面、两个白色小块、树、标签，顺序与间距完全一致。</p>
+    <div class="frame dark"><div class="shell s-dark"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#1A1C1E"></i>主区 <b>#1A1C1E</b></span>
+      <span class="sw"><i style="background:#131518"></i>侧栏 <b>#131518</b></span>
+      <span class="sw"><i style="background:#2B2118"></i>选中 <b>#2B2118</b></span>
+      <span class="sw"><i style="background:#3A2716"></i>橙浅层 <b>#3A2716</b></span>
+      <span class="sw"><i style="background:#1F2225"></i>白块 <b>#1F2225</b></span>
+      <span class="sw"><i style="background:#7FA8FF"></i>链接 <b>#7FA8FF</b></span>
+      <span>侧栏宽 <b>248</b></span>
+      <span>画布高 <b>792</b></span>
+    </div>
+  </section>
+
+  <section id="craft">
+    <div class="sec-head">
+      <span class="idx">05</span>
+      <h2>细节校准</h2>
+      <span class="of">去掉“生成物”的痕迹</span>
+    </div>
+    <p class="sec-intro">看起来像模板，通常不是因为不好看，而是因为处处均匀：同样的日期格式、同样精确的间距、同样的图标比例。下面八处都是“不均匀但合理”的调整。</p>
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>细节</th><th>改前</th><th>改后</th></tr></thead>
+        <tbody>
+          <tr><td>列表时间</td><td class="mono">全部「10-30」</td><td class="mono">14:02 / 昨天 / 周二 / 10-24 混排</td></tr>
+          <tr><td>日期与标题</td><td class="mono">顶部对齐，基线差 2px</td><td class="mono">按基线对齐</td></tr>
+          <tr><td>图标比例</td><td class="mono">14px / 1.5 描边</td><td class="mono">13px / 1.4</td></tr>
+          <tr><td>段间距</td><td class="mono">11px（段距 : 行高 ≈ 0.44）</td><td class="mono">14px（≈ 0.56）</td></tr>
+          <tr><td>字号档位</td><td class="mono">9 / 9.5 / 10 / 11 / 11.5 / 12 / 12.5 / 13.5 / 14</td><td class="mono">收敛到 10 / 11 / 12 / 13 / 14 / 17 / 32</td></tr>
+          <tr><td>主按钮</td><td class="mono">一块纯橙</td><td class="mono">顶部 1px 高光 + 底部 1px 压边</td></tr>
+          <tr><td>选中底色</td><td class="mono">#FDF3EA，整行发橘</td><td class="mono">#FEF6EE</td></tr>
+          <tr><td>标签</td><td class="mono">列表行（像项目）</td><td class="mono">胶囊（可并置的短词）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div><b>时间为什么混排</b>真实的笔记列表不会把所有日期写成同一种格式：今天显示时刻、昨天写「昨天」、一周内写周几、更早写月日。一整列同格式的日期是数据库导出的样子。</div>
+      <div><b>为什么收窄字号档位</b>9 / 9.5 / 10 / 11 / 11.5 这种半像素级阶梯，是“逐项生成”留下的指纹。人做设计会用少量档位，靠字重和颜色做中间层。</div>
+    </div>
+    <div class="notes" style="margin-top:10px">
+      <div><b>刻意没做的</b>加投影、加渐变、做毛玻璃、给每个区块加圆角卡片——这些是“看起来高级”的捷径，恰恰是最容易被认成模板的处理。</div>
+      <div><b>判断标准</b>把截图缩到 40% 看整体骨架是否还站得住；再把某一处放大到 200%，看有没有一处是“抠过”的。</div>
+    </div>
+  </section>
+
+  <section id="doc">
+    <div class="sec-head">
+      <span class="idx">06</span>
+      <h2>需要联动改文档</h2>
+      <span class="of">这五条改动了基线</span>
+    </div>
+    <p class="sec-intro">侧栏顺序在产品基线里是有明确写法的，这次调整有两处与它不一致，需要同步修订，否则开发和验收会打架。</p>
+    <div class="callout">
+      <b>FR-IA-4</b> 原文：「侧边栏顺序：Memo 快速输入框 → 新建笔记按钮 → 收件箱/草稿箱 → 最近编辑/收藏 → 主题与分组树（含固定「私人空间」）」。
+      本次调整为：<b>搜索 → Memo 输入 → 新建笔记 → Memo 时间线／最近编辑／收藏 → 收件箱／草稿箱（并排）→ 主题树（含私人空间）→ 标签</b>。
+      差异是「回看类入口」提到「待整理类入口」之前，并新增了 Memo 时间线与标签两个入口。建议连同 <b>FR-IA-2</b>（固定入口两个）与 <b>FR-IA-8</b>（标签）一起更新措辞。
+    </div>
+    <div class="notes" style="margin-top:12px">
+      <div><b>我没动的地方</b>Memo 输入仍在新建笔记之前、主题树仍是结构主体、清单与文档的分工不变——这三条是基线的骨架，重排不应该碰。</div>
+      <div><b>建议的验收标准</b>侧栏从顶到底可数出五个区段；任意两个相邻入口不属于同一类（工具／记录／待整理／结构／标签）。</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="k">越常伸手的东西，越靠上。</div>
+    <div>下一步：<b>DESIGN.md</b>（九节）＋ 组件全状态 ＋ 可点击原型，跑 375 / 768 / 1024 / 1440。</div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var S = function(p){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>'; };
+  var ic = {
+    search:S('<circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/>'),
+    plus:  S('<path d="M12 5v14M5 12h14"/>'),
+    inbox: S('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    file:  S('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h6M8 17h4"/>'),
+    clock: S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    star:  S('<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>'),
+    lock:  S('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+    table: S('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>'),
+    memo:  S('<path d="M4 5h16M4 11h16M4 17h9"/>'),
+    hash:  S('<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/>'),
+    down:  S('<path d="m6 9 6 6 6-6"/>'),
+    right: S('<path d="m9 6 6 6-6 6"/>'),
+    more:  S('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+    list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
+    grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+    sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
+    check: S('<path d="m4 12 5 5L20 6"/>')
+  };
+
+  var groups = [
+    {g:'最近', items:[
+      {t:'材质工作流', d:'基础层只负责底色与粗糙度，细节层控制磨损位置', m:'14:02', on:true},
+      {t:'场景灯光规范', d:'Lumen 与烘焙的分界，取决于是否需要动态时间', m:'昨天', type:'lock'},
+      {t:'程序化资产拆分', d:'Houdini 出片与引擎内参数化的取舍', m:'周二'},
+      {t:'蓝图命名约定', d:'动词前缀 + 对象名 + 变体后缀，避免中文命名', m:'10-24'},
+      {t:'渲染采样对比', d:'16 与 8 采样在远景观测下的差异记录', m:'10-21', type:'table'}
+    ]},
+    {g:'更早', items:[
+      {t:'地形层材质', d:'四层混合上限与虚拟纹理的取舍', m:'10-18'},
+      {t:'后处理栈顺序', d:'Bloom 与色调映射的先后，决定高光溢出形态', m:'10-16', type:'lock'},
+      {t:'动画蓝图接口', d:'状态机与蒙太奇的边界划分', m:'10-14'},
+      {t:'性能预算表', d:'每帧 16.6ms 的拆账，按镜头类型分档', m:'10-11', type:'table'},
+      {t:'世界分区设置', d:'Cell 尺寸与流送距离的联动', m:'10-08'},
+      {t:'关卡灰盒流程', d:'从 blockout 到白模验收的四道关', m:'10-06'}
+    ]}
+  ];
+
+  var rowsHTML = groups.map(function(g){
+    return '<div class="grp">'+g.g+'</div>' + g.items.map(function(r){
+      var icon = r.type==='lock' ? ic.lock : (r.type==='table' ? ic.table : ic.file);
+      return '<div class="nrow'+(r.on?' on':'')+'">'
+        + '<div class="nc-ic">'+icon+'</div>'
+        + '<div class="nr-t">'+r.t+'</div>'
+        + '<div class="nr-m">'+r.m+'</div>'
+        + '<div class="nr-d">'+r.d+'</div>'
+        + '</div>';
+    }).join('');
+  }).join('');
+
+  var shell = ''
+  + '<div class="app">'
+  +   '<aside class="sb">'
+
+  /* 1 工具 */
+  +     '<div class="sb-top"><span class="brand">Menote</span>'
+  +       '<button class="ic" aria-label="设置">'+ic.sliders+'</button></div>'
+
+  /* 2 记录 */
+  +     '<div class="memo"><span class="dot-mark"></span><span>记一条 Memo…</span><span class="kbd">⌘↵</span></div>'
+  +     '<button class="btn">'+ic.plus+'新建笔记</button>'
+  +     '<nav class="nav">'
+  +       '<a href="#">'+ic.memo+'Memo 时间线<span class="cnt plain">24</span></a>'
+  +       '<a href="#">'+ic.clock+'最近编辑</a>'
+  +       '<a href="#">'+ic.star+'收藏<span class="cnt plain">6</span></a>'
+  +     '</nav>'
+
+  /* 3 待整理 */
+  +     '<div class="duo">'
+  +       '<a href="#">'+ic.inbox+'收件箱<span class="cnt">3</span></a>'
+  +       '<a href="#">'+ic.file+'草稿箱<span class="cnt plain">2</span></a>'
+  +     '</div>'
+
+  /* 4 结构 */
+  +     '<div class="sec-label"><span class="lb">主题</span>'
+  +       '<button class="mini" aria-label="新建主题">'+ic.plus+'</button></div>'
+  +     '<div class="tree">'
+  +       '<a href="#">'+ic.down+'游戏美术</a>'
+  +       '<a href="#" class="l2 on">UE5</a>'
+  +       '<a href="#" class="l2">Houdini</a>'
+  +       '<a href="#">'+ic.right+'产品设计</a>'
+  +       '<a href="#">'+ic.right+'阅读清单</a>'
+  +       '<a href="#">'+ic.right+'灵感收集</a>'
+  +       '<a href="#">'+ic.right+'归档</a>'
+  +       '<a href="#">'+ic.right+'学习笔记</a>'
+  +       '<a href="#">'+ic.right+'旅行计划</a>'
+  +       '<a href="#" class="priv">'+ic.lock+'私人空间<span class="lock">锁定</span></a>'
+  +     '</div>'
+
+  /* 5 标签 */
+  +     '<div class="sec-label"><span class="lb">标签</span>'
+  +       '<button class="mini" aria-label="管理标签">'+ic.more+'</button></div>'
+  +     '<div class="tags">'
+  +       '<a class="tag-chip" href="#"><span class="hash">#</span>材质<span class="n">8</span></a>'
+  +       '<a class="tag-chip" href="#"><span class="hash">#</span>光照<span class="n">5</span></a>'
+  +       '<a class="tag-chip" href="#"><span class="hash">#</span>工作流<span class="n">3</span></a>'
+  +       '<a class="tag-chip more" href="#">全部标签 ›</a>'
+  +     '</div>'
+
+  +     '<div class="sb-foot"><span class="ava">M</span><span>maxxie</span>'
+  +       '<span class="sync"><span class="ok"></span>已同步</span></div>'
+  +   '</aside>'
+
+  +   '<div class="list-col">'
+  +     '<div class="list-head">'
+  +       '<span class="t">UE5 <span class="n">12 篇</span></span>'
+  +       '<div class="list-tools"><div class="vt"><span class="on">'+ic.list+'</span><span>'+ic.grid+'</span></div></div>'
+  +     '</div>'
+  +     '<div class="rows">'+rowsHTML+'</div>'
+  +   '</div>'
+
+  +   '<article class="doc">'
+  +     '<div class="doc-bar">'
+  +       '<div class="crumb">游戏美术 › UE5 › 第 1 篇</div>'
+  +       '<div class="bar-r"><div class="modes"><span class="on">编辑</span><span>预览</span></div>'
+  +         '<button class="icon-b" aria-label="更多操作">'+ic.more+'</button></div>'
+  +     '</div>'
+  +     '<div class="doc-in">'
+  +       '<div class="kicker"><span>Note · UE5</span></div>'
+  +       '<h1 class="doc-title">材质工作流</h1>'
+  +       '<div class="props">'
+  +         '<div class="prop"><span class="k">状态</span><span class="v"><span class="pill-b">进行中</span></span></div>'
+  +         '<div class="prop"><span class="k">更新</span><span class="v">2026-10-30</span></div>'
+  +         '<div class="prop"><span class="k">标签</span><span class="v"><span class="tc">UE5</span><span class="tc">材质</span></span></div>'
+  +         '<div class="prop"><span class="k">来源</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>'
+  +       '</div>'
+  +       '<div class="prose">'
+  +         '<h2>一、分层原则</h2>'
+  +         '<p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>'
+  +         '<ul><li>基础层：底色 + 粗糙度，命名 <code>M_&lt;角色&gt;_Base</code></li>'
+  +           '<li>细节层：平铺遮罩，靠世界坐标 UV 对齐</li>'
+  +           '<li>混合层：边缘磨损与高度混合，仅近景启用</li></ul>'
+  +         '<blockquote>任何一层出问题，都能单独回滚，不需要重做整份材质。</blockquote>'
+  +         '<pre># sampler defaults\nSampleCount  16\nTemporalAA   true\n# 远景观测需降至 8</pre>'
+  +         '<table><thead><tr><th>层</th><th>贴图</th><th>分辨率</th><th>说明</th></tr></thead>'
+  +           '<tbody><tr><td>基础层</td><td>BaseColor / Roughness</td><td>2K</td><td>全场景共用</td></tr>'
+  +           '<tr><td>细节层</td><td>Mask</td><td>1K</td><td>平铺，世界坐标对齐</td></tr>'
+  +           '<tr><td>混合层</td><td>Height</td><td>2K</td><td>仅近景启用</td></tr></tbody></table>'
+  +         '<div class="tasks">'
+  +           '<div class="task done"><span class="box done">'+ic.check+'</span><span>整理材质命名与分组</span></div>'
+  +           '<div class="task"><span class="box"></span><span>补齐采样对照表（16 / 8）</span></div>'
+  +         '</div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="doc-foot"><span>已保存 · Markdown</span><span>1,240 字</span></div>'
+  +   '</article>'
+  + '</div>';
+
+  document.querySelectorAll('.shell').forEach(function(el){ el.innerHTML = shell; });
+})();
+</script>
+</body>
+</html>

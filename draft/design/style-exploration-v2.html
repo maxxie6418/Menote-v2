@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 方向 02：纸白 × Cloudflare 橘（浅色 / 深色）</title>
+<style>
+  /* ============================================================
+     页面语言 = 参考页语言：1.5px 边框 / 纸面 / 衬线标题 / 等宽小标签
+     ============================================================ */
+  :root{
+    --canvas:#FAF8F3;
+    --paper:#FFFDFA;
+    --tint:#F2EEE4;
+    --tint-2:#EAE4D6;
+    --line:#DDD4C2;
+    --line-2:#EDE7DA;
+    --ink:#191610;
+    --text-2:#57503F;
+    --text-3:#6E6656;
+    --text-4:#8A8171;
+    --brand:#F6821F;
+    --brand-strong:#D96C12;
+    --brand-text:#B4530F;
+    --brand-tint:rgba(246,130,31,.10);
+    --mango:#FBAD41;
+    --ok:#5F7C43;
+    --serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+    --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--canvas);color:var(--ink);
+    font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;
+    letter-spacing:0;
+  }
+  .wrap{max-width:1252px;margin:0 auto;padding:0 32px 120px}
+
+  /* ---------- masthead ---------- */
+  header.masthead{padding:72px 0 42px;border-bottom:1.5px solid var(--line)}
+  .eyebrow{
+    font-family:var(--mono);font-size:11.5px;text-transform:uppercase;color:var(--text-3);
+    display:flex;align-items:center;gap:12px;margin-bottom:16px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1.5px;background:var(--brand);flex:none}
+  h1{
+    font-family:var(--serif);font-weight:500;font-size:48px;line-height:1.14;
+    margin:0 0 10px;max-width:1000px;
+  }
+  h1 em{font-style:italic;color:var(--brand-text)}
+  .intro{font-size:16px;color:var(--text-2);max-width:700px;margin:18px 0 0}
+  .intro a{color:var(--brand-text);text-decoration-color:rgba(246,130,31,.4);text-underline-offset:3px}
+  .intro a:hover{text-decoration-color:var(--brand-text)}
+  .intro code{font-family:var(--mono);font-size:13.5px;background:var(--tint);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  nav.pills{display:flex;flex-wrap:wrap;gap:8px;padding:24px 0 0}
+  nav.pills a{
+    font-size:12.5px;padding:6px 14px;border:1.5px solid var(--line);border-radius:999px;
+    color:var(--text-2);background:var(--paper);text-decoration:none;display:inline-flex;align-items:center;gap:7px;
+    transition:border-color 120ms,color 120ms;
+  }
+  nav.pills a:hover{border-color:var(--ink);color:var(--ink)}
+  nav.pills a .n{font-family:var(--mono);font-size:10px;color:var(--text-4)}
+
+  /* ---------- section ---------- */
+  section{margin-top:64px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:10px}
+  .sec-head .idx{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--brand-text);width:34px;flex:none}
+  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:26px;margin:0}
+  .sec-head .count{
+    font-family:var(--mono);font-size:10.5px;color:var(--text-3);background:var(--tint);
+    border:1px solid var(--line);padding:2px 8px;border-radius:999px;margin-left:2px;
+  }
+  .sec-intro{font-size:14px;color:var(--text-2);max-width:760px;margin:0 0 22px 50px}
+  @media(max-width:680px){.sec-intro{margin-left:0}}
+
+  /* ---------- frame ---------- */
+  .frame{border:1.5px solid var(--line);border-radius:14px;padding:14px;background:var(--tint);overflow-x:auto;margin-left:50px}
+  @media(max-width:680px){.frame{margin-left:0}}
+  .frame.dark{background:#0E0C0A;border-color:#2A251E}
+  .frame::-webkit-scrollbar{height:8px}
+  .frame::-webkit-scrollbar-thumb{background:#C9BFA9;border-radius:4px}
+  .frame.dark::-webkit-scrollbar-thumb{background:#332E26}
+
+  /* ---------- token strip ---------- */
+  .tokens{display:flex;flex-wrap:wrap;gap:9px 22px;margin:16px 0 0 50px;font-size:11.5px;color:var(--text-3)}
+  @media(max-width:680px){.tokens{margin-left:0}}
+  .sw{display:flex;align-items:center;gap:7px}
+  .sw i{width:13px;height:13px;border-radius:4px;border:1.5px solid rgba(25,22,16,.14);display:block}
+  .frame.dark + .tokens i{border-color:rgba(255,255,255,.16)}
+  .sw b{color:var(--text-2);font-weight:500;font-family:var(--mono);font-size:11px}
+
+  /* ---------- notes ---------- */
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;margin:14px 0 0 50px;font-size:13px;line-height:1.75;color:var(--text-2)}
+  .notes b{color:var(--ink);font-weight:600}
+  @media(max-width:680px){.notes{grid-template-columns:1fr;margin-left:0}}
+
+  /* ---------- tables ---------- */
+  .tbl{margin:22px 0 0 50px;border-top:1.5px solid var(--line)}
+  @media(max-width:680px){.tbl{margin-left:0}}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:10px 14px 10px 0;border-bottom:1px solid var(--line-2);vertical-align:top;line-height:1.65}
+  thead th{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--text-3);font-weight:400;border-bottom:1.5px solid var(--line)}
+  tbody td:first-child{color:var(--ink);width:34%}
+  tbody tr:last-child td{border-bottom:1.5px solid var(--line)}
+  td .mono{font-family:var(--mono);font-size:11px;color:var(--text-3);white-space:nowrap}
+  td .sw2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(25,22,16,.18)}
+
+  /* ============================================================
+     应用骨架 —— 与主题解耦，只吃 token
+     ============================================================ */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:224px 286px minmax(0,1fr);gap:12px;
+    height:716px;padding:14px;background:var(--canvas);
+    font-family:var(--sans);font-size:13px;color:var(--text);
+    border-radius:10px;
+  }
+  .pane{
+    background:var(--paper);border:1.5px solid var(--line);border-radius:14px;
+    display:flex;flex-direction:column;min-width:0;overflow:hidden;
+  }
+  .pane .eyebrow{margin-bottom:10px;font-size:10px;gap:9px}
+  .pane .eyebrow::before{width:18px}
+  svg{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+  /* --- sidebar --- */
+  .sb{padding:16px 14px 14px}
+  .brand{font-family:var(--serif);font-size:21px;font-weight:500;line-height:1.2;margin:0 0 14px}
+  .memo{
+    position:relative;border:1.5px dashed var(--line);border-radius:10px;
+    padding:9px 11px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    color:var(--text-4);font-size:12.5px;margin-bottom:14px;background:var(--tint);
+  }
+  .memo .tag{
+    position:absolute;top:-9px;left:10px;font-family:var(--mono);font-size:9px;
+    background:var(--paper);padding:0 6px;border:1.5px solid var(--line);border-radius:6px;
+    color:var(--text-3);line-height:15px;
+  }
+  .kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 4px;line-height:15px;flex:none;color:var(--text-3)}
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:7px;height:34px;
+    border:1.5px solid transparent;border-radius:10px;background:var(--brand);color:#191610;
+    font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;
+    transition:background 150ms,border-color 150ms;
+  }
+  .btn:hover{background:var(--brand-strong)}
+  .btn svg{width:15px;height:15px;stroke-width:2}
+  .nav{display:flex;flex-direction:column;gap:2px;margin-bottom:16px}
+  .nav a{
+    display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-radius:8px;
+    color:var(--text-2);text-decoration:none;font-size:12.5px;border:1.5px solid transparent;
+    transition:border-color 120ms,background 120ms;
+  }
+  .nav a:hover{border-color:var(--line);background:var(--tint)}
+  .nav a svg{width:14px;height:14px;color:var(--text-3);flex:none}
+  .nav .cnt{
+    margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-3);
+    border:1px solid var(--line);border-radius:999px;padding:0 6px;line-height:15px;
+  }
+  .tree{display:flex;flex-direction:column;gap:2px}
+  .tree a{
+    display:flex;align-items:center;gap:7px;height:29px;padding:0 9px;border-radius:999px;
+    color:var(--text-2);text-decoration:none;font-size:12.5px;border:1.5px solid transparent;
+    transition:border-color 120ms,color 120ms;
+  }
+  .tree a:hover{border-color:var(--line);color:var(--ink)}
+  .tree a svg{width:13px;height:13px;color:var(--text-4);flex:none}
+  .tree a.l2{padding-left:26px;color:var(--text-3)}
+  .tree a.on{border-color:var(--ink);color:var(--ink);font-weight:600;background:var(--paper)}
+  .tree a.on::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none}
+  .tree a.add{border:1.5px dashed var(--line);color:var(--text-3);margin-top:4px}
+  .tree a.add:hover{border-color:var(--brand);color:var(--brand-text)}
+  .tree .lock{
+    margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text-3);
+    border:1.5px solid var(--line);border-radius:6px;padding:0 5px;line-height:15px;display:flex;align-items:center;gap:4px;
+  }
+  .tree .lock svg{width:9px;height:9px}
+  .sb-foot{
+    margin-top:auto;padding-top:12px;border-top:1px solid var(--line-2);
+    display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3);
+  }
+  .ava{width:22px;height:22px;border-radius:999px;background:var(--brand);color:#191610;
+    display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600;flex:none}
+  .sb-foot .icon{margin-left:auto;width:24px;height:24px;display:grid;place-items:center;color:var(--text-3);border:0;background:none;cursor:pointer;border-radius:6px}
+  .sb-foot .icon svg{width:14px;height:14px}
+
+  /* --- list column --- */
+  .list-col{display:flex;flex-direction:column;min-width:0;gap:10px;padding-top:8px}
+  .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px}
+  .list-head .eyebrow{margin:0;font-size:10px}
+  .list-tools{display:flex;align-items:center;gap:6px}
+  .list-tools .cnt{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+  .vseg{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:1px;background:var(--paper)}
+  .vseg span{width:22px;height:20px;display:grid;place-items:center;border-radius:999px;color:var(--text-4)}
+  .vseg span.on{background:var(--tint);color:var(--ink)}
+  .vseg svg{width:12px;height:12px}
+
+  .cards{display:flex;flex-direction:column;gap:10px;min-height:0}
+  .ncard{
+    background:var(--paper);border:1.5px solid var(--line);border-radius:14px;
+    padding:11px 13px 0;cursor:pointer;
+    transition:transform 150ms ease,box-shadow 150ms ease,border-color 150ms ease;
+  }
+  .ncard:hover{transform:translateY(-3px);border-color:var(--ink);box-shadow:0 10px 30px var(--shadow)}
+  .ncard.on{border-color:var(--ink);box-shadow:0 10px 30px var(--shadow)}
+  .nc-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
+  .ncard.on .nc-title::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none}
+  .nc-title svg{width:11px;height:11px;color:var(--text-4);flex:none}
+  .nc-desc{font-size:11.5px;color:var(--text-3);margin:3px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nc-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    border-top:1px solid var(--line-2);margin-top:8px;padding:6px 0 7px;
+    font-family:var(--mono);font-size:10px;color:var(--text-3);
+  }
+  .nc-foot .ar{transition:transform 150ms ease,color 150ms ease}
+  .ncard:hover .nc-foot{color:var(--brand-text)}
+  .ncard:hover .nc-foot .ar{transform:translateX(3px)}
+
+  /* --- document --- */
+  .doc{padding:0}
+  .doc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line-2);flex:none}
+  .crumb{font-family:var(--mono);font-size:10px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-r{display:flex;align-items:center;gap:8px;flex:none}
+  .seg2{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:1.5px;background:var(--paper)}
+  .seg2 span{font-size:11px;padding:2px 11px;border-radius:999px;color:var(--text-4);line-height:18px}
+  .seg2 span.on{background:var(--tint);color:var(--ink);font-weight:600}
+  .icon-b{width:24px;height:24px;display:grid;place-items:center;border:0;background:none;color:var(--text-3);cursor:pointer;border-radius:6px}
+  .icon-b svg{width:14px;height:14px;stroke-width:1.8}
+
+  .doc-in{padding:18px 22px 0;overflow:hidden;flex:1;min-height:0}
+  .doc-in .eyebrow{margin-bottom:9px}
+  .doc-title{font-family:var(--serif);font-size:31px;font-weight:500;line-height:1.24;margin:0 0 16px;color:var(--ink)}
+
+  .props{border:1.5px solid var(--line);border-radius:10px;background:var(--tint);padding:10px 14px 11px;margin-bottom:18px}
+  .props .ph{font-family:var(--mono);font-size:9.5px;color:var(--text-3);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+  .props .ph .n{border:1px solid var(--line);border-radius:999px;padding:0 5px;line-height:13px}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px}
+  .prop{display:flex;align-items:center;gap:10px;font-size:12px;min-width:0}
+  .prop .k{width:30px;flex:none;color:var(--text-3);font-size:11px}
+  .prop .v{color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill-b{
+    display:inline-flex;align-items:center;gap:5px;background:var(--brand-tint);color:var(--brand-text);
+    border:1.5px solid rgba(246,130,31,.35);border-radius:999px;padding:0 8px;font-size:11px;line-height:17px;font-weight:600;
+  }
+  .lnk{color:var(--brand-text);text-decoration:underline;text-decoration-color:rgba(246,130,31,.42);text-underline-offset:3px}
+  .lnk:hover{text-decoration-color:var(--brand-text)}
+
+  .prose{font-size:13px;line-height:1.8;color:var(--text-2)}
+  .prose h2{font-family:var(--serif);font-size:15.5px;font-weight:600;color:var(--ink);margin:0 0 7px;line-height:1.5}
+  .prose p{margin:0 0 10px}
+  .prose ul{margin:0 0 10px;padding-left:16px}
+  .prose li{margin-bottom:2px}
+  .prose li::marker{color:var(--brand)}
+  .prose code{font-family:var(--mono);font-size:11px;background:var(--tint);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--text-2)}
+  .prose blockquote{margin:0 0 10px;padding:2px 0 2px 11px;border-left:2px solid var(--brand);color:var(--text-2)}
+  .prose pre{
+    margin:0 0 10px;padding:9px 12px;background:var(--tint);border-radius:10px;
+    font-family:var(--mono);font-size:10.5px;line-height:1.75;color:var(--text-2);overflow:hidden;
+  }
+  .tasks{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text-2)}
+  .task{display:flex;align-items:center;gap:8px}
+  .box{width:13px;height:13px;border:1.5px solid var(--line);border-radius:4px;flex:none;display:grid;place-items:center;background:var(--paper);color:transparent}
+  .box.done{background:var(--brand);border-color:var(--brand);color:#191610}
+  .box svg{width:9px;height:9px;stroke-width:2.8}
+  .task.done span{color:var(--text-3);text-decoration:line-through}
+
+  .doc-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
+    padding:9px 22px;border-top:1px solid var(--line-2);
+    font-family:var(--mono);font-size:10px;color:var(--text-3);
+  }
+  .doc-foot .st{display:flex;align-items:center;gap:6px}
+  .doc-foot .dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}
+
+  /* ============================================================
+     主题令牌
+     ============================================================ */
+  .s-light{
+    --canvas:#FAF8F3;--paper:#FFFDFA;--tint:#F2EEE4;
+    --line:#DDD4C2;--line-2:#EDE7DA;
+    --ink:#191610;--text:#191610;--text-2:#57503F;--text-3:#6E6656;--text-4:#8A8171;
+    --brand:#F6821F;--brand-strong:#D96C12;--brand-text:#B4530F;--brand-tint:rgba(246,130,31,.10);
+    --shadow:rgba(25,22,16,.10);--ok:#5F7C43;
+  }
+  .s-dark{
+    --canvas:#14120F;--paper:#1C1915;--tint:#242019;
+    --line:#35302A;--line-2:#2B2620;
+    --ink:#F4EFE5;--text:#F4EFE5;--text-2:#BCB3A3;--text-3:#A09687;--text-4:#7E7666;
+    --brand:#F6821F;--brand-strong:#FF9A3C;--brand-text:#FBAD41;--brand-tint:rgba(246,130,31,.14);
+    --shadow:rgba(0,0,0,.55);--ok:#8CA86B;
+  }
+  .s-dark .btn{color:#191610}
+  .s-dark .pane .eyebrow,.s-dark .nav a:hover{color:var(--text-2)}
+  .s-dark .memo{border-color:#3B352C}
+  .s-dark .vseg span.on{background:#2C2721}
+  .s-dark .pill-b{border-color:rgba(246,130,31,.30)}
+
+  footer{margin-top:72px;border-top:1.5px solid var(--line);padding-top:28px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--text-3)}
+  footer .k{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--text-2)}
+  footer b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Menote V2 · Direction 02 · 2026-10-31</div>
+    <h1>纸白 × Cloudflare 橘：<em>浅色与深色</em></h1>
+    <p class="intro">
+      元素语言取自 <a href="https://thariqs.github.io/html-effectiveness/" target="_blank" rel="noopener">html-effectiveness</a>：
+      1.5px 实线边框、白纸卡片浮在暖色地面上、衬线标题配无衬线正文、等宽小标签、胶囊控件、悬停微抬 3px。
+      配色回到纸白，主色换成 Cloudflare 橘 <code>#F6821F</code>。下面是同一套骨架的两版：深色不是浅色的反转，
+      底色用暖炭而不是纯黑，橙色在暗背景上升一档亮度。
+    </p>
+    <nav class="pills">
+      <a href="#grammar"><span class="n">01</span>元素语法</a>
+      <a href="#light"><span class="n">02</span>浅色</a>
+      <a href="#dark"><span class="n">03</span>深色</a>
+      <a href="#tokens"><span class="n">04</span>令牌对照</a>
+      <a href="#trade"><span class="n">05</span>偏差与取舍</a>
+    </nav>
+  </header>
+
+  <!-- 01 元素语法 -->
+  <section id="grammar">
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>把参考页的元素拆成可复用的规则</h2>
+      <span class="count">9 条</span>
+    </div>
+    <p class="sec-intro">参考页之所以「有质感」，不是因为某个颜色，而是九条稳定重复的形制。这些规则进 Menote 时只换色值，不改尺寸关系。</p>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>参考页的做法</th><th>数值</th><th>落到 Menote</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1.5px 实线边框</td><td class="mono">1.5px solid</td><td>三块面板、笔记卡片、胶囊控件的边界；悬停时边框转墨色</td></tr>
+          <tr><td>1px 细分隔线</td><td class="mono">1px solid</td><td>只在卡片内部用：标题／摘要／元信息之间，以及文档页脚上方</td></tr>
+          <tr><td>四级圆角</td><td class="mono">14 / 10 / 999 / 6</td><td>面板与笔记卡 14；属性区、代码块、按钮 10；状态与开关 999；MEMO 角标 6</td></tr>
+          <tr><td>衬线标题 500</td><td class="mono">ui-serif / Songti</td><td>品牌名、笔记标题、正文小标题；正文不用衬线</td></tr>
+          <tr><td>无衬线正文</td><td class="mono">system-ui 栈</td><td>正文、导航、表单、按钮——参考页本身也是正文无衬线</td></tr>
+          <tr><td>等宽小标签</td><td class="mono">9–11px</td><td>日期、字数、属性计数、MEMO／PROPERTIES 角标、面包屑</td></tr>
+          <tr><td>22×1.5 强调短线</td><td class="mono">1.5px 橘</td><td>每个 section 与 eyebrow 前置，作为唯一的横向装饰</td></tr>
+          <tr><td>悬停 −3px + 阴影</td><td class="mono">0 10 30 / 10%</td><td>笔记卡片；选中态直接复用这套，不再另设高亮色</td></tr>
+          <tr><td>箭头 → 平移 3px</td><td class="mono">150ms</td><td>卡片右下角进入暗示，同时染成橘色</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 02 浅色 -->
+  <section id="light">
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>浅色 · 纸白底</h2>
+      <span class="count">Light</span>
+    </div>
+    <p class="sec-intro">纸白作画布，三块白纸卡片浮在上面，靠 1.5px 暖灰边框和 12px 间隙分栏——不是切三条色带。橘色只出现在按钮、选中点、标记与链接。</p>
+    <div class="frame"><div class="shell s-light"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FAF8F3"></i>画布 <b>#FAF8F3</b></span>
+      <span class="sw"><i style="background:#FFFDFA"></i>纸面 <b>#FFFDFA</b></span>
+      <span class="sw"><i style="background:#F2EEE4"></i>浅层 <b>#F2EEE4</b></span>
+      <span class="sw"><i style="background:#DDD4C2"></i>边框 <b>#DDD4C2</b></span>
+      <span class="sw"><i style="background:#191610"></i>墨 <b>#191610</b></span>
+      <span class="sw"><i style="background:#F6821F"></i>主色 <b>#F6821F</b></span>
+      <span class="sw"><i style="background:#B4530F"></i>橘·文字 <b>#B4530F</b></span>
+      <span>圆角 <b>14 / 10 / 999</b></span>
+      <span>标题 <b>31px serif 500</b></span>
+    </div>
+    <div class="notes">
+      <div><b>为什么卡片化</b>参考页的质感来自「纸浮在地面上」。三栏都做成带边框的独立纸面后，深色版只需换纸与地面的颜色，结构不动；将来做网格布局（FR-IA-7）时，笔记卡和网格里的卡片本来就是同一种组件。</div>
+      <div><b>注意</b>1.5px 边框在 1x 屏上接近 2px，视觉偏重；需要在 2x 屏和 125% 缩放下各看一次，必要时降低边框与纸面的明度差，而不是把边框减到 1px。</div>
+    </div>
+  </section>
+
+  <!-- 03 深色 -->
+  <section id="dark">
+    <div class="sec-head">
+      <span class="idx">03</span>
+      <h2>深色 · 暖炭底</h2>
+      <span class="count">Dark</span>
+    </div>
+    <p class="sec-intro">底色取纸白在相同色相上压暗的结果（暖炭 #14120F），不是 #000。纸面比地面亮一档，边框仍是 1.5px，只是把「暖灰」换成「暖褐」。橘色在这里比浅色版更好用，正文链接可以直接上橘。</p>
+    <div class="frame dark"><div class="shell s-dark"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#14120F"></i>画布 <b>#14120F</b></span>
+      <span class="sw"><i style="background:#1C1915"></i>纸面 <b>#1C1915</b></span>
+      <span class="sw"><i style="background:#242019"></i>浅层 <b>#242019</b></span>
+      <span class="sw"><i style="background:#35302A"></i>边框 <b>#35302A</b></span>
+      <span class="sw"><i style="background:#F4EFE5"></i>墨 <b>#F4EFE5</b></span>
+      <span class="sw"><i style="background:#F6821F"></i>主色 <b>#F6821F</b></span>
+      <span class="sw"><i style="background:#FBAD41"></i>橘·文字 <b>#FBAD41</b></span>
+      <span>圆角 <b>14 / 10 / 999</b></span>
+      <span>对比 <b>橘字 8.9:1</b></span>
+    </div>
+    <div class="notes">
+      <div><b>为什么不是纯黑</b>Cloudflare 的品牌规范写明「黑色只用于文字，不用作背景」。纯黑还会让 1.5px 边框显得脏；暖炭能和纸白版保持同一色相家族，两套主题切换时不会像换了个产品。</div>
+      <div><b>注意</b>深色下阴影几乎无效（0 0 0 / 55% 只能压出一点点），卡片的层级主要靠「纸面比地面亮一档 + 1.5px 边框」承担，所以深色版的 --paper 与 --canvas 明度差要保留，不能一起压暗。</div>
+    </div>
+  </section>
+
+  <!-- 04 令牌对照 -->
+  <section id="tokens">
+    <div class="sec-head">
+      <span class="idx">04</span>
+      <h2>令牌对照</h2>
+      <span class="count">可直接落 CSS 变量</span>
+    </div>
+    <p class="sec-intro">两套主题共用同一组角色名，只有值不同——这就是 C-5「视觉主题与逻辑代码解耦」的落点。切换主题等于换一层变量，组件一行都不用改。</p>
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr><th>角色</th><th>浅色</th><th>深色</th><th>用在哪</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>canvas</td>
+            <td class="mono"><span class="sw2" style="background:#FAF8F3"></span>#FAF8F3</td>
+            <td class="mono"><span class="sw2" style="background:#14120F"></span>#14120F</td>
+            <td>应用底色、面板之间的缝</td>
+          </tr>
+          <tr>
+            <td>paper</td>
+            <td class="mono"><span class="sw2" style="background:#FFFDFA"></span>#FFFDFA</td>
+            <td class="mono"><span class="sw2" style="background:#1C1915"></span>#1C1915</td>
+            <td>面板、笔记卡、胶囊底</td>
+          </tr>
+          <tr>
+            <td>tint</td>
+            <td class="mono"><span class="sw2" style="background:#F2EEE4"></span>#F2EEE4</td>
+            <td class="mono"><span class="sw2" style="background:#242019"></span>#242019</td>
+            <td>属性区、代码块、悬停底</td>
+          </tr>
+          <tr>
+            <td>line / line-2</td>
+            <td class="mono">#DDD4C2 / #EDE7DA</td>
+            <td class="mono">#35302A / #2B2620</td>
+            <td>1.5px 容器边框 / 1px 内部分隔</td>
+          </tr>
+          <tr>
+            <td>ink（文字）</td>
+            <td class="mono">#191610</td>
+            <td class="mono">#F4EFE5</td>
+            <td>标题、选中的值、主按钮上的字</td>
+          </tr>
+          <tr>
+            <td>text-2 / text-3 / text-4</td>
+            <td class="mono">#57503F / #7C7462 / #9C9481</td>
+            <td class="mono">#BCB3A3 / #9A9082 / #7B7365</td>
+            <td>正文 / 辅助 / 等宽小标签</td>
+          </tr>
+          <tr>
+            <td>brand</td>
+            <td class="mono"><span class="sw2" style="background:#F6821F"></span>#F6821F</td>
+            <td class="mono"><span class="sw2" style="background:#F6821F"></span>#F6821F</td>
+            <td>主按钮底、选中点、引用竖线、勾选框、角标短线</td>
+          </tr>
+          <tr>
+            <td>brand-text</td>
+            <td class="mono">#B4530F（4.8:1）</td>
+            <td class="mono">#FBAD41（8.9:1）</td>
+            <td>链接、可读的橘色文字</td>
+          </tr>
+          <tr>
+            <td>brand-tint</td>
+            <td class="mono">rgba(246,130,31,.10)</td>
+            <td class="mono">rgba(246,130,31,.14)</td>
+            <td>状态胶囊底色</td>
+          </tr>
+          <tr>
+            <td>shadow</td>
+            <td class="mono">rgba(25,22,16,.10)</td>
+            <td class="mono">rgba(0,0,0,.55)</td>
+            <td>卡片悬停／选中：0 10px 30px</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 05 偏差 -->
+  <section id="trade">
+    <div class="sec-head">
+      <span class="idx">05</span>
+      <h2>偏差与取舍</h2>
+      <span class="count">4 条</span>
+    </div>
+    <p class="sec-intro">照搬参考页会有三处直接失守的地方，我改了，理由写在这里。你要是不同意其中任何一条，改的都是单个变量，不是结构。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>参考页 / 品牌的做法</th><th>我的处理</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>标题字距 −0.018em、小标签 0.12em</td>
+            <td class="mono">全部 0</td>
+            <td>中文界面负字距会挤字，大写小标签加字距在中文里没有对应收益。字号与字重已经足够拉开层级。</td>
+          </tr>
+          <tr>
+            <td>橘色直接当强调色用</td>
+            <td class="mono">#F6821F 只做填充与标记<br>文字用 #B4530F / #FBAD41</td>
+            <td>#F6821F 在纸白上只有 2.5:1，做正文或链接不可读。Cloudflare 自己也是把它当品牌色而非正文色。</td>
+          </tr>
+          <tr>
+            <td>橙色按钮配白字（品牌常见）</td>
+            <td class="mono">墨字 #191610（7.2:1）</td>
+            <td>白字在 #F6821F 上只有 2.6:1。墨字既合规范里「黑用于文字」，也保住了对比度。</td>
+          </tr>
+          <tr>
+            <td>「黑色不作背景」</td>
+            <td class="mono">深色底 #14120F（暖炭）</td>
+            <td>夜间模式必须给深底。不用纯黑既守住规范本意，也让两套主题保持同一色相。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="k">同一套骨架，两层令牌，零组件改动。</div>
+    <div>下一步：<b>选定浅色或深色为默认</b>，我出 DESIGN.md（九节）+ 组件全状态（悬停／焦点／禁用／加载／空／锁定）+ 可点击原型，跑 375 / 768 / 1024 / 1440。</div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var S = function(p){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>'; };
+  var ic = {
+    plus:  S('<path d="M12 5v14M5 12h14"/>'),
+    inbox: S('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    file:  S('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/>'),
+    clock: S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    star:  S('<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>'),
+    lock:  S('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+    down:  S('<path d="m6 9 6 6 6-6"/>'),
+    right: S('<path d="m9 6 6 6-6 6"/>'),
+    more:  S('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+    list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
+    grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+    sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
+    check: S('<path d="m4 12 5 5L20 6"/>')
+  };
+
+  var rows = [
+    {t:'材质工作流', d:'基础层只负责底色与粗糙度，细节层控制磨损位置', m:'2026-10-30', on:true},
+    {t:'场景灯光规范', d:'Lumen 与烘焙的分界，取决于是否需要动态时间', m:'2026-10-28', lock:true},
+    {t:'程序化资产拆分', d:'Houdini 出片与引擎内参数化的取舍', m:'2026-10-26'},
+    {t:'蓝图命名约定', d:'动词前缀 + 对象名 + 变体后缀，避免中文命名', m:'2026-10-24'},
+    {t:'渲染采样对比', d:'16 与 8 采样在远景观测下的差异记录', m:'2026-10-21'},
+    {t:'地形层材质', d:'四层混合上限与虚拟纹理的取舍', m:'2026-10-18'}
+  ];
+
+  var cards = rows.map(function(r){
+    return '<div class="ncard'+(r.on?' on':'')+'">'
+      + '<div class="nc-title">'+r.t+(r.lock?ic.lock:'')+'</div>'
+      + '<div class="nc-desc">'+r.d+'</div>'
+      + '<div class="nc-foot"><span>'+r.m+'</span><span class="ar">→</span></div>'
+      + '</div>';
+  }).join('');
+
+  var shell = ''
+  + '<div class="app">'
+  +   '<aside class="pane sb">'
+  +     '<div class="eyebrow">Workspace</div>'
+  +     '<div class="brand">Menote</div>'
+  +     '<div class="memo"><span class="tag">Memo</span><span>记一条，稍后再整理…</span><span class="kbd">⌘↵</span></div>'
+  +     '<button class="btn">'+ic.plus+'新建笔记</button>'
+  +     '<nav class="nav">'
+  +       '<a href="#">'+ic.inbox+'收件箱<span class="cnt">3</span></a>'
+  +       '<a href="#">'+ic.file+'草稿箱<span class="cnt">2</span></a>'
+  +       '<a href="#">'+ic.clock+'最近编辑</a>'
+  +       '<a href="#">'+ic.star+'收藏</a>'
+  +     '</nav>'
+  +     '<div class="eyebrow">Themes</div>'
+  +     '<div class="tree">'
+  +       '<a href="#">'+ic.lock+'私人空间<span class="lock">锁定</span></a>'
+  +       '<a href="#">'+ic.down+'游戏美术</a>'
+  +       '<a href="#" class="l2 on">UE5</a>'
+  +       '<a href="#" class="l2">Houdini</a>'
+  +       '<a href="#">'+ic.right+'产品设计</a>'
+  +       '<a href="#">'+ic.right+'阅读清单</a>'
+  +       '<a href="#" class="add">'+ic.plus+'新建主题</a>'
+  +     '</div>'
+  +     '<div class="sb-foot"><span class="ava">M</span><span>maxxie</span>'
+  +       '<button class="icon" aria-label="设置">'+ic.sliders+'</button></div>'
+  +   '</aside>'
+  +   '<div class="list-col">'
+  +     '<div class="list-head">'
+  +       '<div class="eyebrow">UE5</div>'
+  +       '<div class="list-tools"><span class="cnt">12 篇</span>'
+  +         '<div class="vseg"><span class="on">'+ic.list+'</span><span>'+ic.grid+'</span></div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="cards">'+cards+'</div>'
+  +   '</div>'
+  +   '<article class="pane doc">'
+  +     '<div class="doc-bar">'
+  +       '<div class="crumb">游戏美术 / UE5 / 12 篇中的第 1 篇</div>'
+  +       '<div class="bar-r"><div class="seg2"><span class="on">编辑</span><span>预览</span></div>'
+  +         '<button class="icon-b" aria-label="更多操作">'+ic.more+'</button></div>'
+  +     '</div>'
+  +     '<div class="doc-in">'
+  +       '<div class="eyebrow">Note 01</div>'
+  +       '<h1 class="doc-title">材质工作流</h1>'
+  +       '<div class="props">'
+  +         '<div class="ph">Properties<span class="n">4</span></div>'
+  +         '<div class="pgrid">'
+  +           '<div class="prop"><span class="k">状态</span><span class="v"><span class="pill-b">进行中</span></span></div>'
+  +           '<div class="prop"><span class="k">更新</span><span class="v">2026-10-30</span></div>'
+  +           '<div class="prop"><span class="k">标签</span><span class="v">UE5 · 材质</span></div>'
+  +           '<div class="prop"><span class="k">来源</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>'
+  +         '</div>'
+  +       '</div>'
+  +       '<div class="prose">'
+  +         '<h2>一、分层原则</h2>'
+  +         '<p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>'
+  +         '<ul><li>基础层：底色 + 粗糙度，命名 <code>M_&lt;角色&gt;_Base</code></li>'
+  +           '<li>细节层：平铺遮罩，靠世界坐标 UV 对齐</li>'
+  +           '<li>混合层：边缘磨损与高度混合，仅近景启用</li></ul>'
+  +         '<blockquote>任何一层出问题，都能单独回滚，不需要重做整份材质。</blockquote>'
+  +         '<pre># sampler defaults\nSampleCount  16\nTemporalAA   true\n# 远景观测需降至 8</pre>'
+  +         '<div class="tasks">'
+  +           '<div class="task done"><span class="box done">'+ic.check+'</span><span>整理材质命名与分组</span></div>'
+  +           '<div class="task"><span class="box"></span><span>补齐采样对照表（16 / 8）</span></div>'
+  +         '</div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="doc-foot"><span class="st"><span class="dot"></span>已保存 · Markdown</span><span>1,240 字</span></div>'
+  +   '</article>'
+  + '</div>';
+
+  document.querySelectorAll('.shell').forEach(function(el){ el.innerHTML = shell; });
+})();
+</script>
+</body>
+</html>

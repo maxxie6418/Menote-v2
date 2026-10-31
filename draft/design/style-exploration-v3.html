@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 方向 03：把剂量减下来（纸白 × Cloudflare 橘）</title>
+<style>
+  :root{
+    --canvas:#FAF8F3;
+    --paper:#FDFBF6;
+    --tint:#F2EEE4;
+    --hair:#E9E2D3;
+    --hair-2:#F0EADD;
+    --ink:#191610;
+    --text-2:#57503F;
+    --text-3:#6E6656;
+    --text-4:#8A8171;
+    --brand:#F6821F;
+    --brand-text:#B4530F;
+    --serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+    --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--canvas);color:var(--ink);
+    font-family:var(--sans);line-height:1.62;-webkit-font-smoothing:antialiased;letter-spacing:0;
+  }
+  .wrap{max-width:1252px;margin:0 auto;padding:0 32px 120px}
+
+  /* ---------- masthead ---------- */
+  header.masthead{padding:72px 0 36px;border-bottom:1px solid var(--hair)}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--text-4);
+    display:flex;align-items:center;gap:10px;margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:18px;height:1px;background:var(--brand);flex:none}
+  h1{font-family:var(--serif);font-weight:500;font-size:42px;line-height:1.18;margin:0 0 8px;max-width:900px}
+  h1 em{font-style:italic;color:var(--brand-text)}
+  .intro{font-size:15.5px;color:var(--text-2);max-width:730px;margin:16px 0 0;line-height:1.75}
+  nav.jump{display:flex;flex-wrap:wrap;gap:22px;padding:22px 0 0}
+  nav.jump a{font-size:12.5px;color:var(--text-3);text-decoration:none;display:inline-flex;align-items:baseline;gap:6px}
+  nav.jump a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--brand)}
+  nav.jump .n{font-family:var(--mono);font-size:10px;color:var(--text-4)}
+
+  /* ---------- section ---------- */
+  section{margin-top:60px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-head .idx{font-family:var(--mono);font-size:11.5px;color:var(--brand-text);width:30px;flex:none}
+  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:23px;margin:0}
+  .sec-head .of{font-size:12px;color:var(--text-4)}
+  .sec-intro{font-size:13.5px;color:var(--text-2);max-width:760px;margin:0 0 20px 44px}
+  @media(max-width:680px){.sec-intro{margin-left:0}}
+
+  /* ---------- frame ---------- */
+  .frame{border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-left:44px;background:var(--canvas)}
+  @media(max-width:680px){.frame{margin-left:0}}
+  .frame.dark{border-color:#2A251E;background:#15130F}
+
+  /* ---------- token strip ---------- */
+  .tokens{display:flex;flex-wrap:wrap;gap:8px 20px;margin:13px 0 0 44px;font-size:11px;color:var(--text-3)}
+  @media(max-width:680px){.tokens{margin-left:0}}
+  .sw{display:flex;align-items:center;gap:6px}
+  .sw i{width:11px;height:11px;border-radius:2px;border:1px solid rgba(25,22,16,.12);display:block}
+  .sw b{color:var(--text-2);font-weight:400;font-family:var(--mono);font-size:10.5px}
+
+  /* ---------- notes ---------- */
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:8px 30px;margin:12px 0 0 44px;font-size:12.5px;line-height:1.7;color:var(--text-3)}
+  .notes b{color:var(--ink);font-weight:600}
+  @media(max-width:680px){.notes{grid-template-columns:1fr;margin-left:0}}
+
+  /* ---------- table ---------- */
+  .tbl{margin:20px 0 0 44px}
+  @media(max-width:680px){.tbl{margin-left:0}}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:9px 16px 9px 0;border-bottom:1px solid var(--hair-2);vertical-align:top;line-height:1.65}
+  thead th{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--text-4);font-weight:400;border-bottom:1px solid var(--hair)}
+  tbody td:first-child{color:var(--ink);width:19%}
+  tbody td:last-child{color:var(--text-2)}
+  td .mono{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+  td .old{color:var(--text-4);text-decoration:line-through}
+
+  /* ============================================================
+     应用：一个画布，一条发丝线分隔，零卡片零阴影
+     ============================================================ */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:232px 310px minmax(0,1fr);
+    height:716px;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:13px;overflow:hidden;
+  }
+  svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+  /* --- sidebar --- */
+  .sb{display:flex;flex-direction:column;padding:20px 16px 14px;border-right:1px solid var(--hair);min-width:0}
+  .brand{font-family:var(--serif);font-size:17px;font-weight:500;line-height:1.3;margin:0 0 18px;padding:0 2px}
+  .memo{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:0 2px 8px;border-bottom:1px solid var(--hair);
+    color:var(--text-4);font-size:12.5px;margin-bottom:16px;
+  }
+  .kbd{font-family:var(--mono);font-size:10px;color:var(--text-4);flex:none}
+  .btn{
+    display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;margin-bottom:18px;
+    border:1px solid var(--text-4);border-radius:6px;background:none;color:var(--ink);
+    font-family:var(--sans);font-size:12.5px;cursor:pointer;
+    transition:border-color 120ms,background 120ms;
+  }
+  .btn:hover{border-color:var(--ink);background:rgba(25,22,16,.03)}
+  .btn svg{width:13px;height:13px;stroke-width:1.8;color:var(--text-2)}
+
+  .nav{display:flex;flex-direction:column;margin-bottom:18px}
+  .nav a{
+    display:flex;align-items:center;gap:9px;height:29px;padding:0 2px;
+    color:var(--text-2);text-decoration:none;font-size:12.5px;border-radius:4px;
+  }
+  .nav a:hover{color:var(--ink)}
+  .nav a:hover svg{color:var(--ink)}
+  .nav a svg{width:14px;height:14px;color:var(--text-4);flex:none}
+  .nav .cnt{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-4)}
+
+  .tree{display:flex;flex-direction:column}
+  .tree a{
+    display:flex;align-items:center;gap:7px;height:28px;padding:0 2px;
+    color:var(--text-2);text-decoration:none;font-size:12.5px;
+  }
+  .tree a:hover{color:var(--ink)}
+  .tree a svg{width:12px;height:12px;color:var(--text-4);flex:none}
+  .tree a.l2{padding-left:22px;color:var(--text-3)}
+  .tree a.l2:hover{color:var(--ink)}
+  .tree a.on{color:var(--ink);font-weight:600}
+  .tree a.on::before{
+    content:"";width:5px;height:5px;border-radius:50%;background:var(--brand);flex:none;
+    margin-left:-13px;margin-right:8px;
+  }
+  .tree .lock{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--text-4);display:flex;align-items:center;gap:4px}
+  .tree .lock svg{width:9px;height:9px}
+  .tree a.add{color:var(--text-4);margin-top:4px}
+  .tree a.add:hover{color:var(--brand-text)}
+
+  .sb-foot{
+    margin-top:auto;display:flex;align-items:center;gap:8px;
+    padding-top:12px;font-size:11.5px;color:var(--text-3);
+  }
+  .ava{width:20px;height:20px;border-radius:999px;background:var(--ink);color:var(--paper);
+    display:grid;place-items:center;font-family:var(--mono);font-size:9.5px;flex:none}
+  .sb-foot .ic{margin-left:auto;border:0;background:none;color:var(--text-4);cursor:pointer;padding:0;display:grid;place-items:center}
+  .sb-foot .ic svg{width:14px;height:14px}
+
+  /* --- list --- */
+  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--hair);min-width:0}
+  .list-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:19px 16px 11px;border-bottom:1px solid var(--hair-2);
+  }
+  .list-head .t{font-family:var(--mono);font-size:10.5px;color:var(--text-3);text-transform:uppercase}
+  .list-tools{display:flex;align-items:center;gap:9px}
+  .list-tools .cnt{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+  .vt{display:flex;gap:7px}
+  .vt span{color:var(--text-4);display:grid;place-items:center}
+  .vt span.on{color:var(--ink)}
+  .vt svg{width:13px;height:13px}
+
+  .rows{display:flex;flex-direction:column;padding:6px 0;min-height:0}
+  .nrow{padding:11px 16px 12px;cursor:pointer;background:none;transition:background 120ms}
+  .nrow:hover{background:rgba(25,22,16,.025)}
+  .nrow.on{background:rgba(25,22,16,.035);box-shadow:inset 2px 0 0 var(--brand)}
+  .nr-t{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--ink);line-height:1.4}
+  .nr-t svg{width:11px;height:11px;color:var(--text-4);flex:none}
+  .nr-d{font-size:11.5px;color:var(--text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nr-m{font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:5px}
+
+  /* --- document --- */
+  .doc{display:flex;flex-direction:column;min-width:0;background:transparent}
+  .doc-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:16px 32px 0;flex:none;
+  }
+  .crumb{font-family:var(--mono);font-size:10px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-r{display:flex;align-items:center;gap:14px;flex:none}
+  .modes{display:flex;gap:12px;font-size:12px}
+  .modes span{color:var(--text-4)}
+  .modes span.on{color:var(--ink);font-weight:600}
+  .icon-b{border:0;background:none;color:var(--text-4);cursor:pointer;padding:0;display:grid;place-items:center}
+  .icon-b svg{width:14px;height:14px}
+
+  .doc-in{padding:14px 32px 0;overflow:hidden;flex:1;min-height:0}
+  .doc-title{font-family:var(--serif);font-size:27px;font-weight:500;line-height:1.3;margin:0 0 18px;color:var(--ink)}
+
+  .props{border-top:1px solid var(--hair-2);padding-top:10px;margin-bottom:24px}
+  .props .ph{font-family:var(--mono);font-size:9.5px;color:var(--text-3);margin-bottom:7px}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 28px}
+  .prop{display:flex;align-items:baseline;gap:12px;font-size:12px;min-width:0}
+  .prop .k{width:28px;flex:none;color:var(--text-3);font-size:11px}
+  .prop .v{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prop .v.state::before{
+    content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--brand);margin-right:7px;vertical-align:1.5px;
+  }
+  .lnk{color:var(--brand-text);text-decoration:none;border-bottom:1px solid rgba(246,130,31,.35)}
+  .lnk:hover{border-bottom-color:var(--brand-text)}
+
+  .prose{font-size:13px;line-height:1.85;color:var(--text-2)}
+  .prose h2{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--ink);margin:0 0 7px;line-height:1.5}
+  .prose p{margin:0 0 10px}
+  .prose ul{margin:0 0 10px;padding-left:16px}
+  .prose li{margin-bottom:1px}
+  .prose li::marker{color:var(--text-4)}
+  .prose code{font-family:var(--mono);font-size:11px;color:var(--text-2)}
+  .prose blockquote{margin:0 0 11px;padding-left:12px;border-left:2px solid var(--brand);color:var(--text-2)}
+  .prose pre{
+    margin:0 0 11px;padding:9px 12px;background:var(--tint);border-radius:6px;
+    font-family:var(--mono);font-size:10.5px;line-height:1.75;color:var(--text-2);overflow:hidden;
+  }
+  .tasks{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-2)}
+  .task{display:flex;align-items:center;gap:8px}
+  .box{width:12px;height:12px;border:1px solid var(--text-4);border-radius:3px;flex:none;display:grid;place-items:center;color:transparent}
+  .box.done{background:var(--brand);border-color:var(--brand);color:#191610}
+  .box svg{width:8px;height:8px;stroke-width:3}
+  .task.done span{color:var(--text-4);text-decoration:line-through}
+
+  .doc-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
+    padding:10px 32px 12px;font-family:var(--mono);font-size:10px;color:var(--text-3);
+  }
+  .doc-foot .st{display:flex;align-items:center;gap:6px}
+
+  /* ---------- themes ---------- */
+  .s-light{
+    --canvas:#FAF8F3;--paper:#FDFBF6;--tint:#F2EEE4;
+    --hair:#E9E2D3;--hair-2:#F0EADD;
+    --ink:#191610;--text-2:#57503F;--text-3:#6E6656;--text-4:#8A8171;
+    --brand:#F6821F;--brand-text:#B4530F;
+  }
+  .s-dark{
+    --canvas:#15130F;--paper:#17150F;--tint:#221E18;
+    --hair:#2E2922;--hair-2:#252119;
+    --ink:#F2EDE2;--text-2:#B4AB9C;--text-3:#A09687;--text-4:#877E70;
+    --brand:#F6821F;--brand-text:#FBAD41;
+  }
+  .s-dark .btn{border-color:var(--text-4)}
+  .s-dark .btn:hover{background:rgba(255,255,255,.04)}
+  .s-dark .nrow:hover{background:rgba(255,255,255,.028)}
+  .s-dark .nrow.on{background:rgba(255,255,255,.045)}
+
+  footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--text-3)}
+  footer .k{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--text-2)}
+  footer b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Menote V2 · Direction 03 · 2026-10-31</div>
+    <h1>把剂量减下来，<em>不是换风格</em></h1>
+    <p class="intro">
+      v2 的问题不在配色，在剂量：参考页的 1.5px 边框被我铺到了九个容器上，又叠了卡片底色和投影——
+      三种分隔手段同时出现，任何界面都会重。v3 只守一条规则：<b>每个地方只留一种分隔手段</b>。
+      参考页的识别特征一个没丢：衬线标题、等宽小标签、纸面、留白。
+    </p>
+    <nav class="jump">
+      <a href="#cut"><span class="n">01</span>减法清单</a>
+      <a href="#light"><span class="n">02</span>浅色</a>
+      <a href="#dark"><span class="n">03</span>深色</a>
+      <a href="#keep"><span class="n">04</span>保留了什么</a>
+    </nav>
+  </header>
+
+  <section id="cut">
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>减法清单</h2>
+      <span class="of">八处，都是可量化的</span>
+    </div>
+    <p class="sec-intro">每一项都能说出「去掉了什么」和「为什么它本来不必存在」，不是把颜色调淡了事。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>项目</th><th>v2</th><th>v3</th><th>为什么</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>容器边框</td>
+            <td class="mono old">9 处 · 1.5px</td>
+            <td class="mono">0 处容器边框<br>只有 3 条 1px 发丝线</td>
+            <td>边框同时干了「分隔」和「强调」两件事，混在一起就重。强调交给选中态，分隔交给线。</td>
+          </tr>
+          <tr>
+            <td>卡片与投影</td>
+            <td class="mono old">卡片 14px 圆角 + 0 10 30 阴影</td>
+            <td class="mono">无卡片、无阴影</td>
+            <td>在纸面主题里，投影是最重的信号——它暗示「这块浮起来了」，而三个等权重的面板本来没有高低。</td>
+          </tr>
+          <tr>
+            <td>主按钮</td>
+            <td class="mono old">实心橙 + 墨字</td>
+            <td class="mono">1px 描边 + 墨字</td>
+            <td>实心橙是屏幕上面积最大的一块颜色，抢走了「当前文档」的注意力。参考页的入口本来就是描边胶囊。</td>
+          </tr>
+          <tr>
+            <td>分段控件</td>
+            <td class="mono old">胶囊容器 + 内嵌胶囊</td>
+            <td class="mono">两个纯文字</td>
+            <td>双层胶囊只为包住两个字，是纯装饰。字重与颜色足够区分编辑／预览。</td>
+          </tr>
+          <tr>
+            <td>eyebrow 小标签</td>
+            <td class="mono old">一屏 3 个</td>
+            <td class="mono">0 个</td>
+            <td>三处都挂小标签等于都不挂。信息由面包屑和标题承担。</td>
+          </tr>
+          <tr>
+            <td>属性区</td>
+            <td class="mono old">边框 + 底色 + 状态胶囊</td>
+            <td class="mono">一条发丝线 + 键值</td>
+            <td>三样叠加只为说「这是一组」，一条线就够。状态改成 5px 橙点，不用胶囊。</td>
+          </tr>
+          <tr>
+            <td>橙色面积</td>
+            <td class="mono old">约 6%</td>
+            <td class="mono">约 1.5%</td>
+            <td>只剩四处：选中条、引用竖线、勾选框、链接下划线。都是小面积、有语义的位置。</td>
+          </tr>
+          <tr>
+            <td>标题尺度</td>
+            <td class="mono old">31px</td>
+            <td class="mono">27px</td>
+            <td>文档不是落地页。27px 已经能压住层级，31px 是在争注意力。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="light">
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>浅色</h2>
+      <span class="of">纸白底 · 发丝线分栏</span>
+    </div>
+    <p class="sec-intro">三栏是一条连续纸面上的三个区域，不是三张卡。界线只有一条 1px 线，选中只靠 2px 橙条和一层几乎看不见的底色。</p>
+    <div class="frame"><div class="shell s-light"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#FAF8F3"></i>画布 <b>#FAF8F3</b></span>
+      <span class="sw"><i style="background:#FDFBF6"></i>纸面 <b>#FDFBF6</b></span>
+      <span class="sw"><i style="background:#E9E2D3"></i>发丝线 <b>#E9E2D3</b></span>
+      <span class="sw"><i style="background:#191610"></i>墨 <b>#191610</b></span>
+      <span class="sw"><i style="background:#F6821F"></i>橙 <b>#F6821F</b></span>
+      <span>圆角 <b>6 / 3</b></span>
+      <span>投影 <b>0</b></span>
+    </div>
+    <div class="notes">
+      <div><b>关键取舍</b>清单的选中行背景几乎不可见（3.5% 墨），真正的信号是左侧那 2px 橙条。这样扫一列标题时不会被色块打断。</div>
+      <div><b>风险</b>去掉了卡片，清单条目之间没有线，长列表（20 条以上）可能黏在一起。届时加 1px 极淡行线，而不是把卡片加回来。</div>
+    </div>
+  </section>
+
+  <section id="dark">
+    <div class="sec-head">
+      <span class="idx">03</span>
+      <h2>深色</h2>
+      <span class="of">暖炭底 · 同一套线</span>
+    </div>
+    <p class="sec-intro">深色版不做反相，只把纸与线各压一档。因为已经没有投影，深浅两版的分隔逻辑完全一致——这是最能证明「主题与逻辑解耦」的地方。</p>
+    <div class="frame dark"><div class="shell s-dark"></div></div>
+    <div class="tokens">
+      <span class="sw"><i style="background:#15130F"></i>画布 <b>#15130F</b></span>
+      <span class="sw"><i style="background:#17150F"></i>纸面 <b>#17150F</b></span>
+      <span class="sw"><i style="background:#2E2922"></i>发丝线 <b>#2E2922</b></span>
+      <span class="sw"><i style="background:#F2EDE2"></i>墨 <b>#F2EDE2</b></span>
+      <span class="sw"><i style="background:#FBAD41"></i>橙·文字 <b>#FBAD41</b></span>
+      <span>圆角 <b>6 / 3</b></span>
+      <span>投影 <b>0</b></span>
+    </div>
+    <div class="notes">
+      <div><b>为什么画布与纸面几乎同色</b>#15130F 与 #17150F 只差一档，靠 1px 线分栏。深色下任何底色差都会被放大成色块，宁可极微。</div>
+      <div><b>风险</b>低对比线（#2E2922）在部分廉价屏上会消失。备选是把线提到 #3A342B，代价是又变重一点——这一条需要真机确认。</div>
+    </div>
+  </section>
+
+  <section id="keep">
+    <div class="sec-head">
+      <span class="idx">04</span>
+      <h2>保留了什么</h2>
+      <span class="of">参考页的骨，不是皮</span>
+    </div>
+    <p class="sec-intro">减掉的都是「叠加的分隔手段」，参考页真正的识别特征全部还在。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>特征</th><th>在哪</th><th>不可替代的地方</th></tr></thead>
+        <tbody>
+          <tr><td>衬线标题 500</td><td class="mono">品牌名 / 文档标题 / 小标题</td><td>中文宋体与无衬线正文的对比，是这套语言最不可替换的部分</td></tr>
+          <tr><td>等宽小标签</td><td class="mono">日期 / 字数 / 属性名 / 面包屑</td><td>把「元数据」和「内容」在字形上分开，不需要靠颜色或边框</td></tr>
+          <tr><td>纸面与暖调</td><td class="mono">#FAF8F3 / #191610 / #F6821F</td><td>整页只有一种底色，靠留白和一条线呼吸</td></tr>
+          <tr><td>单一强调色</td><td class="mono">4 处小面积</td><td>橙不再承担「按钮」，只承担「这里是你正在看的位置」</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div class="k">每个地方，只留一种分隔手段。</div>
+    <div>如果这版还重，下一刀切在<b>字号层级</b>和<b>清单行高</b>上——但先确认方向对不对。</div>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var S = function(p){ return '<svg viewBox="0 0 24 24" aria-hidden="true">'+p+'</svg>'; };
+  var ic = {
+    plus:  S('<path d="M12 5v14M5 12h14"/>'),
+    inbox: S('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'),
+    file:  S('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h5"/>'),
+    clock: S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+    star:  S('<path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>'),
+    lock:  S('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+    down:  S('<path d="m6 9 6 6 6-6"/>'),
+    right: S('<path d="m9 6 6 6-6 6"/>'),
+    more:  S('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+    list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
+    grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+    sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
+    check: S('<path d="m4 12 5 5L20 6"/>')
+  };
+
+  var rows = [
+    {t:'材质工作流', d:'基础层只负责底色与粗糙度，细节层控制磨损位置', m:'2026-10-30', on:true},
+    {t:'场景灯光规范', d:'Lumen 与烘焙的分界，取决于是否需要动态时间', m:'2026-10-28', lock:true},
+    {t:'程序化资产拆分', d:'Houdini 出片与引擎内参数化的取舍', m:'2026-10-26'},
+    {t:'蓝图命名约定', d:'动词前缀 + 对象名 + 变体后缀，避免中文命名', m:'2026-10-24'},
+    {t:'渲染采样对比', d:'16 与 8 采样在远景观测下的差异记录', m:'2026-10-21'},
+    {t:'地形层材质', d:'四层混合上限与虚拟纹理的取舍', m:'2026-10-18'}
+  ];
+
+  var rowsHTML = rows.map(function(r){
+    return '<div class="nrow'+(r.on?' on':'')+'">'
+      + '<div class="nr-t">'+r.t+(r.lock?ic.lock:'')+'</div>'
+      + '<div class="nr-d">'+r.d+'</div>'
+      + '<div class="nr-m">'+r.m+'</div>'
+      + '</div>';
+  }).join('');
+
+  var shell = ''
+  + '<div class="app">'
+  +   '<aside class="sb">'
+  +     '<div class="brand">Menote</div>'
+  +     '<div class="memo"><span>记一条，稍后再整理…</span><span class="kbd">⌘↵</span></div>'
+  +     '<button class="btn">'+ic.plus+'新建笔记</button>'
+  +     '<nav class="nav">'
+  +       '<a href="#">'+ic.inbox+'收件箱<span class="cnt">3</span></a>'
+  +       '<a href="#">'+ic.file+'草稿箱<span class="cnt">2</span></a>'
+  +       '<a href="#">'+ic.clock+'最近编辑</a>'
+  +       '<a href="#">'+ic.star+'收藏</a>'
+  +     '</nav>'
+  +     '<div class="tree">'
+  +       '<a href="#">'+ic.lock+'私人空间<span class="lock">锁定</span></a>'
+  +       '<a href="#">'+ic.down+'游戏美术</a>'
+  +       '<a href="#" class="l2 on">UE5</a>'
+  +       '<a href="#" class="l2">Houdini</a>'
+  +       '<a href="#">'+ic.right+'产品设计</a>'
+  +       '<a href="#">'+ic.right+'阅读清单</a>'
+  +       '<a href="#" class="add">+ 新建主题</a>'
+  +     '</div>'
+  +     '<div class="sb-foot"><span class="ava">M</span><span>maxxie</span>'
+  +       '<button class="ic" aria-label="设置">'+ic.sliders+'</button></div>'
+  +   '</aside>'
+  +   '<div class="list-col">'
+  +     '<div class="list-head">'
+  +       '<span class="t">UE5</span>'
+  +       '<div class="list-tools"><span class="cnt">12 篇</span>'
+  +         '<div class="vt"><span class="on">'+ic.list+'</span><span>'+ic.grid+'</span></div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="rows">'+rowsHTML+'</div>'
+  +   '</div>'
+  +   '<article class="doc">'
+  +     '<div class="doc-bar">'
+  +       '<div class="crumb">游戏美术 / UE5 / 12 篇中的第 1 篇</div>'
+  +       '<div class="bar-r"><div class="modes"><span class="on">编辑</span><span>预览</span></div>'
+  +         '<button class="icon-b" aria-label="更多操作">'+ic.more+'</button></div>'
+  +     '</div>'
+  +     '<div class="doc-in">'
+  +       '<h1 class="doc-title">材质工作流</h1>'
+  +       '<div class="props">'
+  +         '<div class="ph">Properties 4</div>'
+  +         '<div class="pgrid">'
+  +           '<div class="prop"><span class="k">状态</span><span class="v state">进行中</span></div>'
+  +           '<div class="prop"><span class="k">更新</span><span class="v">2026-10-30</span></div>'
+  +           '<div class="prop"><span class="k">标签</span><span class="v">UE5 · 材质</span></div>'
+  +           '<div class="prop"><span class="k">来源</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>'
+  +         '</div>'
+  +       '</div>'
+  +       '<div class="prose">'
+  +         '<h2>一、分层原则</h2>'
+  +         '<p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>'
+  +         '<ul><li>基础层：底色 + 粗糙度，命名 <code>M_&lt;角色&gt;_Base</code></li>'
+  +           '<li>细节层：平铺遮罩，靠世界坐标 UV 对齐</li>'
+  +           '<li>混合层：边缘磨损与高度混合，仅近景启用</li></ul>'
+  +         '<blockquote>任何一层出问题，都能单独回滚，不需要重做整份材质。</blockquote>'
+  +         '<pre># sampler defaults\nSampleCount  16\nTemporalAA   true\n# 远景观测需降至 8</pre>'
+  +         '<div class="tasks">'
+  +           '<div class="task done"><span class="box done">'+ic.check+'</span><span>整理材质命名与分组</span></div>'
+  +           '<div class="task"><span class="box"></span><span>补齐采样对照表（16 / 8）</span></div>'
+  +         '</div>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div class="doc-foot"><span class="st">已保存 · Markdown</span><span>1,240 字</span></div>'
+  +   '</article>'
+  + '</div>';
+
+  document.querySelectorAll('.shell').forEach(function(el){ el.innerHTML = shell; });
+})();
+</script>
+</body>
+</html>
