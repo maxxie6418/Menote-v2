@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   type TargetView, createTarget, deleteTarget, listTargets, revealSecret, runTargetOnce, updateTarget,
-} from "../../services/backupClient";
+} from "../../services/backupService";
 
 interface BackupPanelProps { userId: string }
 

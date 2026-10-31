@@ -114,7 +114,7 @@ export function useSectionItems(userId: string, section: BrowseSection): Item[] 
   return recent;
 }
 
-import { subscribeLockState, getLockVersion } from "./keyring";
+import { subscribeLockState, getLockVersion } from "./keyringService";
 
 /** 锁定状态版本号（G7）：解锁/锁定时触发重渲染。 */
 export function useLockVersion(): number {

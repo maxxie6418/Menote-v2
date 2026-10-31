@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import type { VersionRow } from "../../services/contentService";
-import { listVersions } from "../../services/contentService";
-import { restoreVersion } from "../../services/contentService";
+import type { VersionRow } from "../../services/versionService";
+import { listVersions, restoreVersion } from "../../services/versionService";
 
 interface HistoryPanelProps {
   userId: string;

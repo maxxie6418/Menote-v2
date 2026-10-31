@@ -1,7 +1,7 @@
 import { LayoutGrid, List, Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Item } from "@menote/shared";
-import type { LayoutMode, MobilePane, ViewMode } from "./AppShell";
+import type { LayoutMode, MobilePane, ViewMode } from "../lib/layout";
 import { NoteGrid, NoteList } from "../features/notes";
 
 interface MainLayoutProps {

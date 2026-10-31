@@ -7,13 +7,14 @@ import { PropertyPanel } from "../props";
 import { TableBlockDialog } from "../table";
 import { useItem } from "../../services/contentHooks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
+import { enableItemEncryption } from "../../services/encryptionCommandService";
+import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
-import { setSessionKey } from "../../services/keyring";
-import { enableItemEncryption } from "../../services/contentService";
+import { setSessionKey } from "../../services/keyringService";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 

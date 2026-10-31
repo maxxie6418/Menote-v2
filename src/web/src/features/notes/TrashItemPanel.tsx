@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { formatItemMeta } from "./format";
-import { purgeItemsPermanently, restoreFromTrash } from "../../services/contentService";
+import { purgeItemsPermanently, restoreFromTrash } from "../../services/versionService";
 
 interface TrashItemPanelProps {
   userId: string;

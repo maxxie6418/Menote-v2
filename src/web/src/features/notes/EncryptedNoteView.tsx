@@ -4,8 +4,8 @@ import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
 import { useItem, useLockVersion } from "../../services/contentHooks";
-import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/contentService";
-import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyring";
+import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/encryptionCommandService";
+import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyringService";
 import { UnlockPanel } from "../encryption";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;

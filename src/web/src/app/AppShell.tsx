@@ -5,22 +5,19 @@ import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "./SystemStatusPage";
 import { MemoWorkspace } from "../features/memo";
 import { NoteDocument, TrashItemPanel } from "../features/notes";
-import { purgeItemsPermanently } from "../services/contentService";
+import { purgeItemsPermanently } from "../services/versionService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
-import { lockIfIdle } from "../services/keyring";
+import { lockIfIdle } from "../services/keyringService";
 import { SettingsDialog } from "../features/settings";
 
-/* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
-   断点数值集中在常量，便于测试与调整。 */
-export const BREAKPOINTS = { full: 1280, compact: 1024, tablet: 768 } as const;
-export type LayoutMode = "full" | "compact" | "tablet" | "mobile";
-export type MainView = "main" | "status";
-export type ViewMode = "list" | "grid";
-export type MobilePane = "list" | "doc";
+/* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
+import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
+export type { LayoutMode, MainView, MobilePane, ViewMode };
+export { BREAKPOINTS };
 
 function detectLayoutMode(): LayoutMode {
   if (typeof window === "undefined") return "full";

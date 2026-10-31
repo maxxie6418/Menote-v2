@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import type { LayoutMode } from "../../app/AppShell";
+import type { LayoutMode } from "../../lib/layout";
 import { MemoTimeline, TodoSidePanel } from "./index";
 import { useMemos } from "../../services/contentHooks";
 

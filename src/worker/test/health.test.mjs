@@ -4,6 +4,13 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 
+const bundle0 = await build({
+  entryPoints: [fileURLToPath(new URL("../src/db/migrations/index.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "neutral", loader: { ".sql": "text" },
+});
+const { migrations: migrationRegistry } = await import(`data:text/javascript;base64,${Buffer.from(bundle0.outputFiles[0].text).toString("base64")}`);
+const migrationCount = migrationRegistry.length;
+
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL("../src/index.ts", import.meta.url))],
   bundle: true, write: false, format: "esm", platform: "neutral", loader: { ".sql": "text" },
@@ -55,7 +62,7 @@ test("both resources and secret initialize schema; unknown routes do not expose 
     assert.equal((await req(mf, "/api/health/ready", { method: "POST" })).status, 405);
     assert.equal((await req(mf, "/api/other")).status, 404);
     const database = await mf.getD1Database("DB");
-    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 24);
+    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, migrationCount);
   });
 });
 

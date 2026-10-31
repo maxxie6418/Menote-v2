@@ -96,6 +96,8 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `search` | 本地检索（M2）、FTS5 客户端（M4） | FR-IA-10 |
 | `settings` | 备份目标、令牌管理、样式编辑、凭据复显 | FR-BAK/FR-MCP/FR-STYLE |
 | `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
+| `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
+| `backup` | 备份目标管理面板（CRUD/凭据复显/推送一次）（G9） | FR-BAK-1/2/8 |
 | `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
 
 跨模块规则：**feature 之间禁止深引用**——只能 import 对方模块的公共入口（`index.ts`）或经 services/stores；违反在 DoD 结构检查中拦截。

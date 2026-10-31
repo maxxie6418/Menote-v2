@@ -19,6 +19,12 @@ const dbBundle = await build({
 });
 const dbModule = await import(`data:text/javascript;base64,${Buffer.from(dbBundle.outputFiles[0].text).toString("base64")}`);
 
+const versionBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/services/versionService.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "browser",
+});
+const versions = await import(`data:text/javascript;base64,${Buffer.from(versionBundle.outputFiles[0].text).toString("base64")}`);
+
 const USER = "user-a";
 
 /** fake-indexeddb 在同一进程内跨用例持久，先清空再跑。 */
@@ -154,7 +160,7 @@ test("version archive, throttle, capacity trim and restore (FR-VER-1/2/3)", asyn
   assert.equal(rows2.length, 1);
   // 恢复：先封存当前稿再写回
   const target = rows2[0].id;
-  const restored = await content.restoreVersion(USER, note.id, target);
+  const restored = await versions.restoreVersion(USER, note.id, target);
   assert.equal(restored.content.markdown, "");
   const afterRestore = await dbModule.localDb.versions.where("itemId").equals(note.id).toArray();
   assert.equal(afterRestore.some((row) => row.reason === "restore"), true, "恢复前封存当前稿");
@@ -166,7 +172,7 @@ test("trash restore clears the tombstone and enqueue an upsert (FR-VER-6)", asyn
   const note = await content.createNote(USER);
   await content.softDeleteItem(USER, note.id);
   assert.equal((await content.queries.trashed(USER)).some((row) => row.id === note.id), true);
-  await content.restoreFromTrash(USER, note.id);
+  await versions.restoreFromTrash(USER, note.id);
   const restored = await dbModule.localDb.items.get(note.id);
   assert.equal(restored.deletedAt, null);
   const rows = await outboxRows();

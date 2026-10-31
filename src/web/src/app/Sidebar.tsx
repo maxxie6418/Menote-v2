@@ -1,6 +1,6 @@
 import { Activity, AlignLeft, Clock, FileText, Inbox, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star, Trash2 } from "lucide-react";
 import type { AuthUser } from "@menote/shared";
-import type { LayoutMode } from "./AppShell";
+import type { LayoutMode } from "../lib/layout";
 import type { BrowseSection } from "../services/contentHooks";
 import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
