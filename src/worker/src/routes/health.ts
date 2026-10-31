@@ -1,14 +1,17 @@
 import type { HealthResponse } from "@menote/shared";
+import { Hono } from "hono";
+import type { AppEnv } from "../middleware/session";
 import { readiness } from "../services/healthService";
 
-export async function healthRoute(request: Request, env: Env): Promise<Response> {
-  const path = new URL(request.url).pathname;
-  if (request.method !== "GET") return new Response(null, { status: 405, headers: { Allow: "GET" } });
-  if (path === "/api/health/live") return Response.json({ status: "alive" } satisfies HealthResponse);
-  if (path === "/api/health/ready") {
-    const result = await readiness(env);
-    return Response.json(result, { status: result.status === "ready" ? 200 : 503,
-      headers: { "Cache-Control": "no-store" } });
-  }
-  return new Response(null, { status: 404 });
-}
+/** 存活与就绪：公开端点（部署验证依赖）；响应不携带任何基础设施诊断。 */
+export const healthRoutes = new Hono<AppEnv>();
+
+healthRoutes.get("/api/health/live", (c) =>
+  c.json({ status: "alive" } satisfies HealthResponse));
+
+healthRoutes.all("/api/health/ready", async (c) => {
+  if (c.req.method !== "GET") return c.body(null, 405, { Allow: "GET" });
+  const result = await readiness(c.env);
+  return c.json(result, { status: result.status === "ready" ? 200 : 503,
+    headers: { "Cache-Control": "no-store" } });
+});

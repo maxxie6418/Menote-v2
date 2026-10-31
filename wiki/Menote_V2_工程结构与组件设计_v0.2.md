@@ -58,7 +58,7 @@ Menote-v2/
 - **pnpm workspaces**：`packages: ["src/*"]`；类型与契约只在 `src/shared` 定义，web/worker 通过工作区依赖引用，禁止复制类型。
 - **构建**：web 用 Vite；worker 用 Wrangler 打包；`AUTH_PEPPER` 为唯一部署 Secret（C-4）。
 - **Deploy to Cloudflare**：一键导入 → 自动建 D1/R2 → 根级 wrangler 配置装配（FR-DEP-1~7）。
-- `[实施定]` 路由框架（倾向 Hono）、D1 访问方式（倾向原生 SQL + 迁移文件目录，V1 模式）。
+- `[实施定]` 路由框架：**G1 起采用 Hono**（M2 路由数量增长，index.ts 仅装配 + 各 routes 子应用）；D1 访问方式（倾向原生 SQL + 迁移文件目录，V1 模式）。
 
 ## 3. 前端架构：分层与数据流
 
@@ -95,6 +95,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `versions` | 版本历史、回收站 | FR-VER |
 | `search` | 本地检索（M2）、FTS5 客户端（M4） | FR-IA-10 |
 | `settings` | 备份目标、令牌管理、样式编辑、凭据复显 | FR-BAK/FR-MCP/FR-STYLE |
+| `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
 | `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
 
 跨模块规则：**feature 之间禁止深引用**——只能 import 对方模块的公共入口（`index.ts`）或经 services/stores；违反在 DoD 结构检查中拦截。
@@ -125,6 +126,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
+**auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
 **settings/**：`SettingsPage`、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
 **monitor/**：`ResourceCards`、`ThresholdSettings`、`UsageTrend`（独立边界：不 import 其他 feature）。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。

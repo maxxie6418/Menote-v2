@@ -24,6 +24,18 @@ const bucket = { type: "r2", name: "test-health-bucket" };
 const pepper = { type: "text", value: "test-only-pepper" };
 const req = (mf, path, init) => mf.dispatchFetch(`http://localhost${path}`, init);
 
+/** G1：创建首个 owner 并返回会话 cookie（mn_session=...）。 */
+async function bootstrapOwner(mf, username = "owner", password = "owner-password-1") {
+  const response = await req(mf, "/api/auth/bootstrap", {
+    method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+    body: JSON.stringify({ username, password }),
+  });
+  assert.equal(response.status, 201, `bootstrap failed: ${response.status}`);
+  const cookie = response.headers.get("set-cookie")?.split(";")[0];
+  assert.ok(cookie?.startsWith("mn_session="), "session cookie missing");
+  return cookie;
+}
+
 test("missing secret fails closed and does not initialize D1", async () => {
   await withWorker({ DB: db, BUCKET: bucket }, async (mf) => {
     assert.equal((await req(mf, "/api/health/live")).status, 200);
@@ -43,7 +55,7 @@ test("both resources and secret initialize schema; unknown routes do not expose 
     assert.equal((await req(mf, "/api/health/ready", { method: "POST" })).status, 405);
     assert.equal((await req(mf, "/api/other")).status, 404);
     const database = await mf.getD1Database("DB");
-    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 17);
+    assert.equal((await database.prepare("SELECT COUNT(*) AS n FROM schema_migrations").first()).n, 21);
   });
 });
 
@@ -61,7 +73,7 @@ test("newer schema is not reported as ready", async () => {
   await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
     assert.equal((await req(mf, "/api/health/ready")).status, 200);
     const database = await mf.getD1Database("DB");
-    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (18, 'future')").run();
+    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (22, 'future')").run();
     assert.equal((await req(mf, "/api/health/ready")).status, 503);
   });
 });
@@ -70,7 +82,8 @@ test("newer schema is not reported as ready", async () => {
 test("monitor distinguishes missing samples and a controlled application estimate", async () => {
   await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
     assert.equal((await req(mf, "/api/health/ready")).status, 200);
-    let response = await req(mf, "/api/monitor");
+    const cookie = await bootstrapOwner(mf);
+    let response = await req(mf, "/api/monitor", { headers: { cookie } });
     let summary = await response.json();
     assert.equal(summary.source, "sampled_application_estimate");
     assert.equal(summary.estimatedRequests, summary.sampleCount === 0 ? null : summary.sampleCount * 100);
@@ -79,22 +92,28 @@ test("monitor distinguishes missing samples and a controlled application estimat
     const now = Date.now();
     await database.prepare("INSERT INTO monitor_samples (user_id, service, metric, value, sampled_at) VALUES (?, ?, ?, ?, ?)")
       .bind("__m1_installation_test__", "workers", "api_requests", 100, now).run();
-    response = await req(mf, "/api/monitor");
+    response = await req(mf, "/api/monitor", { headers: { cookie } });
     summary = await response.json();
     assert.ok(summary.estimatedRequests >= 100);
     assert.ok(summary.sampleCount >= 1);
     assert.equal(summary.quota, 100000);
     assert.equal(summary.period, "utc_day");
-    const month = await (await req(mf, "/api/monitor?period=utc_month")).json();
+    const month = await (await req(mf, "/api/monitor?period=utc_month", { headers: { cookie } })).json();
     assert.equal(month.period, "utc_month");
     assert.ok(month.estimatedRequests >= 100);
-    assert.equal((await req(mf, "/api/monitor?period=invalid")).status, 400);
+    assert.equal((await req(mf, "/api/monitor?period=invalid", { headers: { cookie } })).status, 400);
+    assert.equal((await req(mf, "/api/monitor")).status, 401);
   });
 });
 
-test("monitor endpoint fails closed without the secret", async () => {
+test("monitor and bootstrap fail closed without the secret", async () => {
   await withWorker({ DB: db, BUCKET: bucket }, async (mf) => {
-    assert.equal((await req(mf, "/api/monitor")).status, 503);
+    assert.equal((await req(mf, "/api/monitor")).status, 401);
+    const bootstrap = await req(mf, "/api/auth/bootstrap", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ username: "owner", password: "owner-password-1" }),
+    });
+    assert.equal(bootstrap.status, 503);
   });
 });
 

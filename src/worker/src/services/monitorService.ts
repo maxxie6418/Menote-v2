@@ -6,8 +6,10 @@ import { ledgerReady } from "./schemaService";
 export const REQUEST_SAMPLE_RATE = 0.01;
 export const FREE_DAILY_REQUESTS = DEFAULT_MONITOR_PREFERENCES.dailyQuota;
 
-export async function sampleRequest(db: D1Database, now = Date.now(), draw = Math.random()): Promise<void> {
-  if (draw < REQUEST_SAMPLE_RATE) await insertRequestSample(db, 1 / REQUEST_SAMPLE_RATE, now);
+export async function sampleRequest(
+  db: D1Database, now = Date.now(), draw = Math.random(), userId?: string,
+): Promise<void> {
+  if (draw < REQUEST_SAMPLE_RATE) await insertRequestSample(db, 1 / REQUEST_SAMPLE_RATE, now, userId);
 }
 
 export async function requestSummary(db: D1Database, now = Date.now(), period: MonitorSummary["period"] = "utc_day"): Promise<MonitorSummary> {

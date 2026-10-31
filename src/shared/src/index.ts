@@ -4,6 +4,8 @@ export type { Memo } from "./types/memo";
 export type { TopicNode, User } from "./types/identity";
 export type { SchemaMigration, SchemaStatus } from "./types/migration";
 export type { HealthResponse } from "./contracts/health";
+export type { AuthStatus, AuthUser, CredentialsInput } from "./contracts/auth";
+export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./contracts/auth";
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
 export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment } from "./types/item";

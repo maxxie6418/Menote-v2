@@ -16,6 +16,10 @@ import backupTargets from "./0014_backup_targets.sql";
 import userSettings from "./0015_user_settings.sql";
 import backupTargetName from "./0016_backup_target_name.sql";
 import backupTargetEnabled from "./0017_backup_target_enabled.sql";
+import userCredentials from "./0018_user_credentials.sql";
+import appSettings from "./0019_app_settings.sql";
+import sessions from "./0020_sessions.sql";
+import loginThrottle from "./0021_login_throttle.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -36,4 +40,8 @@ export const migrations = [
   { version: 15, name: "0015_user_settings", statements: [userSettings] },
   { version: 16, name: "0016_backup_target_name", statements: [backupTargetName] },
   { version: 17, name: "0017_backup_target_enabled", statements: [backupTargetEnabled] },
+  { version: 18, name: "0018_user_credentials", statements: [userCredentials] },
+  { version: 19, name: "0019_app_settings", statements: [appSettings] },
+  { version: 20, name: "0020_sessions", statements: [sessions] },
+  { version: 21, name: "0021_login_throttle", statements: [loginThrottle] },
 ] as const satisfies readonly SchemaMigration[];

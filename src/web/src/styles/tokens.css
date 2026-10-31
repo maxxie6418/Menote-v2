@@ -25,6 +25,7 @@
   --app-accent-subtle: #fef2e7;
   --app-link: #0051c3;
   --app-success: #5f8b3f;
+  --app-danger: #b3261e;
   /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据） */
   --app-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Roboto, sans-serif;
   --app-font-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
@@ -133,6 +134,7 @@
   --app-field-width: 9rem;
   --app-main-top: 12vh;
   --app-button-height: 2.5rem;
+  --app-auth-card-width: min(22rem, 100%); /* G1 认证卡片 */
   /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
   --md-body-size: 0.875rem;
   --md-body-leading: 1.78;
@@ -198,5 +200,6 @@
     --app-accent-subtle: #3a2716;
     --app-link: #7fa8ff;
     --app-success: #8ca86b;
+    --app-danger: #f2b8b5;
   }
 }

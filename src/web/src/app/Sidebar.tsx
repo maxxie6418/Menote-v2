@@ -1,4 +1,4 @@
-import { Activity, AlignLeft, Clock, FileText, Inbox, Lock, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
+import { Activity, AlignLeft, Clock, FileText, Inbox, Lock, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
 import type { LayoutMode } from "./AppShell";
 import { APP_VERSION_LABEL } from "../lib/version";
 
@@ -7,6 +7,8 @@ interface SidebarProps {
   collapsed: boolean;
   drawerOpen: boolean;
   selectedSection: "all" | "inbox" | "drafts";
+  account?: { username: string; role: "owner" | "member" };
+  onLogout?: () => void;
   onSelectSection: (section: "all" | "inbox" | "drafts") => void;
   onToggleCollapse: () => void;
   onCloseDrawer: () => void;
@@ -14,8 +16,8 @@ interface SidebarProps {
 }
 
 /* 侧栏骨架（FR-IA-4 入口顺序；搜索入口未定不放侧栏）。
-   主题树、标签与账户在 M2 接入业务后填充，当前为空态。 */
-export function Sidebar({ layout, collapsed, drawerOpen, selectedSection, onSelectSection, onToggleCollapse, onCloseDrawer, onOpenStatus }: SidebarProps) {
+   主题树、标签在 M2 接入业务后填充；底部账户区来自 G1 会话。 */
+export function Sidebar({ layout, collapsed, drawerOpen, selectedSection, account, onLogout, onSelectSection, onToggleCollapse, onCloseDrawer, onOpenStatus }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   return (
     <aside className={overlayMode ? "mn-sidebar mn-drawer" : "mn-sidebar"} data-open={overlayMode ? drawerOpen : undefined} aria-label="侧栏">
@@ -106,6 +108,16 @@ export function Sidebar({ layout, collapsed, drawerOpen, selectedSection, onSele
         </>
       )}
       <div className="mn-sb-foot">
+        {!collapsed && (
+          <span className="mn-foot-account" title={account ? `${account.username}（${account.role === "owner" ? "管理员" : "成员"}）` : undefined}>
+            {account?.username ?? "未登录"}
+          </span>
+        )}
+        {account && onLogout && (
+          <button type="button" className="mn-iconbtn" aria-label="退出登录" title="退出登录" onClick={onLogout}>
+            <LogOut />
+          </button>
+        )}
         {!collapsed && <span className="mn-foot-version">{APP_VERSION_LABEL}</span>}
         <button type="button" className="mn-iconbtn" aria-label="打开系统状态" title="系统状态与健康检查" onClick={onOpenStatus}>
           <Activity />

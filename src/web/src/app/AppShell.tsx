@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { AuthUser } from "@menote/shared";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "./SystemStatusPage";
@@ -30,8 +31,8 @@ function useLayoutMode(): LayoutMode {
   return mode;
 }
 
-/* 主界面骨架（M1.2）：仅结构与空态；清单、文档等内容视图在 M2 接入业务后填充。 */
-export function AppShell() {
+/* 主界面骨架（M1.2 骨架 + G1 会话用户）：清单、文档等内容视图在 M2 接入业务后填充。 */
+export function AppShell({ user, onLogout }: { user?: AuthUser; onLogout?: () => void }) {
   const layout = useLayoutMode();
   const [view, setView] = useState<MainView>("main");
   const [collapsed, setCollapsed] = useState(false);
@@ -52,6 +53,8 @@ export function AppShell() {
         collapsed={collapsed && layout === "compact"}
         drawerOpen={drawerOpen}
         selectedSection={selectedSection}
+        account={user ? { username: user.username, role: user.role } : undefined}
+        onLogout={onLogout}
         onSelectSection={(section) => { setSelectedSection(section); setMobilePane("list"); setDrawerOpen(false); }}
         onToggleCollapse={() => setCollapsed((value) => !value)}
         onCloseDrawer={() => setDrawerOpen(false)}
