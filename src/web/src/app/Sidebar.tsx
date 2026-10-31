@@ -1,22 +1,21 @@
-import { Activity, AlignLeft, Clock, FileText, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
+import { Activity, AlignLeft, Clock, FileText, Inbox, Lock, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star } from "lucide-react";
 import type { LayoutMode } from "./AppShell";
-import { TopicTree } from "../tree/TopicTree";
-import { DEMO_NOTICE, demoTags, demoTopics } from "../lib/demoData";
+import { APP_VERSION_LABEL } from "../version";
 
 interface SidebarProps {
   layout: LayoutMode;
   collapsed: boolean;
   drawerOpen: boolean;
-  selectedTopicId: string;
-  onSelectTopic: (topicId: string) => void;
+  selectedSection: "all" | "inbox" | "drafts";
+  onSelectSection: (section: "all" | "inbox" | "drafts") => void;
   onToggleCollapse: () => void;
   onCloseDrawer: () => void;
   onOpenStatus: () => void;
 }
 
-const demoNavCounts = { memo: 24, starred: 6, inbox: 3, drafts: 2 };
-
-export function Sidebar({ layout, collapsed, drawerOpen, selectedTopicId, onSelectTopic, onToggleCollapse, onCloseDrawer, onOpenStatus }: SidebarProps) {
+/* 侧栏骨架（FR-IA-4 入口顺序；搜索入口未定不放侧栏）。
+   主题树、标签与账户在 M2 接入业务后填充，当前为空态。 */
+export function Sidebar({ layout, collapsed, drawerOpen, selectedSection, onSelectSection, onToggleCollapse, onCloseDrawer, onOpenStatus }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   return (
     <aside className={overlayMode ? "mn-sidebar mn-drawer" : "mn-sidebar"} data-open={overlayMode ? drawerOpen : undefined} aria-label="侧栏">
@@ -52,7 +51,7 @@ export function Sidebar({ layout, collapsed, drawerOpen, selectedTopicId, onSele
       <nav className="mn-nav" aria-label="回看">
         <a href="#" onClick={(event) => event.preventDefault()} aria-disabled="true" title="Memo 时间线将在 M2 开放">
           <AlignLeft />
-          {!collapsed && <>Memo 时间线<span className="mn-cnt plain">{demoNavCounts.memo}</span></>}
+          {!collapsed && "Memo 时间线"}
         </a>
         <a href="#" onClick={(event) => event.preventDefault()} aria-disabled="true" title="最近编辑将在 M2 开放">
           <Clock />
@@ -60,17 +59,17 @@ export function Sidebar({ layout, collapsed, drawerOpen, selectedTopicId, onSele
         </a>
         <a href="#" onClick={(event) => event.preventDefault()} aria-disabled="true" title="收藏将在 M2 开放">
           <Star />
-          {!collapsed && <>收藏<span className="mn-cnt plain">{demoNavCounts.starred}</span></>}
+          {!collapsed && "收藏"}
         </a>
       </nav>
       <div className="mn-duo">
-        <a href="#" onClick={(event) => { event.preventDefault(); onSelectTopic("inbox"); }} className={selectedTopicId === "inbox" ? "on" : ""}>
+        <a href="#" onClick={(event) => { event.preventDefault(); onSelectSection("inbox"); }} className={selectedSection === "inbox" ? "on" : ""}>
           <Inbox />
-          {!collapsed && <>收件箱<span className="mn-cnt">{demoNavCounts.inbox}</span></>}
+          {!collapsed && "收件箱"}
         </a>
-        <a href="#" onClick={(event) => { event.preventDefault(); onSelectTopic("drafts"); }} className={selectedTopicId === "drafts" ? "on" : ""}>
+        <a href="#" onClick={(event) => { event.preventDefault(); onSelectSection("drafts"); }} className={selectedSection === "drafts" ? "on" : ""}>
           <FileText />
-          {!collapsed && <>草稿箱<span className="mn-cnt plain">{demoNavCounts.drafts}</span></>}
+          {!collapsed && "草稿箱"}
         </a>
       </div>
       {!collapsed && (
@@ -81,7 +80,20 @@ export function Sidebar({ layout, collapsed, drawerOpen, selectedTopicId, onSele
               <Plus />
             </button>
           </div>
-          <TopicTree topics={demoTopics} selectedTopicId={selectedTopicId} onSelectTopic={onSelectTopic} />
+          <div className="mn-tree">
+            <p className="mn-tree-empty">暂无主题</p>
+            <a
+              href="#"
+              className="mn-treerow priv"
+              onClick={(event) => event.preventDefault()}
+              aria-disabled="true"
+              title="私人空间将在 M2 提供解锁"
+            >
+              <Lock />
+              <span>私人空间</span>
+              <span className="mn-locklabel">锁定</span>
+            </a>
+          </div>
           <div className="mn-seclabel">
             <span className="mn-seclabel-text">标签</span>
             <button type="button" className="mn-minibtn" aria-disabled="true" title="标签管理将在 M2 开放" aria-label="管理标签（未开放）">
@@ -89,23 +101,12 @@ export function Sidebar({ layout, collapsed, drawerOpen, selectedTopicId, onSele
             </button>
           </div>
           <div className="mn-tags">
-            {demoTags.map((tag) => (
-              <a key={tag.name} href="#" className="mn-tagchip" onClick={(event) => event.preventDefault()} aria-disabled="true" title="标签筛选将在 M2 开放">
-                <span className="mn-taghash">#</span>
-                {tag.name}
-                <span className="mn-tagcount">{tag.count}</span>
-              </a>
-            ))}
-            <a href="#" className="mn-tagchip more" onClick={(event) => event.preventDefault()} aria-disabled="true" title="标签筛选将在 M2 开放">
-              全部标签 ›
-            </a>
+            <p className="mn-tree-empty">暂无标签</p>
           </div>
         </>
       )}
       <div className="mn-sb-foot">
-        <span className="mn-avatar" aria-hidden="true">M</span>
-        {!collapsed && <span>maxxie</span>}
-        {!collapsed && <span className="mn-demo-chip">{DEMO_NOTICE}</span>}
+        {!collapsed && <span className="mn-foot-version">{APP_VERSION_LABEL}</span>}
         <button type="button" className="mn-iconbtn" aria-label="打开系统状态" title="系统状态与健康检查" onClick={onOpenStatus}>
           <Activity />
         </button>

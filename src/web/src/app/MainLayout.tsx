@@ -3,30 +3,21 @@ import type { LayoutMode, MobilePane, ViewMode } from "./AppShell";
 import { NoteDocument } from "../notes/NoteDocument";
 import { NoteGrid } from "../notes/NoteGrid";
 import { NoteList } from "../notes/NoteList";
-import { DEMO_NOTICE, demoDocument, demoEmptyState, demoListTitle, demoNotes, demoTopics, type DemoNote } from "../lib/demoData";
 
 interface MainLayoutProps {
   layout: LayoutMode;
   viewMode: ViewMode;
   onViewMode: (mode: ViewMode) => void;
-  selectedTopicId: string;
-  selectedNoteId: string | null;
-  onSelectNote: (noteId: string) => void;
+  selectedSection: "all" | "inbox" | "drafts";
   mobilePane: MobilePane;
   onBackToList: () => void;
   onOpenDrawer: () => void;
-  notes: DemoNote[];
 }
 
-const demoTopicName = (topicId: string) =>
-  topicId === "inbox" ? "收件箱" : topicId === "drafts" ? demoEmptyState.draftsTitle : demoTopics.find((topic) => topic.id === topicId)?.name ?? demoListTitle.topic;
+const sectionTitle = { all: "全部笔记", inbox: "收件箱", drafts: "草稿箱" } as const;
 
-export function MainLayout({ layout, viewMode, onViewMode, selectedTopicId, selectedNoteId, onSelectNote, mobilePane, onBackToList, onOpenDrawer, notes }: MainLayoutProps) {
-  const isSpecialView = selectedTopicId === "inbox" || selectedTopicId === "drafts";
-  const visibleNotes = isSpecialView ? [] : notes;
-  const headTitle = demoTopicName(selectedTopicId);
-  const headCount = isSpecialView ? demoEmptyState.draftsCount : `${demoListTitle.count} 篇`;
-  const selectedNote = visibleNotes.find((note) => note.id === selectedNoteId) ?? null;
+/* 主区骨架（M1.2）：清单/网格双布局壳与空态；内容列表在 M2 接入业务后填充。 */
+export function MainLayout({ layout, viewMode, onViewMode, selectedSection, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const singlePane = layout === "tablet" || layout === "mobile";
   const showList = !singlePane || mobilePane === "list";
   const showDoc = !singlePane || mobilePane === "doc";
@@ -42,34 +33,21 @@ export function MainLayout({ layout, viewMode, onViewMode, selectedTopicId, sele
                   <Menu />
                 </button>
               )}
-              <span className="mn-listhead-title">
-                {headTitle} <span className="mn-listhead-count">{headCount}</span>
-              </span>
-              <span className="mn-demo-chip">{DEMO_NOTICE}</span>
+              <span className="mn-listhead-title">{sectionTitle[selectedSection]}</span>
             </span>
-            {!isSpecialView && (
-              <span className="mn-vt" role="group" aria-label="视图切换">
-                <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
-                  <List />
-                </button>
-                <button type="button" className={viewMode === "grid" ? "on" : ""} aria-label="网格视图" aria-pressed={viewMode === "grid"} onClick={() => onViewMode("grid")}>
-                  <LayoutGrid />
-                </button>
-              </span>
-            )}
+            <span className="mn-vt" role="group" aria-label="视图切换">
+              <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
+                <List />
+              </button>
+              <button type="button" className={viewMode === "grid" ? "on" : ""} aria-label="网格视图" aria-pressed={viewMode === "grid"} onClick={() => onViewMode("grid")}>
+                <LayoutGrid />
+              </button>
+            </span>
           </div>
-          {viewMode === "list"
-            ? <NoteList notes={visibleNotes} selectedNoteId={selectedNoteId} onSelectNote={onSelectNote} />
-            : <NoteGrid notes={visibleNotes} selectedNoteId={selectedNoteId} onSelectNote={onSelectNote} />}
+          {viewMode === "list" ? <NoteList /> : <NoteGrid />}
         </section>
       )}
-      {showDoc && (
-        <NoteDocument
-          note={selectedNote}
-          onBack={onBackToList}
-          showBack={singlePane && Boolean(selectedNote)}
-        />
-      )}
+      {showDoc && <NoteDocument onBack={onBackToList} showBack={singlePane} crumb={sectionTitle[selectedSection]} />}
     </main>
   );
 }

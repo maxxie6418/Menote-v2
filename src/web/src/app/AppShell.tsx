@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "../status/SystemStatusPage";
-import { demoNotes, demoTopics } from "../lib/demoData";
 
 /* 断点常量（DESIGN §8.1）。CSS 不写媒体查询：由这里检测后输出 data-layout，
    断点数值集中在常量，便于测试与调整。 */
@@ -31,25 +30,15 @@ function useLayoutMode(): LayoutMode {
   return mode;
 }
 
+/* 主界面骨架（M1.2）：仅结构与空态；清单、文档等内容视图在 M2 接入业务后填充。 */
 export function AppShell() {
   const layout = useLayoutMode();
   const [view, setView] = useState<MainView>("main");
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [selectedTopicId, setSelectedTopicId] = useState("t-ue5");
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>("n-1");
+  const [selectedSection, setSelectedSection] = useState<"all" | "inbox" | "drafts">("all");
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
-
-  const selectTopic = (topicId: string) => {
-    setSelectedTopicId(topicId);
-    setMobilePane("list");
-    setDrawerOpen(false);
-  };
-  const selectNote = (noteId: string) => {
-    setSelectedNoteId(noteId);
-    setMobilePane("doc");
-  };
 
   if (view === "status") {
     return <SystemStatusPage onBack={() => setView("main")} />;
@@ -62,8 +51,8 @@ export function AppShell() {
         layout={layout}
         collapsed={collapsed && layout === "compact"}
         drawerOpen={drawerOpen}
-        selectedTopicId={selectedTopicId}
-        onSelectTopic={selectTopic}
+        selectedSection={selectedSection}
+        onSelectSection={(section) => { setSelectedSection(section); setMobilePane("list"); setDrawerOpen(false); }}
         onToggleCollapse={() => setCollapsed((value) => !value)}
         onCloseDrawer={() => setDrawerOpen(false)}
         onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
@@ -72,13 +61,10 @@ export function AppShell() {
         layout={layout}
         viewMode={viewMode}
         onViewMode={setViewMode}
-        selectedTopicId={selectedTopicId}
-        selectedNoteId={selectedNoteId}
-        onSelectNote={selectNote}
+        selectedSection={selectedSection}
         mobilePane={mobilePane}
         onBackToList={() => setMobilePane("list")}
         onOpenDrawer={() => setDrawerOpen(true)}
-        notes={demoNotes}
       />
       {layout === "mobile" && (
         <nav className="mn-bottomnav" aria-label="主导航">
