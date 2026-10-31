@@ -3,7 +3,7 @@
 - **文档状态**：视觉基线 v1（2026-10-31）。与《核心重设计方案 v0.7》《需求说明书 v1.2》《工程结构与组件设计 v0.2》配套；结构、功能、目录以那三份为准，本文只定义视觉与交互表现。
 - **适用对象**：前端实现者、验收者、后续主题与样式自定义的维护者。
 - **主要任务**：让人在同一个界面里完成「快速记录 → 归类检索 → 长文写作」，三栏之间不迷路。
-- **依据**：需求说明书 FR-IA / FR-EDT / FR-PROP / FR-MEMO / FR-ENC / FR-STYLE；`AGENTS.md` §5 样式规则；`wiki/design.html`（界面本体）。
+- **依据**：需求说明书 FR-IA / FR-EDT / FR-PROP / FR-MEMO / FR-ENC / FR-STYLE；`AGENTS.md` §5 样式规则；`wiki/design.html`（界面本体）、`wiki/atomic.html`（原子设计清单）。
 - **令牌命名**：遵循 `src/web/src/styles/tokens.css` 的两套命名空间——`--app-*` 应用外壳，`--md-*` 文档渲染。本文所有变量名可直接落进该文件。
 
 **三条必须先知道的前提**
@@ -84,7 +84,7 @@
 --md-kicker-size: 9.5px;      --md-kicker-color: var(--app-fg-faint);
 ```
 
-> 预览稿 `design.html` 为单文件方便，正文直接引用了 `--app-*`。实现时按本节改为 `--md-*`，取值不变。
+> 预览稿 `wiki/design.html` 为单文件方便，正文直接引用了 `--app-*`。实现时按本节改为 `--md-*`，取值不变。
 
 ### 2.3 CSS 声明
 
@@ -182,6 +182,8 @@
 ---
 
 ## 4. 组件样式
+
+逐条清单（含真实渲染的控件、归属路径、状态穷举）见 `wiki/atomic.html`，本节只规定尺寸与规则。
 
 ### 4.1 尺寸总表
 
@@ -361,7 +363,7 @@
 
 把下面这段连同本文件交给实现者：
 
-> 你在实现 Menote V2 的前端。视觉规范见 `wiki/DESIGN.md`，界面参照 `wiki/design.html`，功能需求见《需求说明书 v1.2》，仓库纪律见 `AGENTS.md`。
+> 你在实现 Menote V2 的前端。视觉规范见 `DESIGN.md`，界面参照 `wiki/design.html`，组件清单见 `wiki/atomic.html`，功能需求见《需求说明书 v1.2》，仓库纪律见 `AGENTS.md`。
 >
 > **必须遵守**
 > 1. 只用 `src/web/src/styles/tokens.css` 的令牌（`--app-*` / `--md-*`），业务组件内不写死任何颜色、字号、间距、圆角。
