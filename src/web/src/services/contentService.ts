@@ -345,7 +345,8 @@ export const encryptionHelpers = { generateRecoveryCode };
 
 /* ---------- 版本历史与回收站（G8，FR-VER-1~7） ---------- */
 
-import { localDb as _localDb } from "../db/localDb";
+import { localDb as _localDb, type VersionRow } from "../db/localDb";
+export type { VersionRow };
 const VERSION_KEEP_PER_ITEM = 50;
 const VERSION_KEEP_PER_USER = 2000;
 const VERSION_MIN_INTERVAL_MS = 10 * 60_000;

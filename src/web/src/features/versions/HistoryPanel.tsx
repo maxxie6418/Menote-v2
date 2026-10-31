@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { VersionRow } from "../../db/localDb";
+import type { VersionRow } from "../../services/contentService";
 import { listVersions } from "../../services/contentService";
 import { restoreVersion } from "../../services/contentService";
 

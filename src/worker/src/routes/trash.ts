@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
-import { deleteItemWraps } from "../db/keyWraps";
+import { purgeDeletedItems } from "../db/trash";
 import { ensureSchemaReady } from "../services/authService";
 
 /** 回收站永久删除（G8，FR-VER-6）：仅已软删行；墓碑在软删时已传播；包装块随行清除。 */
@@ -15,15 +15,6 @@ trashRoutes.post("/api/trash/purge", resolveSession, sameOriginGuard, requireSes
     return c.json({ error: "invalid_request" }, 400);
   }
   const userId = c.get("authUser")!.id;
-  let purged = 0;
-  for (const id of ids as string[]) {
-    const result = await c.env.DB.prepare(
-      "DELETE FROM items WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL",
-    ).bind(id, userId).run();
-    if ((result.meta.changes ?? 0) > 0) {
-      await deleteItemWraps(c.env.DB, userId, id);
-      purged += 1;
-    }
-  }
+  const purged = await purgeDeletedItems(c.env.DB, userId, ids as string[]);
   return c.json({ purged }, { headers: { "Cache-Control": "no-store" } });
 });
