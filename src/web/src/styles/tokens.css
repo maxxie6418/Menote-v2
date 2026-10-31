@@ -1,29 +1,129 @@
+/* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
+   取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
 :root {
   color-scheme: light dark;
+  /* 颜色 · 表面与结构（DESIGN §2.1） */
   --app-surface: #fff;
   --app-bg-side: #f1f1ee;
   --app-surface-sunken: #f4f4f2;
+  --app-raised-on-side: #ffffff;
+  --app-seg-active: #ffffff;
+  --app-selected: #fef6ee;
+  --app-hover: #f6f6f4;
   --app-border: #e6e6e3;
+  --app-border-subtle: #f0f0ed;
+  /* 颜色 · 文字四档（DESIGN §2.4 对比度已实测） */
   --app-fg: #1a1a18;
   --app-fg-muted: #4e504d;
   --app-fg-subtle: #6c6f6b;
+  --app-fg-faint: #74776f;
+  /* 颜色 · 强调与状态（橙色不做文字，按钮字用 --app-accent-text） */
   --app-accent: #f6821f;
+  --app-accent-hover: #e5760f;
   --app-accent-text: #241505;
+  --app-accent-fg: #b4530f;
+  --app-accent-subtle: #fef2e7;
   --app-link: #0051c3;
-  --app-font: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --app-font-mono: ui-monospace, monospace;
+  --app-success: #5f8b3f;
+  /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据） */
+  --app-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Roboto, sans-serif;
+  --app-font-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
+  --app-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
+  /* 字重与行高 */
+  --app-weight-serif: 500;
+  --app-weight-medium: 600;
+  --app-leading-nav: 1.2;
+  --app-leading-meta: 1.6;
+  --app-leading-summary: 1.55;
+  --app-leading-list-title: 1.45;
+  --app-leading-doc-title: 1.32;
+  /* 字号档位（DESIGN §3.2：9.5/10/10.5/11.5/12/12.5/13.5/14/17/32） */
   --app-font-small: 0.8125rem;
   --app-font-body: 0.875rem;
   --app-font-title: 2rem;
-  --app-leading-body: 1.65;
-  --app-leading-title: 1.2;
+  --app-size-kicker: 0.59375rem;   /* 9.5px 角标 */
+  --app-size-micro: 0.625rem;      /* 10px 日期元信息 */
+  --app-size-label: 0.65625rem;    /* 10.5px 分组标题 */
+  --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
+  --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
+  --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
+  --app-size-brand: 1.0625rem;     /* 17px 品牌字 */
+  /* 间距（DESIGN §1.4：基准 4px，实际只用 4/6/8/10/12/14/18/22/24/34） */
+  --app-space-2: 0.125rem;
+  --app-space-4: 0.25rem;
+  --app-space-5: 0.3125rem;
+  --app-space-6: 0.375rem;
+  --app-space-10: 0.625rem;
+  --app-space-14: 0.875rem;
+  --app-space-18: 1.125rem;
+  --app-space-22: 1.375rem;
+  --app-space-34: 2.125rem;
   --app-space-xs: 0.5rem;
   --app-space-sm: 0.75rem;
   --app-space-md: 1rem;
   --app-space-lg: 1.5rem;
   --app-space-xl: 2rem;
   --app-space-2xl: 3rem;
-  --app-radius: 0.375rem;
+  /* 布局尺寸（DESIGN §5：三栏 248/340/1fr，最小 420） */
+  --app-sidebar-width: 15.5rem;    /* 248px */
+  --app-sidebar-collapsed: 3.5rem; /* 56px 图标条 */
+  --app-list-width: 21.25rem;      /* 340px */
+  --app-list-width-compact: 20rem; /* 320px，中屏 */
+  --app-doc-min: 26.25rem;         /* 420px */
+  --app-bar-height: 3rem;          /* 48px 工具条 */
+  --app-row-height: 3.75rem;       /* 60px 清单行 */
+  --app-nav-height: 1.8125rem;     /* 29px 侧栏导航项 */
+  --app-duo-height: 2.125rem;      /* 34px 收件箱/草稿箱块 */
+  --app-btn-height: 2rem;          /* 32px 主按钮 */
+  --app-doc-pad: var(--app-space-34);
+  --app-icon-2xs: 0.5rem;          /* 8px */
+  --app-icon-xs: 0.75rem;          /* 12px */
+  --app-icon-sm: 0.8125rem;        /* 13px */
+  --app-icon-md: 0.875rem;         /* 14px */
+  --app-minibtn-size: 1.125rem;    /* 18px 侧栏分组小按钮 */
+  --app-vt-size: 1.25rem;          /* 20px 视图切换段 */
+  --app-vt-height: 1.125rem;       /* 18px 视图切换段高 */
+  --app-tree-indent: 1.625rem;     /* 26px 树二级缩进 */
+  --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
+  --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
+  --app-prop-height: 2rem;         /* 32px 属性行 */
+  --app-prop-key-width: 1.875rem;  /* 30px 属性键名列 */
+  --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
+  --app-kicker-line-height: 0.09375rem; /* 1.5px */
+  --app-empty-max: 15rem;          /* 240px 空态文案宽 */
+  --app-touch-target: 2.75rem;     /* 44px 触控目标 */
+  --app-chip-height: 1.4375rem;    /* 23px 标签胶囊 */
+  --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
+  --app-dot-size: 0.3125rem;       /* 5px 状态点 */
+  --app-avatar-size: 1.1875rem;    /* 19px 头像 */
+  --app-logo-size: 1.375rem;       /* 22px 侧栏品牌图标 */
+  --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
+  --app-radius-sm: 0.25rem;        /* 4px */
+  --app-radius-md: 0.3125rem;      /* 5px */
+  --app-radius: 0.375rem;          /* 6px */
+  --app-radius-lg: 0.5rem;         /* 8px 网格卡片 */
+  --app-radius-xl: 0.625rem;       /* 10px 对话框 */
+  --app-radius-pill: 999px;
+  /* 阴影与描边组合（DESIGN §6：仅对话框/网格卡片悬停/主按钮材质三处；选中条与悬停内描边） */
+  --app-shadow-dialog: 0 1.125rem 2.75rem rgba(26, 26, 24, 0.12);
+  --app-shadow-card: 0 0.125rem 0.5rem rgba(26, 26, 24, 0.06);
+  --app-shadow-seg: 0 1px 1px rgba(26, 26, 24, 0.08);
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(120, 60, 0, 0.16);
+  --app-selected-bar-side: inset 0.125rem 0 0 var(--app-accent);
+  --app-selected-bar-list: inset 0.1875rem 0 0 var(--app-accent);
+  --app-selected-bar-top: inset 0 0.125rem 0 var(--app-accent);
+  --app-hairline-inset: inset 0 0 0 var(--app-line) var(--app-border);
+  --app-overlay-bg: rgba(26, 26, 24, 0.4);
+  --app-drawer-hidden: translateX(-100%);
+  --app-drawer-shown: translateX(0);
+  /* 焦点环（DESIGN §8.2：统一 3px 橙 35%，不用浏览器默认；outline 形态避免覆盖选中条阴影） */
+  --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, 0.35);
+  --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, 0.35);
+  /* 动效（DESIGN §4.3） */
+  --app-motion-fast: 130ms;
+  --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+  /* 旧状态页与通用控件沿用 */
   --app-zero: 0;
   --app-full-size: 100%;
   --app-viewport-height: 100vh;
@@ -33,7 +133,7 @@
   --app-field-width: 9rem;
   --app-main-top: 12vh;
   --app-button-height: 2.5rem;
-  --app-weight-medium: 600;
+  /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
   --md-body-size: 0.875rem;
   --md-body-leading: 1.78;
   --md-body-color: var(--app-fg-muted);
@@ -70,6 +170,11 @@
   --md-table-border: var(--app-line) solid var(--app-border);
   --md-table-padding: 0.5rem 0.75rem;
   --md-table-head-bg: var(--app-surface-sunken);
+  --md-table-head-size: 0.59375rem; /* 9.5px 表头 */
+  --md-table-col-1: 14%;            /* DESIGN §3.3 固定列宽，防止长英文截断 */
+  --md-table-col-2: 38%;
+  --md-table-col-3: 16%;
+  --md-table-col-4: 32%;
   --md-link-color: var(--app-link);
 }
 @media (prefers-color-scheme: dark) {
@@ -77,10 +182,21 @@
     --app-surface: #1a1c1e;
     --app-bg-side: #131518;
     --app-surface-sunken: #232629;
+    --app-raised-on-side: #1f2225;
+    --app-seg-active: #33383c;
+    --app-selected: #2b2118;
+    --app-hover: #222528;
     --app-border: #2c3033;
+    --app-border-subtle: #24282b;
     --app-fg: #e9ebed;
     --app-fg-muted: #a7adb2;
     --app-fg-subtle: #8a9095;
+    --app-fg-faint: #7e848b;
+    --app-accent-hover: #ff9a3c;
+    --app-accent-text: #1a1208;
+    --app-accent-fg: #fbad41;
+    --app-accent-subtle: #3a2716;
     --app-link: #7fa8ff;
+    --app-success: #8ca86b;
   }
 }

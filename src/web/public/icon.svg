@@ -1,0 +1,126 @@
+<svg width="512" height="512" viewBox="0 0 512 512"
+     xmlns="http://www.w3.org/2000/svg"
+     role="img" aria-label="Menote">
+  <title>Menote</title>
+
+  <defs>
+    <!-- 渐变 id 加 mn- 前缀：这个文件将来若被内联进页面（sprite / React 组件），
+         裸 id 会和页面里其它 SVG 的 id 撞车 -->
+    <linearGradient id="mn-cloud" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6821F"/>
+      <stop offset="100%" stop-color="#FBAD41"/>
+    </linearGradient>
+
+    <linearGradient id="mn-paper-edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F15A24"/>
+      <stop offset="100%" stop-color="#F6821F"/>
+    </linearGradient>
+
+    <linearGradient id="mn-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FDBA74"/>
+      <stop offset="100%" stop-color="#F6821F"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    两层分组（云 / 笔记本）除了本身是图形，还兼作"启动加载屏"动效的抓手：
+    那一屏把本文件按 `?raw` 内联进页面，用 CSS 让 .mn-cloud 与 .mn-book 竖直微跳
+    （见 apps/web/src/app/theme/app.css 的 .authloading__logo 段）。
+    作为 <img> 使用时（favicon / 顶栏 / 登录注册页）它们不带任何样式，
+    渲染结果与拆分前**完全一致**——图形仍然只有这一份。
+  -->
+
+  <!-- ==================== Cloud ==================== -->
+
+  <g class="mn-cloud">
+    <path
+      d="
+        M108 307
+        C76 304 54 279 54 248
+        C54 216 79 190 110 188
+        C121 141 163 110 213 110
+        C257 110 295 134 313 169
+        C328 160 346 155 365 155
+        C414 155 454 195 454 244
+        C454 290 420 327 375 333
+        L128 333
+        C120 333 114 323 108 307Z"
+      fill="url(#mn-cloud)"
+    />
+
+    <!-- Cloud secondary shading -->
+    <path
+      d="
+        M292 181
+        C313 164 338 155 365 155
+        C414 155 454 195 454 244
+        C454 290 420 327 375 333
+        L292 333
+        C310 315 320 290 320 261
+        C320 230 309 202 292 181Z"
+      fill="#F15A24"
+      opacity="0.35"
+    />
+  </g>
+
+  <!-- ==================== Notebook ==================== -->
+
+  <g class="mn-book">
+    <!--
+      整个笔记本：
+      translate(0 40) = 下移 40px
+      rotate(-20 245 260) = 以中心附近为轴逆时针倾斜 20°
+    -->
+    <g transform="translate(0 40) rotate(-20 245 260)">
+
+      <!-- Notebook backing -->
+      <path
+        d="
+          M157 177
+          Q157 157 177 157
+          L352 157
+          Q373 157 373 178
+          L373 383
+          Q373 405 351 405
+          L155 405
+          Q133 405 133 383
+          L133 199
+          Q133 177 157 177Z"
+        fill="url(#mn-paper-edge)"
+      />
+
+      <!-- Notebook page -->
+      <path
+        d="
+          M145 158
+          Q145 138 165 138
+          L340 138
+          Q361 138 361 159
+          L361 361
+          Q361 382 340 382
+          L145 382
+          Q124 382 124 361
+          L124 180
+          Q124 158 145 158Z"
+        fill="#FFFFFF"
+      />
+
+      <!-- Binding tabs -->
+      <g fill="#F6821F">
+        <rect x="105" y="177" width="52" height="18" rx="9"/>
+        <rect x="105" y="227" width="52" height="18" rx="9"/>
+        <rect x="105" y="277" width="52" height="18" rx="9"/>
+        <rect x="105" y="327" width="52" height="18" rx="9"/>
+      </g>
+
+      <!-- Writing lines -->
+      <g fill="url(#mn-line)">
+        <rect x="184" y="205" width="126" height="13" rx="6.5"/>
+        <rect x="184" y="247" width="126" height="13" rx="6.5"/>
+        <rect x="184" y="289" width="92" height="13" rx="6.5"/>
+      </g>
+
+    </g>
+  </g>
+
+</svg>

@@ -11,7 +11,7 @@ const sourceRoot = path.join(root, "src");
 const whitelist = new Set(["README.md", "AGENTS.md", "DESIGN.md", "package.json", "pnpm-workspace.yaml", "wrangler.jsonc", "pnpm-lock.yaml", ".gitignore", "wiki", "archive", "draft", "todo", "src"]);
 // These are local tool metadata or generated artifacts, not repository deliverables.
 // Their presence is reported and is not evidence that the physical whitelist passed.
-const localArtifacts = new Set([".git", ".workbuddy", ".wrangler", "node_modules", "dist"]);
+const localArtifacts = new Set([".git", ".workbuddy", ".wrangler", ".zcode", "node_modules", "dist"]);
 const ignoredDirectories = new Set(["node_modules", "dist", ".wrangler"]);
 
 async function filesUnder(directory) {
