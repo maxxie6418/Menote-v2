@@ -1,0 +1,77 @@
+[
+  {
+    "name": "gfm-table",
+    "source": "| 名称 | 数量 | 备注 |\n| --- | --- | --- |\n| 苹果 | 3 | 红 |\n| 香蕉 | 12 | 黄 |\n",
+    "output": "| 名称 | 数量 | 备注 |\n| -- | -- | -- |\n| 苹果 | 3  | 红  |\n| 香蕉 | 12 | 黄  |\n"
+  },
+  {
+    "name": "fenced-code",
+    "source": "```ts\nconst a = 1;\nfunction f() { return a; }\n```\n",
+    "output": "```ts\nconst a = 1;\nfunction f() { return a; }\n```\n"
+  },
+  {
+    "name": "code-indent-vs-fence",
+    "source": "前文\n\n    缩进代码块\n\n后文\n",
+    "output": "前文\n\n```\n缩进代码块\n```\n\n后文\n"
+  },
+  {
+    "name": "attachment-ref",
+    "source": "看图：\n\n![截图](attachments/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789--shot.png)\n\n完。\n",
+    "output": "看图：\n\n![截图](attachments/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789--shot.png)\n\n完。\n"
+  },
+  {
+    "name": "html-fragment",
+    "source": "段落 <b>加粗</b> 与 <span class=\"x\">片段</span>。\n\n<div>\n  块级 HTML\n</div>\n",
+    "output": "段落 <b>加粗</b> 与 <span class=\"x\">片段</span>。\n\n<div>\n  块级 HTML\n</div>\n"
+  },
+  {
+    "name": "footnote",
+    "source": "有脚注[^1]的段落。\n\n[^1]: 脚注内容\n",
+    "output": "有脚注[^1]的段落。\n\n[^1]: 脚注内容\n"
+  },
+  {
+    "name": "unknown-directive",
+    "source": "::: tip\n提示内容\n:::\n",
+    "output": "::: tip\n提示内容\n:::\n"
+  },
+  {
+    "name": "task-list",
+    "source": "- [ ] 未完成\n- [x] 已完成\n",
+    "output": "* [ ] 未完成\n* [x] 已完成\n"
+  },
+  {
+    "name": "nested-list",
+    "source": "- 一层\n  - 二层\n    - 三层\n- 回到一层\n",
+    "output": "* 一层\n  * 二层\n    * 三层\n* 回到一层\n"
+  },
+  {
+    "name": "marker-variants",
+    "source": "* 星号项\n+ 加号项\n- 减号项\n",
+    "output": "* 星号项\n\n- 加号项\n\n* 减号项\n"
+  },
+  {
+    "name": "emphasis-variants",
+    "source": "*星强调* 与 _下划强调_ 与 **粗** 与 __下划粗__\n",
+    "output": "*星强调* 与 _下划强调_ 与 **粗** 与 __下划粗__\n"
+  },
+  {
+    "name": "setext-heading",
+    "source": "标题一\n=====\n\n标题二\n-----\n",
+    "output": "# 标题一\n\n## 标题二\n"
+  },
+  {
+    "name": "hard-break",
+    "source": "行尾两空格  \n下一行\n",
+    "output": "行尾两空格\\\n下一行\n"
+  },
+  {
+    "name": "blockquote",
+    "source": "> 引用一行\n> 引用两行\n",
+    "output": "> 引用一行\n> 引用两行\n"
+  },
+  {
+    "name": "autolink-escape",
+    "source": "访问 <https://example.com> 与转义 * 不斜体\n",
+    "output": "访问 <https://example.com> 与转义 \\* 不斜体\n"
+  }
+]

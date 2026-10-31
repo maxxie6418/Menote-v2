@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
+import { ChevronLeft, Clock, Code, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
-import { NoteEditor } from "../editor";
+import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
 import { TableBlockDialog } from "../table";
@@ -36,6 +36,7 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; messag
 export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, onExtractDoc }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const [draft, setDraft] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
@@ -246,6 +247,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         {plain && mode === "edit" && (
           <NoteEditor
             mode="edit"
+            kind={editorKind}
             externalMarkdown={plain.markdown}
             onInput={(value) => setDraft(value)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}

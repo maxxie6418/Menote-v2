@@ -108,12 +108,12 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 EditorHost（宿主：加载/保存/字数/滚动容器）
    ↳ 实现 EditorAdapter 接口：
       loadMarkdown(md) / getMarkdown() / onSelectionChange / onScroll / destroy()
-        ├── SourceEditorAdapter（M2：CodeMirror 6 或等宽 textarea + 高亮，[实施定]）
-        └── WysiwygAdapter（M3：Typora 式，选型 PoC 决定，往返安全为准入门槛）
+        ├── MilkdownWysiwygAdapter（M2 末接入，v1.3 提前：@milkdown/kit，E4 PoC 准入通过）
+        └── SourceEditorAdapter（源码高级入口，FR-EDT-3；等宽 textarea [实施定]）
 ```
 
-- 上层（保存链路、附件插入、选中浮条）只面向接口，**M2→M3 切换零改造上层**。
-- 源码编辑在 M3 后退居"更多操作"高级入口（FR-EDT-3），复用同一 SourceEditorAdapter。
+- 上层（保存链路、附件插入、选中浮条）只面向接口，**更换编辑器零改造上层**（已验证：G7~G8 功能在两种适配器下共用）。
+- 源码编辑退居"更多操作"高级入口（FR-EDT-3），复用同一 SourceEditorAdapter；Milkdown 往返 PoC 证据与等价规范化清单见 `src/web/poc/`。
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 

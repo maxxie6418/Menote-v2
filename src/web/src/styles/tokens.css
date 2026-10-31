@@ -144,6 +144,7 @@
   --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
   --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
+  --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */

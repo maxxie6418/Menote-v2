@@ -104,6 +104,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         {plainFlow && mode === "edit" && (
           <NoteEditor
             mode="edit"
+            kind="wysiwyg"
             externalMarkdown={plain}
             onInput={(value) => setPlain(value)}
             registerGetMarkdown={(get) => { void get; }}
