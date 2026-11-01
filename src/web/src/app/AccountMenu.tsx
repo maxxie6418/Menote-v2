@@ -72,7 +72,7 @@ export function AccountMenu({ username, role, collapsed, onLogout, onOpenSetting
       </button>
       {open && (
         <div ref={menuRef} className="mn-account-menu" role="menu" aria-label="账户菜单"
-          style={{ left: position.left, bottom: position.bottom }}>
+>
           <p className="mn-menu-label">主题</p>
           <div className="mn-menu-seg" role="radiogroup" aria-label="主题模式">
             {THEME_OPTIONS.map((option) => (
