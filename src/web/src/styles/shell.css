@@ -465,6 +465,25 @@
 .mn-setrow .mn-propselect { flex: 0 1 auto; min-width: var(--app-field-width); }
 .mn-statuslink { border: var(--app-zero); background: none; color: var(--app-link); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }
 .mn-statuslink:hover { background: var(--app-hover); }
+.mn-mcp-manager { display: grid; gap: var(--app-space-md); }
+.mn-mcp-endpoint { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr) auto auto; align-items: center; gap: var(--app-space-sm); }
+.mn-mcp-address, .mn-mcp-secret code { overflow-wrap: anywhere; color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
+.mn-mcp-heading, .mn-mcp-token-head, .mn-mcp-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); flex-wrap: wrap; }
+.mn-mcp-token-list { display: grid; gap: var(--app-space-sm); }
+.mn-mcp-token-card, .mn-mcp-editor { display: grid; gap: var(--app-space-sm); padding: var(--app-space-md); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius); background: var(--app-surface); }
+.mn-mcp-token-card .mn-sethint { margin: var(--app-zero); }
+.mn-mcp-secret { padding: var(--app-space-xs); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
+.mn-mcp-revoked { margin-inline-start: var(--app-space-xs); color: var(--app-danger); font-size: var(--app-size-chip); }
+.mn-mcp-fieldset { display: grid; gap: var(--app-space-xs); min-width: var(--app-zero); margin: var(--app-zero); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-mcp-fieldset legend { padding-inline: var(--app-space-4); }
+.mn-mcp-check-grid, .mn-mcp-options { display: flex; align-items: center; gap: var(--app-space-sm); flex-wrap: wrap; }
+.mn-mcp-check { display: inline-flex; align-items: center; gap: var(--app-space-4); color: var(--app-fg); font-size: var(--app-size-chip); }
+.mn-mcp-check input { accent-color: var(--app-accent); }
+.mn-mcp-scope-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--app-field-width), 1fr)); gap: var(--app-space-xs); padding-block: var(--app-space-xs); }
+.mn-mcp-scope-list .child { padding-inline-start: var(--app-space-sm); }
+.mn-mcp-number { display: grid; gap: var(--app-space-4); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-mcp-number .mn-propinput { min-width: var(--app-field-width); }
+.mn-mcp-empty, .mn-mcp-message { margin: var(--app-zero); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-note-row-icon { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-faint); flex: none; align-self: center; }
 .mn-note-row.on .mn-note-row-icon { color: var(--app-accent-fg); }
 .mn-unlocktitle { font-family: var(--app-font-serif); font-size: var(--app-font-title); font-weight: var(--app-weight-serif); margin: var(--app-zero) var(--app-zero) var(--app-space-6); color: var(--app-fg); }

@@ -14,5 +14,9 @@ export type {
   SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap,
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
-export type { OpaqueCiphertext, McpToken, McpAudit, BackupTarget } from "./types/integrations";
+export {
+  MCP_PERMISSION_KEYS,
+  type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
+  type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
+} from "./types/integrations";
 export type { UserSetting, MonitorSample } from "./types/settings";

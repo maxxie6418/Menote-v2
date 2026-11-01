@@ -4,14 +4,16 @@ import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
+import { McpTokenManager } from "./McpTokenManager";
 
-type SettingsSection = "appearance" | "backup" | "attachments" | "recovery";
+type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
+  { id: "mcp", label: "MCP 接入" },
 ];
 
 interface SettingsDialogProps {
@@ -50,6 +52,7 @@ export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
+            {section === "mcp" && <McpTokenManager />}
           </div>
         </div>
       </div>
