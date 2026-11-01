@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Download, Eye, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput, Table } from "lucide-react";
+import { ChevronLeft, Clock, Code, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
-import { splitFrontmatter } from "../../lib/frontmatter";
-import { TableBlockDialog } from "../table";
+import { joinFrontmatter, splitFrontmatter } from "../../lib/frontmatter";
+import { TableDocument } from "../table";
 import { useItem } from "../../services/contentHooks";
-import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
+import { degradeTableToNote, isBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
 import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
+import { BlankFormChooser } from "./BlankFormChooser";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
@@ -35,6 +36,8 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; messag
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
 export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, onExtractDoc }: NoteDocumentProps) {
+  // 抽出为独立表格文档的入口随「表格结构化编辑」一并撤下（TP4）；参数保留，避免改动 AppShell 的调用约定。
+  void onExtractDoc;
   const item = useItem(userId, noteId);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
@@ -42,7 +45,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
-  const [tableDialog, setTableDialog] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [encrypting, setEncrypting] = useState(false);
   const [history, setHistory] = useState(false);
@@ -81,9 +84,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
     const currentFull = draft ?? item.content.markdown;
     const editorValue = overrideMarkdown ?? getMarkdownRef.current?.() ?? null;
     const { frontText } = splitFrontmatter(currentFull);
-    const value = editorValue === null ? currentFull : frontText ? `${frontText}
-
-${editorValue}` : editorValue;
+    const value = editorValue === null ? currentFull : joinFrontmatter(frontText, editorValue);
     if (value === null || value === item.content.markdown) return;
     setSaveState({ kind: "saving" });
     try {
@@ -103,11 +104,12 @@ ${editorValue}` : editorValue;
   }, [draft, flush, item]);
 
   // 卸载前尽力落盘（异步保存不阻塞返回；失败保留本地草稿，本地库本就是权威）。
+  // 编辑器只持有正文，必须拼回 frontmatter，否则有属性的笔记离开时会把 YAML 写丢。
   useEffect(() => () => {
-    const value = getMarkdownRef.current?.();
-    if (item && value !== null && value !== undefined && item.content.scope === "plain" && value !== item.content.markdown) {
-      void saveItemContent(userId, item.id, value).catch(() => {});
-    }
+    const body = getMarkdownRef.current?.();
+    if (!item || body === null || body === undefined || item.content.scope !== "plain") return;
+    const value = joinFrontmatter(splitFrontmatter(item.content.markdown).frontText, body);
+    if (value !== item.content.markdown) void saveItemContent(userId, item.id, value).catch(() => {});
   }, [item, userId]);
 
   const flushTitle = useCallback(async (nextTitle: string) => {
@@ -160,8 +162,8 @@ ${editorValue}` : editorValue;
         setSaveState({ kind: "error", message: result.error });
         return;
       }
-      const latest = getMarkdownRef.current?.() ?? draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
-      const next = `${latest.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`;
+      const latest = getMarkdownRef.current?.() ?? splitFrontmatter(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).body;
+      const next = joinFrontmatter(splitFrontmatter(draft ?? "").frontText, `${latest.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`);
       await saveFullMarkdown(next);
     } finally {
       setUploading(false);
@@ -183,6 +185,19 @@ ${editorValue}` : editorValue;
   }
 
   const plain = item.content;
+  const isTableDoc = item.type === "table";
+  const showFormChooser = !isTableDoc && isBlankDraft(item);
+
+  /** 形态选择（FR-TBL-9）：转换守卫在 setItemForm（仅空白期可切）。 */
+  const pickTableForm = () => {
+    setItemForm(userId, item.id, "table").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
+  const switchToNoteForm = () => {
+    setItemForm(userId, item.id, "note").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
+  const degradeDoc = () => {
+    degradeTableToNote(userId, item.id).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
 
   return (
     <article className="mn-doc" aria-label="文档区">
@@ -190,29 +205,38 @@ ${editorValue}` : editorValue;
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
           <>
-            <button type="button" className="mn-iconbtn" aria-label="版本历史" title="版本历史" onClick={() => setHistory(true)}>
-              <Clock />
-            </button>
-            <button type="button" className="mn-iconbtn" aria-label="启用单篇加密" title="启用单篇加密（独立密码+恢复码）" onClick={() => setEncrypting(true)}>
-              <Shield />
-            </button>
             <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
-            </button>
-            <button type="button" className="mn-iconbtn" aria-label="表格结构化编辑" title="表格结构化编辑" onClick={() => setTableDialog(true)}>
-              <Table />
             </button>
             <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
               <Download />
             </button>
-            {unfiled && (
-              <button type="button" className="mn-iconbtn" aria-label="整理到主题" title="整理到主题" onClick={() => setOrganizing(true)}>
-                <FolderInput />
-              </button>
-            )}
             <button type="button" className="mn-iconbtn" aria-label="移入回收站" title="移入回收站" onClick={() => void softDeleteItem(userId, item.id)}>
               <Trash2 />
             </button>
+            <span className="mn-docmore">
+              <button type="button" className="mn-iconbtn" aria-label="更多" aria-expanded={moreOpen} title="更多" onClick={() => setMoreOpen((open) => !open)}>
+                <MoreHorizontal />
+              </button>
+              {moreOpen && (
+                <span className="mn-docmore-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => { setEditorKind(editorKind === "source" ? "wysiwyg" : "source"); setMoreOpen(false); }}>
+                    <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { setHistory(true); setMoreOpen(false); }}>
+                    <Clock />版本历史
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { setEncrypting(true); setMoreOpen(false); }}>
+                    <Shield />启用单篇加密
+                  </button>
+                  {unfiled && (
+                    <button type="button" role="menuitem" onClick={() => { setOrganizing(true); setMoreOpen(false); }}>
+                      <FolderInput />整理到主题
+                    </button>
+                  )}
+                </span>
+              )}
+            </span>
           </>
         )}
       />
@@ -248,21 +272,26 @@ ${editorValue}` : editorValue;
             }}
           />
         </div>
+        {showFormChooser && <BlankFormChooser onPickTable={pickTableForm} />}
         {plain && mode === "preview" && (
           <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body mn-doc-preview" />
         )}
-        {plain && mode === "edit" && (
+        {plain && mode === "edit" && isTableDoc && (
+          <TableDocument
+            markdown={draft ?? plain.markdown}
+            onChangeMarkdown={(next) => void saveFullMarkdown(next)}
+            onDegrade={degradeDoc}
+            onSwitchToNote={switchToNoteForm}
+          />
+        )}
+        {plain && mode === "edit" && !isTableDoc && (
           <NoteEditor
             mode="edit"
             kind={editorKind}
             externalMarkdown={splitFrontmatter(plain.markdown).body}
-            onInput={(value) => {
-              const { frontText } = splitFrontmatter(draft ?? plain.markdown);
-              setDraft(frontText ? `${frontText}
-
-${value}` : value);
-            }}
+            onInput={(value) => setDraft(joinFrontmatter(splitFrontmatter(draft ?? plain.markdown).frontText, value))}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
+            uploadFile={uploadAttachment}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
               if (apply) applyExternalRef.current = (markdown: string) => apply(splitFrontmatter(markdown).body);
               else applyExternalRef.current = null;
@@ -280,14 +309,6 @@ ${value}` : value);
           {saveState.kind === "idle" && "已保存"}
         </span>
       </div>
-      {tableDialog && (
-        <TableBlockDialog
-          markdown={draft ?? (plain ? plain.markdown : "")}
-          onSave={(next) => { setTableDialog(false); void saveFullMarkdown(next); }}
-          onClose={() => setTableDialog(false)}
-          onExtract={(content) => { setTableDialog(false); void onExtractDoc(content); }}
-        />
-      )}
       {history && item && (
         <HistoryPanel userId={userId} itemId={item.id} currentMarkdown={draft ?? item.content.markdown} onClose={() => setHistory(false)} />
       )}
@@ -295,7 +316,8 @@ ${value}` : value);
         <EncryptSetupDialog
           onCancel={() => setEncrypting(false)}
           onConfirm={async (password, code) => {
-            const latest = getMarkdownRef.current?.() ?? draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
+            const body = getMarkdownRef.current?.() ?? splitFrontmatter(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).body;
+            const latest = joinFrontmatter(splitFrontmatter(draft ?? "").frontText, body);
             const result = await enableItemEncryption(userId, item.id, latest, password, code);
             setSessionKey(item.id, result.key);
             setPlainDraftAfterEncryption();

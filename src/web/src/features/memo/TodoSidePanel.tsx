@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { saveItemMeta } from "../../services/contentService";
+import { isPlainMemo, memoText } from "./memoView";
 
 const GROUPS = [
-  { status: "todo", label: "待办" },
   { status: "doing", label: "进行中" },
+  { status: "todo", label: "待办" },
   { status: "done", label: "已完成" },
 ] as const;
 
@@ -17,16 +19,16 @@ interface TodoSidePanelProps {
   onToggle: () => void;
 }
 
-/** todo 侧板（FR-MEMO-5）：仅 Memo 视图旁可折叠；单一互斥状态；拖入分组即改状态；
- *  勾选即完成、取消回待办；无推进按钮与状态下拉框；已完成组默认折叠。 */
+/** todo 侧板（FR-MEMO-5）：仅 Memo 视图旁的浮层，不占栅格列。
+ *  单一互斥状态；拖入分组即改状态；勾选即完成、取消回待办；已完成组默认折叠。 */
 export function TodoSidePanel({ userId, memos, open, onToggle }: TodoSidePanelProps) {
   const withStatus = memos.filter((memo) => memo.status !== null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["done"]));
 
   if (!open) {
     return (
-      <button type="button" className="mn-todopanel-toggle" aria-label="展开 todo 侧板" onClick={onToggle}>
-        todo
+      <button type="button" className="mn-memo-todo-toggle" aria-label="展开 todo" onClick={onToggle}>
+        Todo
       </button>
     );
   }
@@ -47,38 +49,33 @@ export function TodoSidePanel({ userId, memos, open, onToggle }: TodoSidePanelPr
   };
 
   return (
-    <aside className="mn-todopanel" aria-label="todo 侧板">
-      <div className="mn-todopanel-head">
-        <span className="mn-seclabel-text">todo</span>
-        <button type="button" className="mn-minibtn" aria-label="折叠 todo 侧板" onClick={onToggle}>收起</button>
+    <aside className="mn-memo-todo" aria-label="todo">
+      <div className="mn-memo-todo-head">
+        <span>Todo</span>
+        <span className="mn-memo-todo-count">{withStatus.length}</span>
+        <button type="button" aria-label="折叠 todo" onClick={onToggle}><ChevronRight /></button>
       </div>
-      {withStatus.length === 0 && <p className="mn-tree-empty">把时间线里的 Memo 拖进来安排状态。</p>}
+      {withStatus.length === 0 && <p className="mn-memo-todo-empty">把时间线里的 Memo 拖进来安排状态。</p>}
       {GROUPS.map(({ status, label }) => {
         const items = withStatus.filter((memo) => memo.status === status);
         const collapsed = collapsedGroups.has(status);
         return (
-          <section
-            key={status}
-            className="mn-todogroup"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => void dropOn(status)(event)}
-          >
-            <button type="button" className="mn-seclabel" aria-expanded={!collapsed} onClick={() => toggleGroup(status)}>
-              <span className="mn-seclabel-text">{label}（{items.length}）</span>
+          <section key={status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => void dropOn(status)(event)}>
+            <button type="button" className="mn-memo-todo-group" aria-expanded={!collapsed} onClick={() => toggleGroup(status)}>
+              {label}<span>{items.length}</span>
             </button>
             {!collapsed && (
-              <ul className="mn-todolist">
+              <ul>
                 {items.map((memo) => (
-                  <li key={memo.id} className={`mn-todoitem ${status}`} draggable
-                    onDragStart={(event) => event.dataTransfer.setData("text/menote-item", memo.id)}>
-                    <span className={`mn-todo-dot ${status}`} aria-hidden="true" />
+                  <li key={memo.id} className={status} draggable onDragStart={(event) => event.dataTransfer.setData("text/menote-item", memo.id)}>
+                    <i />
                     <input
                       type="checkbox" aria-label={status === "done" ? "取消完成" : "标记完成"}
                       checked={status === "done"}
                       onChange={() => void saveItemMeta(userId, memo.id, { status: status === "done" ? "todo" : "done" })}
                     />
-                    <button type="button" className="mn-todoitem-text" onClick={() => void saveItemMeta(userId, memo.id, { status: null })}>
-                      {memo.content.scope === "plain" ? memo.content.markdown.replace(/\s+/g, " ").slice(0, 40) || "（空白）" : "已加密"}
+                    <button type="button" onClick={() => void saveItemMeta(userId, memo.id, { status: null })}>
+                      {isPlainMemo(memo) ? memoText(memo).replace(/\s+/g, " ").slice(0, 40) || "（空白）" : "已加密"}
                     </button>
                   </li>
                 ))}

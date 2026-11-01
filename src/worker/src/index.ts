@@ -10,6 +10,8 @@ import { syncRoutes } from "./routes/sync";
 import { trashRoutes } from "./routes/trash";
 import { backupRoutes } from "./routes/backup";
 import { restoreRoutes } from "./routes/restore";
+import { mcpTokenRoutes } from "./routes/mcpTokens";
+import { mcpRoutes } from "./routes/mcp";
 
 /* 仅装配：路由注册与请求观察（FR-DEP-4/工程设计 §4，入口 ≤200 行）。 */
 const app = new Hono<AppEnv>()
@@ -20,7 +22,9 @@ const app = new Hono<AppEnv>()
   .route("/", trashRoutes)
   .route("/", backupRoutes)
   .route("/", restoreRoutes)
-  .route("/", monitorRoutes);
+  .route("/", monitorRoutes)
+  .route("/", mcpTokenRoutes)
+  .route("/", mcpRoutes);
 
 export default {
   scheduled(controller, env, ctx) {

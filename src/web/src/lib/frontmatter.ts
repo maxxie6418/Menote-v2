@@ -36,6 +36,11 @@ export function splitFrontmatter(markdown: string): { frontText: string | null; 
   return { frontText, body: rest.startsWith("\n") ? rest.slice(1) : rest };
 }
 
+/** 把编辑器里的纯正文拼回属性区管理的 frontmatter（FR-PROP-1）。无属性时原样返回正文。 */
+export function joinFrontmatter(frontText: string | null, body: string): string {
+  return frontText ? `${frontText}\n\n${body}` : body;
+}
+
 /** 解析 frontmatter 数据面；空/损坏 frontmatter 视为无属性（不抛出，C-1 不阻断）。 */
 export function parseFrontmatterData(markdown: string): Record<string, unknown> {
   const { frontText } = splitFrontmatter(markdown);
@@ -67,8 +72,15 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
 
 /** 新建 frontmatter（无 frontmatter 时）：写入定义并保持最小结构。 */
 export function createFrontmatter(markdown: string, namespace: string, def: PropertyDef, name: string): string {
-  const doc = new Document({ [namespace]: { [name]: defNode(def) } });
+  const doc = new Document({ [namespace]: { [name]: defNode(def) }, [name]: emptyPropertyValue(def) });
   return `---\n${doc.toString().replace(/\n$/, "")}\n---\n\n${markdown}`;
+}
+
+function emptyPropertyValue(def: PropertyDef): string | boolean | string[] {
+  if (def.type === "checkbox") return false;
+  if (def.type === "multiselect") return [];
+  if (def.type === "select") return def.options?.[0] ?? "";
+  return "";
 }
 
 function defNode(def: PropertyDef): Record<string, unknown> {
@@ -89,7 +101,37 @@ export function writeDef(markdown: string, namespace: string, name: string, def:
   } else {
     doc.set(namespace, doc.createNode({ [name]: defNode(def) }));
   }
+  if (doc.get(name, true) === undefined) doc.set(name, doc.createNode(emptyPropertyValue(def)));
   return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+}
+
+/** 重命名命名空间内一个定义键（表格列重命名）；目标名已存在时不操作（调用方先行校验）。 */
+export function renameDef(markdown: string, namespace: string, from: string, to: string): string {
+  if (from === to) return markdown;
+  const { frontText, body } = splitFrontmatter(markdown);
+  if (!frontText) return markdown;
+  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const container = doc.get(namespace) as YAMLMap | undefined;
+  if (!container || typeof container.get !== "function") return markdown;
+  const def = container.get(from);
+  if (def === undefined) return markdown;
+  container.delete(from);
+  container.set(to, def);
+  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+}
+
+/** 删除命名空间内一个定义键（表格删列）；不存在时原样返回。 */
+export function removeDef(markdown: string, namespace: string, name: string): string {
+  const { frontText, body } = splitFrontmatter(markdown);
+  if (!frontText) return markdown;
+  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const container = doc.get(namespace) as YAMLMap | undefined;
+  if (!container || typeof container.delete !== "function") return markdown;
+  if (container.get(name) === undefined) return markdown;
+  container.delete(name);
+  const serialized = String(doc).trimEnd();
+  if (serialized.length === 0) return body;
+  return `---\n${serialized}\n---\n\n${body}`;
 }
 
 /** 写入/更新一个数据键：有 YAML 节点则原位替换值，未触碰键保持原样。无 frontmatter 时新建。 */

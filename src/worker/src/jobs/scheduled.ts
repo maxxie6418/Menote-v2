@@ -15,21 +15,16 @@ export const scheduledJobs: ScheduledJob[] = [
     description: "备份快照推送（daily/weekly 到期目标，G9）",
     enabled: true,
     run: async (env) => {
-      const { listDueTargets, recordTargetResult } = await import("../db/backup");
-      const { pushBackup, openSecret } = await import("../services/backupService");
-      const now = Date.now();
-      for (const target of await listDueTargets(env.DB, now)) {
+      const { listDueTargets } = await import("../db/backup");
+      const { runTargetPushById } = await import("../services/backupTargetService");
+      for (const target of await listDueTargets(env.DB, Date.now())) {
         try {
-          const secret = await openSecret(Reflect.get(env, "AUTH_PEPPER") as string, target.secret_ciphertext ?? "");
-          const result = await pushBackup(
-            { db: env.DB, userId: target.user_id, bucket: env.BUCKET },
-            { kind: target.kind === "s3" ? "s3" : "webdav", endpoint: target.endpoint ?? "", bucket: target.bucket, username: target.username, secret, remotePath: target.remote_path, retentionCount: target.retention_count },
+          await runTargetPushById(
+            { db: env.DB, userId: target.user_id, bucket: env.BUCKET }, target.id, Reflect.get(env, "AUTH_PEPPER") as string,
           );
-          const pushedAt = Date.now();
-          const message = result.ok ? `ok:${new Date(pushedAt!).toISOString()}:${result.shards} 分片` : `失败:${result.error}`;
-          await recordTargetResult(env.DB, target.user_id, target.id, message, pushedAt);
         } catch (error) {
-          await recordTargetResult(env.DB, target.user_id, target.id, `失败:${String(error).slice(0, 200)}`, Date.now());
+          // 单目标失败不阻断其余目标（推送结果已尽量由服务层落库）。
+          console.error("backup_push target failed:", target.id, error);
         }
       }
     },

@@ -4,15 +4,42 @@ export interface OpaqueCiphertext { ciphertext: string }
 export interface McpToken {
   id: string;
   userId: string;
+  name: string;
   tokenPrefix: string;
-  permissions: string[];
-  scope: unknown;
+  tokenHash: string;
+  permissions: McpPermission[];
+  scope: McpTokenScope;
   includeMemos: boolean;
   allowUrl: boolean;
   ratePerMinute: number;
   expiresAt: number | null;
   revokedAt: number | null;
+  createdAt: number;
+  lastUsedAt: number | null;
   tokenEnc: OpaqueCiphertext;
+}
+
+export const MCP_PERMISSION_KEYS = [
+  "content:read", "item:create", "item:edit", "trash:move", "attachment:access",
+] as const;
+export type McpPermission = (typeof MCP_PERMISSION_KEYS)[number];
+
+export interface McpTokenScope {
+  mode: "all" | "selected";
+  topicIds: string[];
+  groupIds: string[];
+}
+
+/** Safe token fields returned by management APIs. Never contains a hash or ciphertext. */
+export type McpTokenView = Omit<McpToken, "tokenHash" | "tokenEnc">;
+
+export interface McpTokenConfig {
+  permissions: McpPermission[];
+  scope: McpTokenScope;
+  includeMemos: boolean;
+  allowUrl: boolean;
+  ratePerMinute: number;
+  expiresAt: number | null;
 }
 
 export interface McpAudit {
@@ -26,6 +53,30 @@ export interface McpAudit {
   result: string;
   operationId: string | null;
   at: number;
+}
+
+/** Versioned browser clip payload shared by Menote and Menote-clients. */
+export interface McpClipRequest {
+  schemaVersion: 1;
+  operationId: string;
+  title: string;
+  markdown: string;
+  sourceUrl: string;
+  capturedAt: string;
+  attachmentHashes?: string[];
+  metadata: {
+    author?: string;
+    publishedAt?: string;
+    siteName?: string;
+    description?: string;
+    canonicalUrl?: string;
+  };
+}
+
+export interface McpClipResult {
+  itemId: string;
+  rev: number;
+  result: "applied" | "duplicate";
 }
 
 export interface BackupTarget {

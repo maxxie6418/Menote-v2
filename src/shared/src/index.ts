@@ -7,12 +7,17 @@ export type { HealthResponse } from "./contracts/health";
 export type { AuthStatus, AuthUser, CredentialsInput } from "./contracts/auth";
 export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./contracts/auth";
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
-export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contracts/monitor";
+export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonitorSetup, CloudflareMonitorConnection, CloudflareMonitorMetrics } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
   SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap,
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
-export type { OpaqueCiphertext, McpToken, McpAudit, BackupTarget } from "./types/integrations";
+export {
+  MCP_PERMISSION_KEYS,
+  type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
+  type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
+  type McpClipRequest, type McpClipResult,
+} from "./types/integrations";
 export type { UserSetting, MonitorSample } from "./types/settings";

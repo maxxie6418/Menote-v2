@@ -1,9 +1,9 @@
-# Menote V2 工程结构与组件设计（v0.2）
+# Menote V2 工程结构与组件设计（v0.6）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单：常驻格式栏与「/」菜单取代选中浮条，源码入口并入「更多」菜单。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
-- **来源**：需求说明书 v1.2（FR/C/NFR）、主文档 v0.7（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
+- **来源**：需求说明书 v1.9（FR/C/NFR）、主文档 v0.10（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
 
 ## 1. 仓库结构与目录树
@@ -99,7 +99,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
 | `backup` | 备份目标管理面板（逐条添加、连接测试、推送调度、远端快照浏览/删除、保留数量）（G9） | FR-BAK-1/2/4/8 |
 | `markdown` | MarkdownView 渲染组件（react-markdown+gfm，任务复选框互写、附件 URL 解析）（G5/E2） | FR-STYLE-1、FR-MEMO-3 |
-| `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
+| `monitor` | Resource Monitor：官方 Worker/D1/R2 指标、应用抽样估算、刷新频率与阈值配置（独立边界，见第 5 章） | FR-MON |
 
 跨模块规则：**feature 之间禁止深引用**——只能 import 对方模块的公共入口（`index.ts`）或经 services/stores；违反在 DoD 结构检查中拦截。
 
@@ -113,25 +113,26 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
         └── SourceEditorAdapter（源码高级入口，FR-EDT-3；等宽 textarea [实施定]）
 ```
 
-- 上层（保存链路、附件插入、选中浮条）只面向接口，**更换编辑器零改造上层**（已验证：G7~G8 功能在两种适配器下共用）。
-- 源码编辑退居"更多操作"高级入口（FR-EDT-3），复用同一 SourceEditorAdapter；Milkdown 往返 PoC 证据与等价规范化清单见 `src/web/poc/`。
+- 上层（保存链路、附件插入、格式栏、「/」菜单）只面向接口，**更换编辑器零改造上层**（已验证：G7~G8 功能在两种适配器下共用）。
+- 源码编辑收进文档栏「更多」菜单（FR-EDT-3），复用同一 SourceEditorAdapter；Milkdown 往返 PoC 证据与等价规范化清单见 `src/web/poc/`。
+- 格式栏与「/」菜单只调用 adapter 上的纯数据方法（Markdown 字符串与选区描述），Milkdown 类型不出 `features/editor/`。
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
-**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/监控/版本入口页，M1.2）。
+**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/系统状态/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/同步/资源监控，在主界面右侧内容区显示，M2）。
 **tree/**：`TopicTree`（仅主题+分组）、`TreeNode`、`LockBadge`。
-**notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）。
+**notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）；`BlankFormChooser`（空白种子期形态选择条，FR-TBL-9，TP2）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
-**editor/**：`EditorHost`、`SourceEditor`、`WysiwygEditor`（M3）、`SelectionToolbar`、`MarkdownPreview`、`SourceModeMenuItem`。
+**editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
-**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`、`FieldTypeMenu`。
+**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理+行管理+单元格编辑，TP2）。
 **memo/**：`Timeline`、`MemoCard`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
-**monitor/**：`ResourceCards`、`ThresholdSettings`、`UsageTrend`（独立边界：不 import 其他 feature）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含独立「MCP 接入」栏目，并与远程备份/附件/恢复码并列；状态页签内直接显示健康、同步和完整资源监控面板，不跳出设置窗口）、`BackupTargetForm`、`TokenManager`（逐 Token 创建/列表/复显复制/撤销/修改权限与范围，显示最后调用时间；动态变更立即生效）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
 ## 4. Worker 架构
@@ -139,10 +140,13 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - `index.ts` 只做装配：`app.route(...)` 注册 + 中间件顺序（session → csrf → configGuard 按路由），**目标单文件 ≤ 200 行**（server.mjs 教训的硬对策）。
 - routes ↔ services ↔ db 三层；业务逻辑只在 services；SQL 只在 db 层。
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
+- 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
+- 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
-- MCP 模块（services/mcp/）：registry（工具注册）、scope（可见性谓词，私人空间/单篇加密两层）、audit——独立子目录，不与其他服务交叉引用。
+- MCP 模块（services/mcp/）：registry（工具注册）、token auth（每次请求读取最新权限）、permissions/scope（内容读取开关、创建/编辑/回收站/附件权限、用户范围与私人空间/单篇加密谓词）、attachments（受权限约束的上传/读取映射）、audit——独立子目录，不与其他服务交叉引用。MCP 协议发现、鉴权和范围解析可执行必需的内部读取；内容读取关闭时不得暴露既有条目。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
+- 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
 ## 5. 数据契约摘要（M1 细化为 `src/shared` 类型与迁移 SQL）
 
@@ -153,7 +157,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 | Item | id、userId、type(note/table/memo)、topicId、groupId?、title、content(md)、tags[]、status?、source、rev、metaRev、contentHash、pinned、starred、encSelf、inEncSpace、createdAt/updatedAt/deletedAt | 5.1/5.2 |
 | Attachment | sha256、userId、size、mime、refCount | FR-SYNC-7/8 |
 | ItemVersion | itemId、snapshot、codec、reason、createdAt | FR-VER |
-| McpToken | id、userId、tokenPrefix、perms、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、**tokenEnc（可逆存储）** | FR-MCP |
+| McpToken | id、userId、tokenPrefix、perms（含可选内容读取/创建/编辑/回收站/附件权限）、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、lastUsedAt、**tokenEnc（可逆存储）** | FR-MCP-2/10 |
 | McpAudit | id、tokenId、tool、itemId、revBefore/After、result、operationId、at | FR-MCP-6 |
 | BackupTarget | id、userId、kind、endpoint、remotePath（默认 menote）、bucket、username、**secretEnc**、retentionCount、lastPushedAt、schedule、enabled、lastResult | FR-BAK |
 | MonitorSample | userId、service、metric、value、sampledAt | FR-MON |

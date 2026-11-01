@@ -6,12 +6,17 @@ export function validPreferences(value: unknown): value is MonitorPreferences {
   const v = value as Partial<MonitorPreferences>;
   return Number.isSafeInteger(v.dailyQuota) && v.dailyQuota! > 0 &&
     Number.isInteger(v.reminder) && Number.isInteger(v.warning) && Number.isInteger(v.critical) &&
-    v.reminder! > 0 && v.reminder! < v.warning! && v.warning! < v.critical! && v.critical! <= 100;
+    v.reminder! > 0 && v.reminder! < v.warning! && v.warning! < v.critical! && v.critical! <= 100 &&
+    Number.isInteger(v.refreshIntervalMinutes) && [5, 15, 30, 60].includes(v.refreshIntervalMinutes!);
 }
 
 export async function loadMonitorPreferences(): Promise<MonitorPreferences> {
   const stored = await readPreferences();
-  return validPreferences(stored) ? stored : { ...DEFAULT_MONITOR_PREFERENCES };
+  if (typeof stored === "object" && stored !== null) {
+    const migrated = { ...DEFAULT_MONITOR_PREFERENCES, ...stored };
+    if (validPreferences(migrated)) return migrated;
+  }
+  return { ...DEFAULT_MONITOR_PREFERENCES };
 }
 
 export async function saveMonitorPreferences(value: MonitorPreferences): Promise<void> {

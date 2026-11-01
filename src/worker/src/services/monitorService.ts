@@ -16,9 +16,9 @@ export async function requestSummary(db: D1Database, now = Date.now(), period: M
   const date = new Date(now);
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
-  const start = period === "utc_day" ? Date.UTC(year, month, date.getUTCDate()) : Date.UTC(year, month, 1);
-  const end = period === "utc_day" ? start + 86_400_000 : Date.UTC(year, month + 1, 1);
-  const bucketSize = period === "utc_day" ? 3_600_000 : 86_400_000;
+  const start = period === "utc_day" ? Date.UTC(year, month, date.getUTCDate()) : period === "utc_week" ? Date.UTC(year, month, date.getUTCDate() - 6) : Date.UTC(year, month, 1);
+  const end = period === "utc_day" ? start + 86_400_000 : period === "utc_week" ? now + 1 : Date.UTC(year, month + 1, 1);
+  const bucketSize = period === "utc_day" ? 3_600_000 : period === "utc_week" ? 86_400_000 : 86_400_000;
   const { ledger, row, points } = await readRequestSamples(db, start, end, bucketSize);
   if (!ledgerReady(ledger)) throw new Error("Schema is incompatible");
   return {

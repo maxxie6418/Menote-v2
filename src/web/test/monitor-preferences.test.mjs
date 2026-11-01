@@ -12,8 +12,9 @@ const result = await build({
 const service = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
 
 test("defaults, valid settings, and persistence", async () => {
-  assert.deepEqual(await service.loadMonitorPreferences(), { dailyQuota: 100000, reminder: 70, warning: 85, critical: 95 });
-  const updated = { dailyQuota: 50000, reminder: 60, warning: 80, critical: 99 };
+  // 默认值随 G12 增加刷新间隔（refreshIntervalMinutes），校验要求 ∈ {5,15,30,60}。
+  assert.deepEqual(await service.loadMonitorPreferences(), { dailyQuota: 100000, reminder: 70, warning: 85, critical: 95, refreshIntervalMinutes: 15 });
+  const updated = { dailyQuota: 50000, reminder: 60, warning: 80, critical: 99, refreshIntervalMinutes: 30 };
   await service.saveMonitorPreferences(updated);
   assert.deepEqual(await service.loadMonitorPreferences(), updated);
 });

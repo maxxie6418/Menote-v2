@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="s-light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · 移动端设计</title>
+<style>
+:root{
+  --canvas:#FCFCFB;
+  --app-surface:#FFFFFF;
+  --app-bg-side:#F1F1EE;
+  --app-surface-sunken:#F4F4F2;
+  --app-selected:#FEF6EE;
+  --app-hover:#F6F6F4;
+  --app-border:#E6E6E3;
+  --app-border-subtle:#F0F0ED;
+  --app-fg:#1A1A18;
+  --app-fg-muted:#4E504D;
+  --app-fg-subtle:#6C6F6B;
+  --app-fg-faint:#74776F;
+  --app-accent:#F6821F;
+  --app-accent-fg:#B4530F;
+  --app-accent-subtle:#FEF2E7;
+  --app-link:#0051C3;
+  --app-success:#5F8B3F;
+  --app-scrim:rgba(26,26,24,.30);
+  /* 滚动条（DESIGN §4.3：极细发丝线 · 悬停加深）——与桌面端同一套令牌 */
+  --app-scrollbar-size:10px;--app-scrollbar-inset:2px;--app-scrollbar-track:transparent;
+  --app-scrollbar-thumb:#C4C4C0;--app-scrollbar-thumb-hover:#8E8E8A;
+  --app-font-serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+  --app-font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+  --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+}
+html.s-dark{
+  --canvas:#0F1113;
+  --app-surface:#1A1C1E;
+  --app-bg-side:#131518;
+  --app-surface-sunken:#232629;
+  --app-selected:#2B2118;
+  --app-hover:#222528;
+  --app-border:#2C3033;
+  --app-border-subtle:#24282B;
+  --app-fg:#E9EBED;
+  --app-fg-muted:#A7ADB2;
+  --app-fg-subtle:#8A9095;
+  --app-fg-faint:#7E848B;
+  --app-accent:#F6821F;
+  --app-accent-fg:#FBAD41;
+  --app-accent-subtle:#3A2716;
+  --app-link:#7FA8FF;
+  --app-success:#8CA86B;
+  --app-scrim:rgba(0,0,0,.48);
+  /* 滚动条深色（DESIGN §4.3）：常态 1.88:1，悬停 3.46:1 */
+  --app-scrollbar-thumb:#45494D;--app-scrollbar-thumb-hover:#6B7176;
+}
+*{box-sizing:border-box}
+/* 滚动条（DESIGN §4.3）：发丝线 · 悬停加深。
+   本页是桌面浏览器预览，故显式呈现形态；真机为触屏时由 AppShell 的
+   data-pointer="coarse" 交回系统覆盖式滚动条（不占布局宽度）。 */
+*::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+html::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+*::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+html::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+*::-webkit-scrollbar-thumb{
+  background-color:var(--app-scrollbar-thumb);
+  border:var(--app-scrollbar-inset) solid transparent;
+  background-clip:padding-box;border-radius:999px;
+}
+html::-webkit-scrollbar-thumb{
+  background-color:var(--app-scrollbar-thumb);
+  border:var(--app-scrollbar-inset) solid transparent;
+  background-clip:padding-box;border-radius:999px;
+}
+*::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+html::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+*::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+html::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+@supports not selector(::-webkit-scrollbar){
+  *{scrollbar-width:thin;scrollbar-color:var(--app-scrollbar-thumb) var(--app-scrollbar-track)}
+}
+body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font-ui);line-height:1.62;letter-spacing:0;-webkit-font-smoothing:antialiased}
+svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+svg [fill="currentColor"]{fill:currentColor;stroke:none}
+.wrap{max-width:1320px;margin:0 auto;padding:0 32px 110px}
+
+header.masthead{padding:54px 0 26px;border-bottom:1px solid var(--app-border)}
+.eyebrow{display:flex;align-items:center;gap:9px;margin-bottom:14px;font-family:var(--app-font-mono);font-size:10.5px;text-transform:uppercase;color:var(--app-fg-faint)}
+.eyebrow::before{content:"";width:16px;height:1.5px;background:var(--app-accent);flex:none}
+h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:1.28;margin:0 0 10px}
+.masthead p{font-size:13.5px;color:var(--app-fg-muted);max-width:800px;margin:0;line-height:1.82}
+.masthead p + p{margin-top:9px}
+.masthead p b{color:var(--app-fg)}
+.controls{display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap}
+.ctrl{height:30px;padding:0 12px;border:1px solid var(--app-border);border-radius:6px;background:var(--app-surface);color:var(--app-fg-muted);font-size:12px;font-family:var(--app-font-ui);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.ctrl:hover{border-color:var(--app-fg-faint);color:var(--app-fg)}
+.ctrl[aria-pressed="true"]{background:var(--app-accent-subtle);border-color:#F0CFAE;color:var(--app-accent-fg)}
+.ctrl .led{width:7px;height:7px;border-radius:50%;background:var(--app-border);flex:none}
+.ctrl[aria-pressed="true"] .led{background:var(--app-accent)}
+
+.deck{display:grid;grid-template-columns:repeat(3,375px);gap:56px 48px;justify-content:center;margin-top:44px}
+@media(max-width:1279px){.deck{grid-template-columns:repeat(2,375px)}}
+@media(max-width:900px){.deck{grid-template-columns:375px;gap:48px}}
+.screen{display:flex;flex-direction:column;gap:14px;margin:0}
+.cap{display:flex;align-items:baseline;gap:9px;padding:0 2px}
+.cap b{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-accent-fg);font-weight:400;flex:none}
+.cap span{font-size:13.5px;font-weight:600;color:var(--app-fg)}
+.cap i{font-style:normal;font-size:11.5px;color:var(--app-fg-faint);font-family:var(--app-font-mono);margin-left:auto}
+
+.phone{position:relative;width:375px;height:812px;flex:none;background:var(--app-surface);border:1px solid var(--app-border);border-radius:26px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 2px rgba(26,26,24,.04)}
+.statusbar{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+.statusbar .sig{display:flex;gap:3px;align-items:flex-end}
+.statusbar .sig i{display:block;width:2px;background:var(--app-fg-faint);border-radius:1px}
+.statusbar .sig i:nth-child(1){height:3px}
+.statusbar .sig i:nth-child(2){height:5px}
+.statusbar .sig i:nth-child(3){height:7px}
+.statusbar .sig i:nth-child(4){height:9px}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 8px 0 14px;border-bottom:1px solid var(--app-border-subtle)}
+.topbar .grow{flex:1;min-width:0}
+.brand{font-family:var(--app-font-serif);font-size:16px;font-weight:500;line-height:1}
+.tb-btn{width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;background:none;border-radius:6px;color:var(--app-fg-muted)}
+.tb-btn svg{width:17px;height:17px}
+
+/* 底部导航：五格，中间是记录键 */
+.tabbar{flex:none;height:50px;display:flex;border-top:1px solid var(--app-border);background:var(--app-surface);position:relative}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--app-fg-subtle)}
+.tab svg{width:19px;height:19px}
+.tab b{font-size:10px;font-weight:400;line-height:1}
+.tab.on{color:var(--app-fg)}
+.tab.on svg{color:var(--app-accent)}
+.tab.mid{position:relative;justify-content:center}
+.fab{
+  position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+  width:44px;height:44px;border-radius:50%;border:0;background:var(--app-accent);
+  display:grid;place-items:center;color:#241505;
+}
+.fab svg{width:20px;height:20px;stroke-width:1.9}
+.safebar{flex:none;height:20px;display:grid;place-items:center;background:var(--app-surface)}
+.safebar i{display:block;width:104px;height:4px;border-radius:2px;background:var(--app-border)}
+
+/* 首页 */
+.home{flex:1;min-height:0;overflow:hidden;padding-bottom:6px;scrollbar-gutter:stable}
+.hhead{display:flex;align-items:baseline;justify-content:space-between;padding:15px 16px 7px}
+.hhead b{font-size:12px;font-weight:600;color:var(--app-fg)}
+.hhead a{font-size:11px;color:var(--app-fg-faint);display:inline-flex;align-items:center;gap:1px}
+.hhead a svg{width:11px;height:11px}
+.hscroll{display:flex;gap:8px;padding:0 16px;overflow:hidden}
+.card{flex:none;width:150px;padding:10px 11px;border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface)}
+.card b{display:block;font-size:12.5px;font-weight:600;line-height:1.45;color:var(--app-fg);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card em{font-style:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;line-height:1.55;color:var(--app-fg-subtle)}
+.card .cico{display:flex;align-items:center;gap:4px;margin-top:8px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+.card .cico svg{width:10px;height:10px}
+.rlist{padding:0 16px}
+.rlist a{display:flex;align-items:center;gap:9px;height:44px;border-bottom:1px solid var(--app-border-subtle)}
+.rlist a:last-child{border-bottom:0}
+.rlist .ty{color:var(--app-fg-faint);display:flex;flex:none}
+.rlist .ty svg{width:13px;height:13px}
+.rlist span{flex:1;min-width:0;font-size:13px;color:var(--app-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rlist em{font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);flex:none}
+.dock{flex:none;padding:10px 0 12px;border-top:1px solid var(--app-border-subtle);background:var(--app-surface)}
+.duo2{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px}
+.duo2 a{display:flex;align-items:center;gap:8px;height:48px;padding:0 11px;border-radius:7px;background:var(--app-surface-sunken);font-size:12.5px;color:var(--app-fg)}
+.duo2 a svg{width:15px;height:15px;color:var(--app-fg-subtle);flex:none}
+.duo2 a em{margin-left:auto;font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-accent-fg);font-weight:600}
+
+/* Memo：吸顶筛选 + 时间线 */
+.filters{
+  flex:none;display:flex;align-items:center;gap:18px;height:38px;padding:0 14px;
+  border-bottom:1px solid var(--app-border-subtle);background:var(--app-surface);
+}
+.filters span{position:relative;display:inline-flex;align-items:center;gap:4px;height:38px;font-size:12px;color:var(--app-fg-subtle)}
+.filters span em{font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+.filters span.on{color:var(--app-fg);font-weight:600}
+.filters span.on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--app-accent)}
+.stream{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable}
+.dhead{display:flex;align-items:center;gap:8px;height:26px;padding:0 14px;background:var(--app-surface)}
+.dhead b{font-size:10.5px;font-weight:400;color:var(--app-fg-subtle);font-family:var(--app-font-mono)}
+.dhead i{flex:1;height:1px;background:var(--app-border-subtle)}
+.mm{padding:11px 14px 12px;border-bottom:1px solid var(--app-border-subtle)}
+.mm p{margin:0;font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
+.mm .tasks{margin:8px 0 0;display:flex;flex-direction:column;gap:2px}
+.mm .task{display:flex;align-items:flex-start;gap:7px;font-size:13px;line-height:1.55;color:var(--app-fg-muted)}
+.mm .task .bx{width:14px;height:14px;border:1px solid var(--app-border);border-radius:3px;flex:none;margin-top:3px;display:grid;place-items:center}
+.mm .task .bx.on{background:var(--app-accent);border-color:var(--app-accent)}
+.mm .task .bx.on svg{width:9px;height:9px;color:#241505;stroke-width:2.4}
+.mm .thumb{margin-top:8px;display:flex;gap:6px}
+.mm .thumb i{width:60px;height:60px;border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
+
+/* ---------- Memo 图册 · 图片瀑布流（FR-MEMO-6 · DESIGN §4.5） ----------
+   移动端 2 列（375 宽，2 列各约 165px）。规则与桌面同一套：
+   按原始比例落位不裁切、懒加载占位保比例、点图回到原 Memo。 */
+.mgal{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable;padding:12px 14px 16px;
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.mgal-col{display:flex;flex-direction:column;gap:10px}
+.mgal-item{display:block}
+.mgal-thumb{position:relative;width:100%;border-radius:8px;overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
+.mgal-thumb i{display:block;width:100%;height:100%;background:var(--app-surface-sunken)}
+.mgal-thumb.lazy i{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
+.mgal-cap{display:flex;align-items:center;gap:6px;margin-top:5px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+.mgal-cap .t{color:var(--app-fg-subtle)}
+.mgal-cap .tg{font-family:var(--app-font-ui);font-size:10.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);border-radius:999px;padding:1px 6px}
+.mmeta{display:flex;align-items:center;gap:8px;margin-top:8px}
+.mmeta .t{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.mmeta .chip{font-size:11.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);height:19px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center}
+.mmeta .st{display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 7px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:11.5px}
+.mmeta .st i{width:5px;height:5px;border-radius:50%;background:var(--app-accent)}
+.mmeta .more{margin-left:auto;color:var(--app-fg-faint);display:flex}
+.mmeta .more svg{width:14px;height:14px}
+
+/* 写入面板 */
+.veil{position:absolute;inset:0;background:var(--app-scrim);z-index:2}
+.composer{
+  position:absolute;left:0;right:0;top:150px;bottom:282px;z-index:3;
+  display:flex;flex-direction:column;background:var(--app-surface);
+  border-radius:16px 16px 0 0;
+}
+.grab{flex:none;height:16px;display:grid;place-items:center}
+.grab i{display:block;width:34px;height:4px;border-radius:2px;background:var(--app-border)}
+.hs-top{flex:none;height:44px;display:flex;align-items:center;gap:8px;padding:0 8px 0 10px}
+.hs-top .grow{flex:1;min-width:0}
+.cx-btn{min-width:56px;height:30px;padding:0 12px;border-radius:6px;border:0;background:var(--app-accent);color:#241505;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.cx-cancel{min-width:56px;height:36px;padding:0 6px;display:inline-flex;align-items:center;font-size:13px;color:var(--app-fg-muted)}
+.cx-area{flex:1;min-height:0;padding:4px 16px 0;overflow:hidden}
+.cx-area .src{font-family:var(--app-font-mono);font-size:13px;line-height:1.75;color:var(--app-fg);white-space:pre-wrap}
+.cx-area .caret{display:inline-block;width:1.5px;height:15px;background:var(--app-accent);vertical-align:-2px;margin-left:1px}
+.cx-hint{margin-top:10px;font-size:11.5px;color:var(--app-fg-faint)}
+.cx-tools{flex:none;height:44px;display:flex;align-items:center;gap:2px;padding:0 6px;border-top:1px solid var(--app-border-subtle);background:var(--app-surface)}
+.cx-tools button{width:40px;height:36px;display:grid;place-items:center;border:0;background:none;border-radius:6px;color:var(--app-fg-subtle)}
+.cx-tools button svg{width:16px;height:16px}
+.cx-tools .sep{width:1px;height:18px;background:var(--app-border-subtle);margin:0 4px}
+.cx-tools .hint{margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);padding-right:8px}
+.cx-tools button.t-h{font-family:var(--app-font-mono);font-size:11.5px;font-weight:600;color:var(--app-fg-muted)}
+.cx-tools .t-b{font-size:14px;font-weight:700;line-height:1}
+.cx-tools .t-i{font-family:var(--app-font-serif);font-style:italic;font-size:15px;line-height:1}
+.cx-tools button.t-a{position:relative}
+.cx-tools button.t-a span{font-size:13px;line-height:1}
+.cx-tools button.t-a::after{content:"";position:absolute;left:11px;right:11px;bottom:9px;height:2px;border-radius:1px;background:var(--app-accent)}
+.cx-tools button.t-tag{width:58px;display:flex;align-items:center;justify-content:center;gap:3px;font-size:11.5px;color:var(--app-fg-subtle)}
+.cx-tools .hash{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-faint)}
+.keyboard{position:absolute;left:0;right:0;bottom:20px;height:262px;z-index:4;background:var(--app-surface-sunken);border-top:1px solid var(--app-border-subtle);display:flex;flex-direction:column;justify-content:space-between;padding:8px 3px 0}
+.krow{display:flex;justify-content:center;gap:5px}
+.krow span{flex:1;max-width:32px;height:38px;border-radius:5px;background:var(--app-surface);border-bottom:1px solid var(--app-border);display:grid;place-items:center;font-size:12px;color:var(--app-fg-faint);font-family:var(--app-font-mono)}
+.krow.wide span{max-width:none;flex:1;font-size:10px}
+.kbar{height:34px;margin:0 -3px;padding:0 6px;display:flex;align-items:center;justify-content:center;gap:26px;color:var(--app-fg-subtle)}
+.kbar svg{width:16px;height:16px}
+
+
+/* 填写态：归类行 + 附件缩略 */
+.meta{display:flex;align-items:center;gap:6px;padding:0 16px 8px;flex:none}
+.meta .tg{
+  display:inline-flex;flex:none;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:999px;
+  background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:11.5px;white-space:nowrap;
+}
+.meta .tg svg{width:10px;height:10px;stroke-width:1.8}
+.meta .add{
+  display:inline-flex;flex:none;align-items:center;gap:4px;height:24px;padding:0 9px;border-radius:999px;
+  border:1px dashed var(--app-border);color:var(--app-fg-faint);font-size:11.5px;white-space:nowrap;
+}
+.meta .todo{
+  display:inline-flex;flex:none;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;
+  background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:11.5px;margin-left:auto;white-space:nowrap;
+}
+.meta .todo i{width:5px;height:5px;border-radius:50%;background:var(--app-accent)}
+.thumbs{display:flex;gap:6px;padding:0 16px 8px;flex:none}
+.thumbs i{width:46px;height:46px;border-radius:5px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
+.cx-tools button.on{color:var(--app-accent-fg)}
+
+/* 条目动作面板 */
+.acts{
+  position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--app-surface);
+  border-radius:16px 16px 0 0;overflow:hidden;
+}
+.acts-h{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px 8px}
+.acts-h b{font-size:12px;font-weight:600;color:var(--app-fg)}
+.acts-h em{font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+.acts-seg{display:flex;margin:2px 16px 10px;padding:2px;gap:2px;background:var(--app-surface-sunken);border-radius:6px;height:34px}
+.acts-seg span{flex:1;display:grid;place-items:center;font-size:12px;color:var(--app-fg-subtle);border-radius:5px}
+.acts-seg span.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.06)}
+.acts-row{display:flex;align-items:center;gap:10px;height:46px;padding:0 16px;border-top:1px solid var(--app-border-subtle);font-size:13px;color:var(--app-fg)}
+.acts-row svg{width:15px;height:15px;color:var(--app-fg-subtle);flex:none}
+.acts-row em{margin-left:auto;font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.acts-cancel{height:48px;display:grid;place-items:center;font-size:13px;color:var(--app-fg-muted);border-top:1px solid var(--app-border);background:var(--app-surface-sunken)}
+
+
+/* 模式切换：Memo / 笔记 */
+.mode{flex:none;display:flex;align-items:center;height:38px;padding:0 14px 0 16px}
+.seg2{display:flex;padding:2px;gap:2px;background:var(--app-surface-sunken);border-radius:6px;height:28px}
+.seg2 span{display:grid;place-items:center;min-width:50px;padding:0 10px;border-radius:4px;font-size:11.5px;color:var(--app-fg-subtle)}
+.seg2 span.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.06)}
+.dest{margin-left:auto;display:inline-flex;align-items:center;gap:3px;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.dest svg{width:11px;height:11px}
+
+/* 笔记全屏 */
+.composer.full{top:30px;bottom:282px;border-radius:0}
+.note-title{flex:none;padding:16px 16px 0;font-family:var(--app-font-serif);font-size:24px;font-weight:500;line-height:1.35;color:var(--app-fg)}
+.note-title .ph{color:var(--app-fg-faint)}
+.note-body{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable;padding:12px 16px 0;font-size:15px;line-height:1.75;color:var(--app-fg-muted)}
+.note-body h3{font-size:14px;font-weight:600;line-height:1.5;color:var(--app-fg);margin:18px 0 6px}
+.note-body p{margin:0 0 12px}
+
+ul.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+ul.notes li{position:relative;padding-left:12px;font-size:12px;line-height:1.68;color:var(--app-fg-subtle)}
+ul.notes li::before{content:"";position:absolute;left:0;top:8px;width:4px;height:1px;background:var(--app-border)}
+ul.notes b{color:var(--app-fg-muted);font-weight:600}
+ul.notes code{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted)}
+
+/* 标注 */
+body.struct .mark{outline:1px dashed rgba(246,130,31,.65);outline-offset:-1px}
+body.struct .mark::after{content:attr(data-n);position:absolute;top:0;right:0;z-index:9;font-family:var(--app-font-mono);font-size:8.5px;line-height:1;font-weight:600;background:var(--app-accent);color:#241505;padding:2px 3px;border-radius:0 0 0 3px}
+
+/* 对比 */
+section.cmp-sec{margin-top:66px;border-top:1px solid var(--app-border);padding-top:32px}
+section.cmp-sec h2{font-family:var(--app-font-serif);font-size:21px;font-weight:500;margin:0 0 6px}
+section.cmp-sec > p{font-size:13px;color:var(--app-fg-muted);margin:0 0 20px;max-width:820px;line-height:1.8}
+table.cmp{width:100%;border-collapse:collapse;font-size:12.5px}
+table.cmp th,table.cmp td{text-align:left;padding:10px 16px 10px 0;border-bottom:1px solid var(--app-border-subtle);vertical-align:top;line-height:1.7}
+table.cmp thead th{font-family:var(--app-font-mono);font-size:9.5px;text-transform:uppercase;color:var(--app-fg-faint);font-weight:400;border-bottom:1px solid var(--app-border)}
+table.cmp td:first-child{color:var(--app-fg);width:23%}
+table.cmp td:nth-child(2){color:var(--app-fg-muted);width:36%}
+table.cmp td:nth-child(3){color:var(--app-fg-muted);width:42%}
+table.cmp .tag{display:inline-block;font-size:11px;padding:0 6px;height:19px;line-height:19px;border-radius:3px;background:var(--app-surface-sunken);color:var(--app-fg-subtle)}
+table.cmp .tag.hot{background:var(--app-accent-subtle);color:var(--app-accent-fg)}
+.hintline{font-size:11.5px;color:var(--app-fg-faint);margin-top:14px}
+/* 记录键放法对照 */
+.keys{display:flex;flex-direction:column;gap:24px;margin:26px 0 8px}
+.keyrow{display:flex;align-items:flex-end;gap:22px}
+.keymeta{width:154px;flex:none;padding-bottom:8px}
+.keymeta b{display:block;font-size:12.5px;font-weight:600;color:var(--app-fg)}
+.keymeta span{display:block;font-size:11.5px;color:var(--app-fg-subtle);margin-top:2px;line-height:1.55}
+.keybar{position:relative;width:375px;flex:none;height:78px;border:1px solid var(--app-border);border-radius:10px;background:var(--app-surface)}
+.keybar .tabbar{position:absolute;left:0;right:0;bottom:0;height:50px;border-top:1px solid var(--app-border);border-radius:0 0 10px 10px}
+.keybar .fab{position:absolute;left:50%;transform:translateX(-50%);background:var(--app-accent);color:#241505;display:grid;place-items:center;border:0;border-radius:50%}
+.keybar .fab svg{width:18px;height:18px;stroke-width:2}
+.keybar .ghost{position:absolute;left:16px;right:16px;height:9px;border-radius:4px;background:var(--app-surface-sunken)}
+.keybar .fab.a{width:52px;height:52px;bottom:15px}
+.keybar .fab.b{width:44px;height:44px;bottom:4px}
+.keybar .fab.c{width:52px;height:52px;left:auto;right:16px;bottom:58px;transform:none}
+.keybar.tall{height:118px}
+.keybar.short .tabbar{border-top:0}
+@media(max-width:900px){.keyrow{flex-direction:column;align-items:flex-start;gap:8px}.keymeta{width:auto;padding-bottom:0}}
+
+
+.ptitle{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:5px;min-width:0}
+.ptitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptitle svg{width:12px;height:12px;color:var(--app-fg-faint);flex:none}
+/* ---------- 屏 04：笔记清单 ---------- */
+.list{flex:1;min-height:0;overflow:hidden;background:var(--app-surface)}
+.ghead{
+  display:flex;align-items:center;gap:8px;height:26px;padding:0 16px;
+  background:var(--app-surface);border-bottom:1px solid var(--app-border-subtle);
+}
+.ghead b{font-size:10.5px;font-weight:400;color:var(--app-fg-subtle);letter-spacing:.01em}
+.ghead em{font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.ghead i{flex:1;height:1px;background:var(--app-border-subtle)}
+.nrow{
+  display:grid;grid-template-columns:14px 1fr auto;gap:0 10px;align-items:baseline;
+  padding:9px 16px 10px;border-bottom:1px solid var(--app-border-subtle);position:relative;
+}
+.nrow .ic{color:var(--app-fg-faint);display:flex;align-self:start;margin-top:2px}
+.nrow .ic svg{width:14px;height:14px}
+.nrow b{font-size:13.5px;font-weight:600;line-height:1.45;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nrow em{font-style:normal;font-size:12px;line-height:1.55;color:var(--app-fg-subtle);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.nrow .d{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);padding-top:3px}
+.nrow .lock{color:var(--app-fg-faint);margin-left:5px;display:inline-flex;vertical-align:-2px}
+.nrow .lock svg{width:11px;height:11px}
+.nrow.on{background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent)}
+
+/* ---------- 屏 05：文档 ---------- */
+.docbar{height:44px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px 0 4px;border-bottom:1px solid var(--app-border-subtle)}
+.docbar .file{flex:1;min-width:0;font-size:12px;color:var(--app-fg-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.props{
+  flex:none;height:34px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  border-bottom:1px solid var(--app-border-subtle);background:var(--app-surface);
+}
+.props .kv{display:flex;align-items:baseline;gap:4px;font-size:11.5px;min-width:0}
+.props .k{color:var(--app-fg-faint)}
+.props .v{color:var(--app-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.props .dot{width:2px;height:2px;border-radius:50%;background:var(--app-border);flex:none}
+.props .more{margin-left:auto;color:var(--app-fg-faint);flex:none;display:flex}
+.props .more svg{width:14px;height:14px}
+.doc{flex:1;min-height:0;overflow:hidden;padding:16px 18px 0;position:relative}
+.kicker{width:14px;height:1.5px;background:var(--app-accent);margin-bottom:9px}
+.doc h1{font-family:var(--app-font-serif);font-size:24px;font-weight:500;line-height:1.35;margin:0 0 12px;color:var(--app-fg)}
+.doc p{font-size:15px;line-height:1.75;color:var(--app-fg-muted);margin:0 0 14px}
+.doc h2{font-size:14px;font-weight:600;line-height:1.5;color:var(--app-fg);margin:20px 0 8px}
+.doc blockquote{margin:0 0 14px;padding-left:11px;border-left:2px solid var(--app-accent);font-size:14px;line-height:1.7;color:var(--app-fg-subtle)}
+.doc code{
+  font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);
+  padding:1px 4px;border-radius:3px;color:var(--app-fg-muted);
+}
+.sel{background:var(--app-selected)}
+.fbar{
+  position:absolute;left:18px;right:18px;bottom:14px;height:40px;display:flex;align-items:center;gap:1px;
+  padding:0 4px;background:var(--app-surface);border:1px solid var(--app-border);border-radius:7px;
+}
+.fbar button{flex:1;height:32px;display:grid;place-items:center;border:0;background:none;border-radius:5px;color:var(--app-fg-muted)}
+.fbar button svg{width:15px;height:15px}
+.fbar .sep{width:1px;height:16px;background:var(--app-border-subtle);flex:none;margin:0 3px}
+.docfoot{
+  flex:none;height:26px;display:flex;align-items:center;gap:6px;padding:0 18px;
+  font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);
+  border-top:1px solid var(--app-border-subtle);
+}
+.docfoot i{flex:1}
+.docfoot .sd{width:5px;height:5px;border-radius:50%;background:var(--app-success)}
+
+/* ---------- 屏 06：主题抽屉 ---------- */
+.sheet{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.acct{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;border-bottom:1px solid var(--app-border-subtle)}
+.acct .av{width:30px;height:30px;border-radius:50%;background:var(--app-surface-sunken);border:1px solid var(--app-border);flex:none}
+.acct b{font-size:13px;font-weight:600;display:block;line-height:1.3}
+.acct em{font-style:normal;font-size:11px;color:var(--app-fg-faint);display:flex;align-items:center;gap:4px}
+.acct em i{width:5px;height:5px;border-radius:50%;background:var(--app-success)}
+.acct .x{margin-left:auto;color:var(--app-fg-subtle)}
+.acct .x svg{width:16px;height:16px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:10px 16px}
+.duo a{
+  display:flex;align-items:center;gap:8px;height:44px;padding:0 10px;border-radius:6px;
+  background:var(--app-surface-sunken);color:var(--app-fg);font-size:12.5px;
+}
+.duo a svg{width:15px;height:15px;color:var(--app-fg-subtle);flex:none}
+.duo a em{margin-left:auto;font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.navlist{padding:0 16px;display:flex;flex-direction:column}
+.navlist a{display:flex;align-items:center;gap:10px;height:40px;color:var(--app-fg-muted);font-size:13px}
+.navlist a svg{width:15px;height:15px;color:var(--app-fg-faint);flex:none}
+.navlist a em{margin-left:auto;font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.navlist a.lock{color:var(--app-fg)}
+.lsec{display:flex;align-items:center;gap:8px;height:26px;margin:4px 16px 0;border-top:1px solid var(--app-border-subtle)}
+.lsec b{font-size:10.5px;font-weight:400;color:var(--app-fg-subtle);letter-spacing:.02em;margin-top:4px}
+.lsec i{flex:1;height:1px;background:var(--app-border-subtle);margin-top:4px}
+.lsec svg{width:11px;height:11px;color:var(--app-fg-faint);margin-top:4px}
+.tree{padding:2px 8px 0}
+.tree a{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px;border-radius:6px;color:var(--app-fg-muted);font-size:13px}
+.tree a svg{width:13px;height:13px;color:var(--app-fg-faint);flex:none}
+.tree a .ct{margin-left:auto;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.tree a.sub{padding-left:26px;font-size:12.5px;color:var(--app-fg-subtle);height:40px}
+.tree a.on{background:var(--app-hover);color:var(--app-fg);font-weight:600}
+.tree a.on svg{color:var(--app-accent)}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;padding:6px 16px 0}
+.tagrow span{
+  height:26px;padding:0 9px;border-radius:999px;background:var(--app-surface-sunken);
+  color:var(--app-fg-muted);font-size:11.5px;display:inline-flex;align-items:center;
+}
+.sheetfoot{
+  flex:none;display:flex;align-items:center;gap:8px;height:42px;margin-top:auto;
+  padding:0 16px;border-top:1px solid var(--app-border-subtle);
+  font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);
+}
+.sheetfoot i{flex:1}
+
+/* ---------- 屏 07：我的 ---------- */
+.me{flex:1;min-height:0;overflow:hidden}
+.ov{padding:12px 16px 14px;border-bottom:1px solid var(--app-border-subtle)}
+.ov-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.ov-h b{font-size:12px;font-weight:600;color:var(--app-fg)}
+.ov-h a{font-size:11px;color:var(--app-fg-faint);display:inline-flex;align-items:center;gap:1px}
+.ov-h a svg{width:11px;height:11px}
+.ov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.ov-grid div{padding:7px 8px 8px;border-radius:7px;background:var(--app-surface-sunken)}
+.ov-grid b{display:block;font-size:15px;font-weight:600;line-height:1.15;color:var(--app-fg);font-variant-numeric:tabular-nums}
+.ov-grid b span{font-size:9.5px;font-weight:400;color:var(--app-fg-faint);margin-left:2px}
+.ov-grid em{font-style:normal;display:block;margin-top:3px;font-size:10.5px;line-height:1.2;color:var(--app-fg-subtle)}
+.mecard{display:flex;align-items:center;gap:11px;padding:12px 16px 14px;border-bottom:1px solid var(--app-border-subtle)}
+.mecard .av{width:38px;height:38px;border-radius:50%;background:var(--app-surface-sunken);border:1px solid var(--app-border);flex:none}
+.mecard .nm{flex:1;min-width:0}
+.mecard .nm b{display:block;font-size:14px;font-weight:600;line-height:1.35}
+.mecard .nm em{font-style:normal;font-size:11px;color:var(--app-fg-faint);display:flex;align-items:center;gap:4px;margin-top:2px}
+.mecard .nm em i{width:5px;height:5px;border-radius:50%;background:var(--app-success)}
+.mecard > svg{width:14px;height:14px;color:var(--app-fg-faint);flex:none}
+.mstat{
+  display:flex;align-items:center;gap:6px;padding:8px 16px;border-bottom:1px solid var(--app-border-subtle);
+  font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);
+}
+.mstat i{flex:1;height:1px;background:var(--app-border-subtle)}
+.msec{display:flex;align-items:center;height:26px;padding:0 16px;background:var(--app-surface-sunken)}
+.msec b{font-size:10.5px;font-weight:400;color:var(--app-fg-subtle);letter-spacing:.02em}
+.mi{
+  display:flex;align-items:center;gap:10px;height:41px;padding:0 16px;
+  border-bottom:1px solid var(--app-border-subtle);color:var(--app-fg);font-size:13px;
+}
+.mi svg{width:15px;height:15px;color:var(--app-fg-subtle);flex:none}
+.mi em{margin-left:auto;font-style:normal;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+.mi .chev{width:12px;height:12px;color:var(--app-fg-faint);margin-left:1px;flex:none}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">Menote V2 / Mobile / v0.1</div>
+  <h1>移动端设计</h1>
+  <p><b>定位</b>：移动端不是主输入端。它做两件事——接替桌面端没做完的内容，和临时记下待回桌面处理的东西；<b>查阅是主力</b>。所以界面的第一优先级是让内容占满屏，输入退到"随时可叫出、但绝不占位"的位置。</p>
+  <p><b>结构</b>：四个一级入口 <b>首页 / Memo / 笔记 / 我的</b>，中央一枚记录键。输入只有一个入口、一个方向、一个位置——底部中央；点开是半屏，同一个切换器里可选 Memo 或笔记。</p>
+  <p><b>令牌</b>：沿用 <code>DESIGN.md</code>，仅两处移动端专用取值——正文 15px、文档标题 24px。橙色仍只做标记，全页唯一的橙色成面是记录键。</p>
+  <div class="controls">
+    <button class="ctrl" id="theme" aria-pressed="false"><span class="led"></span>深色令牌</button>
+    <button class="ctrl" id="struct" aria-pressed="false"><span class="led"></span>结构标注</button>
+  </div>
+</header>
+
+<div class="deck">
+  <!-- ============ 01 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>01</b><span>首页</span><i>概览</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="topbar">
+          <div class="brand grow">Menote</div>
+          <button class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg></button>
+        </div>
+
+        <div class="home">
+          <div class="hhead"><b>收藏</b><a>5<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a></div>
+          <div class="hscroll">
+            <div class="card">
+              <b>Cloudflare Queues 的投递语义</b>
+              <em>至少一次投递，重复消费必须带幂等键</em>
+              <span class="cico">NOTE · 3 天前</span>
+            </div>
+            <div class="card">
+              <b>锁屏页的三条规则</b>
+              <em>密码错两次不抖动，恢复码入口不放首页</em>
+              <span class="cico">MEMO · 昨天</span>
+            </div>
+            <div class="card">
+              <b>令牌与恢复码的区别</b>
+              <em>一个是访问权，一个是解密钥</em>
+              <span class="cico">NOTE · 10-28</span>
+            </div>
+          </div>
+
+          <div class="hhead"><b>最近</b><a>12<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a></div>
+          <div class="rlist">
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>Milkdown 往返安全 PoC 结论</span><em>10-29</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>D1 写入上限与批量策略</span><em>10-30</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h12M4 17h8"/></svg></span><span>周五前要处理的三件事</span><em>10-31</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>备份包字段对齐 v1.2</span><em>10-25</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>恢复码的文案还没写</span><em>10-25</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h12M4 17h8"/></svg></span><span>时区显示统一到 UTC+8</span><em>10-24</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>同步冲突的三种解法</span><em>10-23</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>表格字段定义的 YAML 结构</span><em>10-22</em></a>
+            <a><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span>周一评审要带的三张图</span><em>10-21</em></a>
+          </div>
+        </div>
+
+        <div class="dock">
+          <div class="duo2">
+            <a><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 9l8 5 8-5"/></svg>收件箱<em>3</em></a>
+            <a><svg viewBox="0 0 24 24"><path d="M6 4h9l4 4v12H6z"/><path d="M9 12h6M9 16h4"/></svg>草稿箱<em>7</em></a>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>首页不放输入控件</b>：直接进收藏，最近列表 9 行。输入只在底部记录键上出现，不占这 40px。</li>
+      <li><b>记录键固定在底部正中</b>：44px 橙面、<b>完全收在导航条内，不向上凸出</b>，因此不会伸进内容区被滚动误触。它仍是页面里唯一的橙色成面。</li>
+      <li>五格导航：首页 / Memo / 记录 / 笔记 / 我的，各 75px。中间格只放键不放文字，左右各留 15px 空白，与相邻 tab 隔开。</li>
+      <li>底部「待整理」保持原位——接替桌面未完成任务的第一入口。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 02 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>02</b><span>Memo</span><i>滚动中 · 无顶栏</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="filters">
+          <span class="on">全部</span>
+          <span>待办<em>5</em></span>
+          <span>图册<em>24</em></span>
+        </div>
+
+        <div class="stream">
+          <div class="dhead"><b>今天 · 11月1日</b><i></i></div>
+
+          <article class="mm">
+            <p>把 M2 的同步队列改成逐条落盘，先跑通再谈批量。D1 单次写入上限要复核一遍，别等到压测才发现。</p>
+            <div class="mmeta">
+              <span class="t">09:41</span>
+              <span class="chip">工程</span>
+              <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+            </div>
+          </article>
+
+          <article class="mm">
+            <p>周五前要处理的三件事：</p>
+            <div class="tasks">
+              <div class="task"><span class="bx on"><svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 5"/></svg></span><span>备份包字段对齐 v1.2</span></div>
+              <div class="task"><span class="bx"></span><span>恢复码换码流程走查</span></div>
+              <div class="task"><span class="bx"></span><span>时区显示统一到 UTC+8</span></div>
+            </div>
+            <div class="mmeta">
+              <span class="t">08:20</span>
+              <span class="st"><i></i>进行中</span>
+              <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+            </div>
+          </article>
+
+          <article class="mm">
+            <p>锁屏页的三条规则：密码错两次不抖动只提示；恢复码入口不放首页；解锁失败不区分「密码错」和「不存在」。</p>
+            <div class="mmeta">
+              <span class="t">07:55</span>
+              <span class="chip">加密</span>
+              <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+            </div>
+          </article>
+
+          <div class="dhead"><b>昨天 · 10月31日</b><i></i></div>
+
+          <article class="mm">
+            <p>试了三种衬线，最后决定不引入 web 字体。跨平台字形不一致这口锅先背着，等有定制需求再说。</p>
+            <div class="thumb"><i></i><i></i></div>
+            <div class="mmeta">
+              <span class="t">21:07</span>
+              <span class="chip">视觉</span>
+              <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>滚动时顶栏整体隐去</b>：状态栏下方直接是筛选行，内容从 820 直上 860 的可视高度。查阅为主时，第一屏就该多两行内容。</li>
+      <li><b>筛选行吸顶</b>：它属于查阅控件（切换全部 / 待办 / 图册），滚到哪里都能切；与"输入控件不常驻"是两回事。</li>
+      <li>记录键不受影响——滚动、切换页面，它都在同一个像素位置。</li>
+      <li>条目正文放到两行，配合顶栏隐去，每屏比桌面密度多显示约一条半。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 03 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>03</b><span>写入面板</span><i>半屏 · 默认 Memo</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="filters">
+          <span class="on">全部</span>
+          <span>待办<em>5</em></span>
+          <span>图册<em>24</em></span>
+        </div>
+        <div class="stream">
+          <div class="dhead"><b>今天 · 11月1日</b><i></i></div>
+          <article class="mm">
+            <p>把 M2 的同步队列改成逐条落盘，先跑通再谈批量。D1 单次写入上限要复核一遍，别等到压测才发现。</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="veil"></div>
+
+      <div class="composer mark" data-n="2">
+        <div class="grab"><i></i></div>
+        <div class="hs-top">
+          <span class="cx-cancel">取消</span>
+          <div class="grow" style="display:flex;justify-content:center">
+            <span class="seg2"><span class="on">Memo</span><span>笔记</span></span>
+          </div>
+          <button class="cx-btn">保存</button>
+        </div>
+        <div class="cx-area">
+          <div class="src">临时记两笔，回桌面再展开：
+
+1. 队列改成逐条落盘后，D1 的写入次数会翻三倍，得先算配额
+2. 锁屏页那句文案还是太吓人，换成「忘记可以重设，但已加密内容会无法读取」<span class="caret"></span></div>
+          <div class="cx-hint">等宽源文本 · 保存后渲染</div>
+        </div>
+        <div class="cx-tools">
+          <button><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 15l4-4 3 3 3-3 6 6"/></svg></button>
+          <button><svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg></button>
+          <span class="sep"></span>
+          <button><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg></button>
+          <span class="hint">→ 时间线</span>
+        </div>
+      </div>
+
+      <div class="keyboard">
+        <div class="krow"><span>q</span><span>w</span><span>e</span><span>r</span><span>t</span><span>y</span><span>u</span><span>i</span><span>o</span><span>p</span></div>
+        <div class="krow"><span>a</span><span>s</span><span>d</span><span>f</span><span>g</span><span>h</span><span>j</span><span>k</span><span>l</span></div>
+        <div class="krow"><span>⇧</span><span>z</span><span>x</span><span>c</span><span>v</span><span>b</span><span>n</span><span>m</span><span>⌫</span></div>
+        <div class="krow wide"><span>123</span><span>space</span><span>换行</span></div>
+        <div class="kbar">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8.5 14c1 1.5 5 1.5 6 0"/><circle cx="9.5" cy="10" r=".6" fill="currentColor"/><circle cx="14.5" cy="10" r=".6" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 10h6M9 14h4"/></svg>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b>方向一致</b>：入口在底部，面板也从底部升起。手指上推的动作与面板出现方向相同，不再有"点了上面、弹出下面"的错位感。</li>
+      <li><b>默认就是 Memo</b>：点开即半屏、等宽源文本、光标已就位，不先问你要写哪种。频率高的那条路径不该有一步选择。</li>
+      <li><b>切换器在头部正中</b>：左取消、中 <code>Memo | 笔记</code>、右保存。它取代了原来的「新记录」标题——你现在写的是什么，标题就写什么，不必再多一行。</li>
+      <li>去向收进工具条右端（<code>→ 时间线</code>），用等宽小字，不抢视线；切到笔记时它变成 <code>→ 草稿箱</code>。</li>
+      <li>背景压暗 30%（<code>--app-scrim</code>），说明这是临时层、关掉就回来；不用毛玻璃。</li>
+      <li>工具条 44px 只有三件事：附件、标签、行内样式。标签在记下前后都能加，不打断输入。
+    </ul>
+  </figure>
+
+  <!-- ============ 04 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>04</b><span>切到笔记</span><i>全屏 · 长文</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+
+      <div class="composer full mark" data-n="4">
+        <div class="hs-top">
+          <span class="cx-cancel">取消</span>
+          <div class="grow" style="display:flex;justify-content:center">
+            <span class="seg2"><span>Memo</span><span class="on">笔记</span></span>
+          </div>
+          <button class="cx-btn">保存</button>
+        </div>
+
+        <div class="note-title">队列改为逐条落盘的三个前提</div>
+
+        <div class="note-body">
+          <p>先记结论：能改，但必须先解决配额，否则一次压测就把 D1 的写入额度打穿。</p>
+          <h3>一、配额</h3>
+          <p>逐条落盘意味着写入次数从「每次批量一条」变成「每条行一条」。当前日增 400 条、单条 3 次写入，改完是 1,200 次，仍在免费额度内；但补历史数据那天会翻十倍。</p>
+          <h3>二、失败重放</h3>
+          <p>批量失败只需重放一批；逐条失败要记录游标，否则重启会重复投递。</p>
+        </div>
+
+        <div class="cx-tools">
+          <button class="t-h">H2</button>
+          <button><span class="t-b">B</span></button>
+          <button><span class="t-i">I</span></button>
+          <button class="t-a"><span>A</span></button>
+          <span class="sep"></span>
+          <button class="t-tag"><span class="hash">#</span>标签</button>
+          <button><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 15l4-4 3 3 3-3 6 6"/></svg></button>
+          <span class="hint">→ 草稿箱</span>
+        </div>
+      </div>
+
+      <div class="keyboard">
+        <div class="krow"><span>q</span><span>w</span><span>e</span><span>r</span><span>t</span><span>y</span><span>u</span><span>i</span><span>o</span><span>p</span></div>
+        <div class="krow"><span>a</span><span>s</span><span>d</span><span>f</span><span>g</span><span>h</span><span>j</span><span>k</span><span>l</span></div>
+        <div class="krow"><span>⇧</span><span>z</span><span>x</span><span>c</span><span>v</span><span>b</span><span>n</span><span>m</span><span>⌫</span></div>
+        <div class="krow wide"><span>123</span><span>space</span><span>换行</span></div>
+        <div class="kbar">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8.5 14c1 1.5 5 1.5 6 0"/><circle cx="9.5" cy="10" r=".6" fill="currentColor"/><circle cx="14.5" cy="10" r=".6" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 10h6M9 14h4"/></svg>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b>同一个切换器，两种形态</b>：头部位置完全不变，只是面板从半屏长成整屏，正文从等宽源文本变成 15px 排版。切换器不动，人就不会迷路。</li>
+      <li><b>切换不丢字</b>：已输入内容整体转成正文，标题留空由你填。不做「首行自动提标题」——猜错比手动填更烦。反向切回 Memo 时标题并入正文首行。</li>
+      <li><b>工具条只有一排</b>：<code>H2</code>（标题等级）、<code>B</code>、<code>I</code>、<code>A</code>（颜色）｜<code># 标签</code>、图片。6 个 + 1 处分隔，加右端去向，正好占满 375 宽不换行。</li>
+      <li>列表、引用、代码走 Markdown 快捷键（<code>- </code>、<code>&gt; </code>、<code>```</code>）——工具条塞进这些会超过一排。</li>
+      <li><b>颜色落地要定规矩</b>：Markdown 没有颜色语法。建议限定 5 个语义色，写回 <code>&lt;span style&gt;</code> 内联标签并纳入往返测试，否则违反 C-1（不认识的语法必须原样保留）。</li>
+      <li>「保存」即存并退出，笔记默认落草稿箱；写完由你自己去草稿箱移到主题，手机上不追问归属（FR-IA-6）。</li>
+      <li>属性区不在手机上出现——写长文已经够挤，属性留给桌面。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 05 ============ -->
+  <figure class="screen" id="s4">
+    <div class="cap"><b>05</b><span>笔记清单</span><i>主题聚合</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="topbar">
+          <div class="ptitle grow"><span>工程笔记</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+          <button class="tb-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div>
+        <div class="list">
+          <div class="ghead"><b>分组</b><em>04</em><i></i></div>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>Cloudflare Queues 的投递语义</b><em>至少一次投递，重复消费必须有幂等键…</em></span>
+            <span class="d">10-31</span>
+          </a>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>D1 写入上限与批量策略</b><em>单条 SQL 100KB，事务内语句数要压缩到…</em></span>
+            <span class="d">10-30</span>
+          </a>
+
+          <a class="nrow on">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>Milkdown 往返安全 PoC 结论<span class="lock"><svg viewBox="0 0 24 24"><rect x="6" y="10" width="12" height="9" rx="2"/><path d="M9 10V8a3 3 0 0 1 6 0v2"/></svg></span></b><em>自定义节点必须注册 schema，未知语法原样…</em></span>
+            <span class="d">10-29</span>
+          </a>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>同步冲突的三种解法</b><em>LWW 会丢内容，CRDT 太重，最后选了…</em></span>
+            <span class="d">10-28</span>
+          </a>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>表格字段定义的 YAML 结构</b><em>fields 键名待技术设计，类型映射先列六种…</em></span>
+            <span class="d">10-27</span>
+          </a>
+
+          <div class="ghead"><b>未分组</b><em>02</em><i></i></div>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>周一评审要带的三张图</b><em>三栏对比、密度谱系、令牌表</em></span>
+            <span class="d">10-26</span>
+          </a>
+
+          <a class="nrow">
+            <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 10h7M8 14h5"/></svg></span>
+            <span><b>恢复码的文案还没写</b><em>要讲清「丢了就永久不可解」但不吓人</em></span>
+            <span class="d">10-25</span>
+          </a>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>顶部只留一个变量</b>：当前主题名 + 下拉箭头（打开树抽屉），右侧「＋」直接新建；不再有标题、搜索框、视图切换三条争抢。</li>
+      <li><b>行高 64</b>：标题 13.5/600 单行 + 摘要 12 单行 + 右侧日期 10。比桌面 60 略松，为了点到不误触。</li>
+      <li>加密笔记只多一枚 11px 锁标，不改变行结构（FR-ENC-5 标题明文）。</li>
+      <li>新建笔记按钮用图标而非橙面按钮——主按钮的面留给「记下」，避免两个橙面打架。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 06 ============ -->
+  <figure class="screen" id="s5">
+    <div class="cap"><b>06</b><span>文档</span><i>阅读 / 编辑</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="docbar">
+          <button class="tb-btn"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <div class="file">Milkdown 往返安全 PoC 结论</div>
+          <button class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
+        </div>
+
+        <div class="props mark" data-n="2">
+          <span class="kv"><span class="k">状态</span><span class="v">定稿</span></span>
+          <span class="dot"></span>
+          <span class="kv"><span class="k">标签</span><span class="v">工程 · 3</span></span>
+          <span class="dot"></span>
+          <span class="kv"><span class="k">更新</span><span class="v">10-29</span></span>
+          <span class="more"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+        </div>
+
+        <div class="doc">
+          <div class="kicker"></div>
+          <h1>Milkdown 往返安全 PoC 结论</h1>
+          <p>把 DESIGN 文档里的复杂段落逐条喂进编辑器，再逐字节比回。结论是：<span class="sel">未知语法必须原样保留</span>，不能依赖扩展去"修正"它。</p>
+          <h2>三条准入线</h2>
+          <p>YAML 头、GFM 表格、附件引用三项若有一项往返丢失，直接换底座。表格尤其危险——现成插件会重排列宽。</p>
+          <blockquote>不接受"看起来对"的往返，只接受 AST 层级无损。</blockquote>
+          <p>补充：代码块内的 <code>~~~</code> 与缩进混用时，部分解析器会吞掉末尾空行。</p>
+          <p>剩下两项留给 M3：表格内联编辑的撤销栈，以及 YAML 键序在往返中的稳定性。前者决定表格能不能真用，后者决定属性区会不会每次打开都重排。</p>
+          <div class="fbar">
+            <button><svg viewBox="0 0 24 24"><path d="M7 5h7a4 4 0 0 1 0 8H7V5zm0 8h7a4 4 0 0 1 0 8H7v-8z"/></svg></button>
+            <button><svg viewBox="0 0 24 24"><path d="M14 5h4M6 19h4M13 5l-6 14" /></svg></button>
+            <button><svg viewBox="0 0 24 24"><path d="M7 12h10M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
+            <span class="sep"></span>
+            <button><svg viewBox="0 0 24 24"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg></button>
+            <button><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L11.5 7"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7L12.5 17"/></svg></button>
+            <span class="sep"></span>
+            <button><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
+          </div>
+        </div>
+
+        <div class="docfoot"><span>1,240 字</span><i></i><span>已保存</span><span class="sd"></span></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b>属性折叠成一行 34px</b>：只显示三项关键键值，末尾箭头进全量属性页；空文档不铺空行（FR-PROP-2）。</li>
+      <li><b>标题 24px 衬线</b>：桌面 32 在手机上会占到五行，24 保留刊物感又不压正文。</li>
+      <li><b>正文 15px / 1.75</b>：移动端阅读距离更远，14 偏小。<span class="tag hot">新增档位，待确认</span></li>
+      <li>选中后工具条从纸面底部浮出（通栏 40px，七个动作等分），贴底而非压字，避免遮挡正在改的那一段；不使用阴影，靠 1px 边框分离。</li>
+      <li>底部 26px 状态条显示字数与保存态，恒定存在但不抢注意力。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 07 ============ -->
+  <figure class="screen" id="s6">
+    <div class="cap"><b>07</b><span>主题抽屉</span><i>主题与标签</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="topbar">
+          <div class="ptitle grow"><span>主题</span></div>
+          <button class="tb-btn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="sheet">
+          <div class="tree" style="padding-top:8px">
+            <a class="on"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/></svg>工程笔记<span class="ct">24</span></a>
+            <a class="sub"><svg viewBox="0 0 24 24"><path d="M4 6h6l2 2h8v11H4z"/></svg>架构</a>
+            <a class="sub"><svg viewBox="0 0 24 24"><path d="M4 6h6l2 2h8v11H4z"/></svg>编辑器</a>
+            <a><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/></svg>阅读<span class="ct">8</span></a>
+            <a><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/></svg>生活<span class="ct">11</span></a>
+            <a><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/></svg>工作<span class="ct">6</span></a>
+            <a><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/></svg>灵感<span class="ct">17</span></a>
+          </div>
+
+          <div class="lsec"><b>加密</b><i></i><svg viewBox="0 0 24 24"><rect x="6" y="10" width="12" height="9" rx="2"/><path d="M9 10V8a3 3 0 0 1 6 0v2"/></svg></div>
+          <div class="tree">
+            <a class="lock"><svg viewBox="0 0 24 24"><rect x="6" y="10" width="12" height="9" rx="2"/><path d="M9 10V8a3 3 0 0 1 6 0v2"/></svg>私人空间<span class="ct">锁定</span></a>
+          </div>
+
+          <div class="lsec"><b>标签</b><i></i><svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg></div>
+          <div class="tagrow">
+            <span>#工程</span><span>#视觉</span><span>#加密</span><span>#同步</span><span>#待读</span>
+          </div>
+
+          <div class="sheetfoot">
+            <span>管理主题 · 新建主题</span>
+            <i></i>
+            <span>24 篇</span>
+          </div>
+        </div>
+      </div>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>只做主题导航，不再兼设置</b>：账号、设置、最近、收藏都已各有去处——「我的」与首页。抽屉剩三块：主题树、私人空间、标签。</li>
+      <li><b>全屏 sheet，不是 300px 侧滑</b>：375 宽留出 75px 露底没有信息价值，全屏后每行给到 38–44 触控高度，树才有层级感。</li>
+      <li><b>树不显示笔记节点</b>（FR-IA-3），只显示主题与分组；计数在右侧等宽。</li>
+      <li>私人空间单独成段、固定在树之后，锁定态只显示「锁定」而不显示条目数，避免侧信道。</li>
+      <li>入口唯一：笔记清单顶部的「主题名 ⌄」，其余页面不重复提供。</ul>
+  </figure>
+
+  <!-- ============ 08 ============ -->
+  <figure class="screen" id="s7">
+    <div class="cap"><b>08</b><span>我的</span><i>账号与设置</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="topbar">
+          <div class="ptitle grow"><span>我的</span></div>
+        </div>
+        <div class="me">
+          <div class="mecard">
+            <span class="av"></span>
+            <div class="nm">
+              <b>maxxie</b>
+              <em><i></i>已同步 · 2 分钟前</em>
+            </div>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+          <div class="mstat"><span>待上传 0</span><i></i><span>云端 42 MB</span><i></i><span>备份 14 天前</span></div>
+
+          <div class="ov">
+            <div class="ov-h"><b>数据概览</b><a>详情<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a></div>
+            <div class="ov-grid">
+              <div><b>128</b><em>笔记</em></div>
+              <div><b>1,076</b><em>Memo</em></div>
+              <div><b>4.2<span>GB</span></b><em>附件</em></div>
+              <div><b>+18</b><em>本周</em></div>
+            </div>
+          </div>
+
+          <div class="msec"><b>内容</b></div>
+          <a class="mi"><svg viewBox="0 0 24 24"><rect x="6" y="10" width="12" height="9" rx="2"/><path d="M9 10V8a3 3 0 0 1 6 0v2"/></svg>私人空间<em>锁定</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg>标签<em>9</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+
+          <div class="msec"><b>设置</b></div>
+          <a class="mi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3.5v1.8M12 18.7v1.8M3.5 12h1.8M18.7 12h1.8M6.1 6.1l1.3 1.3M16.6 16.6l1.3 1.3M17.9 6.1l-1.3 1.3M7.4 16.6l-1.3 1.3"/></svg>外观<em>跟随系统</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6.5V19M9 19h6"/></svg>编辑与渲染<em>正文 15</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.4"/><path d="M10.5 10.5 19 19M16.2 16.2l1.8-1.8M18.6 18.6l1.8-1.8"/></svg>加密与恢复码<svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi" href="monitor.html"><svg viewBox="0 0 24 24"><path d="M4 18V9M9 18V5M14 18v-6M19 18v-9"/></svg>资源状态<em>免费额度内</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .4-8A5.6 5.6 0 0 0 6.7 11 3.6 3.6 0 0 0 7 18z"/></svg>备份与恢复<em>3 天前</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>MCP 与 Agent<em>2 个令牌</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="mi"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M3.6 19c0-3 2.4-4.6 5.4-4.6s5.4 1.6 5.4 4.6"/><path d="M16 7.2a3 3 0 0 1 0 5.6M17.6 19c0-2-.6-3.4-1.7-4.3"/></svg>用户管理<em>仅我</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+
+<a class="mi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11.2v4.6M12 8.2h.01"/></svg>版本<em>0.1.0</em><svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>「我的」收走账号与全部设置</b>：头像行、同步与存储三个指标、内容（私人空间 / 标签）、设置六项、版本。抽屉里不再重复放账号与设置。</li>
+      <li><b>私人空间留在这里</b>：它是加密作用域而不是主题树节点，放在内容组比埋在树里更省一次翻找；右侧只写「锁定」，不显示条目数。</li>
+      <li><b>数据概览</b>：笔记 128 / Memo 1,076 / 附件 4.2 GB / 本周 +18，四格等分。放账号行下方，是「我的」里唯一需要一眼看数的地方。</li>
+      <li>上面那行等宽小字回答的是同步状态（待上传队列 / 云端体积 / 上次备份），与概览的存量统计分工不同，所以没有合并。</li>
+      <li>每行 45px、右侧配当前值（跟随系统 / 正文 15 / 3 天前），不点进去也能判断状态。</li>
+      <li>外观、编辑与渲染分别对应主题切换与 FR-STYLE-2 渲染样式编辑，v1 先把入口占住。</li>
+    </ul>
+  </figure>
+  <!-- ============ 09 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>09</b><span>已存条目</span><i>长按 · 改归属</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="filters">
+          <span class="on">全部</span>
+          <span>待办<em>5</em></span>
+          <span>图册<em>24</em></span>
+        </div>
+        <div class="stream">
+          <div class="dhead"><b>今天 · 11月1日</b><i></i></div>
+          <article class="mm" style="background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent)">
+            <p>队列逐条落盘后 D1 写入次数翻三倍，得先算配额</p>
+            <div class="thumbs" style="padding:8px 0 0"><i></i><i></i></div>
+            <div class="mmeta">
+              <span class="t">12:03</span>
+              <span class="chip">工程</span>
+              <span class="chip">同步</span>
+              <span class="st"><i></i>待办</span>
+            </div>
+          </article>
+          <article class="mm">
+            <p>锁屏页的三条规则：密码错两次不抖动只提示；恢复码入口不放首页；解锁失败不区分「密码错」和「不存在」。</p>
+            <div class="mmeta">
+              <span class="t">07:55</span>
+              <span class="chip">加密</span>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="veil"></div>
+
+      <div class="acts mark" data-n="4">
+        <div class="acts-h"><b>这条记录</b><em>12:03</em></div>
+        <div class="acts-seg">
+          <span class="on">待办</span>
+          <span>进行中</span>
+          <span>已完成</span>
+        </div>
+        <div class="acts-row">
+          <svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg>
+          加标签<em>工程 · 同步</em>
+        </div>
+        <div class="acts-row">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12M9 6V4h6v2M8 6l1 14h6l1-14"/></svg>
+          删除
+        </div>
+        <div class="acts-cancel">取消</div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li><b>长按条目 = 改归属</b>：状态是三选分段（当前值高亮），标签显示已选、点开可增删，删除在最后一行。</li>
+      <li><b>已存内容不做形态转换</b>：FR-IA-9 的「不做 Note→Memo」针对的是已经存下的内容，这一屏也守住同一条线——长按只能改状态、加标签、删除，没有"转成笔记"。</li>
+      <li>形态只在编辑中可选（04 屏）。一个东西在最容易选的时候选，定下来之后不再反复搬。</li>
+      <li>不用右键菜单、不用滑动行（滑动与时间线的横向滚动冲突），统一长按。</li>
+      <li>删除不给二次确认，但给 8 秒撤销条（DESIGN.md §8.3 恢复原则）。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 10 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>10</b><span>Memo 图册</span><i>图片瀑布流 · 2 列</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="filters">
+          <span>全部</span>
+          <span>待办<em>5</em></span>
+          <span class="on">图册<em>24</em></span>
+        </div>
+
+        <div class="mgal">
+          <div class="mgal-col">
+            <div class="mgal-item">
+              <div class="mgal-thumb" style="padding-bottom:75%"><i></i></div>
+              <div class="mgal-cap"><span class="t">14:02</span><span class="tg">#材质</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:133%"><i></i></div>
+              <div class="mgal-cap"><span class="t">11:26</span><span class="tg">#UE5</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:56%"><i></i></div>
+              <div class="mgal-cap"><span class="t">09:40</span><span class="tg">#光照</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:125%"><i></i></div>
+              <div class="mgal-cap"><span class="t">16:40</span><span class="tg">#材质</span></div>
+            </div>
+          </div>
+          <div class="mgal-col">
+            <div class="mgal-item">
+              <div class="mgal-thumb" style="padding-bottom:100%"><i></i></div>
+              <div class="mgal-cap"><span class="t">21:15</span><span class="tg">#工作流</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:67%"><i></i></div>
+              <div class="mgal-cap"><span class="t">17:02</span><span class="tg">#工作流</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:150%"><i></i></div>
+              <div class="mgal-cap"><span class="t">13:20</span><span class="tg">#材质</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:62%"><i></i></div>
+              <div class="mgal-cap"><span class="t">11:48</span><span class="tg">#UE5</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>「图册」是筛选行的第三项</b>，不是独立页面——和「全部 / 待办」同级，切换不改变底部导航的当前页。</li>
+      <li><b>2 列而非 3 列</b>：375 宽减边距后每列约 165px，3 列会压到 100px 以下，认不出素材内容。</li>
+      <li><b>按原始比例不裁切</b>：图高随原图走，列高自然不等——这正是瀑布流的形态。裁切会让人认不出自己的图。</li>
+      <li><b>懒加载占位保比例</b>：没进视口的图只画骨架，但占位高度按原比例预留，滚动时不跳版。</li>
+      <li><b>点图回原条目</b>：图册不是独立图库，点任一张回到它所属的 Memo 原位；状态与标签仍在原条目里改。</li>
+      <li><b>加密条目整体不出现</b>：私人空间与单篇加密 Memo 的附件按可见性谓词排除，不做缩略图缓存。</li>
+    </ul>
+  </figure>
+</div>
+
+<section class="cmp-sec">
+  <h2>规则速查</h2>
+  <p>实现时按这张表验收；与 <code>DESIGN.md</code> 冲突的以本文为准，本文没写的回落到 <code>DESIGN.md</code>。</p>
+  <table class="cmp">
+    <thead><tr><th>项目</th><th>取值</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>断点</td><td>&lt; 768 单栏；本篇按 375×812 设计</td><td>DESIGN.md §8.1</td></tr>
+      <tr><td>一级导航</td><td>5 格：首页 / Memo / 记录键 / 笔记 / 我的，各 75px</td><td>四项内容 + 一个输入入口</td></tr>
+      <tr><td>记录键</td><td>44px 橙面圆钮，完全收在导航条内（上下各留 3px），不越界到内容区</td><td>不遮挡内容，避免滚动误触</td></tr>
+      <tr><td>触控目标</td><td>≥ 44px；列表行 44–64</td><td>DESIGN.md §8.2</td></tr>
+      <tr><td>写入面板</td><td>Memo 半屏（top 150 / 键盘上沿）；笔记全屏（top 30）</td><td>短内容不占满屏，长文要纵向空间</td></tr>
+      <tr><td>正文 / 标题</td><td>15px / 1.75 · 24px 衬线</td><td>移动端阅读距离更远</td></tr>
+      <tr><td>清单行</td><td>64px：标题 13.5/600 + 摘要 12 + 日期 10</td><td>比桌面 60 略松，防误触</td></tr>
+      <tr><td>滚动态</td><td>顶栏整体隐去，筛选行吸顶</td><td>查阅优先，多两行内容</td></tr>
+      <tr><td>阴影</td><td>只有写入面板一层（圆角 + 1px 边框 + 轻投影）</td><td>对话框级例外，列表与卡片不加</td></tr>
+      <tr><td>不做</td><td>已存内容不做 Memo↔Note 转换；手机不选主题归属；不设常驻格式栏</td><td>FR-IA-9 / FR-IA-6 / FR-MEMO-4</td></tr>
+    </tbody>
+  </table>
+  <p class="hintline">未决：颜色按钮在 Markdown 无语法，需定 5 个语义色 + <code>&lt;span style&gt;</code> 往返策略；搜索入口位置待定（本文顶栏图标仅为候选位）。</p>
+</section>
+
+</div>
+
+<script>
+const body = document.body;
+const theme = document.getElementById('theme');
+const struct = document.getElementById('struct');
+theme.addEventListener('click', () => {
+  const dark = document.documentElement.classList.toggle('s-dark');
+  theme.setAttribute('aria-pressed', dark ? 'true' : 'false');
+});
+struct.addEventListener('click', () => {
+  const on = body.classList.toggle('struct');
+  struct.setAttribute('aria-pressed', on ? 'true' : 'false');
+});
+</script>
+</body>
+</html>

@@ -45,6 +45,7 @@ test("backup target CRUD with reversible secret storage and reveal (FR-BAK-1, C-
     const revealed = await (await json(mf, cookie, "GET", `/api/backup/targets/${id}/secret`)).json();
     assert.equal(revealed.secret, "secret-value-123");
     // 停用后 run 被拒（409）
+    assert.equal((await json(mf, cookie, "PATCH", `/api/backup/targets/${id}`, { enabled: false })).status, 200);
     assert.equal((await json(mf, cookie, "POST", `/api/backup/run/${id}`)).status, 409);
     // 隔离：另一 cookie 看不到
     const second = await json(mf, cookie, "POST", "/api/auth/registration", { open: true });

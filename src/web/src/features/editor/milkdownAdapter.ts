@@ -1,9 +1,10 @@
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx } from "@milkdown/kit/core";
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, serializerCtx } from "@milkdown/kit/core";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import { history } from "@milkdown/kit/plugin/history";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
+import { TextSelection } from "@milkdown/kit/prose/state";
 import type { EditorAdapter } from "./EditorAdapter";
 
 /**
@@ -55,6 +56,50 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
   getMarkdown(): string {
     if (!this.editor) return "";
     return this.editor.action(getMarkdown());
+  }
+
+  getSelection(): { start: number; end: number } {
+    if (!this.editor) return { start: 0, end: 0 };
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const serializer = ctx.get(serializerCtx);
+      const { from, to } = view.state.selection;
+      const start = serializer(view.state.doc.cut(0, from)).length;
+      const end = from === to ? start : serializer(view.state.doc.cut(0, to)).length;
+      return { start, end };
+    });
+  }
+
+  setSelection(start: number, end: number): void {
+    if (!this.editor) return;
+    this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const serializer = ctx.get(serializerCtx);
+      const posFor = (offset: number) => {
+        let found = 1;
+        view.state.doc.descendants((node, nodePos) => {
+          if (!node.isTextblock) return true;
+          if (serializer(view.state.doc.cut(0, nodePos + node.nodeSize)).length >= offset) {
+            found = nodePos + 1;
+            return false;
+          }
+          return false;
+        });
+        return Math.min(found, view.state.doc.content.size);
+      };
+      const selection = TextSelection.create(view.state.doc, posFor(start), posFor(end));
+      view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+      view.focus();
+    });
+  }
+
+  caretRect(): { top: number; left: number; bottom: number } | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const rect = view.coordsAtPos(view.state.selection.from);
+      return { top: rect.top, left: rect.left, bottom: rect.bottom };
+    });
   }
 
   focus(): void {

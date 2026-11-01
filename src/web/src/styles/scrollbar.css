@@ -1,0 +1,95 @@
+/* ============================================================================
+ * 滚动条（DESIGN §4.3 · 极细发丝线 · 悬停加深）
+ * ----------------------------------------------------------------------------
+ * 形态：轨道透明，滑块可见宽 6 像素（槽宽 10 像素，内缩 2 像素），两端全圆角。
+ * 常态对比度 浅 1.75:1 / 深 1.88:1（对纸面）——刻意低于 3:1，避免三栏界面里
+ * 滚动条与文字争夺注意力；悬停/拖拽时升到 浅 3.29:1 / 深 3.46:1，达到
+ * WCAG 2.2 SC 1.4.11 非文本对比度门槛，且此时才允许被注意到。
+ *
+ * 作用域：全局。界面里有 11 处原生滚动容器（侧栏、清单、文档、编辑器、
+ * Memo 时间线、todo 侧板、状态页、设置对话框、代码块、表格、版本对比），
+ * 逐个挂类容易漏挂而回退成浏览器默认样式——那正是本轮要消除的问题，
+ * 故以 `*` 统一接管，任何新增滚动容器自动生效。
+ *
+ * 引擎分支：
+ *   - Chromium / Safari：::-webkit-scrollbar 伪元素（唯一可设滑块内缩与圆角的途径）。
+ *   - Firefox：标准 scrollbar-width / scrollbar-color。用 @supports not selector()
+ *     隔离——Chrome 121+ 同时支持这两个标准属性，若一并下发会反向覆盖
+ *     ::-webkit-scrollbar 伪元素（标准属性优先），发丝线内缩与圆角将全部失效。
+ *     Firefox 不支持 ::-webkit-scrollbar 选择器，故该条件仅命中 Firefox。
+ *   - 移动端：pointer: coarse 时不接管，保留系统覆盖式滚动条（不占布局宽度）。
+ * ==========================================================================*/
+
+/* ---------- 轨道与滑块（Chromium / Safari） ---------- */
+*::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+/* 文档根滚动条：* 不匹配根元素，需单独声明（登录屏等整页滚动场景）。 */
+html::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track);
+}
+
+/* 滑块：2 像素透明边内缩，可见宽 6 像素；background-clip 让背景只落在可见部分，
+   圆角随之收紧，不会被透明边吃掉。 */
+*::-webkit-scrollbar-thumb {
+  background-color: var(--app-scrollbar-thumb);
+  border: var(--app-scrollbar-inset) solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--app-radius-pill);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--app-scrollbar-thumb-hover);
+}
+
+/* 拖拽中保持悬停色，不再加深——两个深色已是可辨识上限。 */
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--app-scrollbar-thumb-hover);
+}
+
+/* 双向滚动条交汇的角落。 */
+*::-webkit-scrollbar-corner {
+  background: var(--app-scrollbar-track);
+}
+
+/* ---------- Firefox（标准属性：无法内缩，发丝线宽度降级） ---------- */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+  }
+}
+
+/* ---------- 布局稳定性：预留滚动条槽位，消除文字重排跳动 ----------
+   Chromium 的自定义滚动条占据布局宽度：同一容器在「内容溢出」与「内容不溢出」
+   两种状态下可用宽度相差一个槽宽（实测 10 像素），文字会整段重排——文档区尤其明显，
+   正在阅读的段落会突然换行。
+   scrollbar-gutter: stable 让槽位恒定存在，两种状态下内容宽度一致。
+   实测：无 gutter 时溢出态右缘 x=290 / 不溢出态 x=300；有 gutter 时两者均为 290。
+   仅施加于纵向主滚动区：横向滚动容器（代码块、宽表格）与小型滚动区不需要。 */
+.mn-sidebar,
+.mn-notelist,
+.mn-docbody,
+.mn-editor-host,
+.mn-memo-scroll,
+.mn-memo-work,
+.mn-memo-todo,
+.mn-statuspage,
+.mn-dlg-content {
+  scrollbar-gutter: stable;
+}
+
+/* ---------- 移动端：保留系统覆盖式滚动条 ----------
+   触屏设备由 AppShell 的 matchMedia 检测后写 data-pointer="coarse"，
+   与断点同机制（CSS 不写媒体查询）。覆盖式滚动条不占布局宽度，交给系统。 */
+[data-pointer="coarse"] *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

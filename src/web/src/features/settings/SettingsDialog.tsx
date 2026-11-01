@@ -1,32 +1,28 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { HealthResponse, Item } from "@menote/shared";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
-import { SyncBadge } from "../sync";
-import { getSyncPhase, subscribeSyncStatus, type SyncPhase } from "../../services/syncEngine";
-import { getReadiness } from "../../services/healthService";
 import { useEncryptedCount } from "../../services/contentHooks";
-import { APP_VERSION_FULL_LABEL } from "../../lib/version";
+import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
+import { McpTokenManager } from "./McpTokenManager";
 
-type SettingsSection = "backup" | "attachments" | "recovery" | "status";
+type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
+  { id: "appearance", label: "外观" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
-  { id: "status", label: "状态" },
+  { id: "mcp", label: "MCP 接入" },
 ];
 
 interface SettingsDialogProps {
   userId: string;
   onClose: () => void;
-  onOpenStatus: () => void;
 }
 
-/** 设置对话框（G9/G5/G7 归集；design.html：648×530 + 158px 左导航 + set-row 行式布局）。
- *  负责人 2026-11-01：状态节归集同步徽标与系统状态预览（原侧栏脚部入口迁入）。 */
-export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialogProps) {
+/** 设置对话框：外观、远程备份、附件与恢复码。 */
+export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>("backup");
 
   useEffect(() => {
@@ -52,10 +48,11 @@ export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialog
             ))}
           </nav>
           <div className="mn-dlg-content">
+            {section === "appearance" && <AppearanceSection />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
-            {section === "status" && <StatusSection onOpenStatus={onOpenStatus} />}
+            {section === "mcp" && <McpTokenManager />}
           </div>
         </div>
       </div>
@@ -63,47 +60,29 @@ export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialog
   );
 }
 
-/** 状态预览节（负责人 2026-11-01：同步指示与系统状态自侧栏脚部归集于此）；
- *  健康自检与资源监控的完整页走 onOpenStatus。数据一律经 services，UI 不直连网络。 */
-function StatusSection({ onOpenStatus }: { onOpenStatus: () => void }) {
-  const [phase, setPhase] = useState<SyncPhase>(getSyncPhase);
-  const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
-  useEffect(() => subscribeSyncStatus(() => setPhase(getSyncPhase())), []);
-  useEffect(() => {
-    const controller = new AbortController();
-    setHealth("checking");
-    getReadiness(controller.signal).then((value) => setHealth(value.status)).catch(() => {});
-    return () => controller.abort();
-  }, []);
-  const HEALTH_TEXT = {
-    checking: "正在检查配置。",
-    ready: "基础配置已就绪（AUTH_PEPPER、D1、R2）。",
-    alive: "基础配置尚未就绪，请检查部署配置。",
-    unavailable: "基础配置尚未就绪，请检查部署配置。",
-  } as const;
+/** 外观节：界面字体切换（内置 Noto Sans SC ↔ 系统字体），偏好经 lib/fontPreference 即时生效。 */
+function AppearanceSection() {
+  const [font, setFont] = useState<FontPreference>(getFontPreference);
   return (
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">同步</p>
-          <p className="mn-sethint">本设备内容与远端的推送/拉取状态。</p>
+          <p className="mn-setlabel">界面字体</p>
+          <p className="mn-sethint">默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</p>
         </div>
-        <SyncBadge />
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">服务健康</p>
-          <p className="mn-sethint">{HEALTH_TEXT[health]}</p>
-        </div>
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">版本</p>
-          <p className="mn-sethint">{APP_VERSION_FULL_LABEL}</p>
-        </div>
-        <button type="button" className="mn-statuslink" onClick={onOpenStatus}>
-          打开完整系统状态页
-        </button>
+        <select
+          className="mn-propselect"
+          aria-label="界面字体"
+          value={font}
+          onChange={(event) => {
+            const value = event.target.value as FontPreference;
+            setFontPreference(value);
+            setFont(value);
+          }}
+        >
+          <option value="noto">Noto Sans SC（默认）</option>
+          <option value="system">系统字体</option>
+        </select>
       </div>
     </div>
   );

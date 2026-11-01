@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AuthUser } from "@menote/shared";
-import { fetchAuthStatus, logout } from "../../services/authService";
+import { fetchAuthStatus, fetchLogoMarkup, logout } from "../../services/authService";
 import { CredentialsForm } from "./CredentialsForm";
 
 type GatePhase = "loading" | "unavailable" | "bootstrap" | "login" | "ready";
+
+/** 站点图标本体内联（登录检查屏加载动画）；/icon.svg 由 Vite 静态资源目录提供。 */
+function useLogoMarkup(): string {
+  const [markup, setMarkup] = useState("");
+  useEffect(() => {
+    fetchLogoMarkup().then(setMarkup);
+  }, []);
+  return markup;
+}
 
 interface GateState {
   phase: GatePhase;
@@ -41,6 +50,10 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     void logout().finally(() => setState({ phase: "login", user: null, registrationOpen: false }));
   }, []);
 
+  /* Hooks 顺序必须在所有条件 return 之前：ready/unavailable 提前放行时跳过这里的调用会触发
+     "Rendered fewer hooks than expected" 整树崩溃（React 规则；logo 仅 loading/auth 表单用）。 */
+  const logoMarkup = useLogoMarkup();
+
   if (state.phase === "ready" && state.user) {
     return <>{children(state.user, onLogout)}</>;
   }
@@ -65,7 +78,16 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
   if (state.phase === "loading") {
     return (
       <section className="mn-auth" aria-busy="true">
-        <div className="mn-auth-card"><p className="mn-auth-hint">正在确认登录状态…</p></div>
+        <div className="mn-authloading" role="status">
+          {/* 装饰性插画：状态语义由下面那行 visually-hidden 文字承担，图形对辅助技术隐藏。
+              内联的是运行时 fetch 的站点图标本体（非用户输入），dangerouslySetInnerHTML 安全。 */}
+          <div
+            className="mn-authloading-logo"
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: logoMarkup }}
+          />
+          <span className="mn-visually-hidden">正在确认登录状态…</span>
+        </div>
       </section>
     );
   }

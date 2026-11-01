@@ -10,6 +10,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@fontsource/noto-sans-sc": "^5.3.1",
     "@menote/shared": "workspace:*",
     "@milkdown/kit": "^7.23.0",
     "dexie": "^4.4.7",

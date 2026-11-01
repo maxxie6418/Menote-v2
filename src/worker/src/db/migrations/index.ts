@@ -26,6 +26,11 @@ import keyWraps from "./0024_key_wraps.sql";
 import backupTargetRemotePath from "./0025_backup_target_remote_path.sql";
 import backupTargetRetention from "./0026_backup_target_retention.sql";
 import backupTargetLastPushedAt from "./0027_backup_target_last_pushed_at.sql";
+import monitorCloudflareCredentials from "./0028_monitor_cloudflare_credentials.sql";
+import mcpTokenManagement from "./0029_mcp_token_management.sql";
+import mcpTokenName from "./0030_mcp_token_name.sql";
+import mcpRateLimit from "./0031_mcp_rate_limit.sql";
+import mcpAuditResource from "./0032_mcp_audit_resource.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -56,4 +61,9 @@ export const migrations = [
   { version: 25, name: "0025_backup_target_remote_path", statements: [backupTargetRemotePath] },
   { version: 26, name: "0026_backup_target_retention", statements: [backupTargetRetention] },
   { version: 27, name: "0027_backup_target_last_pushed_at", statements: [backupTargetLastPushedAt] },
+  { version: 28, name: "0028_monitor_cloudflare_credentials", statements: [monitorCloudflareCredentials] },
+  { version: 29, name: "0029_mcp_token_management", statements: [mcpTokenManagement] },
+  { version: 30, name: "0030_mcp_token_name", statements: [mcpTokenName] },
+  { version: 31, name: "0031_mcp_rate_limit", statements: [mcpRateLimit] },
+  { version: 32, name: "0032_mcp_audit_resource", statements: [mcpAuditResource] },
 ] as const satisfies readonly SchemaMigration[];

@@ -69,7 +69,8 @@ async function postPush(deviceId: string, operations: OutboxRow[]): Promise<Sync
 
 /** Note 正文冲突（G2 §5-2）：本地稿另存冲突副本，原条目等待拉取采纳服务端版本。 */
 async function saveConflictCopy(row: OutboxRow): Promise<void> {
-  const payloadItem = (row.payload as { item?: Item } | null)?.item;
+  const localItem = await localDb.items.get(row.entityId);
+  const payloadItem = localItem ?? (row.payload as { item?: Item } | null)?.item;
   if (!payloadItem || payloadItem.content.scope !== "plain") return;
   const copy: Item = {
     ...payloadItem,
@@ -115,9 +116,18 @@ async function drainOutbox(deviceId: string): Promise<void> {
       for (const row of pending) await markOutboxError(row.seq!, "network", backoffMs(row.retries));
       return;
     }
+    const conflictedItems = new Set<string>();
     for (const row of pending) {
+      if (row.entity === "item" && conflictedItems.has(row.entityId)) continue;
       const result = results.find((entry) => entry.operationId === row.operationId);
-      if (result) await handleResult(row, result);
+      if (result?.result === "conflict" && row.entity === "item" && row.contentHash !== undefined) {
+        // 多个自动保存版本可能同时排队；保留一份最新本地稿并清掉该条目的旧快照，避免每条都造副本。
+        await saveConflictCopy(row);
+        const entityRows = await localDb.outbox.where("entityId").equals(row.entityId).toArray();
+        await deleteOutboxRows(entityRows.map((entityRow) => entityRow.seq!).filter((seq) => seq !== undefined));
+        conflictedItems.add(row.entityId);
+      }
+      else if (result) await handleResult(row, result);
       else await markOutboxError(row.seq!, "missing_result", backoffMs(row.retries));
     }
     if (pending.length < PUSH_BATCH) return;
