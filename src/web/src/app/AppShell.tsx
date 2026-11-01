@@ -12,7 +12,7 @@ import { useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
 import { lockIfIdle } from "../services/keyringService";
-import { SettingsDialog } from "../features/settings";
+import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
 
@@ -82,6 +82,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [todoOpen, setTodoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("backup");
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
   const userId = user.id;
 
@@ -98,6 +99,11 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setMemoComposerSignal((value) => value + 1);
     if (layout === "tablet" || layout === "mobile") setDrawerOpen(true);
   }, [layout]);
+  const openSettings = useCallback((next: SettingsSection = "backup") => {
+    setSettingsSection(next);
+    setSettingsOpen(true);
+    setDrawerOpen(false);
+  }, []);
 
   // ⌘/Ctrl 1 回笔记，2 进 Memo。Esc 不承担返回（DESIGN 第 03 屏）。
   useEffect(() => {
@@ -194,7 +200,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onLogout={onLogout}
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
-      onOpenSettings={() => { setSettingsOpen(true); setDrawerOpen(false); }}
+      onOpenSettings={() => openSettings()}
       onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
       memoComposerSignal={memoComposerSignal}
     />
@@ -202,6 +208,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const settingsDialog = settingsOpen ? (
     <SettingsDialog
       userId={userId}
+      initialSection={settingsSection}
       onClose={() => setSettingsOpen(false)}
     />
   ) : null;
@@ -220,7 +227,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   if (layout === "mobile") {
     return (
       <div className="mn-shell" {...shellProps}>
-        <MobileApp user={user} onLogout={onLogout} onOpenSettings={() => setSettingsOpen(true)} onOpenStatus={() => setView("status")} />
+        <MobileApp user={user} onLogout={onLogout} onOpenSettings={openSettings} onOpenStatus={() => setView("status")} />
         {settingsDialog}
       </div>
     );

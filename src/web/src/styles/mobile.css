@@ -211,4 +211,49 @@
 .m-app [aria-disabled="true"] { color: var(--app-fg-faint); }
 .m-app :focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 
+/* 移动端设置以整屏面板承载分类与内容，桌面端保留居中对话框。 */
+[data-layout="mobile"] .mn-settings-overlay { z-index: var(--app-mobile-z-settings); background: var(--app-surface); }
+[data-layout="mobile"] .mn-dialog-settings {
+  position: fixed; inset: var(--app-zero); top: var(--app-zero); left: var(--app-zero);
+  z-index: var(--app-mobile-z-settings-dialog); width: var(--app-full-size); max-width: var(--app-full-size);
+  height: 100dvh; transform: none; padding: var(--app-zero); border: var(--app-zero);
+  border-radius: var(--app-zero); box-shadow: none;
+}
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-head {
+  height: calc(var(--app-mobile-settings-head-height) + var(--app-mobile-safe-top));
+  min-height: calc(var(--app-mobile-settings-head-height) + var(--app-mobile-safe-top));
+  padding: var(--app-mobile-safe-top) var(--app-space-md) var(--app-zero);
+}
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-body { display: flex; flex-direction: column; }
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav {
+  display: flex; flex: none; flex-direction: row; gap: var(--app-space-2); overflow-x: auto;
+  padding: var(--app-space-2) var(--app-space-xs); border-right: var(--app-zero);
+  border-bottom: var(--app-line) solid var(--app-border); scrollbar-width: none;
+  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav::-webkit-scrollbar { display: none; }
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav a {
+  display: flex; min-height: var(--app-mobile-settings-tab-height); flex: 1 0 auto;
+  align-items: center; justify-content: center; padding-inline: var(--app-space-10);
+  border-radius: var(--app-radius-sm); white-space: nowrap; text-align: center;
+}
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav a.on {
+  box-shadow: var(--app-selected-bar-bottom); background: var(--app-surface); color: var(--app-fg);
+}
+[data-layout="mobile"] .mn-dialog-settings .mn-dlg-content {
+  flex: 1; padding: var(--app-space-md); padding-bottom: calc(var(--app-space-md) + var(--app-mobile-safe-bottom));
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+[data-layout="mobile"] .mn-dialog-settings .status-panel { max-width: var(--app-full-size); }
+[data-layout="mobile"] .mn-dialog-settings .mn-setrow { align-items: stretch; gap: var(--app-space-sm); }
+[data-layout="mobile"] .mn-dialog-settings .mn-setrow .mn-propselect { width: var(--app-full-size); min-width: var(--app-zero); }
+[data-layout="mobile"] .mn-dialog-settings .mn-attachrow { align-items: flex-start; flex-direction: column; gap: var(--app-space-4); }
+[data-layout="mobile"] .mn-dialog-settings .mn-attachrow .mn-minibtn { min-height: var(--app-touch-target); }
+[data-layout="mobile"] .mn-dialog-settings .mn-backupform { align-items: stretch; }
+[data-layout="mobile"] .mn-dialog-settings .mn-backupform > * { width: var(--app-full-size); min-width: var(--app-zero); }
+[data-layout="mobile"] .mn-dialog-settings .mn-backupform .mn-propinput { flex: 1 1 var(--app-full-size); }
+[data-layout="mobile"] .mn-dialog-settings .mn-mcp-endpoint { grid-template-columns: minmax(var(--app-zero), 1fr); }
+[data-layout="mobile"] .mn-dialog-settings .mn-mcp-scope-list { grid-template-columns: minmax(var(--app-zero), 1fr); }
+[data-layout="mobile"] .mn-dialog-settings .mn-mcp-number .mn-propinput { width: var(--app-full-size); min-width: var(--app-zero); }
+
 @media (prefers-reduced-motion: reduce) { .m-record { transition: none; } }

@@ -96,6 +96,10 @@
   --app-mobile-dock-height: 3rem;
   --app-mobile-avatar-size: 2.375rem;
   --app-mobile-segment-width: 3.125rem;
+  --app-mobile-safe-top: env(safe-area-inset-top, 0px);
+  --app-mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-mobile-settings-head-height: 3.5rem;
+  --app-mobile-settings-tab-height: 2.75rem;
   --app-mobile-press-scale: 0.96;
   --app-mobile-disabled-opacity: 0.55;
   --app-mobile-z-nav: 9;
@@ -104,6 +108,8 @@
   --app-mobile-z-composer: 14;
   --app-mobile-z-action: 16;
   --app-mobile-z-toast: 18;
+  --app-mobile-z-settings: 20;
+  --app-mobile-z-settings-dialog: 21;
   /* 间距（DESIGN §1.4：基准 4px，实际只用 4/6/8/10/12/14/18/22/24/34） */
   --app-space-2: 0.125rem;
   --app-space-4: 0.25rem;

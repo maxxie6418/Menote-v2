@@ -3,13 +3,14 @@ import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "lucide-reac
 import type { AuthUser, Item } from "@menote/shared";
 import { createNote, saveItemMeta, softDeleteItem } from "../services/contentService";
 import { restoreFromTrash } from "../services/versionService";
+import type { SettingsSection } from "../features/settings";
 import { MobileComposer, type ComposeMode } from "./MobileComposer";
 import { MobileHome, MobileMe, MobileMemo, MobileNotes, MobileTopicSheet, type MobilePage, type NoteSection } from "./MobileScreens";
 
 interface MobileAppProps {
   user: AuthUser;
   onLogout: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (section?: SettingsSection) => void;
   onOpenStatus: () => void;
 }
 

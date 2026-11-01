@@ -6,7 +6,7 @@ import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
 import { McpTokenManager } from "./McpTokenManager";
 
-type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp";
+export type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
@@ -18,12 +18,13 @@ const NAV: Array<{ id: SettingsSection; label: string }> = [
 
 interface SettingsDialogProps {
   userId: string;
+  initialSection?: SettingsSection;
   onClose: () => void;
 }
 
 /** 设置对话框：外观、远程备份、附件与恢复码。 */
-export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
-  const [section, setSection] = useState<SettingsSection>("backup");
+export function SettingsDialog({ userId, initialSection = "backup", onClose }: SettingsDialogProps) {
+  const [section, setSection] = useState<SettingsSection>(initialSection);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -32,7 +33,7 @@ export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
   }, [onClose]);
 
   return (
-    <div className="mn-overlay" role="presentation">
+    <div className="mn-overlay mn-settings-overlay" role="presentation">
       <div className="mn-dialog mn-dialog-settings" role="dialog" aria-modal="true" aria-label="设置">
         <div className="mn-dlg-head">
           <h3>设置</h3>
@@ -41,7 +42,7 @@ export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
         <div className="mn-dlg-body">
           <nav className="mn-dlg-nav" aria-label="设置分类">
             {NAV.map((entry) => (
-              <a key={entry.id} href="#" className={section === entry.id ? "on" : ""}
+              <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
                 onClick={(event) => { event.preventDefault(); setSection(entry.id); }}>
                 {entry.label}
               </a>
