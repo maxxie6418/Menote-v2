@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "@menote/shared";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
@@ -74,10 +74,37 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [section, setSection] = useState<BrowseSection>({ kind: "recent" });
   const [noteId, setNoteId] = useState<string | null>(null);
+  const [noteReturn, setNoteReturn] = useState<{ section: BrowseSection; noteId: string | null }>({ section: { kind: "recent" }, noteId: null });
+  const noteReturnRef = useRef(noteReturn);
+  noteReturnRef.current = noteReturn;
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [todoOpen, setTodoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const userId = user.id;
+
+  // ⌘/Ctrl 1 回笔记，2 进 Memo。Esc 不承担返回（DESIGN 第 03 屏）。
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+      if (event.key !== "1" && event.key !== "2") return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select"))) return;
+      event.preventDefault();
+      if (event.key === "2") {
+        setSection((current) => {
+          if (current.kind !== "memos") setNoteReturn({ section: current, noteId });
+          return { kind: "memos" };
+        });
+      } else {
+        const back = noteReturnRef.current;
+        setSection(back.section);
+        setNoteId(back.noteId);
+      }
+      setView("main");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [noteId]);
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
@@ -127,7 +154,14 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       collapsed={collapsed && layout === "compact"}
       drawerOpen={drawerOpen}
       section={section}
-      onSelectSection={(next) => { setView("main"); setSection(next); setNoteId(null); setMobilePane("list"); setDrawerOpen(false); }}
+      onSelectSection={(next) => {
+        setView("main");
+        if (next.kind === "memos" && section.kind !== "memos") setNoteReturn({ section, noteId });
+        setSection(next);
+        if (next.kind !== "memos") setNoteId(null);
+        setMobilePane("list");
+        setDrawerOpen(false);
+      }}
       onCreateNote={async () => {
         const created = await createNote(userId);
         setView("main");
@@ -172,6 +206,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
           onOpenDrawer={() => setDrawerOpen(true)}
+          onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); }}
         />
         {settingsDialog}
       </div>

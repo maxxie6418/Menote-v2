@@ -78,8 +78,9 @@ html::-webkit-scrollbar {
 .mn-notelist,
 .mn-docbody,
 .mn-editor-host,
-.mn-timeline,
-.mn-todopanel,
+.mn-memo-scroll,
+.mn-memo-work,
+.mn-memo-todo,
 .mn-statuspage,
 .mn-dlg-content {
   scrollbar-gutter: stable;

@@ -1,4 +1,4 @@
-import { AlignLeft, Clock, FileText, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, Trash2 } from "lucide-react";
+import { Clock, FileText, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, Trash2 } from "lucide-react";
 import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "../lib/layout";
 import type { BrowseSection } from "../services/contentHooks";
@@ -27,7 +27,8 @@ interface SidebarProps {
 const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean =>
   section.kind === kind;
 
-/* 侧栏（FR-IA-4 顺序：快速输入 / 新建笔记 / Memo 时间线 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
+/* 侧栏（FR-IA-4 顺序：快速输入 / 新建笔记 / 视图切换 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
+   视图切换按 DESIGN §5.5 为「首页 | 笔记 | Memo」。首页整屏尚未实现，按钮禁用。
    搜索入口仍未定不放侧栏（E5 后置）；私人空间固定入口保持锁定态（G7）。
    负责人 2026-11-01：品牌旁仅显版本号（悬停显构建 id）；脚部只留用户名账户菜单（主题/系统状态/设置/退出）。 */
 export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus }: SidebarProps) {
@@ -58,12 +59,14 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         <Plus />
         {!collapsed && "新建笔记"}
       </button>
+      {!collapsed && (
+        <div className="mn-formseg" role="group" aria-label="视图切换">
+          <button type="button" disabled title="首页将在后续版本开放">首页</button>
+          <button type="button" aria-pressed={!isSection(section, "memos")} onClick={() => { if (isSection(section, "memos")) onSelectSection({ kind: "recent" }); }}>笔记</button>
+          <button type="button" aria-pressed={isSection(section, "memos")} onClick={() => onSelectSection({ kind: "memos" })}>Memo</button>
+        </div>
+      )}
       <nav className="mn-nav" aria-label="回看">
-        <a href="#" className={isSection(section, "memos") ? "on" : ""}
-          onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "memos" }); }}>
-          <AlignLeft />
-          {!collapsed && "Memo 时间线"}
-        </a>
         <a href="#" className={isSection(section, "recent") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "recent" }); }}>
           <Clock />
