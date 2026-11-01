@@ -1,51 +1,50 @@
 import { useEffect, useState } from "react";
 import type { HealthResponse } from "@menote/shared";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleHelp, CircleX } from "lucide-react";
 import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
+import { SyncBadge } from "../features/sync";
 import { APP_VERSION_FULL_LABEL } from "../lib/version";
 
 interface SystemStatusPageProps {
   onBack: () => void;
-  /** G5：登录后提供附件管理（FR-SYNC-8）。 */
   userId?: string;
 }
 
-/* 系统状态页：健康自检、资源监控与版本信息（从 M1 应用状态页迁移）。
-   数据一律经 services，UI 不直连网络。 */
-export function SystemStatusPage({ onBack, userId }: SystemStatusPageProps) {
+/** 系统状态：健康自检、同步状态与分口径资源用量。 */
+export function SystemStatusPage({ onBack }: SystemStatusPageProps) {
   const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
-  const [attempt, setAttempt] = useState(0);
+  const [healthAttempt, setHealthAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     setHealth("checking");
-    getReadiness(controller.signal).then((value) => setHealth(value.status)).catch(() => {});
+    getReadiness(controller.signal).then((value) => setHealth(value.status)).catch(() => setHealth("unavailable"));
     return () => controller.abort();
-  }, [attempt]);
+  }, [healthAttempt]);
 
-  return (
-    <div className="mn-statuspage">
-      <header className="mn-statusbar">
-        <button type="button" className="mn-iconbtn" aria-label="返回主界面" onClick={onBack}>
-          <ArrowLeft />
-        </button>
-        <span className="mn-statusbar-title">系统状态</span>
-      </header>
-      <main className="app-main">
-        <section className="status-panel" aria-labelledby="status-heading">
-          <p className="app-eyebrow">MENOTE</p>
-          <h1 id="status-heading">应用状态</h1>
-          <p className="app-description">正在为你的笔记准备一个可靠的空间。</p>
-          <div className="status-card" role="status" aria-live="polite">
-            <p className="status-title">{health === "checking" ? "正在检查配置" : health === "ready" ? "基础配置已就绪" : "基础配置尚未就绪"}</p>
-            <p className="status-detail">{health === "checking" ? "请稍候。" : health === "ready" ? "应用已连接所需资源。笔记功能将在后续版本开放。" : "请在 Cloudflare 检查 AUTH_PEPPER、D1、R2 和部署状态，然后重试。"}</p>
+  const healthLabel = health === "checking" ? "检查中" : health === "ready" ? "服务正常" : "服务未就绪";
+  const HealthIcon = health === "ready" ? CircleCheck : health === "checking" ? CircleHelp : CircleX;
+
+  return <div className="mn-statuspage">
+    <header className="mn-statusbar">
+      <button type="button" className="mn-iconbtn" aria-label="返回主界面" onClick={onBack}><ArrowLeft /></button>
+      <span className="mn-statusbar-title">系统状态</span>
+      <span className="mn-statusbar-version">{APP_VERSION_FULL_LABEL}</span>
+    </header>
+    <main className="app-main">
+      <section className="mn-status-content" aria-labelledby="status-heading">
+        <div className="mn-status-heading">
+          <div><p className="app-eyebrow">MENOTE · SYSTEM</p><h1 id="status-heading">资源概览</h1><p className="app-description">查看当前项目在 Cloudflare 上的实际使用情况。</p></div>
+          <div className={`mn-health-chip ${health === "ready" ? "is-ready" : health === "checking" ? "is-loading" : "is-error"}`}>
+            <HealthIcon aria-hidden="true" /><span>{healthLabel}</span>
+            <button type="button" onClick={() => setHealthAttempt((value) => value + 1)} disabled={health === "checking"}>重新检查</button>
           </div>
-          {health === "ready" && <MonitorPanel refresh={attempt} />}
-          <button type="button" className="app-button" onClick={() => { if (health !== "checking") setAttempt((value) => value + 1); }} aria-disabled={health === "checking"}>重新检查</button>
-        </section>
-      
-      </main>
-      <footer className="app-footer">{APP_VERSION_FULL_LABEL}</footer>
-    </div>
-  );
+        </div>
+        <div className="mn-status-subrow"><span>内容同步</span><SyncBadge /></div>
+        <MonitorPanel />
+        <p className="mn-status-footnote">官方指标由 Cloudflare Analytics API 返回，可能存在采集延迟；各资源分别按配置的项目标识筛选。费用以 Cloudflare 账单为准。</p>
+      </section>
+    </main>
+    <footer className="app-footer">{APP_VERSION_FULL_LABEL}</footer>
+  </div>;
 }

@@ -26,6 +26,7 @@ import keyWraps from "./0024_key_wraps.sql";
 import backupTargetRemotePath from "./0025_backup_target_remote_path.sql";
 import backupTargetRetention from "./0026_backup_target_retention.sql";
 import backupTargetLastPushedAt from "./0027_backup_target_last_pushed_at.sql";
+import monitorCloudflareCredentials from "./0028_monitor_cloudflare_credentials.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -56,4 +57,5 @@ export const migrations = [
   { version: 25, name: "0025_backup_target_remote_path", statements: [backupTargetRemotePath] },
   { version: 26, name: "0026_backup_target_retention", statements: [backupTargetRetention] },
   { version: 27, name: "0027_backup_target_last_pushed_at", statements: [backupTargetLastPushedAt] },
+  { version: 28, name: "0028_monitor_cloudflare_credentials", statements: [monitorCloudflareCredentials] },
 ] as const satisfies readonly SchemaMigration[];

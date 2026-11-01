@@ -99,7 +99,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
 | `backup` | 备份目标管理面板（逐条添加、连接测试、推送调度、远端快照浏览/删除、保留数量）（G9） | FR-BAK-1/2/4/8 |
 | `markdown` | MarkdownView 渲染组件（react-markdown+gfm，任务复选框互写、附件 URL 解析）（G5/E2） | FR-STYLE-1、FR-MEMO-3 |
-| `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
+| `monitor` | Resource Monitor：官方 Worker/D1/R2 指标、应用抽样估算、刷新频率与阈值配置（独立边界，见第 5 章） | FR-MON |
 
 跨模块规则：**feature 之间禁止深引用**——只能 import 对方模块的公共入口（`index.ts`）或经 services/stores；违反在 DoD 结构检查中拦截。
 
@@ -118,7 +118,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
-**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/监控/版本入口页，M1.2）。
+**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/同步/资源监控的完整状态页，M2）。
 **tree/**：`TopicTree`（仅主题+分组）、`TreeNode`、`LockBadge`。
 **notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
@@ -130,8 +130,8 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（648×530 左导航：远程备份/附件/恢复码/状态；状态节=同步指示+健康+完整版本+完整状态页入口，负责人 2026-11-01 归集）、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
-**monitor/**：`ResourceCards`、`ThresholdSettings`、`UsageTrend`（独立边界：不 import 其他 feature）。
+**settings/**：`SettingsPage`、`SettingsDialog`（648×530 左导航：远程备份/附件/恢复码/状态；点击状态直接进入完整状态页，不经二次跳转）、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
 ## 4. Worker 架构
@@ -143,6 +143,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
 - MCP 模块（services/mcp/）：registry（工具注册）、scope（可见性谓词，私人空间/单篇加密两层）、audit——独立子目录，不与其他服务交叉引用。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
+- 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
 ## 5. 数据契约摘要（M1 细化为 `src/shared` 类型与迁移 SQL）
 

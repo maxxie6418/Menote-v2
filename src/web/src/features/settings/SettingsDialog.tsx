@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { HealthResponse, Item } from "@menote/shared";
+import type { Item } from "@menote/shared";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
-import { SyncBadge } from "../sync";
-import { getSyncPhase, subscribeSyncStatus, type SyncPhase } from "../../services/syncEngine";
-import { getReadiness } from "../../services/healthService";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { APP_VERSION_FULL_LABEL } from "../../lib/version";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
@@ -26,8 +23,7 @@ interface SettingsDialogProps {
   onOpenStatus: () => void;
 }
 
-/** 设置对话框（G9/G5/G7 归集；design.html：648×530 + 158px 左导航 + set-row 行式布局）。
- *  负责人 2026-11-01：状态节归集同步徽标与系统状态预览（原侧栏脚部入口迁入）。 */
+/** 设置对话框；状态入口直接打开完整状态页，避免设置内再点一次跳转。 */
 export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>("backup");
 
@@ -48,7 +44,11 @@ export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialog
           <nav className="mn-dlg-nav" aria-label="设置分类">
             {NAV.map((entry) => (
               <a key={entry.id} href="#" className={section === entry.id ? "on" : ""}
-                onClick={(event) => { event.preventDefault(); setSection(entry.id); }}>
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (entry.id === "status") onOpenStatus();
+                  else setSection(entry.id);
+                }}>
                 {entry.label}
               </a>
             ))}
@@ -58,7 +58,6 @@ export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialog
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
-            {section === "status" && <StatusSection onOpenStatus={onOpenStatus} />}
           </div>
         </div>
       </div>
@@ -89,52 +88,6 @@ function AppearanceSection() {
           <option value="noto">Noto Sans SC（默认）</option>
           <option value="system">系统字体</option>
         </select>
-      </div>
-    </div>
-  );
-}
-
-/** 状态预览节（负责人 2026-11-01：同步指示与系统状态自侧栏脚部归集于此）；
- *  健康自检与资源监控的完整页走 onOpenStatus。数据一律经 services，UI 不直连网络。 */
-function StatusSection({ onOpenStatus }: { onOpenStatus: () => void }) {
-  const [phase, setPhase] = useState<SyncPhase>(getSyncPhase);
-  const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
-  useEffect(() => subscribeSyncStatus(() => setPhase(getSyncPhase())), []);
-  useEffect(() => {
-    const controller = new AbortController();
-    setHealth("checking");
-    getReadiness(controller.signal).then((value) => setHealth(value.status)).catch(() => {});
-    return () => controller.abort();
-  }, []);
-  const HEALTH_TEXT = {
-    checking: "正在检查配置。",
-    ready: "基础配置已就绪（AUTH_PEPPER、D1、R2）。",
-    alive: "基础配置尚未就绪，请检查部署配置。",
-    unavailable: "基础配置尚未就绪，请检查部署配置。",
-  } as const;
-  return (
-    <div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">同步</p>
-          <p className="mn-sethint">本设备内容与远端的推送/拉取状态。</p>
-        </div>
-        <SyncBadge />
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">服务健康</p>
-          <p className="mn-sethint">{HEALTH_TEXT[health]}</p>
-        </div>
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">版本</p>
-          <p className="mn-sethint">{APP_VERSION_FULL_LABEL}</p>
-        </div>
-        <button type="button" className="mn-statuslink" onClick={onOpenStatus}>
-          打开完整系统状态页
-        </button>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ export type { HealthResponse } from "./contracts/health";
 export type { AuthStatus, AuthUser, CredentialsInput } from "./contracts/auth";
 export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./contracts/auth";
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
-export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contracts/monitor";
+export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonitorSetup, CloudflareMonitorConnection, CloudflareMonitorMetrics } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
