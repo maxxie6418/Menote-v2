@@ -5,8 +5,9 @@ import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
 import { McpTokenManager } from "./McpTokenManager";
+import { ClipTemplateManager } from "./ClipTemplateManager";
 
-export type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp";
+export type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
@@ -14,6 +15,7 @@ const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
   { id: "mcp", label: "MCP 接入" },
+  { id: "clipTemplates", label: "剪藏模板" },
 ];
 
 interface SettingsDialogProps {
@@ -54,6 +56,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose }: S
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
             {section === "mcp" && <McpTokenManager />}
+            {section === "clipTemplates" && <ClipTemplateManager />}
           </div>
         </div>
       </div>

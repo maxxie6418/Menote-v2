@@ -145,14 +145,14 @@ export async function appendSyncLog(
 }
 
 export interface SyncOperationRecord {
-  result: string; rev: number; metaRev: number; contentHash: string | null;
+  entity: string; entityId: string; result: string; rev: number; metaRev: number; contentHash: string | null;
 }
 
 export async function readSyncOperation(db: D1Database, userId: string, operationId: string): Promise<SyncOperationRecord | null> {
   const row = await db.prepare(
-    "SELECT result, rev, meta_rev, content_hash FROM sync_operations WHERE user_id = ? AND operation_id = ?",
-  ).bind(userId, operationId).first<{ result: string; rev: number; meta_rev: number; content_hash: string | null }>();
-  return row ? { result: row.result, rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash } : null;
+    "SELECT entity, entity_id, result, rev, meta_rev, content_hash FROM sync_operations WHERE user_id = ? AND operation_id = ?",
+  ).bind(userId, operationId).first<{ entity: string; entity_id: string; result: string; rev: number; meta_rev: number; content_hash: string | null }>();
+  return row ? { entity: row.entity, entityId: row.entity_id, result: row.result, rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash } : null;
 }
 
 export async function recordSyncOperation(

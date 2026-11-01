@@ -20,7 +20,7 @@ export interface McpToken {
 }
 
 export const MCP_PERMISSION_KEYS = [
-  "content:read", "item:create", "item:edit", "trash:move", "attachment:access",
+  "content:read", "item:create", "item:edit", "trash:move", "attachment:access", "clip:templates:read", "clip:templates:write", "bookmark:write",
 ] as const;
 export type McpPermission = (typeof MCP_PERMISSION_KEYS)[number];
 
@@ -75,6 +75,28 @@ export interface McpClipRequest {
 
 export interface McpClipResult {
   itemId: string;
+  rev: number;
+  result: "applied" | "duplicate";
+}
+
+/** Raindrop-compatible URL bookmark written to one explicitly selected plain Note/Table. */
+export interface McpBookmarkRequest {
+  schemaVersion: 1;
+  operationId: string;
+  targetItemId: string;
+  title: string;
+  link: string;
+  excerpt?: string;
+  note?: string;
+  tags: string[];
+  type: "link" | "article" | "image" | "video" | "document" | "audio";
+  cover?: string;
+  capturedAt: string;
+  important: boolean;
+}
+
+export interface McpBookmarkResult {
+  targetItemId: string;
   rev: number;
   result: "applied" | "duplicate";
 }

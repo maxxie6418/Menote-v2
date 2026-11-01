@@ -31,6 +31,7 @@ import mcpTokenManagement from "./0029_mcp_token_management.sql";
 import mcpTokenName from "./0030_mcp_token_name.sql";
 import mcpRateLimit from "./0031_mcp_rate_limit.sql";
 import mcpAuditResource from "./0032_mcp_audit_resource.sql";
+import clipTemplates from "./0033_clip_templates.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -66,4 +67,5 @@ export const migrations = [
   { version: 30, name: "0030_mcp_token_name", statements: [mcpTokenName] },
   { version: 31, name: "0031_mcp_rate_limit", statements: [mcpRateLimit] },
   { version: 32, name: "0032_mcp_audit_resource", statements: [mcpAuditResource] },
+  { version: 33, name: "0033_clip_templates", statements: [clipTemplates] },
 ] as const satisfies readonly SchemaMigration[];

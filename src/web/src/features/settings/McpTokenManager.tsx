@@ -17,6 +17,9 @@ const PERMISSION_LABELS: Record<McpPermission, string> = {
   "item:edit": "编辑条目",
   "trash:move": "移入回收站",
   "attachment:access": "附件上传与读取",
+  "clip:templates:read": "同步剪藏模板",
+  "clip:templates:write": "保存剪藏模板",
+  "bookmark:write": "收藏到指定文档/表格",
 };
 
 const EMPTY_CONFIG: McpTokenConfig = {
@@ -242,7 +245,7 @@ function TokenEditor({
         <label className="mn-mcp-number">每分钟限速<input className="mn-propinput" type="number" min="1" max="10000" value={rate} onChange={(event) => setRate(event.target.value)} /></label>
         <label className="mn-mcp-number">过期时间<input className="mn-propinput" type="datetime-local" value={expiry} onChange={(event) => setExpiry(event.target.value)} /></label>
       </div>
-      <p className="mn-sethint">附件操作还需对应内容权限；加密内容和私人空间始终拒绝。移入回收站不包含永久删除。</p>
+      <p className="mn-sethint">收藏权限只允许向指定明文文档/表格追加，不返回既有内容；可与内容读取权限分开。附件操作还需对应内容权限；加密内容和私人空间始终拒绝。移入回收站不包含永久删除。</p>
       <div className="mn-mcp-actions">
         <button type="submit" className="app-button" disabled={saving || (Boolean(initial) && !name.trim())}>{saving ? "保存中…" : initial ? "保存设置" : "创建 Token"}</button>
         <button type="button" className="mn-statuslink" onClick={onCancel}>取消</button>

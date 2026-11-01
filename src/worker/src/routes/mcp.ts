@@ -1,14 +1,16 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import type { McpClipRequest } from "@menote/shared";
+import type { McpBookmarkRequest, McpClipRequest } from "@menote/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { appendMcpAudit, incrementMcpRateLimit } from "../db/mcpAudit";
 import { findVisibleAttachmentOwner } from "../db/mcpPermissions";
 import { authenticateMcpToken } from "../services/mcpTokenManagementService";
 import { createClipNote } from "../services/mcpClipService";
+import { appendMcpBookmark } from "../services/mcpBookmarkService";
 import { readUserAttachment, storeAttachment } from "../services/attachmentService";
 import { ensureSchemaReady } from "../services/authService";
+import { listClipTemplates, persistClipTemplate } from "../services/clipTemplateService";
 
 export const mcpRoutes = new Hono<AppEnv>();
 
@@ -30,6 +32,13 @@ const uploadInput = z.object({
   name: z.string().min(1).max(255), mime: z.string().min(1).max(255), base64: z.string().min(1).max(7_000_000),
 });
 const readInput = z.object({ sha256: z.string().regex(/^[0-9a-f]{64}$/) });
+const bookmarkInput = z.object({
+  schemaVersion: z.literal(1), operationId: z.string().uuid(), targetItemId: z.string().min(1).max(128),
+  title: z.string().min(1).max(1000), link: z.string().url().max(4096), excerpt: z.string().max(10_000).optional(),
+  note: z.string().max(10_000).optional(), tags: z.array(z.string().max(200)).max(100),
+  type: z.enum(["link", "article", "image", "video", "document", "audio"]),
+  cover: z.string().url().max(4096).optional(), capturedAt: z.string().datetime({ offset: true }), important: z.boolean(),
+});
 
 function decodeBase64(value: string): ArrayBuffer {
   if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new Error("invalid_attachment");
@@ -130,6 +139,57 @@ mcpRoutes.post("/api/mcp", async (c) => {
           }
           return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "clip_failed" }] };
         }
+      });
+    }
+    if (token.permissions.includes("bookmark:write")) {
+      server.registerTool("append_bookmark", {
+        description: "Append a URL bookmark to one specified plain Note or Table. Does not return existing target content and does not require content read permission.",
+        inputSchema: bookmarkInput,
+      }, async (raw) => {
+        const request = raw as McpBookmarkRequest;
+        try {
+          const result = await appendMcpBookmark({ db: c.env.DB, userId: token.userId, tokenId: token.id, scope: token.scope, now }, request);
+          await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+            tool: "append_bookmark", itemId: result.targetItemId, revBefore: null, revAfter: result.rev,
+            result: result.result, operationId: request.operationId, at: now });
+          return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "";
+          const safeCode = ["invalid_bookmark_payload", "bookmark_target_unavailable", "bookmark_target_invalid",
+            "bookmark_conflict", "bookmark_operation_rejected", "bookmark_write_failed"].includes(code)
+            ? code : "bookmark_write_failed";
+          await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+            tool: "append_bookmark", itemId: request.targetItemId, revBefore: null, revAfter: null,
+            result: safeCode,
+            operationId: request.operationId, at: now });
+          return { isError: true, content: [{ type: "text", text: safeCode }] };
+        }
+      });
+    }
+    if (token.permissions.includes("clip:templates:read")) {
+      server.registerTool("list_clip_templates", {
+        description: "List enabled clipping templates. This does not read Menote notes or page content.",
+      }, async () => {
+        const templates = await listClipTemplates(c.env.DB, token.userId, true);
+        const versionMaterial = templates.map(({ template, version, updatedAt }) => ({ id: template.id, version, updatedAt }));
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(versionMaterial)));
+        const revision = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+        const payload = { revision, templates };
+        return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
+      });
+    }
+    if (token.permissions.includes("clip:templates:write")) {
+      server.registerTool("save_clip_template", {
+        description: "Create or update a declarative clipping template owned by this Menote account.",
+        inputSchema: z.object({ template: z.unknown() }),
+      }, async ({ template }) => {
+        const saved = await persistClipTemplate(c.env.DB, token.userId, template, now);
+        if (!saved || saved === "version_conflict") return { isError: true, content: [{ type: "text", text: "invalid_template" }] };
+        await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+          tool: "save_clip_template", itemId: null, resourceId: saved.id, revBefore: null, revAfter: null,
+          result: "saved", operationId: null, at: now });
+        return { content: [{ type: "text", text: JSON.stringify({ id: saved.id, updatedAt: now }) }],
+          structuredContent: { id: saved.id, updatedAt: now } };
       });
     }
     if (token.permissions.includes("item:create") && token.permissions.includes("attachment:access")) {

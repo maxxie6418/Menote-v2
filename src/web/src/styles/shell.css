@@ -464,6 +464,10 @@
 .mn-setrow:last-child { border-bottom: var(--app-zero); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+.mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
+.mn-cliptemplate-preview { margin-top: var(--app-space-xs); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-cliptemplate-preview summary { cursor: pointer; color: var(--app-link); }
+.mn-cliptemplate-preview p { margin: var(--app-space-2) var(--app-zero); overflow-wrap: anywhere; }
 /* 设置行内复用属性栏下拉：取消其 flex:1 拉伸，按字段宽取值（外观·界面字体） */
 .mn-setrow .mn-propselect { flex: 0 1 auto; min-width: var(--app-field-width); }
 .mn-statuslink { border: var(--app-zero); background: none; color: var(--app-link); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }

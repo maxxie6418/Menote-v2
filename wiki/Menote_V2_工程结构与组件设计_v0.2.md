@@ -1,9 +1,9 @@
-# Menote V2 工程结构与组件设计（v0.6）
+# Menote V2 工程结构与组件设计（v0.8）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单：常驻格式栏与「/」菜单取代选中浮条，源码入口并入「更多」菜单。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
-- **来源**：需求说明书 v1.9（FR/C/NFR）、主文档 v0.10（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
+- **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
 
 ## 1. 仓库结构与目录树
@@ -131,7 +131,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含独立「MCP 接入」栏目，并与远程备份/附件/恢复码并列；状态页签内直接显示健康、同步和完整资源监控面板，不跳出设置窗口）、`BackupTargetForm`、`TokenManager`（逐 Token 创建/列表/复显复制/撤销/修改权限与范围，显示最后调用时间；动态变更立即生效）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「MCP 接入」与「剪藏模板」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
@@ -145,6 +145,8 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
 - MCP 模块（services/mcp/）：registry（工具注册）、token auth（每次请求读取最新权限）、permissions/scope（内容读取开关、创建/编辑/回收站/附件权限、用户范围与私人空间/单篇加密谓词）、attachments（受权限约束的上传/读取映射）、audit——独立子目录，不与其他服务交叉引用。MCP 协议发现、鉴权和范围解析可执行必需的内部读取；内容读取关闭时不得暴露既有条目。
+- 剪藏模板模块：shared 定义 `ClipTemplateV1` 与纯数据校验；Worker `routes/clipTemplates.ts` → `services/clipTemplateService.ts` → `db/clipTemplates.ts` 管理按 userId 隔离的规则；MCP 模板工具只接触模板数据并使用独立权限；浏览器扩展是 MCP 客户端，不被 Worker/UI 反向依赖。
+- MCP 网址收藏：`routes/mcp.ts` 在 `bookmark:write` 已授权时注册 `append_bookmark`；`services/mcpBookmarkService.ts` 只读取用户指定且在 Token 范围内的明文 Note/Table，`services/mcpBookmarkFormat.ts` 负责追加收藏行/记录；`db/mcpBookmarks.ts` 执行用户归属、加密与范围过滤。仅返回目标 ID 和操作回执，不依赖内容读取权限；写入经同步服务维护 rev、日志和幂等。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
 - 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
