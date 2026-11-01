@@ -9,6 +9,10 @@
 .mn-formseg button:disabled { cursor: default; color: var(--app-fg-faint); }
 
 .mn-memo-main { flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+/* shell.css 为 full/compact 布局把所有 .mn-main 设为笔记双列网格；
+   Memo 复用该类名，但自身只有顶栏和工作区，必须恢复为纵向单列。 */
+[data-layout="full"] .mn-memo-main,
+[data-layout="compact"] .mn-memo-main { display: flex; }
 .mn-memo-stage { position: relative; flex: 1; min-height: 0; display: flex; }
 
 .mn-memo-bar {
