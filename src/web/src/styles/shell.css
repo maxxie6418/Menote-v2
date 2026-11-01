@@ -18,9 +18,23 @@
 .mn-sidebar { display: flex; flex-direction: column; width: var(--app-sidebar-width); flex: none; padding: var(--app-space-md) var(--app-space-10) var(--app-space-10); background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); min-width: 0; overflow-y: auto; }
 .mn-sb-top { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-2); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-xs); }
 .mn-brand { display: flex; align-items: center; gap: var(--app-space-2); font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); line-height: var(--app-leading-nav); }
-.mn-brand-version { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-logo { width: var(--app-logo-size); height: var(--app-logo-size); flex: none; }
 .mn-sb-top-actions { display: flex; align-items: center; gap: var(--app-space-6); }
+
+/* 搜索入口：轻量命令行形态——无边框、无底色、无图标强调，与快速输入的输入框明显区分（负责人 2026-11-01）。 */
+.mn-search {
+  display: flex; align-items: center; gap: var(--app-space-6);
+  width: var(--app-full-size); height: var(--app-nav-height);
+  padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-6);
+  border: var(--app-zero); border-radius: var(--app-radius-md);
+  background: none; color: var(--app-fg-faint);
+  font-family: var(--app-font); font-size: var(--app-size-nav);
+  text-align: left; cursor: pointer;
+}
+.mn-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
+.mn-search-kbd { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-search:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
+.mn-search:disabled { cursor: default; }
 .mn-iconbtn { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-space-4); border-radius: var(--app-radius-sm); }
 .mn-iconbtn:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-iconbtn svg { width: var(--app-icon-md); height: var(--app-icon-md); }
@@ -285,6 +299,7 @@
 .mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-4) var(--app-space-2); border-radius: var(--app-radius-sm); }
 .mn-foot-user:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-foot-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mn-foot-version { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); flex: none; }
 .mn-ava { display: grid; place-items: center; width: var(--app-avatar-size); height: var(--app-avatar-size); border-radius: var(--app-radius-pill); background: var(--app-fg); color: var(--app-surface); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); flex: none; }
 [data-sidebar="collapsed"] .mn-sb-foot { gap: var(--app-space-2); }
 [data-sidebar="collapsed"] .mn-foot-user { justify-content: center; padding-inline: var(--app-zero); }

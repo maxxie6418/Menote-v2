@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Activity, LogOut, SlidersHorizontal } from "lucide-react";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
+import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
 
 const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
   { mode: "system", label: "跟随系统" },
@@ -69,6 +70,7 @@ export function AccountMenu({ username, role, collapsed, onLogout, onOpenSetting
         onClick={() => setOpen((value) => !value)}>
         <span className="mn-ava" aria-hidden="true">{username.slice(0, 1).toUpperCase()}</span>
         {!collapsed && <span className="mn-foot-user-name">{username}</span>}
+        {!collapsed && <span className="mn-foot-version" title={APP_BUILD_LABEL}>{APP_VERSION_LABEL}</span>}
       </button>
       {open && (
         <div ref={menuRef} className="mn-account-menu" role="menu" aria-label="账户菜单"
