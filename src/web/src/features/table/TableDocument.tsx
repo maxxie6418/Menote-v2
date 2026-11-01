@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import {
   FIELDS_KEY, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
@@ -45,6 +45,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
   const [addingCol, setAddingCol] = useState(false);
   const [renames, setRenames] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [draggingRow, setDraggingRow] = useState<number | null>(null);
 
   /* 脚手架态（正文无表格）：列由 fields: 推导；首个字段/首行写入后进入网格态。 */
   const scaffoldHeader = table ? null : Object.keys(fieldDefs);
@@ -83,6 +84,14 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
   const removeRow = (row: number) => {
     if (!table) return;
     applyGrid(table.header, table.rows.filter((_, index) => index !== row));
+  };
+
+  const moveRow = (from: number, to: number) => {
+    if (!table || from === to || from < 0 || to < 0 || from >= table.rows.length || to >= table.rows.length) return;
+    const rows = [...table.rows];
+    const [moved] = rows.splice(from, 1);
+    rows.splice(to, 0, moved);
+    applyGrid(table.header, rows);
   };
 
   /* ---------- 列管理 ---------- */
@@ -221,9 +230,12 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
         <div className="mn-tabledoc-scaffold">
           <p>空白表格文档：从添加第一个字段开始（字段定义存 YAML `fields:`，内容为标准 Markdown 表格）。</p>
           <div className="mn-tabledoc-scaffold-actions">
-            <button type="button" className="mn-auth-submit" onClick={() => setAddingCol(true)}>
+            <div className="mn-tabledoc-addanchor">
+            <button type="button" className="mn-auth-submit" aria-expanded={addingCol} onClick={() => setAddingCol((open) => !open)}>
               <Plus size={14} aria-hidden="true" /> 添加字段
             </button>
+            {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)} taken={[]} />}
+            </div>
             <button type="button" className="mn-auth-link" onClick={onSwitchToNote}>切换为普通笔记</button>
           </div>
         </div>
@@ -270,16 +282,24 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                 );
               })}
               <div className="mn-tabledoc-addcol" role="columnheader">
-                <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段"
-                  onClick={() => { setAddingCol(true); setMenuCol(null); }}>
+                <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段" aria-expanded={addingCol}
+                  onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
                   <Plus size={14} aria-hidden="true" />
                 </button>
+                {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)}
+                  taken={(table?.header ?? scaffoldHeader ?? []).map((item) => item.trim())} />}
               </div>
             </div>
             {/* 数据行 */}
             {(table?.rows ?? []).map((cells, row) => (
-              <div className="mn-tabledoc-row" role="row" key={row}>
+              <div className={`mn-tabledoc-row${draggingRow === row ? " dragging" : ""}`} role="row" key={row}
+                onDragEnd={() => setDraggingRow(null)}
+                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
+                onDrop={(event) => { event.preventDefault(); if (draggingRow !== null) moveRow(draggingRow, row); setDraggingRow(null); }}>
                 <div className="mn-tabledoc-rownum" role="rowheader">
+                  <span className="mn-tabledoc-drag" aria-hidden="true" title="拖动调整行顺序" draggable
+                    onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDraggingRow(row); }}
+                    onClick={(event) => event.stopPropagation()}>⠿</span>
                   <span>{row + 1}</span>
                   <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}>×</button>
                 </div>
@@ -291,14 +311,14 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                     />
                   </div>
                 ))}
-                <div className="mn-tabledoc-cell ghost" role="presentation" />
+                <div className="mn-tabledoc-addspacer" role="presentation" />
               </div>
             ))}
             {/* 添加行 */}
             <div className="mn-tabledoc-row foot" role="row">
               <div className="mn-tabledoc-rownum" role="presentation" />
               {header.map((_, col) => <div className="mn-tabledoc-cell ghost" role="presentation" key={col} />)}
-              <div className="mn-tabledoc-cell ghost" role="presentation" />
+              <div className="mn-tabledoc-addspacer" role="presentation" />
             </div>
           </div>
           <div className="mn-tabledoc-actions">
@@ -307,12 +327,6 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
             </button>
           </div>
         </div>
-      )}
-      {addingCol && (
-        <AddColumnForm
-          onConfirm={addColumn} onCancel={() => setAddingCol(false)}
-          taken={(table?.header ?? scaffoldHeader ?? []).map((item) => item.trim())}
-        />
       )}
     </div>
   );
@@ -326,8 +340,21 @@ function AddColumnForm({ onConfirm, onCancel, taken }: {
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<PropertyType>("text");
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !formRef.current?.contains(event.target)) onCancel();
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onCancel]);
   return (
-    <div className="mn-tabledoc-addform" role="form" aria-label="添加字段">
+    <div ref={formRef} className="mn-tabledoc-addform" role="form" aria-label="添加字段" onPointerDown={(event) => event.stopPropagation()}>
       <input className="mn-tabledoc-hname" value={name} autoFocus aria-label="字段名" placeholder="字段名"
         onChange={(event) => setName(event.target.value)}
         onKeyDown={(event) => { if (event.key === "Enter" && name.trim() && !taken.includes(name.trim())) onConfirm(name, type); }} />
