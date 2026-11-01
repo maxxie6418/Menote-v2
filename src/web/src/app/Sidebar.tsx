@@ -1,12 +1,12 @@
-import { Activity, AlignLeft, Clock, FileText, Inbox, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, SlidersHorizontal, Star, Trash2 } from "lucide-react";
+import { AlignLeft, Clock, FileText, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, Trash2 } from "lucide-react";
 import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "../lib/layout";
 import type { BrowseSection } from "../services/contentHooks";
 import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
-import { APP_VERSION_LABEL } from "../lib/version";
-import { SyncBadge } from "../features/sync";
+import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
+import { AccountMenu } from "./AccountMenu";
 
 interface SidebarProps {
   userId: string;
@@ -20,7 +20,6 @@ interface SidebarProps {
   onLogout: () => void;
   onToggleCollapse: () => void;
   onCloseDrawer: () => void;
-  onOpenStatus: () => void;
   onOpenSettings: () => void;
 }
 
@@ -28,8 +27,10 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
   section.kind === kind;
 
 /* 侧栏（FR-IA-4 顺序：快速输入 / 新建笔记 / Memo 时间线 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
-   搜索入口仍未定不放侧栏（E5 后置）；私人空间固定入口保持锁定态（G7）。 */
-export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenStatus, onOpenSettings }: SidebarProps) {
+   搜索入口仍未定不放侧栏（E5 后置）；私人空间固定入口保持锁定态（G7）。
+   负责人 2026-11-01：品牌旁仅显版本号（悬停显构建 id）；脚部只留账户菜单（主题/设置/退出），
+   同步与系统状态归集进设置弹层的状态预览节。 */
+export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -43,16 +44,13 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
             <PanelLeftClose />
           </button>
         )}
-        <span className="mn-brand"><img className="mn-logo" src="/icon.svg" alt="" />{collapsed ? "" : "Menote"}</span>
+        <span className="mn-brand"><img className="mn-logo" src="/icon.svg" alt="" />{collapsed ? "" : "Menote"}{!collapsed && <span className="mn-brand-version" title={APP_BUILD_LABEL}>{APP_VERSION_LABEL}</span>}</span>
         <span className="mn-sb-top-actions">
           {(layout === "compact" || layout === "full") && (
             <button type="button" className="mn-iconbtn" aria-label={collapsed ? "展开侧栏" : "折叠侧栏"} onClick={onToggleCollapse}>
               {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
             </button>
           )}
-          <button type="button" className="mn-iconbtn" aria-label="打开设置" title="设置" onClick={onOpenSettings}>
-            <SlidersHorizontal />
-          </button>
         </span>
       </div>
       {!collapsed && <QuickComposer userId={userId} />}
@@ -116,23 +114,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         </>
       )}
       <div className="mn-sb-foot">
-        {!collapsed && (
-          <span className="mn-foot-account" title={`${account.username}（${account.role === "owner" ? "管理员" : "成员"}）`}>
-            {account.username}
-          </span>
-        )}
-        <button type="button" className="mn-iconbtn" aria-label="退出登录" title="退出登录" onClick={onLogout}>
-          <LogOut />
-        </button>
-        {!collapsed && (
-          <>
-            <SyncBadge />
-            <span className="mn-foot-version">{APP_VERSION_LABEL}</span>
-          </>
-        )}
-        <button type="button" className="mn-iconbtn" aria-label="打开系统状态" title="系统状态与健康检查" onClick={onOpenStatus}>
-          <Activity />
-        </button>
+        <AccountMenu username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} />
       </div>
     </aside>
   );

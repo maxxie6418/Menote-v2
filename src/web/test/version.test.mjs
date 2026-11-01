@@ -14,6 +14,6 @@ test("version label falls back to unknown commit and omits empty build time", ()
   assert.equal(version.formatVersionLabel("0.0.1", "", ""), "v0.0.1 · 构建 unknown");
 });
 
-test("module export uses build-time constants", () => {
-  assert.equal(version.APP_VERSION_LABEL, "v0.0.1 · 构建 abc1234 · 2026-10-31T00:00:00Z");
+test("module export shows version only (M1.2 侧栏脚部简化)", () => {
+  assert.equal(version.APP_VERSION_LABEL, "v0.0.1");
 });
