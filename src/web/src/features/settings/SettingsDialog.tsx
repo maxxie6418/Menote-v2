@@ -8,10 +8,12 @@ import { getSyncPhase, subscribeSyncStatus, type SyncPhase } from "../../service
 import { getReadiness } from "../../services/healthService";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { APP_VERSION_FULL_LABEL } from "../../lib/version";
+import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
 
-type SettingsSection = "backup" | "attachments" | "recovery" | "status";
+type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "status";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
+  { id: "appearance", label: "外观" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
@@ -52,12 +54,41 @@ export function SettingsDialog({ userId, onClose, onOpenStatus }: SettingsDialog
             ))}
           </nav>
           <div className="mn-dlg-content">
+            {section === "appearance" && <AppearanceSection />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
             {section === "status" && <StatusSection onOpenStatus={onOpenStatus} />}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** 外观节：界面字体切换（内置 Noto Sans SC ↔ 系统字体），偏好经 lib/fontPreference 即时生效。 */
+function AppearanceSection() {
+  const [font, setFont] = useState<FontPreference>(getFontPreference);
+  return (
+    <div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">界面字体</p>
+          <p className="mn-sethint">默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="界面字体"
+          value={font}
+          onChange={(event) => {
+            const value = event.target.value as FontPreference;
+            setFontPreference(value);
+            setFont(value);
+          }}
+        >
+          <option value="noto">Noto Sans SC（默认）</option>
+          <option value="system">系统字体</option>
+        </select>
       </div>
     </div>
   );

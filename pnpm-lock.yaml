@@ -16,6 +16,9 @@ importers:
 
   src/web:
     dependencies:
+      '@fontsource/noto-sans-sc':
+        specifier: ^5.3.1
+        version: 5.3.1
       '@menote/shared':
         specifier: workspace:*
         version: link:../shared
@@ -399,6 +402,9 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fontsource/noto-sans-sc@5.3.1':
+    resolution: {integrity: sha512-YxZ/VWAWo9FWzH08Q6fGTzIW6vYNP2TMhUFCnfhlimbhdXnWrxJLrzX3KWt2FKnV0s8XiM5vjpGHQiyFRlTj0w==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -1813,6 +1819,8 @@ snapshots:
       '@floating-ui/utils': 0.2.12
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@fontsource/noto-sans-sc@5.3.1': {}
 
   '@img/colour@1.1.0': {}
 

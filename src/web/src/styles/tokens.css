@@ -26,8 +26,11 @@
   --app-link: #0051c3;
   --app-success: #5f8b3f;
   --app-danger: #b3261e;
-  /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据） */
-  --app-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Roboto, sans-serif;
+  /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据）。
+     界面默认字体为自托管 Noto Sans SC（@fontsource，main.tsx 按需引入字重）；
+     设置·外观可切回系统字体栈（data-font 由 lib/fontPreference 写入，缺省即 Noto）。 */
+  --app-font-system: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+  --app-font: "Noto Sans SC", var(--app-font-system);
   --app-font-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
   --app-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
   /* 字重与行高 */
@@ -200,6 +203,11 @@
   --md-table-col-3: 16%;
   --md-table-col-4: 32%;
   --md-link-color: var(--app-link);
+}
+/* 界面字体偏好（设置·外观）：data-font="system" 切回系统栈，由 index.html 引导脚本 + lib/fontPreference.ts
+   负责写入；缺省即内置 Noto Sans SC，无需属性。 */
+:root[data-font="system"] {
+  --app-font: var(--app-font-system);
 }
 /* 深色令牌由 data-theme 驱动（账户菜单·主题切换）：index.html 引导脚本 + lib/theme.ts
    负责写入；“跟随系统”档由 JS 依据系统偏好解析后落 data-theme。 */
