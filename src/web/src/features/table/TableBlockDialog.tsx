@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import {
-  type ParsedTable, findTables, replaceTable, splitMultiCell, joinMultiCell, extractTableDoc,
+  type ParsedTable, findTables, replaceTable, extractTableDoc,
 } from "../../lib/gfmTable";
 import { FIELDS_KEY, type PropertyType, readDefs, TABLE_FIELD_TYPES } from "../../lib/frontmatter";
+import { TableCellEditor } from "./TableCellEditor";
 
 interface TableBlockDialogProps {
   markdown: string;
@@ -79,11 +80,19 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
             <div key={rowIndex} className={rowIndex === 0 ? "mn-tablegrid-row head" : "mn-tablegrid-row"} role="row">
               {cells.map((cell, columnIndex) => (
                 <div key={columnIndex} role="gridcell">
-                  <TableCellInput
-                    value={cell} type={rowIndex === 0 ? "text" : columnType(columnIndex)}
-                    isHeader={rowIndex === 0}
-                    onChange={(value) => setCell(rowIndex, columnIndex, value)}
-                  />
+                  {rowIndex === 0 ? (
+                    <input
+                      className="mn-tablegrid-input" type="text"
+                      value={cell} aria-label="表头单元格"
+                      onChange={(event) => setCell(rowIndex, columnIndex, event.target.value)}
+                    />
+                  ) : (
+                    <TableCellEditor
+                      value={cell} type={columnType(columnIndex)}
+                      def={fieldDefs[table!.header[columnIndex]?.trim() ?? ""]}
+                      onChange={(value) => setCell(rowIndex, columnIndex, value)}
+                    />
+                  )}
                 </div>
               ))}
               {rowIndex > 0 && (
@@ -104,39 +113,4 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
       </div>
     </div>
   );
-}
-
-function TableCellInput({ value, type, isHeader, onChange }: {
-  value: string; type: PropertyType; isHeader: boolean; onChange: (value: string) => void;
-}) {
-  if (isHeader || type === "text" || type === "number" || type === "date" || type === "link") {
-    return (
-      <input
-        className="mn-tablegrid-input" type={type === "number" ? "number" : type === "date" ? "date" : "text"}
-        value={value} aria-label={isHeader ? "表头单元格" : "单元格"}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    );
-  }
-  if (type === "checkbox") {
-    return (
-      <select className="mn-tablegrid-input" value={value} aria-label="复选框单元格" onChange={(event) => onChange(event.target.value)}>
-        <option value="true">true</option>
-        <option value="false">false</option>
-        <option value="">{value || "（空）"}</option>
-      </select>
-    );
-  }
-  if (type === "select") {
-    return <input className="mn-tablegrid-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} aria-label="单选单元格" />;
-  }
-  if (type === "multiselect") {
-    return (
-      <input
-        className="mn-tablegrid-input" type="text" value={value} aria-label="多选单元格（逗号分隔）"
-        onChange={(event) => onChange(joinMultiCell(splitMultiCell(event.target.value)))}
-      />
-    );
-  }
-  return <input className="mn-tablegrid-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} aria-label="单元格" />;
 }

@@ -5,13 +5,14 @@ import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
 import { splitFrontmatter } from "../../lib/frontmatter";
-import { TableBlockDialog } from "../table";
+import { TableBlockDialog, TableDocument } from "../table";
 import { useItem } from "../../services/contentHooks";
-import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
+import { degradeTableToNote, isBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
 import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
+import { BlankFormChooser } from "./BlankFormChooser";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
@@ -183,6 +184,19 @@ ${editorValue}` : editorValue;
   }
 
   const plain = item.content;
+  const isTableDoc = item.type === "table";
+  const showFormChooser = !isTableDoc && isBlankDraft(item);
+
+  /** 形态选择（FR-TBL-9）：转换守卫在 setItemForm（仅空白期可切）。 */
+  const pickTableForm = () => {
+    setItemForm(userId, item.id, "table").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
+  const switchToNoteForm = () => {
+    setItemForm(userId, item.id, "note").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
+  const degradeDoc = () => {
+    degradeTableToNote(userId, item.id).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
 
   return (
     <article className="mn-doc" aria-label="文档区">
@@ -199,9 +213,11 @@ ${editorValue}` : editorValue;
             <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
             </button>
-            <button type="button" className="mn-iconbtn" aria-label="表格结构化编辑" title="表格结构化编辑" onClick={() => setTableDialog(true)}>
-              <Table />
-            </button>
+            {!isTableDoc && (
+              <button type="button" className="mn-iconbtn" aria-label="表格结构化编辑" title="表格结构化编辑" onClick={() => setTableDialog(true)}>
+                <Table />
+              </button>
+            )}
             <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
               <Download />
             </button>
@@ -248,10 +264,19 @@ ${editorValue}` : editorValue;
             }}
           />
         </div>
+        {showFormChooser && <BlankFormChooser onPickTable={pickTableForm} />}
         {plain && mode === "preview" && (
           <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body mn-doc-preview" />
         )}
-        {plain && mode === "edit" && (
+        {plain && mode === "edit" && isTableDoc && (
+          <TableDocument
+            markdown={draft ?? plain.markdown}
+            onChangeMarkdown={(next) => void saveFullMarkdown(next)}
+            onDegrade={degradeDoc}
+            onSwitchToNote={switchToNoteForm}
+          />
+        )}
+        {plain && mode === "edit" && !isTableDoc && (
           <NoteEditor
             mode="edit"
             kind={editorKind}

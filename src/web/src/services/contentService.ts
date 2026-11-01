@@ -61,12 +61,13 @@ export async function softDeleteTopic(userId: string, id: string): Promise<void>
 /* ---------- Note / 表格文档 ---------- */
 
 export async function createNote(
-  userId: string, options: { title?: string; topicId?: string | null; groupId?: string | null; source?: ItemSource } = {},
+  userId: string,
+  options: { title?: string; type?: "note" | "table"; topicId?: string | null; groupId?: string | null; source?: ItemSource } = {},
 ): Promise<Item> {
   const source = options.source ?? "manual";
   const requestedTitle = options.title?.trim() || "无标题";
   const item: Item = {
-    id: newId(), userId, type: "note",
+    id: newId(), userId, type: options.type ?? "note",
     topicId: options.topicId ?? null, groupId: options.groupId ?? null,
     title: requestedTitle, tags: [], status: null, attachmentHashes: [],
     source, rev: 1, metaRev: 1, contentHash: await sha256Hex(""),
@@ -111,6 +112,48 @@ export async function createMemo(userId: string, markdown: string, tags: string[
   });
   notifyLocalChange();
   return item;
+}
+
+/**
+ * 形态切换（TP2 多维表格）：空白种子期 note↔table 互转；内容落下即锁定（负责人 2026-11-01 决策）。
+ * 仅翻 type，不动内容；空白草稿三道闸对两种形态同等生效。
+ */
+export function setItemForm(userId: string, id: string, to: "note" | "table"): Promise<Item> {
+  return enqueueWrite(() => setItemFormInner(userId, id, to));
+}
+
+async function setItemFormInner(userId: string, id: string, to: "note" | "table"): Promise<Item> {
+  const current = await requireItem(userId, id);
+  if (current.type === "memo") throw new Error("Memo 不参与形态切换");
+  if (current.type === to) return current;
+  if (!isBlankDraft(current) || current.content.scope !== "plain") {
+    throw new Error("已有内容的文档不可切换形态（FR-TBL-9）");
+  }
+  const next = { ...current, type: to, metaRev: current.metaRev + 1, updatedAt: Date.now() } as Item;
+  await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+    await localDb.items.put(next);
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+  });
+  notifyLocalChange();
+  return next;
+}
+
+/** 表格结构损坏降级（FR-VER-2，table→note 单向）：降级前先封存当前稿，版本历史可追溯。 */
+export function degradeTableToNote(userId: string, id: string): Promise<Item> {
+  return enqueueWrite(() => degradeTableToNoteInner(userId, id));
+}
+
+async function degradeTableToNoteInner(userId: string, id: string): Promise<Item> {
+  const current = await requireItem(userId, id);
+  if (current.type !== "table") throw new Error("仅表格文档可降级");
+  await archiveVersionBeforeSave(userId, current, "manual");
+  const next = { ...current, type: "note", metaRev: current.metaRev + 1, updatedAt: Date.now() } as Item;
+  await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+    await localDb.items.put(next);
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+  });
+  notifyLocalChange();
+  return next;
 }
 
 /** 正文保存（E2 自动保存复用）：rev+1、contentHash 重算、outbox 带 baseRev 供服务端冲突检测。 */
@@ -183,12 +226,14 @@ export async function softDeleteItem(userId: string, id: string): Promise<void> 
 /* ---------- 空白草稿三道闸（FR-VER-7：种子从不上传，本地兜底回收） ---------- */
 
 export const BLANK_TITLE = "无标题";
+/** 默认标题（含 v1.6 递增编号「无标题 2」）均视为未改名；形态选择条与三道闸共用此判定。 */
+export const BLANK_TITLE_PATTERN = /^(?:无标题)(?: \d+)?$/;
 const BLANK_SWEEP_MAX_AGE_MS = 24 * 3_600_000;
 
 /** 正文无可见字符且标题未改的种子；Memo 不适用（随手记录本就短小）。 */
 export function isBlankDraft(item: Item): boolean {
   if (item.type === "memo" || item.deletedAt !== null) return false;
-  if (item.title !== BLANK_TITLE) return false;
+  if (!BLANK_TITLE_PATTERN.test(item.title)) return false;
   if (item.content.scope !== "plain") return false;
   return !/\S/.test(item.content.markdown);
 }

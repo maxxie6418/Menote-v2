@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, Table2 } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
 import { formatItemMeta, noteSnippet } from "./format";
@@ -27,7 +27,9 @@ export function NoteGrid({ items, selectedId, onSelect, emptyTitle, emptyDetail 
           className={item.id === selectedId ? "mn-note-card on" : "mn-note-card"}
           onClick={() => onSelect(item.id)}
         >
-          <span className="mn-note-row-title">{item.title}</span>
+          <span className="mn-note-row-title">
+            {item.type === "table" && <Table2 size={13} aria-hidden="true" />} {item.title}
+          </span>
           <span className="mn-note-card-snippet">{snippet(item) || "（空白）"}</span>
           <span className="mn-note-row-meta">{formatItemMeta(item)}</span>
         </button>

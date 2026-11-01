@@ -3,7 +3,9 @@ import { ChevronLeft, Eye, Lock, Pencil, ShieldOff } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
+import { TableDocument } from "../table";
 import { useItem, useLockVersion } from "../../services/contentHooks";
+import { degradeTableToNote } from "../../services/contentService";
 import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/encryptionCommandService";
 import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyringService";
 import { UnlockPanel } from "../encryption";
@@ -101,7 +103,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         <input className="mn-doc-title" value={item.title ?? ""} aria-label="标题" readOnly />
         {!unlocked && <UnlockPanel onUnlock={onUnlock} error={unlockError} />}
         {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body mn-doc-preview" />}
-        {plainFlow && mode === "edit" && (
+        {plainFlow && mode === "edit" && item.type === "table" && (
+          <TableDocument
+            markdown={plain}
+            onChangeMarkdown={(next) => setPlain(next)}
+            onDegrade={() => { void degradeTableToNote(userId, item.id); }}
+            /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
+            onSwitchToNote={() => {}}
+          />
+        )}
+        {plainFlow && mode === "edit" && item.type !== "table" && (
           <NoteEditor
             mode="edit"
             kind="wysiwyg"

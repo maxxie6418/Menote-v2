@@ -38,6 +38,21 @@ function useLayoutMode(): LayoutMode {
   return mode;
 }
 
+/* 指针类型（DESIGN §4.4）：触屏设备不接管滚动条，保留系统覆盖式滚动条。
+   与断点同理由 JS 检测后写 data-pointer，CSS 不写媒体查询。 */
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(pointer: coarse)");
+    const update = () => setCoarse(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return coarse;
+}
+
 const SECTION_TITLES: Record<"recent" | "inbox" | "drafts" | "starred" | "trash", string> = {
   recent: "全部笔记", inbox: "收件箱", drafts: "草稿箱", starred: "收藏", trash: "回收站",
 };
@@ -52,6 +67,7 @@ const SECTION_EMPTY: Record<"recent" | "inbox" | "drafts" | "starred" | "trash",
 /* 主界面（M1.2 骨架 + E2 内容闭环）：三栏真数据、列表/网格、Memo 视图与 todo 侧板。 */
 export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const layout = useLayoutMode();
+  const coarsePointer = useCoarsePointer();
   const [view, setView] = useState<MainView>("main");
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -101,6 +117,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const shellProps = {
     "data-layout": layout,
     "data-sidebar": collapsed && layout === "compact" ? "collapsed" : "expanded",
+    "data-pointer": coarsePointer ? "coarse" : "fine",
   };
   const sidebar = (
     <Sidebar
@@ -249,7 +266,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             showBack={layout === "tablet" || layout === "mobile"}
             crumb={title}
             onExtractDoc={async (content) => {
-              const created = await createNote(userId, { title: "表格文档" });
+              const created = await createNote(userId, { title: "表格文档", type: "table" });
               await saveItemContent(userId, created.id, content);
               setSection({ kind: "drafts" });
               setNoteId(created.id);

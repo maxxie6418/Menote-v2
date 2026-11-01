@@ -100,6 +100,35 @@ export function writeDef(markdown: string, namespace: string, name: string, def:
   return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
 }
 
+/** 重命名命名空间内一个定义键（表格列重命名）；目标名已存在时不操作（调用方先行校验）。 */
+export function renameDef(markdown: string, namespace: string, from: string, to: string): string {
+  if (from === to) return markdown;
+  const { frontText, body } = splitFrontmatter(markdown);
+  if (!frontText) return markdown;
+  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const container = doc.get(namespace) as YAMLMap | undefined;
+  if (!container || typeof container.get !== "function") return markdown;
+  const def = container.get(from);
+  if (def === undefined) return markdown;
+  container.delete(from);
+  container.set(to, def);
+  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+}
+
+/** 删除命名空间内一个定义键（表格删列）；不存在时原样返回。 */
+export function removeDef(markdown: string, namespace: string, name: string): string {
+  const { frontText, body } = splitFrontmatter(markdown);
+  if (!frontText) return markdown;
+  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const container = doc.get(namespace) as YAMLMap | undefined;
+  if (!container || typeof container.delete !== "function") return markdown;
+  if (container.get(name) === undefined) return markdown;
+  container.delete(name);
+  const serialized = String(doc).trimEnd();
+  if (serialized.length === 0) return body;
+  return `---\n${serialized}\n---\n\n${body}`;
+}
+
 /** 写入/更新一个数据键：有 YAML 节点则原位替换值，未触碰键保持原样。无 frontmatter 时新建。 */
 export function writeValue(markdown: string, key: string, value: string | boolean | string[] | number | null): string {
   const { frontText, body } = splitFrontmatter(markdown);
