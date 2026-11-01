@@ -18,5 +18,6 @@ export {
   MCP_PERMISSION_KEYS,
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
   type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
+  type McpClipRequest, type McpClipResult,
 } from "./types/integrations";
 export type { UserSetting, MonitorSample } from "./types/settings";

@@ -56,7 +56,7 @@ export function McpTokenManager() {
     setLoading(true);
     try {
       const [nextTokens, nextTopics] = await Promise.all([listMcpTokens(), listMcpScopeTopics()]);
-      setTokens(nextTokens);
+      setTokens(nextTokens.filter((token) => token.revokedAt === null));
       setTopics(nextTopics);
     } catch (error) {
       setMessage(errorMessage(error));
@@ -70,9 +70,9 @@ export function McpTokenManager() {
     catch { setMessage("复制失败，请检查浏览器剪贴板权限。"); }
   };
 
-  const create = async (config: McpTokenConfig): Promise<void> => {
+  const create = async (name: string, config: McpTokenConfig): Promise<void> => {
     try {
-      const created = await createMcpToken(config);
+      const created = await createMcpToken(name, config);
       const secret = await revealMcpToken(created.id);
       setVisibleTokens((current) => ({ ...current, [created.id]: secret }));
       setCreating(false);
@@ -81,11 +81,11 @@ export function McpTokenManager() {
     } catch (error) { setMessage(errorMessage(error)); }
   };
 
-  const save = async (id: string, config: McpTokenConfig): Promise<void> => {
+  const save = async (id: string, name: string, config: McpTokenConfig): Promise<void> => {
     try {
-      await updateMcpToken(id, config);
+      await updateMcpToken(id, name, config);
       setEditingId(null);
-      setMessage("Token 权限已更新，后续请求立即使用新配置。");
+      setMessage("Token 名称与权限已更新，后续请求立即使用新配置。");
       await refresh();
     } catch (error) { setMessage(errorMessage(error)); }
   };
@@ -133,17 +133,17 @@ export function McpTokenManager() {
       {message && <p className="mn-mcp-message" role="status">{message}</p>}
       {creating && <TokenEditor topics={topics} onCancel={() => setCreating(false)} onSave={create} />}
       {loading ? <p className="mn-sethint">正在读取 Token…</p> : tokens.length === 0 && !creating
-        ? <p className="mn-mcp-empty">尚未创建 MCP Token。</p>
+        ? <p className="mn-mcp-empty">目前没有可用的 MCP Token。已撤销的 Token 不显示。</p>
         : <div className="mn-mcp-token-list">{tokens.map((token) => (
           <article className="mn-mcp-token-card" key={token.id}>
             <div className="mn-mcp-token-head">
               <div>
-                <p className="mn-setlabel"><code>{token.tokenPrefix}</code>{token.revokedAt !== null && <span className="mn-mcp-revoked">已撤销</span>}</p>
-                <p className="mn-sethint">创建于 {formatDate(token.createdAt)} · 最后调用：{formatDate(token.lastUsedAt)}</p>
+                <p className="mn-setlabel">{token.name}{token.revokedAt !== null && <span className="mn-mcp-revoked">已撤销</span>}</p>
+                <p className="mn-sethint"><code>{token.tokenPrefix}</code> · 创建于 {formatDate(token.createdAt)} · 最后调用：{formatDate(token.lastUsedAt)}</p>
               </div>
               <div className="mn-mcp-actions">
                 {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void reveal(token)}>查看并复制 Token</button>}
-                {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => { setEditingId(editingId === token.id ? null : token.id); setCreating(false); }}>修改权限</button>}
+                {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => { setEditingId(editingId === token.id ? null : token.id); setCreating(false); }}>修改设置</button>}
                 {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void revoke(token)}>撤销</button>}
               </div>
             </div>
@@ -151,7 +151,7 @@ export function McpTokenManager() {
             <p className="mn-sethint">权限：{token.permissions.length ? token.permissions.map((permission) => PERMISSION_LABELS[permission]).join("、") : "无（默认拒绝）"}</p>
             <p className="mn-sethint">范围：{token.scope.mode === "all" ? "所有非加密主题" : `指定范围（${token.scope.topicIds.length + token.scope.groupIds.length} 项）`} · 限速 {token.ratePerMinute}/分钟 · {token.expiresAt === null ? "永不过期" : `过期于 ${formatDate(token.expiresAt)}`}</p>
             {editingId === token.id && <TokenEditor
-              initial={token} topics={topics} onCancel={() => setEditingId(null)} onSave={(config) => save(token.id, config)}
+              initial={token} topics={topics} onCancel={() => setEditingId(null)} onSave={(name, config) => save(token.id, name, config)}
             />}
           </article>
         ))}</div>}
@@ -162,11 +162,12 @@ export function McpTokenManager() {
 function TokenEditor({
   initial, topics, onCancel, onSave,
 }: {
-  initial?: McpTokenConfig;
+  initial?: McpTokenView;
   topics: Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>;
   onCancel: () => void;
-  onSave: (config: McpTokenConfig) => Promise<void>;
+  onSave: (name: string, config: McpTokenConfig) => Promise<void>;
 }) {
+  const [name, setName] = useState(initial?.name ?? "");
   const [permissions, setPermissions] = useState<McpPermission[]>(initial?.permissions ?? EMPTY_CONFIG.permissions);
   const [scope, setScope] = useState<McpTokenScope>(initial?.scope ?? EMPTY_CONFIG.scope);
   const [includeMemos, setIncludeMemos] = useState(initial?.includeMemos ?? false);
@@ -192,13 +193,17 @@ function TokenEditor({
     if (!Number.isInteger(rateNumber) || rateNumber < 1 || rateNumber > 10_000) return;
     const expiryTimestamp = expiry ? new Date(expiry).getTime() : null;
     if (expiryTimestamp !== null && (!Number.isFinite(expiryTimestamp) || expiryTimestamp <= Date.now())) return;
+    const normalizedName = name.trim();
+    if (initial && (!normalizedName || normalizedName.length > 80)) return;
+    if (normalizedName.length > 80) return;
     setSaving(true);
-    try { await onSave({ permissions, scope, includeMemos, allowUrl, ratePerMinute: rateNumber, expiresAt: expiryTimestamp }); }
+    try { await onSave(normalizedName, { permissions, scope, includeMemos, allowUrl, ratePerMinute: rateNumber, expiresAt: expiryTimestamp }); }
     finally { setSaving(false); }
   };
 
   return (
     <form className="mn-mcp-editor" onSubmit={submit}>
+      <label className="mn-mcp-number">名称<input className="mn-propinput" type="text" maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="留空自动命名，如 menote1" /></label>
       <fieldset className="mn-mcp-fieldset">
         <legend className="mn-setlabel">权限（未勾选即拒绝）</legend>
         <div className="mn-mcp-check-grid">
@@ -239,7 +244,7 @@ function TokenEditor({
       </div>
       <p className="mn-sethint">附件操作还需对应内容权限；加密内容和私人空间始终拒绝。移入回收站不包含永久删除。</p>
       <div className="mn-mcp-actions">
-        <button type="submit" className="app-button" disabled={saving}>{saving ? "保存中…" : initial ? "保存权限" : "创建 Token"}</button>
+        <button type="submit" className="app-button" disabled={saving || (Boolean(initial) && !name.trim())}>{saving ? "保存中…" : initial ? "保存设置" : "创建 Token"}</button>
         <button type="button" className="mn-statuslink" onClick={onCancel}>取消</button>
       </div>
     </form>

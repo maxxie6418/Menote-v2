@@ -41,6 +41,16 @@ export function normalizeMcpTokenConfig(value: unknown, now: number): McpTokenCo
   };
 }
 
+export function normalizeMcpTokenName(value: unknown, optional: true): string | null | undefined;
+export function normalizeMcpTokenName(value: unknown, optional: false): string | undefined;
+export function normalizeMcpTokenName(value: unknown, optional: boolean): string | null | undefined {
+  if (optional && (value === undefined || value === null || value === "")) return null;
+  if (typeof value !== "string") return undefined;
+  const name = value.trim();
+  if (optional && !name) return null;
+  return name.length > 0 && name.length <= 80 ? name : undefined;
+}
+
 async function validateScope(db: D1Database, userId: string, scope: McpTokenScope): Promise<boolean> {
   if (scope.mode === "all") return true;
   const nodes = await listMcpScopeNodes(db, userId);
@@ -58,32 +68,34 @@ export async function listScopeOptions(db: D1Database, userId: string) {
 }
 
 export async function createToken(
-  db: D1Database, userId: string, pepper: string, rawConfig: unknown, now = Date.now(),
+  db: D1Database, userId: string, pepper: string, rawConfig: unknown, name: string | null, now = Date.now(),
 ): Promise<{ token: McpTokenView; secret: string } | null> {
   const config = rawConfig === undefined || rawConfig === null ? DEFAULT_CONFIG : normalizeMcpTokenConfig(rawConfig, now);
   if (!config || !(await validateScope(db, userId, config.scope))) return null;
   const secret = generateMcpToken();
   const id = crypto.randomUUID();
+  const tokenPrefix = `${secret.slice(0, 11)}…`;
+  const tokenHash = await hashMcpToken(secret);
+  const tokenCiphertext = await sealMcpToken(pepper, secret);
+  const storedName = await insertMcpToken(db, userId, {
+    ...config, id, name, tokenPrefix, tokenHash, tokenCiphertext, createdAt: now,
+  });
   const token: McpToken = {
-    id, userId, tokenPrefix: `${secret.slice(0, 11)}…`, tokenHash: await hashMcpToken(secret),
-    tokenEnc: { ciphertext: await sealMcpToken(pepper, secret) }, ...config,
+    id, userId, name: storedName, tokenPrefix, tokenHash,
+    tokenEnc: { ciphertext: tokenCiphertext }, ...config,
     revokedAt: null, createdAt: now, lastUsedAt: null,
   };
-  await insertMcpToken(db, userId, {
-    ...config, id, tokenPrefix: token.tokenPrefix, tokenHash: token.tokenHash,
-    tokenCiphertext: token.tokenEnc.ciphertext, createdAt: now,
-  });
   const { tokenHash: _hash, tokenEnc: _enc, ...view } = token;
   return { token: view, secret };
 }
 
 export async function updateToken(
-  db: D1Database, userId: string, id: string, rawConfig: unknown, now = Date.now(),
+  db: D1Database, userId: string, id: string, name: string, rawConfig: unknown, now = Date.now(),
 ): Promise<boolean | null> {
   const config = normalizeMcpTokenConfig(rawConfig, now);
   if (!config) return null;
   if (!(await validateScope(db, userId, config.scope))) return null;
-  return updateMcpTokenConfig(db, userId, id, config);
+  return updateMcpTokenConfig(db, userId, id, name, config);
 }
 
 export async function revealToken(db: D1Database, userId: string, pepper: string, id: string): Promise<string | null> {

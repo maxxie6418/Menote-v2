@@ -1,7 +1,7 @@
 import { MCP_PERMISSION_KEYS, type McpPermission, type McpToken, type McpTokenConfig, type McpTokenView } from "@menote/shared";
 
 interface McpTokenRow {
-  id: string; user_id: string; token_prefix: string; token_hash: string | null; token_ciphertext: string;
+  id: string; user_id: string; name: string; token_prefix: string; token_hash: string | null; token_ciphertext: string;
   permissions_json: string; scope_json: string; include_memos: number; allow_url: number;
   rate_per_minute: number; expires_at: number | null; revoked_at: number | null;
   created_at: number; last_used_at: number | null;
@@ -34,7 +34,7 @@ function parseScope(json: string): McpToken["scope"] {
 
 function fromRow(row: McpTokenRow): McpToken {
   return {
-    id: row.id, userId: row.user_id, tokenPrefix: row.token_prefix,
+    id: row.id, userId: row.user_id, name: row.name, tokenPrefix: row.token_prefix,
     tokenHash: row.token_hash ?? "", tokenEnc: { ciphertext: row.token_ciphertext },
     permissions: parsePermissions(row.permissions_json), scope: parseScope(row.scope_json),
     includeMemos: row.include_memos === 1, allowUrl: row.allow_url === 1,
@@ -48,7 +48,7 @@ function toView(token: McpToken): McpTokenView {
   return view;
 }
 
-const SELECT_TOKEN = `SELECT id, user_id, token_prefix, token_hash, token_ciphertext,
+const SELECT_TOKEN = `SELECT id, user_id, name, token_prefix, token_hash, token_ciphertext,
   permissions_json, scope_json, include_memos, allow_url, rate_per_minute, expires_at,
   revoked_at, created_at, last_used_at FROM mcp_tokens`;
 
@@ -83,30 +83,37 @@ export async function listMcpScopeNodes(db: D1Database, userId: string) {
 export async function insertMcpToken(
   db: D1Database,
   userId: string,
-  values: McpTokenConfig & { id: string; tokenPrefix: string; tokenHash: string; tokenCiphertext: string; createdAt: number },
-): Promise<void> {
+  values: McpTokenConfig & { id: string; name: string | null; tokenPrefix: string; tokenHash: string; tokenCiphertext: string; createdAt: number },
+): Promise<string> {
   await db.prepare(
     `INSERT INTO mcp_tokens (
-      id, user_id, token_prefix, token_ciphertext, permissions_json, scope_json,
+      id, user_id, name, token_prefix, token_ciphertext, permissions_json, scope_json,
       include_memos, allow_url, rate_per_minute, expires_at, revoked_at,
       token_hash, created_at, last_used_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)`,
+    ) VALUES (?, ?, COALESCE(?, 'menote' || CAST(COALESCE((
+      SELECT MAX(CASE WHEN name GLOB 'menote[0-9]*' AND substr(name, 7) NOT GLOB '*[^0-9]*'
+        THEN CAST(substr(name, 7) AS INTEGER) END)
+      FROM mcp_tokens WHERE user_id = ?
+    ), 0) + 1 AS TEXT)), ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL)`,
   ).bind(
-    values.id, userId, values.tokenPrefix, values.tokenCiphertext,
+    values.id, userId, values.name, userId, values.tokenPrefix, values.tokenCiphertext,
     JSON.stringify(values.permissions), JSON.stringify(values.scope),
     values.includeMemos ? 1 : 0, values.allowUrl ? 1 : 0, values.ratePerMinute,
     values.expiresAt, values.tokenHash, values.createdAt,
   ).run();
+  const row = await db.prepare("SELECT name FROM mcp_tokens WHERE user_id = ? AND id = ?")
+    .bind(userId, values.id).first<{ name: string }>();
+  if (!row) throw new Error("mcp_token_insert_failed");
+  return row.name;
 }
 
 export async function updateMcpTokenConfig(
-  db: D1Database, userId: string, id: string, config: McpTokenConfig,
+  db: D1Database, userId: string, id: string, name: string, config: McpTokenConfig,
 ): Promise<boolean> {
   const result = await db.prepare(
-    `UPDATE mcp_tokens SET permissions_json = ?, scope_json = ?, include_memos = ?, allow_url = ?,
+    `UPDATE mcp_tokens SET name = ?, permissions_json = ?, scope_json = ?, include_memos = ?, allow_url = ?,
       rate_per_minute = ?, expires_at = ? WHERE user_id = ? AND id = ? AND revoked_at IS NULL`,
-  ).bind(
-    JSON.stringify(config.permissions), JSON.stringify(config.scope), config.includeMemos ? 1 : 0,
+  ).bind(name, JSON.stringify(config.permissions), JSON.stringify(config.scope), config.includeMemos ? 1 : 0,
     config.allowUrl ? 1 : 0, config.ratePerMinute, config.expiresAt, userId, id,
   ).run();
   return (result.meta.changes ?? 0) === 1;

@@ -4,6 +4,7 @@ export interface OpaqueCiphertext { ciphertext: string }
 export interface McpToken {
   id: string;
   userId: string;
+  name: string;
   tokenPrefix: string;
   tokenHash: string;
   permissions: McpPermission[];
@@ -52,6 +53,30 @@ export interface McpAudit {
   result: string;
   operationId: string | null;
   at: number;
+}
+
+/** Versioned browser clip payload shared by Menote and Menote-clients. */
+export interface McpClipRequest {
+  schemaVersion: 1;
+  operationId: string;
+  title: string;
+  markdown: string;
+  sourceUrl: string;
+  capturedAt: string;
+  attachmentHashes?: string[];
+  metadata: {
+    author?: string;
+    publishedAt?: string;
+    siteName?: string;
+    description?: string;
+    canonicalUrl?: string;
+  };
+}
+
+export interface McpClipResult {
+  itemId: string;
+  rev: number;
+  result: "applied" | "duplicate";
 }
 
 export interface BackupTarget {

@@ -22,16 +22,16 @@ export async function listMcpScopeTopics(): Promise<Array<Pick<TopicNode, "id" |
   return Array.isArray(body.topics) ? body.topics : [];
 }
 
-export async function createMcpToken(config: McpTokenConfig): Promise<McpTokenView> {
+export async function createMcpToken(name: string, config: McpTokenConfig): Promise<McpTokenView> {
   const body = await responseJson<{ token: McpTokenView }>(await fetch("/api/mcp/tokens", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, config }),
   }));
   return body.token;
 }
 
-export async function updateMcpToken(id: string, config: McpTokenConfig): Promise<void> {
+export async function updateMcpToken(id: string, name: string, config: McpTokenConfig): Promise<void> {
   await responseJson(await fetch(`/api/mcp/tokens/${encodeURIComponent(id)}`, {
-    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config }),
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, config }),
   }));
 }
 

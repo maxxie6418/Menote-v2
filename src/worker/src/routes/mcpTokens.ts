@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
-import { createToken, listScopeOptions, listTokens, normalizeMcpTokenConfig, revealToken, revokeToken, updateToken } from "../services/mcpTokenManagementService";
+import { createToken, listScopeOptions, listTokens, normalizeMcpTokenConfig, normalizeMcpTokenName, revealToken, revokeToken, updateToken } from "../services/mcpTokenManagementService";
 
 const MAX_JSON_BYTES = 128 * 1024;
 
@@ -61,10 +61,13 @@ mcpTokenRoutes.post("/api/mcp/tokens", requireSession, sameOriginGuard, async (c
   if (!pepper || !(await schemaReady(c.env))) return c.json({ error: "unavailable" }, 503);
   const body = await readJson(c.req.raw);
   if (!body || typeof body !== "object") return c.json({ error: "invalid_request" }, 400);
-  const config = (body as { config?: unknown }).config;
+  const input = body as { config?: unknown; name?: unknown };
+  const config = input.config;
+  const name = normalizeMcpTokenName(input.name, true);
+  if (name === undefined) return c.json({ error: "invalid_request" }, 400);
   if (config !== undefined && !normalizeMcpTokenConfig(config, Date.now())) return c.json({ error: "invalid_request" }, 400);
   try {
-    const created = await createToken(c.env.DB, c.get("authUser")!.id, pepper, config);
+    const created = await createToken(c.env.DB, c.get("authUser")!.id, pepper, config, name);
     if (!created) return c.json({ error: "invalid_scope" }, 400);
     return c.json({ token: created.token }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch {
@@ -76,11 +79,14 @@ mcpTokenRoutes.patch("/api/mcp/tokens/:id", requireSession, sameOriginGuard, asy
   if (!(await schemaReady(c.env))) return c.json({ error: "unavailable" }, 503);
   const body = await readJson(c.req.raw);
   if (!body || typeof body !== "object" || !("config" in body)) return c.json({ error: "invalid_request" }, 400);
-  const config = (body as { config: unknown }).config;
+  const input = body as { config: unknown; name?: unknown };
+  const name = normalizeMcpTokenName(input.name, false);
+  if (name === undefined) return c.json({ error: "invalid_request" }, 400);
+  const config = input.config;
   const normalized = normalizeMcpTokenConfig(config, Date.now());
   if (!normalized) return c.json({ error: "invalid_request" }, 400);
   try {
-    const updated = await updateToken(c.env.DB, c.get("authUser")!.id, c.req.param("id"), normalized);
+    const updated = await updateToken(c.env.DB, c.get("authUser")!.id, c.req.param("id"), name, normalized);
     if (updated === null) return c.json({ error: "invalid_scope" }, 400);
     return updated ? c.json({ ok: true }) : c.json({ error: "not_found" }, 404);
   } catch {
