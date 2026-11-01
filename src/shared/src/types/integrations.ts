@@ -35,6 +35,11 @@ export interface BackupTarget {
   enabled: boolean;
   kind: "webdav" | "s3";
   endpoint: string;
+  /** Remote namespace for Menote backups; defaults to `menote`. */
+  remotePath: string;
+  /** Maximum completed snapshots to retain; 0 means unlimited. */
+  retentionCount: number;
+  lastPushedAt: number | null;
   bucket: string | null;
   username: string | null;
   secretEnc: OpaqueCiphertext;

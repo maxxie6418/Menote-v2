@@ -22,7 +22,7 @@ export async function listTargets(): Promise<TargetView[]> {
 
 export async function createTarget(input: {
   kind: "webdav" | "s3"; endpoint: string; bucket: string | null; username: string | null;
-  secret: string; schedule: "manual" | "daily" | "weekly"; name?: string;
+  secret: string; schedule: "manual" | "daily" | "weekly"; name?: string; remotePath: string; retentionCount: number;
 }): Promise<boolean> {
   try {
     const response = await fetch("/api/backup/targets", {
@@ -32,6 +32,38 @@ export async function createTarget(input: {
   } catch {
     return false;
   }
+}
+
+export async function testTarget(input: {
+  kind: "webdav" | "s3"; endpoint: string; bucket: string | null; username: string | null; secret: string; remotePath: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch("/api/backup/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    return await response.json() as { ok: boolean; error?: string };
+  } catch (error) { return { ok: false, error: String(error) }; }
+}
+
+export async function testSavedTarget(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`/api/backup/targets/${id}/test`, { method: "POST" });
+    return await response.json() as { ok: boolean; error?: string };
+  } catch (error) { return { ok: false, error: String(error) }; }
+}
+
+export async function listRemoteBackups(id: string): Promise<{ backups: Array<{ id: string; lastModified: string | null; complete: boolean }>; error?: string }> {
+  try {
+    const response = await fetch(`/api/backup/targets/${id}/backups`, { cache: "no-store" });
+    const body = await response.json() as { backups?: Array<{ id: string; lastModified: string | null; complete: boolean }>; error?: string };
+    return { backups: Array.isArray(body.backups) ? body.backups : [], ...(body.error ? { error: body.error } : {}) };
+  } catch (error) { return { backups: [], error: String(error) }; }
+}
+
+export async function deleteRemoteBackup(targetId: string, backupId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`/api/backup/targets/${targetId}/backups/${encodeURIComponent(backupId)}`, { method: "DELETE" });
+    const body = await response.json().catch(() => ({})) as { error?: string };
+    return response.ok ? { ok: true } : { ok: false, error: body.error ?? `HTTP ${response.status}` };
+  } catch (error) { return { ok: false, error: String(error) }; }
 }
 
 export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string }> {

@@ -12,7 +12,7 @@ export interface ScheduledJob {
 export const scheduledJobs: ScheduledJob[] = [
   {
     name: "backup_push",
-    description: "备份分片推送（daily/weekly 到期目标，G9）",
+    description: "备份快照推送（daily/weekly 到期目标，G9）",
     enabled: true,
     run: async (env) => {
       const { listDueTargets, recordTargetResult } = await import("../db/backup");
@@ -23,12 +23,13 @@ export const scheduledJobs: ScheduledJob[] = [
           const secret = await openSecret(Reflect.get(env, "AUTH_PEPPER") as string, target.secret_ciphertext ?? "");
           const result = await pushBackup(
             { db: env.DB, userId: target.user_id, bucket: env.BUCKET },
-            { kind: target.kind === "s3" ? "s3" : "webdav", endpoint: target.endpoint ?? "", bucket: target.bucket, username: target.username, secret },
+            { kind: target.kind === "s3" ? "s3" : "webdav", endpoint: target.endpoint ?? "", bucket: target.bucket, username: target.username, secret, remotePath: target.remote_path, retentionCount: target.retention_count },
           );
-          const message = result.ok ? `ok:${new Date().toISOString()}:${result.shards} 分片` : `失败:${result.error}`;
-          await recordTargetResult(env.DB, target.user_id, target.id, message);
+          const pushedAt = Date.now();
+          const message = result.ok ? `ok:${new Date(pushedAt!).toISOString()}:${result.shards} 分片` : `失败:${result.error}`;
+          await recordTargetResult(env.DB, target.user_id, target.id, message, pushedAt);
         } catch (error) {
-          await recordTargetResult(env.DB, target.user_id, target.id, `失败:${String(error).slice(0, 200)}`);
+          await recordTargetResult(env.DB, target.user_id, target.id, `失败:${String(error).slice(0, 200)}`, Date.now());
         }
       }
     },
