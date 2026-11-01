@@ -494,6 +494,14 @@
   .scale{display:flex;flex-direction:column;gap:10px}
   .srow2{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
   .sm{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);white-space:nowrap}
+
+  /* 滚动条原子（DESIGN §4.3）：10px 槽 + 6px 滑块，透明内缩 2px */
+  .sb-atoms{display:flex;gap:18px;align-items:flex-start}
+  .sb-a{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sb-a-box{position:relative;width:34px;height:92px;border:1px solid var(--app-border);border-radius:4px;background:var(--app-surface);overflow:hidden}
+  .sb-a-thumb{position:absolute;top:8px;right:2px;width:6px;height:34px;border-radius:999px;background:#C4C4C0}
+  .sb-a-hover .sb-a-thumb{background:#8E8E8A}
+  .sb-a-hover .sb-a-thumb::after{content:"";position:absolute;inset:-2px -4px -2px -4px}
   .s32{font-family:var(--app-font-serif);font-size:32px;line-height:1.2;color:var(--app-fg)}
   .s17{font-family:var(--app-font-serif);font-size:17px;color:var(--app-fg)}
   .s14{font-size:14px;color:var(--app-fg-muted)}
@@ -720,6 +728,22 @@
             <span>2026-10-30</span><span>1,240 字</span><span>#8c2a</span>
           </div>
           <p class="cnote">数字用 tabular-nums，列才对得齐。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">滚动条 · scrollbar</span><span class="path">槽 10 / 滑块 6</span></div>
+        <div class="card-b">
+          <div class="sb-atoms">
+            <div class="sb-a">
+              <div class="sb-a-box sb-a-normal"><div class="sb-a-thumb"></div></div>
+              <span class="sm">常态 1.75:1</span>
+            </div>
+            <div class="sb-a">
+              <div class="sb-a-box sb-a-hover"><div class="sb-a-thumb"></div></div>
+              <span class="sm">悬停 3.29:1</span>
+            </div>
+          </div>
+          <p class="cnote">发丝线 · 悬停加深；轨道透明，槽位恒定预留。</p>
         </div>
       </div>
     </div>
