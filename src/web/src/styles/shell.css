@@ -139,7 +139,8 @@
 .mn-tagchip:hover { color: var(--app-danger); }
 .mn-taginput { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); width: var(--app-field-width); padding: var(--app-space-2) var(--app-space-4); }
 .mn-taginput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
-.mn-editor-host { flex: 1; display: flex; min-height: var(--app-space-2xl); }
+.mn-editor-host { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.mn-editor-host .milkdown { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .mn-editor-source { flex: 1; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
 .mn-editor-source:focus-visible { outline: none; }
 .mn-doc-preview { flex: 1; }
@@ -315,7 +316,7 @@
 .mn-unlocktitle { font-family: var(--app-font-serif); font-size: var(--app-font-title); font-weight: var(--app-weight-serif); margin: var(--app-zero) var(--app-zero) var(--app-space-6); color: var(--app-fg); }
 
 /* ---------- WYSIWYG（Milkdown 接入） ---------- */
-.mn-editor-host .ProseMirror { outline: none; min-height: var(--app-space-2xl); font-size: var(--md-body-size); line-height: var(--md-body-leading); color: var(--md-body-color); }
+.mn-editor-host .ProseMirror { outline: none; flex: 1; min-height: var(--app-editor-min); cursor: text; font-size: var(--md-body-size); line-height: var(--md-body-leading); color: var(--md-body-color); }
 .mn-editor-host .ProseMirror h1 { font-family: var(--app-font-serif); font-size: var(--md-h1-size); font-weight: var(--md-h1-weight); line-height: var(--app-leading-doc-title); color: var(--md-h1-color); margin: 0 0 var(--app-space-18); }
 .mn-editor-host .ProseMirror h2, .mn-editor-host .ProseMirror h3, .mn-editor-host .ProseMirror h4, .mn-editor-host .ProseMirror h5, .mn-editor-host .ProseMirror h6 { color: var(--md-h2-color); font-weight: var(--md-h2-weight); margin: var(--app-space-md) 0 var(--app-space-6); }
 .mn-editor-host .ProseMirror p { margin: 0 0 var(--app-space-14); }

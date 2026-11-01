@@ -145,6 +145,7 @@
   --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
+  --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
@@ -193,27 +194,27 @@
   --md-table-col-4: 32%;
   --md-link-color: var(--app-link);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --app-surface: #1a1c1e;
-    --app-bg-side: #131518;
-    --app-surface-sunken: #232629;
-    --app-raised-on-side: #1f2225;
-    --app-seg-active: #33383c;
-    --app-selected: #2b2118;
-    --app-hover: #222528;
-    --app-border: #2c3033;
-    --app-border-subtle: #24282b;
-    --app-fg: #e9ebed;
-    --app-fg-muted: #a7adb2;
-    --app-fg-subtle: #8a9095;
-    --app-fg-faint: #7e848b;
-    --app-accent-hover: #ff9a3c;
-    --app-accent-text: #1a1208;
-    --app-accent-fg: #fbad41;
-    --app-accent-subtle: #3a2716;
-    --app-link: #7fa8ff;
-    --app-success: #8ca86b;
-    --app-danger: #f2b8b5;
-  }
+/* 深色令牌由 data-theme 驱动（账户菜单·主题切换）：index.html 引导脚本 + lib/theme.ts
+   负责写入；“跟随系统”档由 JS 依据系统偏好解析后落 data-theme。 */
+:root[data-theme="dark"] {
+  --app-surface: #1a1c1e;
+  --app-bg-side: #131518;
+  --app-surface-sunken: #232629;
+  --app-raised-on-side: #1f2225;
+  --app-seg-active: #33383c;
+  --app-selected: #2b2118;
+  --app-hover: #222528;
+  --app-border: #2c3033;
+  --app-border-subtle: #24282b;
+  --app-fg: #e9ebed;
+  --app-fg-muted: #a7adb2;
+  --app-fg-subtle: #8a9095;
+  --app-fg-faint: #7e848b;
+  --app-accent-hover: #ff9a3c;
+  --app-accent-text: #1a1208;
+  --app-accent-fg: #fbad41;
+  --app-accent-subtle: #3a2716;
+  --app-link: #7fa8ff;
+  --app-success: #8ca86b;
+  --app-danger: #f2b8b5;
 }
