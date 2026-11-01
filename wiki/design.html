@@ -334,6 +334,7 @@
   .s-dark .box.done{color:#1A1208}
   .s-dark .memo{background:#1D2023;border-color:#2E3235}
   .s-dark .formseg a.on{background:#33383C;box-shadow:none}
+  .s-dark .act:hover,.s-dark .stat:hover{box-shadow:0 2px 8px rgba(0,0,0,.28)}
 
   footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--app-border);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--app-fg-subtle)}
   footer .k{font-family:var(--app-font-serif);font-style:italic;font-size:13px;color:var(--app-fg-muted)}
@@ -610,6 +611,86 @@
   .gc-d{font-size:11.5px;color:var(--app-fg-subtle);line-height:1.6;margin-top:5px;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
   .gc-m{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);margin-top:9px;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
 
+  /* ---------- 主页（能力地图 + 状态快照） ----------
+     主页是默认落点，不是仪表盘：只放「能做什么」与「有多少」，不放统计图表与长列表。
+     每张卡一个动作、点击直达；侧栏只保留结构与待处理，避免入口重复。 */
+  .home-app{grid-template-columns:248px minmax(0,1fr)}
+  .home{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--app-surface)}
+  .home-bar{height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 34px;border-bottom:1px solid var(--app-border);flex:none}
+  .home-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
+  .home-bar .r{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .home-in{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:24px 34px 28px}
+
+  .home-sec + .home-sec{margin-top:22px}
+  .home-sec-t{
+    display:flex;align-items:center;gap:10px;margin-bottom:12px;
+    font-family:var(--app-font-mono);font-size:9.5px;text-transform:uppercase;color:var(--app-fg-faint);
+  }
+  .home-sec-t::after{content:"";order:1;flex:1;height:1px;background:var(--app-border-subtle)}
+  .home-sec-t .more{order:2;font-family:var(--app-font-ui);font-size:11.5px;text-transform:none;color:var(--app-link);text-decoration:none}
+  .home-sec-t .more:hover{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--app-accent)}
+
+  /* 行动卡：记一条 / 新建 / 搜索 —— 一行三张 */
+  .act-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .act{
+    display:flex;align-items:center;gap:11px;height:72px;padding:0 16px;text-decoration:none;color:var(--app-fg);
+    border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);
+    transition:border-color 130ms cubic-bezier(.2,.6,.3,1),box-shadow 130ms;
+  }
+  .act:hover{border-color:var(--app-fg-faint);box-shadow:0 2px 8px rgba(26,26,24,.06)}
+  .act .ic{width:30px;height:30px;border-radius:7px;background:var(--app-surface-sunken);display:grid;place-items:center;color:var(--app-fg-muted);flex:none}
+  .act .ic svg{width:14px;height:14px}
+  .act .tx{min-width:0}
+  .act .t{display:block;font-size:13px;font-weight:600;line-height:1.45}
+  .act .d{display:block;font-size:11.5px;color:var(--app-fg-faint);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .act .k{margin-left:auto;flex:none;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+
+  /* 状态卡：有多少 */
+  .stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .stat{
+    display:flex;flex-direction:column;gap:6px;padding:14px 16px 15px;text-decoration:none;
+    border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);
+    transition:border-color 130ms cubic-bezier(.2,.6,.3,1),box-shadow 130ms;
+  }
+  .stat:hover{border-color:var(--app-fg-faint);box-shadow:0 2px 8px rgba(26,26,24,.06)}
+  .stat .sh{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--app-fg-subtle)}
+  .stat .sh svg{width:13px;height:13px;color:var(--app-fg-faint)}
+  .stat .n{font-family:var(--app-font-mono);font-size:21px;font-weight:500;line-height:1.2;color:var(--app-fg);font-variant-numeric:tabular-nums}
+  .stat .n.accent{color:var(--app-accent-fg)}
+  .stat .d{font-size:11px;color:var(--app-fg-faint);line-height:1.5}
+
+  /* 最近编辑：沿用清单的行密度，不另起一套 */
+  .recent{border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);overflow:hidden}
+  .rrow{
+    display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;gap:12px;align-items:baseline;
+    padding:12px 16px;border-top:1px solid var(--app-border-subtle);text-decoration:none;
+  }
+  .rrow:first-child{border-top:0}
+  .rrow:hover{background:var(--app-hover)}
+  .rrow .ri{color:var(--app-fg-faint);align-self:center}
+  .rrow .ri svg{width:13px;height:13px}
+  .rrow .rt{font-size:13.5px;font-weight:600;color:var(--app-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rrow .rp{font-size:11.5px;color:var(--app-fg-faint);white-space:nowrap}
+  .rrow .rm{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* 主题速览：树给的是结构，这里给的是快照——主题名 + 篇数，横向一行 */
+  .tchips{display:flex;flex-wrap:wrap;gap:8px}
+  .tchip{
+    display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 13px;text-decoration:none;
+    border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);color:var(--app-fg-muted);font-size:12px;
+    transition:border-color 130ms cubic-bezier(.2,.6,.3,1),color 130ms;
+  }
+  .tchip:hover{border-color:var(--app-fg-faint);color:var(--app-fg)}
+  .tchip svg{width:12px;height:12px;color:var(--app-fg-faint)}
+  .tchip .n{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums}
+
+  /* 底部：把「还有什么」摊成三个入口 */
+  .home-links{display:flex;align-items:center;gap:22px;margin-top:24px;padding-top:16px;border-top:1px solid var(--app-border-subtle)}
+  .home-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--app-fg-muted);text-decoration:none}
+  .home-links a:hover{color:var(--app-fg);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--app-accent)}
+  .home-links a svg{width:13px;height:13px;color:var(--app-fg-faint)}
+  .home-links .hint{margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+
   /* ---------- 私人空间锁定 ---------- */
   .lock-app{grid-template-columns:248px minmax(0,1fr)}
   .lock-main{display:grid;place-items:center;min-width:0;min-height:0}
@@ -765,7 +846,7 @@
   .fbox .rx{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint);flex:none}
   .fbox.box-solid{border-style:solid;border-color:var(--app-border)}
 
-  /* Memo 形态：同一侧栏 + 两层浮层 */
+  /* 首页与 Memo 形态：侧栏 + 单列主区 */
   .fw-grid--memo{grid-template-columns:248px minmax(0,1fr);height:268px}
   .fw-row{display:flex;gap:8px;flex:1;min-height:0}
   .fw-row > .fbox{border-style:solid;border-color:var(--app-border)}
@@ -806,7 +887,7 @@
     <div class="screen-head"><span class="n">00</span><h2>应用视觉框架</h2><span class="desc">只标位置与名称、不填内容；说「改 A6」比说「左边那个箱子」准</span></div>
     <div class="frame">
       <div class="fw">
-        <div class="fw-cap"><b>① 应用外壳</b><span class="mono">.app · grid 248 / 340 / 1fr · 高 792 · 最小宽 1120</span></div>
+        <div class="fw-cap"><b>① 笔记视图</b><span class="mono">.app · grid 248 / 340 / 1fr · 高 792 · 最小宽 1120</span></div>
         <div class="fw-grid">
 
           <div class="fcol fcol--side">
@@ -814,8 +895,8 @@
             <div class="fbox" style="height:22px"><span class="fc">A1</span>品牌与设置</div>
             <div class="fbox" style="height:32px"><span class="fc">A2</span>Memo 记录条</div>
             <div class="fbox" style="height:30px"><span class="fc">A3</span>新建笔记</div>
-            <div class="fbox" style="height:26px"><span class="fc">A4</span>形态切换 · 笔记｜Memo</div>
-            <div class="fbox" style="height:40px"><span class="fc">A5</span>回看导航</div>
+            <div class="fbox" style="height:26px"><span class="fc">A4</span>视图切换 · 首页｜笔记｜Memo</div>
+            <div class="fbox" style="height:40px"><span class="fc">A5</span>回看 · 最近编辑／收藏</div>
             <div class="fbox" style="height:52px"><span class="fc">A6</span>待整理 · 收件箱／草稿箱</div>
             <div class="fbox grow top"><span class="fc">A7</span>主题树<span class="rx">滚动</span></div>
             <div class="fbox" style="height:34px"><span class="fc">A8</span>标签</div>
@@ -842,7 +923,26 @@
       </div>
 
       <div class="fw">
-        <div class="fw-cap"><b>② Memo 形态</b><span class="mono">.app.mvb-app · grid 248 / 1fr · D1／D3 是绝对定位浮层，不占栅格列</span></div>
+        <div class="fw-cap"><b>② 首页视图</b><span class="mono">.app.home-app · grid 248 / 1fr · 主区单栏，一屏装完不滚动</span></div>
+        <div class="fw-grid fw-grid--memo">
+          <div class="fcol fcol--side">
+            <div class="fcol-hd"><span class="fc">A</span>侧栏（同 ①，不变）</div>
+            <div class="fbox grow top"><span class="fc">A4</span>视图切换<span class="rx">选中：首页</span></div>
+          </div>
+          <div class="fcol">
+            <div class="fcol-hd"><span class="fc">I</span>首页主区 · 1fr · 单栏</div>
+            <div class="fbox box-solid" style="height:24px"><span class="fc">I1</span>首页顶栏</div>
+            <div class="fbox" style="height:34px"><span class="fc">I2</span>行动卡 · 记一条｜新建｜搜索</div>
+            <div class="fbox" style="height:34px"><span class="fc">I3</span>状态卡 · 收件箱｜草稿箱｜收藏｜待办</div>
+            <div class="fbox" style="height:34px"><span class="fc">I4</span>最近编辑<span class="rx">5 行</span></div>
+            <div class="fbox" style="height:26px"><span class="fc">I5</span>主题速览</div>
+            <div class="fbox" style="height:20px"><span class="fc">I6</span>浏览入口</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fw">
+        <div class="fw-cap"><b>③ Memo 形态</b><span class="mono">.app.mvb-app · grid 248 / 1fr · D1／D3 是绝对定位浮层，不占栅格列</span></div>
         <div class="fw-grid fw-grid--memo">
           <div class="fcol fcol--side">
             <div class="fcol-hd"><span class="fc">A</span>侧栏（同 ①，不变）</div>
@@ -861,7 +961,7 @@
       </div>
 
       <div class="fw">
-        <div class="fw-cap"><b>③ 独立层与独立屏幕</b><span class="mono">不参与 ①② 的栅格，浮在上层或整屏替换</span></div>
+        <div class="fw-cap"><b>④ 独立层与独立屏幕</b><span class="mono">不参与 ①②③ 的栅格，浮在上层或整屏替换</span></div>
         <div class="fw-layers">
           <div class="fbox"><span class="fc">E</span><b>设置对话框</b><span class="fm">648 × 530 · 唯一大阴影</span></div>
           <div class="fbox"><span class="fc">F</span><b>锁定卡</b><span class="fm">宽 346 · 内容区居中</span></div>
@@ -879,8 +979,8 @@
           <tr><td>A1</td><td>品牌与设置</td><td class="mono">.sb-top · .brand · .ic</td><td>产品名与设置入口，始终吸在侧栏顶</td></tr>
           <tr><td>A2</td><td>Memo 记录条</td><td class="mono">.memo</td><td>快速录入；展开时占用 A3 位置，不推开导航</td></tr>
           <tr><td>A3</td><td>新建笔记</td><td class="mono">.btn</td><td>全屏唯一橙色实心块；改样式会改变整屏视觉落点</td></tr>
-          <tr><td>A4</td><td>形态切换 · 笔记｜Memo</td><td class="mono">.formseg</td><td>一级形态切换，与 A7 的层级选中互不干扰</td></tr>
-          <tr><td>A5</td><td>回看导航</td><td class="mono">.nav</td><td>最近编辑 / 收藏；回看类入口，位于待整理之前</td></tr>
+          <tr><td>A4</td><td>视图切换 · 首页｜笔记｜Memo</td><td class="mono">.formseg</td><td>三个目的地互斥；与 A7 的层级选中互不干扰</td></tr>
+          <tr><td>A5</td><td>回看 · 最近编辑／收藏</td><td class="mono">.nav</td><td>回看类入口，位于待整理之前；暂时保留在侧栏</td></tr>
           <tr><td>A6</td><td>待整理 · 收件箱／草稿箱</td><td class="mono">.queue</td><td>两条未归类队列；紧贴 A7，因为整理动作的终点是树</td></tr>
           <tr><td>A7</td><td>主题树</td><td class="mono">.tree · .sec-label</td><td>主题／分组／私人空间；只显示层级，不显示笔记</td></tr>
           <tr><td>A8</td><td>标签</td><td class="mono">.tags · .tag-chip</td><td>跨主题检索入口，不参与层级</td></tr>
@@ -903,20 +1003,43 @@
           <tr><td>F</td><td>锁定卡</td><td class="mono">.lock-card</td><td>私人空间锁定态；宽 346 固定，不随窗口拉宽</td></tr>
           <tr><td>G</td><td>网格区</td><td class="mono">.gcards · .gcard</td><td>替换 B＋C；3 列，卡片点开进入独立阅读区</td></tr>
           <tr><td>H</td><td>图册区</td><td class="mono">.gal-scroll · .gal-cols</td><td>替换 D2；3 列瀑布流，懒加载占位保比例</td></tr>
+          <tr><td>I</td><td>首页主区</td><td class="mono">.home · 1fr</td><td>默认落点；单栏，一屏装完不滚动</td></tr>
+          <tr><td>I1</td><td>首页顶栏</td><td class="mono">.home-bar</td><td>标题＋日期与同步状态；固定不滚</td></tr>
+          <tr><td>I2</td><td>行动卡</td><td class="mono">.act-row · .act</td><td>记一条 Memo / 新建笔记 / 搜索一切；每张卡一个动作</td></tr>
+          <tr><td>I3</td><td>状态卡</td><td class="mono">.stat-row · .stat</td><td>收件箱 / 草稿箱 / 收藏 / Memo 待办；只给数量与一句说明</td></tr>
+          <tr><td>I4</td><td>最近编辑</td><td class="mono">.recent · .rrow</td><td>沿用清单行密度，固定 5 行；与 A5 同源不同密度</td></tr>
+          <tr><td>I5</td><td>主题速览</td><td class="mono">.tchips · .tchip</td><td>主题名 + 篇数横向一行；树给结构，这里给快照</td></tr>
+          <tr><td>I6</td><td>浏览入口</td><td class="mono">.home-links</td><td>按标签 / 回顾与随机漫步 / 全部 Memo；把「还有什么」摊开</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="notes">
       <div><b>这张图的作用</b>：改版时先在图上报位置，再改代码。「把收件箱挪上去」会歧义，「把 A6 移到 A3 之下」不会。</div>
-      <div><b>只标结构，不标状态</b>：悬停、选中、禁用、加载、空态、错误统一在 <span class="mono">10 组件状态</span> 与各屏说明里，不塞进这张图。</div>
+      <div><b>只标结构，不标状态</b>：悬停、选中、禁用、加载、空态、错误统一在 <span class="mono">11 组件状态</span> 与各屏说明里，不塞进这张图。</div>
       <div><b>三块底色就是三个区域</b>：侧栏后退一档、清单与文档同纸面，这个差是刻意的（DESIGN §1.2），图上已用底色画出。</div>
       <div><b>「滚动」标记</b>：A7／B3／C4／D2 各自独立滚动，页面本身不滚（DESIGN §5.3）。改高度时先确认滚动容器是谁。</div>
     </div>
   </section>
 
   <section class="screen" id="s1">
-    <div class="screen-head"><span class="n">01</span><h2>主界面 · 浅色</h2><span class="desc">侧栏 / 笔记清单 / 文档，三栏三密度</span></div>
+    <div class="screen-head"><span class="n">01</span><h2>首页</h2><span class="desc">默认落点 · 单栏一屏装下 · 每张卡都是一次点击</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="home"></div></div>
+    <div class="notes">
+      <div><b>首页不是仪表盘</b>：它只放两样——<b>能力地图</b>（能做什么，每张卡一个动作）和<b>状态快照</b>（有多少，一行说明）。回顾类统计已经在 Memo 工作栏里，再画一遍就是两套排序规则。</div>
+      <div><b>单栏且不滚动</b>：一列自上而下四块（行动 / 状态 / 最近编辑 / 浏览入口），在 792 高度内一屏装完，不产生滚动条；窗口更矮时才退化为可滚动。首页的价值是「一眼看全」，看不全就白做了。</div>
+      <div><b>侧栏暂时没动</b>：最近编辑与收藏仍留在原位（FR-IA-4 的回看区），与首页的状态卡并存——侧栏给直达入口，首页给快照。谁让位等入口用顺了再定，不在这次一起砍。</div>
+      <div><b>分段变三格</b>：首页 | 笔记 | Memo，三个目的地互斥。树上的层级选中与它用不同的选中语言（白底橙条 vs 白底阴影），可以同时存在而不互相误读。</div>
+      <div><b>待整理仍在侧栏</b>：收件箱 / 草稿箱是待办队列，计数必须常驻可见，不能等用户进首页才发现。</div>
+      <div><b>冷启动不空壳</b>：全 0 时行动条照常在（记 Memo / 新建笔记 / 搜索），状态卡显示 0，最近编辑区换成一句引导，不出现死面。</div>
+    </div>
+    <div class="callout">
+      <b>待你确认</b>：本页改了两条定稿表述——①侧栏新增「首页」入口，视图切换为「首页 | 笔记 | Memo」；②默认落点由「清单第一行」改为「首页」。需求说明书 FR-IA-4 与主文档 2.3 我没有擅自改，确认后再同步。
+    </div>
+  </section>
+
+  <section class="screen" id="s2">
+    <div class="screen-head"><span class="n">02</span><h2>主界面 · 浅色</h2><span class="desc">侧栏 / 笔记清单 / 文档，三栏三密度</span></div>
     <div class="frame"><div class="shell s-light" data-screen="main"></div></div>
     <div class="notes">
       <div><b>A4 形态切换补齐了缺的那一半</b>：原来侧栏只有「Memo 时间线」一个形态入口，Note 形态没有入口，所以从 Memo 回不去——这是信息架构缺口，不是样式问题。</div>
@@ -931,13 +1054,13 @@
     </div>
   </section>
 
-  <section class="screen" id="s2">
-    <div class="screen-head"><span class="n">02</span><h2>主界面 · 深色</h2><span class="desc">结构不变，仅换令牌；侧栏压暗一档</span></div>
+  <section class="screen" id="s3">
+    <div class="screen-head"><span class="n">03</span><h2>主界面 · 深色</h2><span class="desc">结构不变，仅换令牌；侧栏压暗一档</span></div>
     <div class="frame"><div class="shell s-dark" data-screen="main"></div></div>
   </section>
 
-  <section class="screen" id="s3">
-    <div class="screen-head"><span class="n">03</span><h2>Memo 时间线</h2><span class="desc">顶栏（返回＋视图切换）/ 工作栏 / 时间轴 / Todo 浮条，不打开完整编辑器</span></div>
+  <section class="screen" id="s4">
+    <div class="screen-head"><span class="n">04</span><h2>Memo 时间线</h2><span class="desc">顶栏（返回＋视图切换）/ 工作栏 / 时间轴 / Todo 浮条，不打开完整编辑器</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memo"></div></div>
     <div class="notes">
       <div><b>两个返回入口分工</b>：侧栏 A4 是「换形态」，常驻、双向，滚到多深都在；顶栏 D4 的「← 笔记」是「回去」，就地在内容区左上角，回到你刚才那篇的确切位置。</div>
@@ -948,8 +1071,8 @@
     </div>
   </section>
 
-  <section class="screen" id="s4">
-    <div class="screen-head"><span class="n">04</span><h2>Memo 图册 · 图片瀑布流</h2><span class="desc">同一批 Memo 附件的另一种排布，不是独立图库类型</span></div>
+  <section class="screen" id="s5">
+    <div class="screen-head"><span class="n">05</span><h2>Memo 图册 · 图片瀑布流</h2><span class="desc">同一批 Memo 附件的另一种排布，不是独立图库类型</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memoGallery"></div></div>
     <div class="notes" style="margin-left:38px">
       <div><b>3 列 masonry</b>：列数固定，图片按原始宽高比落位，缩略图不裁切——裁切会让人认不出自己的素材。</div>
@@ -960,28 +1083,28 @@
     </div>
   </section>
 
-  <section class="screen" id="s5">
-    <div class="screen-head"><span class="n">05</span><h2>Memo 渲染样式 · 行内与列表</h2><span class="desc">行内格式、无序/有序列表、任务列表（可勾选，改写正文）</span></div>
+  <section class="screen" id="s6">
+    <div class="screen-head"><span class="n">06</span><h2>Memo 渲染样式 · 行内与列表</h2><span class="desc">行内格式、无序/有序列表、任务列表（可勾选，改写正文）</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memoStylesInline"></div></div>
   </section>
 
-  <section class="screen" id="s6">
-    <div class="screen-head"><span class="n">06</span><h2>Memo 渲染样式 · 块级与降级</h2><span class="desc">引用、代码块、分隔线、图片；不支持的语法原样保留</span></div>
+  <section class="screen" id="s7">
+    <div class="screen-head"><span class="n">07</span><h2>Memo 渲染样式 · 块级与降级</h2><span class="desc">引用、代码块、分隔线、图片；不支持的语法原样保留</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memoStylesBlock"></div></div>
   </section>
 
-  <section class="screen" id="s7">
-    <div class="screen-head"><span class="n">07</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
+  <section class="screen" id="s8">
+    <div class="screen-head"><span class="n">08</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
     <div class="frame"><div class="shell s-light" data-screen="grid"></div></div>
   </section>
 
-  <section class="screen" id="s8">
-    <div class="screen-head"><span class="n">08</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
+  <section class="screen" id="s9">
+    <div class="screen-head"><span class="n">09</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
     <div class="frame"><div class="shell s-light" data-screen="lock"></div></div>
   </section>
 
-  <section class="screen" id="s9">
-    <div class="screen-head"><span class="n">09</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
+  <section class="screen" id="s10">
+    <div class="screen-head"><span class="n">10</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
     <div class="frame">
       <div class="stage">
         <div class="dialog">
@@ -1035,8 +1158,8 @@
     </div>
   </section>
 
-  <section class="screen" id="s10">
-    <div class="screen-head"><span class="n">10</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
+  <section class="screen" id="s11">
+    <div class="screen-head"><span class="n">11</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
     <div class="states">
       <div class="state-card">
         <h4>按钮</h4>
@@ -1092,13 +1215,13 @@
     </div>
   </section>
 
-  <section class="screen" id="s11">
-    <div class="screen-head"><span class="n">11</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
+  <section class="screen" id="s12">
+    <div class="screen-head"><span class="n">12</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
     <div class="frame"><div class="shell s-light" data-screen="empty"></div></div>
   </section>
 
-  <section class="screen" id="s12">
-    <div class="screen-head"><span class="n">12</span><h2>滚动条</h2><span class="desc">极细发丝线 · 悬停加深 · 全局接管所有原生滚动容器</span></div>
+  <section class="screen" id="s13">
+    <div class="screen-head"><span class="n">13</span><h2>滚动条</h2><span class="desc">极细发丝线 · 悬停加深 · 全局接管所有原生滚动容器</span></div>
     <div class="frame">
       <div class="sb-grid">
         <div class="sb-cell">
@@ -1192,15 +1315,23 @@
     list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
     grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
     sliders:S('<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
-    check: S('<path d="m4 12 5 5L20 6"/>')
+    check: S('<path d="m4 12 5 5L20 6"/>'),
+    search:S('<circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/>'),
+    todo:  S('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 9h8M8 14h5"/>'),
+    tag:   S('<path d="M3 11V4a1 1 0 0 1 1-1h7l9 9-8 8z"/><circle cx="7.5" cy="7.5" r="1.4"/>'),
+    arrow: S('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+    bolt:  S('<path d="M13 3 5 14h6l-1 7 8-11h-6z"/>')
   };
 
   /* ---------- 侧栏 ---------- */
   function sidebar(cur){
-    /* cur: 'ue5' | 'priv' | 'memo' —— 前两者是「笔记」形态，memo 是「Memo」形态 */
-    var formMemo = cur==='memo';
-    var onNote = formMemo ? '' : ' class="on"';
-    var onMemo = formMemo ? ' class="on"' : '';
+    /* cur: 'home' | 'ue5' | 'priv' | 'memo'
+       视图三态：首页（总览） / 笔记（文档三栏） / Memo（时间线）。
+       侧栏顺序沿用 FR-IA-4：记录 → 新建 → 视图切换 → 回看 → 待整理 → 主题树 → 标签。 */
+    var view = (cur==='home') ? 'home' : (cur==='memo' ? 'memo' : 'note');
+    var onHome = view==='home' ? ' class="on"' : '';
+    var onNote = view==='note' ? ' class="on"' : '';
+    var onMemo = view==='memo' ? ' class="on"' : '';
     var treeUE5  = cur==='ue5'  ? ' class="l2 on"' : ' class="l2"';
     var treePriv = cur==='priv' ? ' class="priv on"' : ' class="priv"';
     return ''
@@ -1209,12 +1340,13 @@
     +     '<button class="ic" aria-label="设置">'+ic.sliders+'</button></div>'
     +   '<div class="memo"><span class="dot-mark"></span><span>记一条 Memo…</span><span class="kbd">⌘↵</span></div>'
     +   '<button class="btn">'+ic.plus+'新建笔记</button>'
-    /* A4 形态切换：笔记 ↔ Memo。切形态不改树上的位置，回来还是上次那篇 */
-    +   '<div class="formseg" role="group" aria-label="内容形态">'
-    +     '<a href="#s1"'+onNote+'>笔记</a>'
-    +     '<a href="#s3"'+onMemo+'>Memo</a>'
+    /* A4 视图切换：首页 | 笔记 | Memo。三个目的地互斥，与树上的层级选中不冲突 */
+    +   '<div class="formseg" role="group" aria-label="视图切换">'
+    +     '<a href="#s1"'+onHome+'>首页</a>'
+    +     '<a href="#s2"'+onNote+'>笔记</a>'
+    +     '<a href="#s4"'+onMemo+'>Memo</a>'
     +   '</div>'
-    /* A5 回看 */
+    /* A5 回看：暂时保留在原位，与首页的状态卡并存 */
     +   '<nav class="nav">'
     +     '<a href="#">'+ic.clock+'最近编辑</a>'
     +     '<a href="#">'+ic.star+'收藏<span class="cnt plain">6</span></a>'
@@ -1222,8 +1354,8 @@
     /* A6 待整理：两条队列，紧贴主题树之上 */
     +   '<div class="sec-label"><span class="lb">待整理</span></div>'
     +   '<div class="queue">'
-    +     '<a href="#s1">'+ic.inbox+'收件箱<span class="q">3</span></a>'
-    +     '<a href="#s1">'+ic.file+'草稿箱<span class="q quiet">2</span></a>'
+    +     '<a href="#">'+ic.inbox+'收件箱<span class="q">3</span></a>'
+    +     '<a href="#s12">'+ic.file+'草稿箱<span class="q quiet">2</span></a>'
     +   '</div>'
     +   '<div class="sec-label"><span class="lb">主题</span>'
     +     '<button class="mini" aria-label="新建主题">'+ic.plus+'</button></div>'
@@ -1331,6 +1463,99 @@
     + '</article>';
   }
 
+  /* ---------- 主页（能力地图 + 状态快照） ----------
+     只放两样：能做什么（行动卡）、有多少（状态卡）。最近编辑沿用清单行密度，不另起一套。
+     每张卡都是一次点击直达；不放统计图表，也不放长列表——那是仪表盘，会长出第二套排序规则。 */
+  function homeScreen(){
+    var acts = [
+      {i:ic.memo,   t:'记一条 Memo', d:'随手一笔，不进文档',   k:'⌘↵'},
+      {i:ic.file,   t:'新建笔记',    d:'正式文档，先写再分类', k:'⌘N'},
+      {i:ic.search, t:'搜索一切',    d:'主题 / 笔记 / Memo / 标签', k:'⌘K'}
+    ];
+    var stats = [
+      {i:ic.inbox, t:'收件箱',    n:'3', d:'外部采集与 Agent 输入', a:true},
+      {i:ic.file,  t:'草稿箱',    n:'2', d:'自建未归类',            a:false},
+      {i:ic.star,  t:'收藏',      n:'6', d:'标记过的笔记',          a:false},
+      {i:ic.todo,  t:'Memo 待办', n:'2', d:'进行中的任务',          a:false}
+    ];
+    var recents = [
+      {t:'材质工作流',    p:'游戏美术 › UE5',     m:'14:02'},
+      {t:'场景灯光规范',  p:'游戏美术 › UE5',     m:'昨天',   lock:true},
+      {t:'程序化资产拆分', p:'游戏美术 › Houdini', m:'周二'},
+      {t:'蓝图命名约定',  p:'游戏美术 › UE5',     m:'10-24'},
+      {t:'渲染采样对比',  p:'产品设计 › 渲染',     m:'10-21',  tbl:true}
+    ];
+    var themes = [
+      {t:'游戏美术', n:'12'}, {t:'产品设计', n:'8'}, {t:'阅读清单', n:'5'},
+      {t:'灵感收集', n:'4'}, {t:'归档', n:'31'}, {t:'学习笔记', n:'6'},
+      {t:'私人空间', lock:true}
+    ];
+    var actHtml = acts.map(function(a){
+      return '<a class="act" href="#">'
+        + '<span class="ic">'+a.i+'</span>'
+        + '<span class="tx"><span class="t">'+a.t+'</span><span class="d">'+a.d+'</span></span>'
+        + '<span class="k">'+a.k+'</span></a>';
+    }).join('');
+    var statHtml = stats.map(function(s){
+      return '<a class="stat" href="#">'
+        + '<span class="sh">'+s.i+s.t+'</span>'
+        + '<span class="n'+(s.a?' accent':'')+'">'+s.n+'</span>'
+        + '<span class="d">'+s.d+'</span></a>';
+    }).join('');
+    var recentHtml = recents.map(function(r){
+      var icon = r.lock ? ic.lock : (r.tbl ? ic.table : ic.file);
+      return '<a class="rrow" href="#s2">'
+        + '<span class="ri">'+icon+'</span>'
+        + '<span class="rt">'+r.t+'</span>'
+        + '<span class="rp">'+r.p+'</span>'
+        + '<span class="rm">'+r.m+'</span></a>';
+    }).join('');
+
+    var themeHtml = themes.map(function(t){
+      return '<a class="tchip" href="'+(t.lock ? '#s9' : '#s2')+'">'
+        + (t.lock ? ic.lock : '')
+        + t.t
+        + (t.n ? '<span class="n">'+t.n+'</span>' : '')
+        + '</a>';
+    }).join('');
+
+    return sidebar('home')
+      + '<div class="home">'
+      +   '<div class="home-bar"><span class="t">首页</span>'
+      +     '<span class="r">11-01 · 已同步 42 篇</span></div>'
+      +   '<div class="home-in">'
+
+      +     '<div class="home-sec">'
+      +       '<div class="home-sec-t">行动</div>'
+      +       '<div class="act-row">'+actHtml+'</div>'
+      +     '</div>'
+
+      +     '<div class="home-sec">'
+      +       '<div class="home-sec-t">状态</div>'
+      +       '<div class="stat-row">'+statHtml+'</div>'
+      +     '</div>'
+
+      +     '<div class="home-sec">'
+      +       '<div class="home-sec-t">最近编辑<a class="more" href="#s2">全部 ›</a></div>'
+      +       '<div class="recent">'+recentHtml+'</div>'
+      +     '</div>'
+
+      +     '<div class="home-sec">'
+      +       '<div class="home-sec-t">主题速览<a class="more" href="#s2">全部主题 ›</a></div>'
+      +       '<div class="tchips">'+themeHtml+'</div>'
+      +     '</div>'
+
+      +     '<div class="home-links">'
+      +       '<a href="#s2">'+ic.tag+'按标签浏览'+ic.arrow+'</a>'
+      +       '<a href="#s4">'+ic.bolt+'回顾与随机漫步'+ic.arrow+'</a>'
+      +       '<a href="#s4">'+ic.memo+'全部 Memo'+ic.arrow+'</a>'
+      +       '<span class="hint">⌘K 搜索一切</span>'
+      +     '</div>'
+
+      +   '</div>'
+      + '</div>';
+  }
+
   /* ---------- Memo 视图 ---------- */
   /* ---------- 网格视图 ---------- */
   /* ---------- Memo 二级侧栏（V1：概述 / 热力图 / 随机漫步 / 那年今日 / 日期 / 标签） ---------- */
@@ -1400,7 +1625,7 @@
 
       + '<div class="memo-main">'
       +   '<div class="memo-bar">'
-      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +     '<div class="bar-l"><a class="back" href="#s2">'+ic.left+'笔记</a><span class="vdiv"></span>'
       +       '<span class="t">Memo</span></div>'
       +     '<span class="r">全部 · 1,076 条</span>'
       +     '<div class="view-seg"><span aria-selected="true">时间轴</span><span>图册</span></div>'
@@ -1442,7 +1667,7 @@
       + memoWorkbar()
       + '<div class="memo-main">'
       +   '<div class="memo-bar">'
-      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +     '<div class="bar-l"><a class="back" href="#s2">'+ic.left+'笔记</a><span class="vdiv"></span>'
       +       '<span class="t">Memo</span></div>'
       +     '<span class="r">渲染样式 · 行内与列表</span></div>'
       +   '<div class="memo-list tl--flat">'
@@ -1476,7 +1701,7 @@
       + memoWorkbar()
       + '<div class="memo-main">'
       +   '<div class="memo-bar">'
-      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +     '<div class="bar-l"><a class="back" href="#s2">'+ic.left+'笔记</a><span class="vdiv"></span>'
       +       '<span class="t">Memo</span></div>'
       +     '<span class="r">渲染样式 · 块级与降级</span></div>'
       +   '<div class="memo-list tl--flat">'
@@ -1609,7 +1834,7 @@
       + memoWorkbar()
       + '<div class="memo-main">'
       +   '<div class="gal-toolbar">'
-      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span></div>'
+      +     '<div class="bar-l"><a class="back" href="#s2">'+ic.left+'笔记</a><span class="vdiv"></span></div>'
       +     '<div class="seg-full"><span aria-selected="true">全部</span><span>材质</span><span>光照</span><span>工作流</span></div>'
       +     '<span class="r">24 张 · 按时间倒序</span>'
       +     '<div class="view-seg"><span>时间轴</span><span aria-selected="true">图册</span></div>'
@@ -1622,6 +1847,7 @@
   }
 
   var builders = {
+    home: function(){ return '<div class="app home-app">' + homeScreen() + '</div>'; },
     main:  function(){ return '<div class="app">' + sidebar('ue5') + listPane() + docPane() + '</div>'; },
     memo:  function(){ return '<div class="app mvb-app">' + memoScreen() + '</div>'; },
     memoGallery: function(){ return '<div class="app mvb-app">' + galleryScreen() + '</div>'; },
