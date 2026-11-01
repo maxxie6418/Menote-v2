@@ -46,8 +46,9 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   if (!item || item.id !== operation.entityId) throw new SyncRejected("invalid_payload");
   const current = await readItemState(ctx.db, ctx.userId, item.id);
   if (current) {
-    // 重放判定（G2 §5-1）：正文一致且 baseRev 落后 → 响应丢失重放。
-    if (current.contentHash === operation.contentHash && operation.baseRev < current.rev) {
+    // 正文未变化时无需判为冲突；即使本地 rev/metaRev 已落后，也按服务端胜出的重复操作收敛。
+    if (current.contentHash === item.contentHash &&
+        (current.rev !== operation.baseRev || current.metaRev !== operation.baseMetaRev)) {
       return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: current.metaRev, contentHash: current.contentHash };
     }
     if (item.type === "memo") {

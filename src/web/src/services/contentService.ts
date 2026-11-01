@@ -64,20 +64,36 @@ export async function createNote(
   userId: string, options: { title?: string; topicId?: string | null; groupId?: string | null; source?: ItemSource } = {},
 ): Promise<Item> {
   const source = options.source ?? "manual";
+  const requestedTitle = options.title?.trim() || "无标题";
   const item: Item = {
     id: newId(), userId, type: "note",
     topicId: options.topicId ?? null, groupId: options.groupId ?? null,
-    title: options.title?.trim() || "无标题", tags: [], status: null, attachmentHashes: [],
+    title: requestedTitle, tags: [], status: null, attachmentHashes: [],
     source, rev: 1, metaRev: 1, contentHash: await sha256Hex(""),
     pinned: false, starred: false, createdAt: Date.now(), updatedAt: Date.now(), deletedAt: null,
     content: { scope: "plain", markdown: "" },
   };
+  let createdItem = item;
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
-    await localDb.items.put(item);
-    await localDb.outbox.add(outboxUpsert(item, 0, 0, item.contentHash));
+    const title = source === "manual" && requestedTitle === "无标题"
+      ? await nextUntitledTitle(userId)
+      : requestedTitle;
+    createdItem = { ...item, title };
+    await localDb.items.put(createdItem);
+    await localDb.outbox.add(outboxUpsert(createdItem, 0, 0, createdItem.contentHash));
   });
   notifyLocalChange();
-  return item;
+  return createdItem;
+}
+
+/** 手动新建默认标题按用户现有条目编号，避免连续创建出相同的“无标题”。 */
+async function nextUntitledTitle(userId: string): Promise<string> {
+  const items = await localDb.items.where("userId").equals(userId).toArray();
+  const existing = new Set(items.filter((item) => item.type !== "memo").map((item) => item.title).filter((title): title is string => title !== null));
+  if (!existing.has("无标题")) return "无标题";
+  let suffix = 2;
+  while (existing.has(`无标题 ${suffix}`)) suffix += 1;
+  return `无标题 ${suffix}`;
 }
 
 export async function createMemo(userId: string, markdown: string, tags: string[] = []): Promise<Item> {

@@ -97,13 +97,11 @@
 [data-layout="mobile"] .mn-shell { flex-direction: column; }
 
 /* ---------- 系统状态页 ---------- */
-.mn-statuspage { min-height: var(--app-viewport-height); display: flex; flex-direction: column; background: var(--app-surface); }
+.mn-main.mn-statuspage { min-width: 0; min-height: 0; display: flex; flex: 1; flex-direction: column; overflow-y: auto; background: var(--app-surface); }
 .mn-statusbar { display: flex; align-items: center; gap: var(--app-space-sm); padding: var(--app-space-sm) var(--app-space-lg); border-bottom: var(--app-line) solid var(--app-border); background: var(--app-surface); flex: none; }
 .mn-statusbar-title { font-weight: var(--app-weight-medium); }
-.mn-statuspage .app-main { flex: 1; }
-.mn-statuspage .app-main { padding: var(--app-space-xl) var(--app-space-lg) var(--app-space-2xl); }
 .mn-statusbar-version { margin-left: auto; color: var(--app-fg-subtle); font-family: var(--app-font-mono); font-size: var(--app-font-small); }
-.mn-status-content { width: min(var(--app-status-content-width), var(--app-full-size)); margin: var(--app-zero) auto; }
+.mn-status-content { width: min(var(--app-status-content-width), var(--app-full-size)); margin: var(--app-zero) auto; padding: var(--app-space-xl) var(--app-space-lg) var(--app-space-2xl); }
 .mn-status-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--app-space-lg); margin-bottom: var(--app-space-lg); }
 .mn-status-heading h1 { margin: var(--app-space-2) var(--app-zero); }
 .mn-health-chip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-xs); padding: var(--app-space-xs) var(--app-space-sm); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-pill); background: var(--app-surface); font-size: var(--app-font-small); }

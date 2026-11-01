@@ -97,10 +97,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const topics = useTopics(userId);
   const items = useSectionItems(userId, section);
 
-  if (view === "status") {
-    return <SystemStatusPage onBack={() => setView("main")} />;
-  }
-
   const account = { username: user.username, role: user.role };
   const shellProps = {
     "data-layout": layout,
@@ -114,9 +110,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       collapsed={collapsed && layout === "compact"}
       drawerOpen={drawerOpen}
       section={section}
-      onSelectSection={(next) => { setSection(next); setNoteId(null); setMobilePane("list"); setDrawerOpen(false); }}
+      onSelectSection={(next) => { setView("main"); setSection(next); setNoteId(null); setMobilePane("list"); setDrawerOpen(false); }}
       onCreateNote={async () => {
         const created = await createNote(userId);
+        setView("main");
         setSection({ kind: "drafts" });
         setNoteId(created.id);
         setMobilePane("doc");
@@ -135,6 +132,17 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onClose={() => setSettingsOpen(false)}
     />
   ) : null;
+
+  if (view === "status") {
+    return (
+      <div className="mn-shell" {...shellProps}>
+        {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
+        {sidebar}
+        <SystemStatusPage onBack={() => setView("main")} />
+        {settingsDialog}
+      </div>
+    );
+  }
 
   if (section.kind === "memos") {
     return (
