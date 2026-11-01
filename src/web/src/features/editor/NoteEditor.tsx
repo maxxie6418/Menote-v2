@@ -45,6 +45,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       });
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
+      // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
       void MilkdownWysiwygAdapter.create(host, {
         initialMarkdown: initial,
         onInput: (value) => { dirtyRef.current = true; onInputRef.current(value); },
@@ -55,6 +56,19 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         registerApplyExternal((markdown) => {
           dirtyRef.current = false;
           adapter.loadMarkdown(markdown);
+        });
+      }).catch((cause) => {
+        console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
+        const fallback = new TextareaSourceAdapter(host, {
+          initialMarkdown: initial,
+          onInput: (value) => { dirtyRef.current = true; onInputRef.current(value); },
+        });
+        if (cancelled) { fallback.destroy(); return; }
+        adapterRef.current = fallback;
+        registerGetMarkdown(() => fallback.getMarkdown());
+        registerApplyExternal((markdown) => {
+          dirtyRef.current = false;
+          fallback.loadMarkdown(markdown);
         });
       });
     }
