@@ -100,6 +100,7 @@
   --app-avatar-size: 1.1875rem;    /* 19px 头像 */
   --app-account-menu-min: 13rem;   /* 208px 账户菜单 */
   --app-logo-size: 1.375rem;       /* 22px 侧栏品牌图标 */
+  --app-authloading-logo: 6rem;    /* 96px 登录检查屏 logo（与 shell.css 动效幅度成对，见该处注释） */
   --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
   --app-radius-sm: 0.25rem;        /* 4px */
   --app-radius-md: 0.3125rem;      /* 5px */
@@ -125,6 +126,7 @@
   /* 动效（DESIGN §4.3） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+  --app-motion-loop: 1.8s;         /* 登录检查屏云/书往复周期（参考 V1 authloading） */
   /* 旧状态页与通用控件沿用 */
   --app-zero: 0;
   --app-full-size: 100%;

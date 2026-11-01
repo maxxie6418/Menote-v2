@@ -4,9 +4,12 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 // 与既有 web 测试同模式：esbuild 打包后经 data URL 加载；网络用可注入的 fetch 假体。
+// loader .svg=text：AuthGate 按 ?raw 内联 public/icon.svg 做登录检查屏动画，esbuild 没有 Vite 的 ?raw
+// 处理，这里按扩展名配 text loader 等价内联（Vite 侧由 vite build 原生处理）。
 const featureBundle = await build({
   entryPoints: [fileURLToPath(new URL("../src/features/auth/index.ts", import.meta.url))],
   bundle: true, write: false, format: "esm", platform: "browser",
+  loader: { ".svg": "text" },
 });
 const auth = await import(`data:text/javascript;base64,${Buffer.from(featureBundle.outputFiles[0].text).toString("base64")}`);
 

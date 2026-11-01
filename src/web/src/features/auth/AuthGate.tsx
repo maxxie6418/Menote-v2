@@ -5,6 +5,15 @@ import { CredentialsForm } from "./CredentialsForm";
 
 type GatePhase = "loading" | "unavailable" | "bootstrap" | "login" | "ready";
 
+/** 站点图标本体内联（登录检查屏加载动画）；/icon.svg 由 Vite 静态资源目录提供。 */
+function useLogoMarkup(): string {
+  const [markup, setMarkup] = useState("");
+  useEffect(() => {
+    fetch("/icon.svg").then((r) => r.text()).then(setMarkup).catch(() => {});
+  }, []);
+  return markup;
+}
+
 interface GateState {
   phase: GatePhase;
   user: AuthUser | null;
@@ -62,10 +71,20 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     );
   }
 
+  const logoMarkup = useLogoMarkup();
   if (state.phase === "loading") {
     return (
       <section className="mn-auth" aria-busy="true">
-        <div className="mn-auth-card"><p className="mn-auth-hint">正在确认登录状态…</p></div>
+        <div className="mn-authloading" role="status">
+          {/* 装饰性插画：状态语义由下面那行 visually-hidden 文字承担，图形对辅助技术隐藏。
+              内联的是运行时 fetch 的站点图标本体（非用户输入），dangerouslySetInnerHTML 安全。 */}
+          <div
+            className="mn-authloading-logo"
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: logoMarkup }}
+          />
+          <span className="mn-visually-hidden">正在确认登录状态…</span>
+        </div>
       </section>
     );
   }
