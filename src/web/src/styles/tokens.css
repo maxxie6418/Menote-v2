@@ -149,6 +149,10 @@
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
+  --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
+  --app-motion-loop: 2.4s;          /* 登录加载动画循环周期 */
+  --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
+  --app-visually-hidden: 1px;       /* 读屏隐藏通用尺寸 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
@@ -221,3 +225,7 @@
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
 }
+
+/* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
+@keyframes mn-authloading-cloud { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--app-authload-shift))); } }
+@keyframes mn-authloading-book { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--app-authload-shift)); } }

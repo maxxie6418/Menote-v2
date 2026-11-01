@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AuthUser } from "@menote/shared";
-import { fetchAuthStatus, logout } from "../../services/authService";
+import { fetchAuthStatus, fetchLogoMarkup, logout } from "../../services/authService";
 import { CredentialsForm } from "./CredentialsForm";
 
 type GatePhase = "loading" | "unavailable" | "bootstrap" | "login" | "ready";
@@ -9,7 +9,7 @@ type GatePhase = "loading" | "unavailable" | "bootstrap" | "login" | "ready";
 function useLogoMarkup(): string {
   const [markup, setMarkup] = useState("");
   useEffect(() => {
-    fetch("/icon.svg").then((r) => r.text()).then(setMarkup).catch(() => {});
+    fetchLogoMarkup().then(setMarkup);
   }, []);
   return markup;
 }

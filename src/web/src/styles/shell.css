@@ -211,19 +211,17 @@
 .mn-auth-link:hover { background: var(--app-hover); }
 /* 登录态检查屏（AuthGate loading）：站点图标本体（public/icon.svg 内联，favicon / 顶栏 / 登录页同一份）
    "云"与"书"竖直微跳表达进行中——加载态没有进度可报时的登记例外，仅这一屏，只上下、不旋转。
-   尺寸与幅度成对：显示 96px / viewBox 512 → 1 显示 px ≈ 5.3 用户单位，±16 用户单位 ≈ 各约 3px；
-   这里的 px 作用于 SVG 用户坐标系（CSS transform 落在 <g> 上），不是页面像素，改 logo 尺寸要连着改幅度。 */
+   幅度 token --app-authload-shift 作用于 SVG 用户坐标系（CSS transform 落在 <g> 上），不是页面像素，改 logo 尺寸要连着改幅度。 */
 .mn-authloading { display: flex; flex-direction: column; align-items: center; }
 .mn-authloading-logo { width: var(--app-authloading-logo); height: var(--app-authloading-logo); }
-.mn-authloading-logo svg { width: 100%; height: 100%; display: block; }
+.mn-authloading-logo svg { width: var(--app-full-size); height: var(--app-full-size); display: block; }
 .mn-authloading-logo .mn-cloud { animation: mn-authloading-cloud var(--app-motion-loop) var(--app-ease) infinite; }
 .mn-authloading-logo .mn-book { animation: mn-authloading-book var(--app-motion-loop) var(--app-ease) infinite; }
-@keyframes mn-authloading-cloud { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
-@keyframes mn-authloading-book { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(16px); } }
+
 /* 减弱动效偏好：动画停住，只剩静态 logo（可及性查询，非布局断点，不受"本文件不写断点媒体查询"约束） */
 @media (prefers-reduced-motion: reduce) { .mn-authloading-logo .mn-cloud, .mn-authloading-logo .mn-book { animation: none; } }
 /* 读屏可及但不占版面的状态文字（当前仅登录检查屏使用） */
-.mn-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: var(--app-zero); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: var(--app-zero); }
+.mn-visually-hidden { position: absolute; width: var(--app-visually-hidden); height: var(--app-visually-hidden); margin: calc(-1 * var(--app-visually-hidden)); padding: var(--app-zero); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: var(--app-zero); }
 
 /* ---------- 侧栏账户（G1；负责人 2026-11-01：脚部只留用户名，弹出账户菜单） ---------- */
 .mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-4) var(--app-space-2); border-radius: var(--app-radius-sm); }

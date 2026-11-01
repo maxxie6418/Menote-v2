@@ -61,3 +61,13 @@ export async function logout(): Promise<{ ok: boolean }> {
     return { ok: false };
   }
 }
+
+/** 站点图标 SVG 内容（登录检查屏加载动画内联用）。 */
+export async function fetchLogoMarkup(): Promise<string> {
+  try {
+    const response = await fetch("/icon.svg");
+    return await response.text();
+  } catch {
+    return "";
+  }
+}
