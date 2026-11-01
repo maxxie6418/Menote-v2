@@ -67,8 +67,15 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
 
 /** 新建 frontmatter（无 frontmatter 时）：写入定义并保持最小结构。 */
 export function createFrontmatter(markdown: string, namespace: string, def: PropertyDef, name: string): string {
-  const doc = new Document({ [namespace]: { [name]: defNode(def) } });
+  const doc = new Document({ [namespace]: { [name]: defNode(def) }, [name]: emptyPropertyValue(def) });
   return `---\n${doc.toString().replace(/\n$/, "")}\n---\n\n${markdown}`;
+}
+
+function emptyPropertyValue(def: PropertyDef): string | boolean | string[] {
+  if (def.type === "checkbox") return false;
+  if (def.type === "multiselect") return [];
+  if (def.type === "select") return def.options?.[0] ?? "";
+  return "";
 }
 
 function defNode(def: PropertyDef): Record<string, unknown> {
@@ -89,6 +96,7 @@ export function writeDef(markdown: string, namespace: string, name: string, def:
   } else {
     doc.set(namespace, doc.createNode({ [name]: defNode(def) }));
   }
+  if (doc.get(name, true) === undefined) doc.set(name, doc.createNode(emptyPropertyValue(def)));
   return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
 }
 

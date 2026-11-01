@@ -83,6 +83,7 @@ function PropertyValueControl({ row, onWrite }: { row: PropRow; onWrite: (value:
     return (
       <select className="mn-propselect" value={row.raw} aria-label={row.key}
         onChange={(event) => onWrite(event.target.value)}>
+        {!row.raw && <option value="">请选择…</option>}
         {row.raw && !options.includes(row.raw) && <option value={row.raw}>{row.raw}（未在候选中）</option>}
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
