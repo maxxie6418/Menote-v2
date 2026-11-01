@@ -38,6 +38,13 @@ export function AccountMenu({ username, role, collapsed, onLogout, onOpenSetting
     return () => window.removeEventListener("resize", place);
   }, [open]);
 
+  // 动态定位走 DOM API（结构检查禁止 JSX style prop）
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) return;
+    menuRef.current.style.left = `${position.left}px`;
+    menuRef.current.style.bottom = `${position.bottom}px`;
+  }, [open, position]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {

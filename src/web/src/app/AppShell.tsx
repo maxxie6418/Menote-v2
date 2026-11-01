@@ -125,11 +125,16 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onLogout={onLogout}
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
-      onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
       onOpenSettings={() => { setSettingsOpen(true); setDrawerOpen(false); }}
     />
   );
-  const settingsDialog = settingsOpen ? <SettingsDialog userId={userId} onClose={() => setSettingsOpen(false)} /> : null;
+  const settingsDialog = settingsOpen ? (
+    <SettingsDialog
+      userId={userId}
+      onClose={() => setSettingsOpen(false)}
+      onOpenStatus={() => { setSettingsOpen(false); setView("status"); setDrawerOpen(false); }}
+    />
+  ) : null;
 
   if (section.kind === "memos") {
     return (

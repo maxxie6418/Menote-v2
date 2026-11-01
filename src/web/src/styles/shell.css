@@ -18,6 +18,7 @@
 .mn-sidebar { display: flex; flex-direction: column; width: var(--app-sidebar-width); flex: none; padding: var(--app-space-md) var(--app-space-10) var(--app-space-10); background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); min-width: 0; overflow-y: auto; }
 .mn-sb-top { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-2); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-xs); }
 .mn-brand { display: flex; align-items: center; gap: var(--app-space-2); font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); line-height: var(--app-leading-nav); }
+.mn-brand-version { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-logo { width: var(--app-logo-size); height: var(--app-logo-size); flex: none; }
 .mn-sb-top-actions { display: flex; align-items: center; gap: var(--app-space-6); }
 .mn-iconbtn { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-space-4); border-radius: var(--app-radius-sm); }
@@ -52,7 +53,6 @@
 .mn-treerow .mn-locklabel { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-tags { display: flex; flex-wrap: wrap; gap: var(--app-space-5); padding: var(--app-zero) var(--app-space-xs) var(--app-space-4); }
 .mn-sb-foot { margin-top: auto; display: flex; align-items: center; gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-4); border-top: var(--app-line) solid var(--app-border); font-size: var(--app-size-chip); color: var(--app-fg-subtle); }
-.mn-foot-version { margin-right: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 侧栏折叠（compact 档） ---------- */
 [data-sidebar="collapsed"] .mn-sidebar { padding-inline: var(--app-space-sm); align-items: center; }
@@ -210,9 +210,23 @@
 .mn-auth-link { margin-top: var(--app-space-xs); border: var(--app-zero); background: none; color: var(--app-accent-fg); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-4); border-radius: var(--app-radius-sm); }
 .mn-auth-link:hover { background: var(--app-hover); }
 
-/* ---------- 侧栏账户（G1） ---------- */
-.mn-foot-account { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ---------- 侧栏账户（G1；负责人 2026-11-01：脚部只留用户名，弹出账户菜单） ---------- */
+.mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-4) var(--app-space-2); border-radius: var(--app-radius-sm); }
+.mn-foot-user:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-foot-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mn-ava { display: grid; place-items: center; width: var(--app-avatar-size); height: var(--app-avatar-size); border-radius: var(--app-radius-pill); background: var(--app-fg); color: var(--app-surface); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); flex: none; }
 [data-sidebar="collapsed"] .mn-sb-foot { gap: var(--app-space-2); }
+[data-sidebar="collapsed"] .mn-foot-user { justify-content: center; padding-inline: var(--app-zero); }
+.mn-account-menu { position: fixed; z-index: 12; display: flex; flex-direction: column; gap: var(--app-space-4); min-width: var(--app-account-menu-min); padding: var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
+.mn-menu-label { margin: var(--app-zero); padding: var(--app-space-4) var(--app-space-5) var(--app-zero); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-menu-seg { display: flex; gap: var(--app-space-2); }
+.mn-menu-seg button { flex: 1; border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-4) var(--app-space-5); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-menu-seg button:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-menu-seg button.on { background: var(--app-seg-active); color: var(--app-fg); }
+.mn-menu-sep { border-top: var(--app-line) solid var(--app-border-subtle); margin: var(--app-space-2) var(--app-space-5); }
+.mn-menu-item { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; padding: var(--app-space-5); border-radius: var(--app-radius-sm); }
+.mn-menu-item:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-menu-item svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
 
 /* ---------- E3 属性区 ---------- */
 .mn-propbar { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); padding: var(--app-space-6) var(--app-space-10); }
@@ -311,6 +325,8 @@
 .mn-setrow:last-child { border-bottom: var(--app-zero); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+.mn-statuslink { border: var(--app-zero); background: none; color: var(--app-link); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }
+.mn-statuslink:hover { background: var(--app-hover); }
 .mn-note-row-icon { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-faint); flex: none; align-self: center; }
 .mn-note-row.on .mn-note-row-icon { color: var(--app-accent-fg); }
 .mn-unlocktitle { font-family: var(--app-font-serif); font-size: var(--app-font-title); font-weight: var(--app-weight-serif); margin: var(--app-zero) var(--app-zero) var(--app-space-6); color: var(--app-fg); }

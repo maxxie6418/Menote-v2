@@ -98,6 +98,7 @@
   --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
   --app-dot-size: 0.3125rem;       /* 5px 状态点 */
   --app-avatar-size: 1.1875rem;    /* 19px 头像 */
+  --app-account-menu-min: 13rem;   /* 208px 账户菜单 */
   --app-logo-size: 1.375rem;       /* 22px 侧栏品牌图标 */
   --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
   --app-radius-sm: 0.25rem;        /* 4px */

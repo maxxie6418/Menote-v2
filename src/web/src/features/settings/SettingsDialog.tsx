@@ -3,7 +3,8 @@ import { X } from "lucide-react";
 import type { HealthResponse, Item } from "@menote/shared";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
-import { SyncBadge, getSyncPhase, subscribeSyncStatus, type SyncPhase } from "../sync";
+import { SyncBadge } from "../sync";
+import { getSyncPhase, subscribeSyncStatus, type SyncPhase } from "../../services/syncEngine";
 import { getReadiness } from "../../services/healthService";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { APP_VERSION_FULL_LABEL } from "../../lib/version";
@@ -77,7 +78,8 @@ function StatusSection({ onOpenStatus }: { onOpenStatus: () => void }) {
   const HEALTH_TEXT = {
     checking: "正在检查配置。",
     ready: "基础配置已就绪（AUTH_PEPPER、D1、R2）。",
-    degraded: "基础配置尚未就绪，请检查部署配置。",
+    alive: "基础配置尚未就绪，请检查部署配置。",
+    unavailable: "基础配置尚未就绪，请检查部署配置。",
   } as const;
   return (
     <div>
