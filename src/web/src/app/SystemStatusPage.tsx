@@ -3,7 +3,7 @@ import type { HealthResponse } from "@menote/shared";
 import { ArrowLeft } from "lucide-react";
 import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
-import { APP_VERSION_LABEL } from "../lib/version";
+import { APP_VERSION_FULL_LABEL } from "../lib/version";
 
 interface SystemStatusPageProps {
   onBack: () => void;
@@ -45,7 +45,7 @@ export function SystemStatusPage({ onBack, userId }: SystemStatusPageProps) {
         </section>
       
       </main>
-      <footer className="app-footer">{APP_VERSION_LABEL}</footer>
+      <footer className="app-footer">{APP_VERSION_FULL_LABEL}</footer>
     </div>
   );
 }

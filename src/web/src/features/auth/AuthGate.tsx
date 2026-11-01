@@ -50,6 +50,10 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     void logout().finally(() => setState({ phase: "login", user: null, registrationOpen: false }));
   }, []);
 
+  /* Hooks 顺序必须在所有条件 return 之前：ready/unavailable 提前放行时跳过这里的调用会触发
+     "Rendered fewer hooks than expected" 整树崩溃（React 规则；logo 仅 loading/auth 表单用）。 */
+  const logoMarkup = useLogoMarkup();
+
   if (state.phase === "ready" && state.user) {
     return <>{children(state.user, onLogout)}</>;
   }
@@ -71,7 +75,6 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     );
   }
 
-  const logoMarkup = useLogoMarkup();
   if (state.phase === "loading") {
     return (
       <section className="mn-auth" aria-busy="true">
