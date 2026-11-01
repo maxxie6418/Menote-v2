@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { HealthResponse, Item } from "@menote/shared";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
-import { MonitorPanel } from "../monitor";
-import { SyncBadge } from "../sync";
-import { getReadiness } from "../../services/healthService";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
 
-type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "status";
+type SettingsSection = "appearance" | "backup" | "attachments" | "recovery";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
-  { id: "status", label: "状态" },
 ];
 
 interface SettingsDialogProps {
@@ -24,7 +19,7 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** 设置对话框；系统状态直接在设置页签内展示。 */
+/** 设置对话框：外观、远程备份、附件与恢复码。 */
 export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>("backup");
 
@@ -36,7 +31,7 @@ export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
 
   return (
     <div className="mn-overlay" role="presentation">
-      <div className={`mn-dialog mn-dialog-settings${section === "status" ? " mn-dialog-settings-status" : ""}`} role="dialog" aria-modal="true" aria-label="设置">
+      <div className="mn-dialog mn-dialog-settings" role="dialog" aria-modal="true" aria-label="设置">
         <div className="mn-dlg-head">
           <h3>设置</h3>
           <button type="button" className="mn-iconbtn" aria-label="关闭设置" onClick={onClose}><X /></button>
@@ -55,33 +50,11 @@ export function SettingsDialog({ userId, onClose }: SettingsDialogProps) {
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
-            {section === "status" && <StatusSection />}
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-function StatusSection() {
-  const [health, setHealth] = useState<HealthResponse["status"] | "checking">("checking");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    setHealth("checking");
-    getReadiness(controller.signal).then((value) => setHealth(value.status)).catch(() => setHealth("unavailable"));
-    return () => controller.abort();
-  }, [attempt]);
-
-  const healthText = health === "checking" ? "检查中" : health === "ready" ? "服务正常" : "服务未就绪";
-  return <div className="mn-settings-status">
-    <div className="mn-settings-status-heading">
-      <div><h2>系统状态</h2><p>本项目的 Cloudflare 资源使用情况与应用内部统计。</p></div>
-      <button type="button" className="mn-statuslink" disabled={health === "checking"} onClick={() => setAttempt((value) => value + 1)}>服务：{healthText} · 重新检查</button>
-    </div>
-    <div className="mn-settings-status-sync"><span>内容同步</span><SyncBadge /></div>
-    <MonitorPanel />
-  </div>;
 }
 
 /** 外观节：界面字体切换（内置 Noto Sans SC ↔ 系统字体），偏好经 lib/fontPreference 即时生效。 */

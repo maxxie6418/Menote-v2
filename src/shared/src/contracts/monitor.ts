@@ -8,7 +8,7 @@ export interface MonitorPoint {
 export interface MonitorSummary {
   metric: "worker_api_requests";
   source: "sampled_application_estimate";
-  period: "utc_day" | "utc_month";
+  period: "utc_day" | "utc_week" | "utc_month";
   estimatedRequests: number | null;
   sampleCount: number;
   sampledAt: number | null;
@@ -47,9 +47,10 @@ export interface CloudflareMonitorConnection {
 export interface CloudflareMonitorMetrics {
   source: "cloudflare_graphql";
   sampledAt: number;
-  worker: { requests: number; errors: number; cpuTimeP50: number | null; cpuTimeP99: number | null };
+  billing: { amount: number; currency: string; days: Array<{ date: string; amount: number }> } | null;
+  worker: { requests: number; errors: number; cpuTimeP50: number | null; cpuTimeP99: number | null; points: Array<{ bucketAt: number; requests: number }> };
   d1: { rowsRead: number; rowsWritten: number; sizeBytes: number | null } | null;
-  r2: { objectCount: number; payloadBytes: number; metadataBytes: number; operations: number } | null;
+  r2: { objectCount: number; payloadBytes: number; metadataBytes: number; operations: number; bytesUploaded: number; bytesDownloaded: number } | null;
 }
 
 export const DEFAULT_MONITOR_PREFERENCES: Readonly<MonitorPreferences> = {

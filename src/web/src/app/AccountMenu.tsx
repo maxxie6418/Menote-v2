@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { LogOut, SlidersHorizontal } from "lucide-react";
+import { Activity, LogOut, SlidersHorizontal } from "lucide-react";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 
 const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
@@ -14,11 +14,11 @@ interface AccountMenuProps {
   collapsed: boolean;
   onLogout: () => void;
   onOpenSettings: () => void;
+  onOpenStatus: () => void;
 }
 
-/** 侧栏脚部账户菜单（负责人 2026-11-01）：脚部只留用户名，点击弹出主题切换 / 设置 / 退出登录；
- *  同步与系统状态归集进设置弹层。菜单用 fixed 定位逃出侧栏 overflow 裁剪。 */
-export function AccountMenu({ username, role, collapsed, onLogout, onOpenSettings }: AccountMenuProps) {
+/** 侧栏脚部账户菜单：主题、系统状态、设置与退出登录。菜单用 fixed 定位逃出侧栏 overflow 裁剪。 */
+export function AccountMenu({ username, role, collapsed, onLogout, onOpenSettings, onOpenStatus }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ThemeMode>(getThemeMode);
   const [position, setPosition] = useState({ left: 0, bottom: 0 });
@@ -84,6 +84,11 @@ export function AccountMenu({ username, role, collapsed, onLogout, onOpenSetting
             ))}
           </div>
           <div className="mn-menu-sep" role="separator" />
+          <button type="button" className="mn-menu-item" role="menuitem"
+            onClick={() => { setOpen(false); onOpenStatus(); }}>
+            <Activity />
+            系统状态
+          </button>
           <button type="button" className="mn-menu-item" role="menuitem"
             onClick={() => { setOpen(false); onOpenSettings(); }}>
             <SlidersHorizontal />

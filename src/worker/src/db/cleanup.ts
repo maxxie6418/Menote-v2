@@ -17,6 +17,8 @@ export async function listExpiredSoftDeleted(db: D1Database, userId: string, cut
 
 export async function purgeItemsWithWraps(db: D1Database, userId: string, ids: string[]): Promise<void> {
   for (const id of ids) {
+    // item_versions has a restrictive FK; purge snapshots before deleting the owning item.
+    await db.prepare("DELETE FROM item_versions WHERE user_id = ? AND item_id = ?").bind(userId, id).run();
     await db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").bind(id, userId).run();
     await db.prepare("DELETE FROM item_key_wraps WHERE user_id = ? AND item_id = ?").bind(userId, id).run();
   }

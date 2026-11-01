@@ -21,6 +21,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   onCloseDrawer: () => void;
   onOpenSettings: () => void;
+  onOpenStatus: () => void;
 }
 
 const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean =>
@@ -28,9 +29,8 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
 
 /* 侧栏（FR-IA-4 顺序：快速输入 / 新建笔记 / Memo 时间线 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
    搜索入口仍未定不放侧栏（E5 后置）；私人空间固定入口保持锁定态（G7）。
-   负责人 2026-11-01：品牌旁仅显版本号（悬停显构建 id）；脚部只留账户菜单（主题/设置/退出），
-   同步与系统状态归集进设置弹层的状态预览节。 */
-export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings }: SidebarProps) {
+   负责人 2026-11-01：品牌旁仅显版本号（悬停显构建 id）；脚部只留用户名账户菜单（主题/系统状态/设置/退出）。 */
+export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -114,7 +114,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         </>
       )}
       <div className="mn-sb-foot">
-        <AccountMenu username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} />
+        <AccountMenu username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} onOpenStatus={onOpenStatus} />
       </div>
     </aside>
   );

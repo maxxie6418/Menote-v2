@@ -126,6 +126,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
       onOpenSettings={() => { setSettingsOpen(true); setDrawerOpen(false); }}
+      onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
     />
   );
   const settingsDialog = settingsOpen ? (
@@ -146,7 +147,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
           onOpenDrawer={() => setDrawerOpen(true)}
-          onOpenStatus={() => setView("status")}
         />
         {settingsDialog}
       </div>
@@ -200,7 +200,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           <nav className="mn-bottomnav" aria-label="主导航">
             <button type="button" className={mobilePane === "list" ? "on" : ""} onClick={() => setMobilePane("list")}>清单</button>
             <button type="button" className={mobilePane === "doc" ? "on" : ""} onClick={() => setMobilePane("doc")}>文档</button>
-            <button type="button" onClick={() => setView("status")}>状态</button>
           </nav>
         )}
       </div>
@@ -270,9 +269,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           </button>
           <button type="button" className={mobilePane === "doc" ? "on" : ""} onClick={() => setMobilePane("doc")}>
             文档
-          </button>
-          <button type="button" onClick={() => setView("status")}>
-            状态
           </button>
         </nav>
       )}

@@ -65,7 +65,7 @@ monitorRoutes.get("/api/monitor/cloudflare/metrics", resolveSession, requireSess
   const pepper = authPepper(c.env);
   if (!pepper) return c.body(null, 503);
   const period = c.req.query("period") ?? "utc_day";
-  if (period !== "utc_day" && period !== "utc_month") return c.body(null, 400);
+  if (period !== "utc_day" && period !== "utc_week" && period !== "utc_month") return c.body(null, 400);
   try {
     const metrics = await readCloudflareMetrics(c.env.DB, user.id, pepper, period, Date.now());
     return c.json({ metrics }, { headers: { "Cache-Control": "no-store" } });
@@ -80,7 +80,7 @@ monitorRoutes.all("/api/monitor", resolveSession, async (c) => {
   const pepper: unknown = Reflect.get(c.env, "AUTH_PEPPER");
   if (typeof pepper !== "string" || !pepper.trim() || !c.env.DB) return c.body(null, 503);
   const period = c.req.query("period") ?? "utc_day";
-  if (period !== "utc_day" && period !== "utc_month") return c.body(null, 400);
+  if (period !== "utc_day" && period !== "utc_week" && period !== "utc_month") return c.body(null, 400);
   try {
     return c.json(await requestSummary(c.env.DB, Date.now(), period),
       { headers: { "Cache-Control": "no-store" } });

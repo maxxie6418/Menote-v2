@@ -5,7 +5,7 @@ type GraphQLPayload = { data?: Record<string, unknown>; errors?: Array<{ message
 type MetricGroup = { sum?: Record<string, number | null>; max?: Record<string, number | null>; quantiles?: Record<string, number | null>; dimensions?: Record<string, string> };
 
 const WORKER_QUERY = `query MonitorWorkers($accountTag: string!, $start: Time!, $end: Time!, $scriptName: string!) {
-  viewer { accounts(filter: { accountTag: $accountTag }) { workersInvocationsAdaptive(limit: 1000, filter: { scriptName: $scriptName, datetime_geq: $start, datetime_leq: $end }) { sum { requests errors } quantiles { cpuTimeP50 cpuTimeP99 } } } }
+  viewer { accounts(filter: { accountTag: $accountTag }) { workersInvocationsAdaptive(limit: 1000, filter: { scriptName: $scriptName, datetime_geq: $start, datetime_leq: $end }) { sum { requests errors } quantiles { cpuTimeP50 cpuTimeP99 } dimensions { datetime } } } }
 }`;
 const D1_QUERY = `query MonitorD1($accountTag: string!, $start: Date!, $end: Date!, $databaseId: string!) {
   viewer { accounts(filter: { accountTag: $accountTag }) {
@@ -18,6 +18,9 @@ const R2_QUERY = `query MonitorR2($accountTag: string!, $start: Time!, $end: Tim
     r2StorageAdaptiveGroups(limit: 100, filter: { datetime_geq: $start, datetime_leq: $end, bucketName: $bucketName }, orderBy: [datetime_DESC]) { max { objectCount uploadCount payloadSize metadataSize } dimensions { datetime } }
     r2OperationsAdaptiveGroups(limit: 1000, filter: { datetime_geq: $start, datetime_leq: $end, bucketName: $bucketName }) { sum { requests } }
   } }
+}`;
+const R2_BANDWIDTH_QUERY = `query MonitorR2Bandwidth($accountTag: string!, $start: Time!, $end: Time!, $bucketName: string!) {
+  viewer { accounts(filter: { accountTag: $accountTag }) { r2BandwidthUsageAdaptiveGroups(limit: 1000, filter: { datetime_geq: $start, datetime_lt: $end, bucketName: $bucketName }) { sum { bytesUpload bytesDownload } } } }
 }`;
 
 function decodeBase64(value: string): ArrayBuffer {
@@ -93,7 +96,8 @@ function dates(period: MonitorSummary["period"], now: number) {
   const date = new Date(now);
   const start = period === "utc_day"
     ? new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-    : new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+    : period === "utc_week" ? new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - 6))
+      : new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
   return { start: start.toISOString(), end: date.toISOString(), dateStart: start.toISOString().slice(0, 10), dateEnd: date.toISOString().slice(0, 10) };
 }
 
@@ -104,6 +108,11 @@ async function loadMetrics(token: string, row: MonitorCloudflareRow, period: Mon
   const worker = {
     requests: sumField(workerRows, "requests"), errors: sumField(workerRows, "errors"),
     cpuTimeP50: quantileField(workerRows, "cpuTimeP50"), cpuTimeP99: quantileField(workerRows, "cpuTimeP99"),
+    points: workerRows.flatMap((entry) => {
+      const bucketAt = Date.parse(entry.dimensions?.datetime ?? "");
+      const requests = entry.sum?.requests;
+      return Number.isFinite(bucketAt) && typeof requests === "number" ? [{ bucketAt, requests }] : [];
+    }),
   };
   let d1: CloudflareMonitorMetrics["d1"] = null;
   if (row.d1DatabaseId) {
@@ -117,9 +126,34 @@ async function loadMetrics(token: string, row: MonitorCloudflareRow, period: Mon
     const result = await query<Record<string, unknown>>(token, R2_QUERY, { accountTag: row.accountId, start: range.start, end: range.end, bucketName: row.r2BucketName });
     const storage = groups(result, "r2StorageAdaptiveGroups");
     const operations = groups(result, "r2OperationsAdaptiveGroups");
-    r2 = { objectCount: latestField(storage, "objectCount", "datetime") ?? 0, payloadBytes: latestField(storage, "payloadSize", "datetime") ?? 0, metadataBytes: latestField(storage, "metadataSize", "datetime") ?? 0, operations: sumField(operations, "requests") };
+    const bandwidthResult = await query<Record<string, unknown>>(token, R2_BANDWIDTH_QUERY, { accountTag: row.accountId, start: range.start, end: range.end, bucketName: row.r2BucketName });
+    const bandwidth = groups(bandwidthResult, "r2BandwidthUsageAdaptiveGroups");
+    r2 = { objectCount: latestField(storage, "objectCount", "datetime") ?? 0, payloadBytes: latestField(storage, "payloadSize", "datetime") ?? 0, metadataBytes: latestField(storage, "metadataSize", "datetime") ?? 0, operations: sumField(operations, "requests"), bytesUploaded: sumField(bandwidth, "bytesUpload"), bytesDownloaded: sumField(bandwidth, "bytesDownload") };
   }
-  return { source: "cloudflare_graphql", sampledAt: now, worker, d1, r2 };
+  const billing = await readBillableUsage(token, row.accountId, range.dateStart, range.dateEnd).catch(() => null);
+  return { source: "cloudflare_graphql", sampledAt: now, worker, d1, r2, billing };
+}
+
+interface BillableUsageRow { BilledCost?: unknown; BillingCurrency?: unknown; ChargePeriodStart?: unknown }
+async function readBillableUsage(token: string, accountId: string, from: string, to: string) {
+  const url = new URL(`https://api.cloudflare.com/client/v4/accounts/${accountId}/billable-usage`);
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  if (!response.ok) return null;
+  const payload = await response.json() as { result?: BillableUsageRow[] };
+  if (!Array.isArray(payload.result)) return null;
+  const days = new Map<string, number>();
+  let currency: string | null = null;
+  for (const row of payload.result) {
+    const amount = typeof row.BilledCost === "number" && Number.isFinite(row.BilledCost) ? row.BilledCost : null;
+    const date = typeof row.ChargePeriodStart === "string" ? row.ChargePeriodStart.slice(0, 10) : null;
+    if (amount === null || !date) continue;
+    if (typeof row.BillingCurrency === "string") currency = row.BillingCurrency;
+    days.set(date, (days.get(date) ?? 0) + amount);
+  }
+  if (currency === null) return null;
+  return { amount: [...days.values()].reduce((sum, value) => sum + value, 0), currency, days: [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, amount]) => ({ date, amount })) };
 }
 
 export async function readCloudflareConnection(db: D1Database, userId: string): Promise<CloudflareMonitorConnection> {

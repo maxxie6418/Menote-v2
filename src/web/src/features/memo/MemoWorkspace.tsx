@@ -9,11 +9,10 @@ interface MemoWorkspaceProps {
   todoOpen: boolean;
   onToggleTodo: () => void;
   onOpenDrawer: () => void;
-  onOpenStatus: () => void;
 }
 
 /** Memo 视图：时间线 + todo 侧板（FR-MEMO-5：侧板仅在 Memo 视图旁，不延伸到 Note 阅读区）。 */
-export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDrawer, onOpenStatus }: MemoWorkspaceProps) {
+export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDrawer }: MemoWorkspaceProps) {
   const memos = useMemos(userId);
   const singlePane = layout === "tablet" || layout === "mobile";
   return (
@@ -28,9 +27,6 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
             )}
             <span className="mn-listhead-title">Memo 时间线</span>
           </span>
-          {singlePane && (
-            <button type="button" className="mn-minibtn" onClick={onOpenStatus}>状态</button>
-          )}
         </div>
         <MemoTimeline
           userId={userId} memos={memos}

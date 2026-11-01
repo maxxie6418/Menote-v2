@@ -49,15 +49,16 @@ function validCloudflareMetrics(value: unknown): value is CloudflareMonitorMetri
   const v = value as Partial<CloudflareMonitorMetrics>;
   const nonnegative = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0;
   return v.source === "cloudflare_graphql" && Number.isSafeInteger(v.sampledAt) && nonnegative(v.sampledAt) &&
-    typeof v.worker === "object" && v.worker !== null && nonnegative(v.worker.requests) && nonnegative(v.worker.errors) &&
+    (v.billing === null || (typeof v.billing === "object" && v.billing !== null && nonnegative(v.billing.amount) && /^[A-Z]{3}$/.test(v.billing.currency) && Array.isArray(v.billing.days) && v.billing.days.every((day) => /^\d{4}-\d{2}-\d{2}$/.test(day.date) && nonnegative(day.amount)))) &&
+    typeof v.worker === "object" && v.worker !== null && nonnegative(v.worker.requests) && nonnegative(v.worker.errors) && Array.isArray(v.worker.points) && v.worker.points.every((point) => Number.isSafeInteger(point.bucketAt) && nonnegative(point.requests)) &&
     (v.worker.cpuTimeP50 === null || nonnegative(v.worker.cpuTimeP50)) && (v.worker.cpuTimeP99 === null || nonnegative(v.worker.cpuTimeP99)) &&
     (v.d1 === null || (typeof v.d1 === "object" && v.d1 !== null && nonnegative(v.d1.rowsRead) && nonnegative(v.d1.rowsWritten) && (v.d1.sizeBytes === null || nonnegative(v.d1.sizeBytes)))) &&
-    (v.r2 === null || (typeof v.r2 === "object" && v.r2 !== null && nonnegative(v.r2.objectCount) && nonnegative(v.r2.payloadBytes) && nonnegative(v.r2.metadataBytes) && nonnegative(v.r2.operations)));
+    (v.r2 === null || (typeof v.r2 === "object" && v.r2 !== null && nonnegative(v.r2.objectCount) && nonnegative(v.r2.payloadBytes) && nonnegative(v.r2.metadataBytes) && nonnegative(v.r2.operations) && nonnegative(v.r2.bytesUploaded) && nonnegative(v.r2.bytesDownloaded)));
 }
 
 function periodStart(period: MonitorSummary["period"], now: number): number {
   const date = new Date(now);
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), period === "utc_day" ? date.getUTCDate() : 1);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), period === "utc_day" ? date.getUTCDate() : period === "utc_week" ? date.getUTCDate() - 6 : 1);
 }
 
 export async function getMonitorSummary(period: MonitorSummary["period"], signal: AbortSignal, force = false): Promise<MonitorSummary | null> {
