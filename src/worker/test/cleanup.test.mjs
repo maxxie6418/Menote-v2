@@ -25,8 +25,8 @@ async function withDatabase(run) {
   try {
     const db = await mf.getD1Database("DB");
     const bucket = await mf.getR2Bucket("BUCKET");
-    // 基础表按外键依赖顺序建立（users → topics → items → attachments），再跑带 ALTER 的迁移
-    for (const file of ["0003_users.sql", "0004_topics.sql", "0005_items.sql", "0006_attachments.sql", "0015_user_settings.sql", "0022_job_runs.sql", "0023_sync_engine.sql", "0024_key_wraps.sql"]) {
+    // 基础表按外键依赖顺序建立（users → topics → items → attachments → item_versions），再跑带 ALTER 的迁移
+    for (const file of ["0003_users.sql", "0004_topics.sql", "0005_items.sql", "0006_attachments.sql", "0008_item_versions.sql", "0015_user_settings.sql", "0022_job_runs.sql", "0023_sync_engine.sql", "0024_key_wraps.sql"]) {
       const ddl = await (await import("node:fs/promises")).readFile(fileURLToPath(new URL(`../src/db/migrations/${file}`, import.meta.url)), "utf8");
       for (const statement of ddl.split(";").map((part) => part.trim()).filter(Boolean)) await db.prepare(statement).run();
     }

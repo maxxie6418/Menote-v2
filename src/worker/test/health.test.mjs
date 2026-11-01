@@ -80,7 +80,8 @@ test("newer schema is not reported as ready", async () => {
   await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
     assert.equal((await req(mf, "/api/health/ready")).status, 200);
     const database = await mf.getD1Database("DB");
-    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (26, 'future')").run();
+    // 未来版本按注册表长度 +1 动态取值，避免随迁移增长而过期（硬编码 26 已成为真实版本）。
+    await database.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, 'future')").bind(migrationCount + 1).run();
     assert.equal((await req(mf, "/api/health/ready")).status, 503);
   });
 });
