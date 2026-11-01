@@ -20,9 +20,10 @@
     --app-accent-fg:#B4530F;
     --app-accent-subtle:#FEF2E7;
     --app-link:#0051C3;
-    --app-font-serif:ui-serif,Georgia,“Songti SC”,“Source Han Serif SC”,“SimSun”,serif;
-    --app-font-ui:system-ui,-apple-system,“Segoe UI”,“PingFang SC”,“Microsoft YaHei”,“Noto Sans SC”,Roboto,sans-serif;
-    --app-font-mono:ui-monospace,“SF Mono”,Menlo,Consolas,“Cascadia Mono”,monospace;
+    --app-font-serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+    --app-font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+    --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+    --app-radius:6px;--app-radius-sm:4px;--app-radius-lg:8px;--app-radius-xl:10px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -31,7 +32,7 @@
 
   header.masthead{padding:58px 0 30px;border-bottom:1px solid var(--app-border)}
   .eyebrow{font-family:var(--app-font-mono);font-size:10.5px;text-transform:uppercase;color:var(--app-fg-faint);display:flex;align-items:center;gap:9px;margin-bottom:16px}
-  .eyebrow::before{content:“”;width:16px;height:1.5px;background:var(--app-accent);flex:none}
+  .eyebrow::before{content:"";width:16px;height:1.5px;background:var(--app-accent);flex:none}
   h1{font-family:var(--app-font-serif);font-weight:500;font-size:37px;line-height:1.26;margin:0 0 8px;max-width:940px}
   h1 em{font-style:normal;color:var(--app-accent-fg)}
   .intro{font-size:14.5px;color:var(--app-fg-muted);max-width:790px;margin:14px 0 0;line-height:1.8}
@@ -137,15 +138,40 @@
     background:var(--app-accent-subtle);border-radius:999px;padding:0 5px;line-height:15px}
   .cnt.plain{color:var(--app-fg-faint);background:none;padding:0}
 
-  /* 3 待整理：收件箱 / 草稿箱 并排，白色小块与灰底分离 */
-  .duo{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px}
-  .duo a{
-    display:flex;align-items:center;gap:6px;height:34px;padding:0 8px;border-radius:6px;
-    background:var(--app-surface);color:var(--app-fg-muted);text-decoration:none;font-size:11.5px;
-    transition:box-shadow 110ms;
+  /* 2 形态切换：笔记 | Memo —— 一级形态，与树的「位置」正交。
+     不用导航行，因为导航行表达「层级位置」，这里表达「换一个内容形态」；
+     用分段控件（与 .modes / .view-seg 同族）避免与侧栏「白底 + 橙条」的选中语言打架。 */
+  .formseg{
+    display:flex;gap:2px;height:28px;padding:2px;flex:none;margin-bottom:13px;
+    background:var(--app-surface-sunken);border-radius:6px;
   }
-  .duo a:hover{box-shadow:inset 0 0 0 1px var(--app-border);color:var(--app-fg)}
-  .duo svg{width:13px;height:13px;color:var(--app-fg-subtle);flex:none}
+  .formseg a{
+    flex:1;display:grid;place-items:center;border-radius:4px;
+    font-size:11.5px;color:var(--app-fg-subtle);text-decoration:none;white-space:nowrap;
+    transition:color 110ms;
+  }
+  .formseg a:hover{color:var(--app-fg)}
+  .formseg a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.08)}
+
+  /* 3 待整理：收件箱 / 草稿箱 —— 两条队列，两行，紧贴主题树之上（整理的终点是树）。
+     两行而不是并排两块：中文标签 + 计数在 114px 里会截断；计数要能成列比较；
+     并排的白色方块还会与「侧栏选中 = 白底」的语言撞车（DESIGN §4.2）。 */
+  .queue{display:flex;flex-direction:column;gap:1px;margin-bottom:15px}
+  .queue a{
+    display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:5px;
+    color:var(--app-fg-muted);text-decoration:none;font-size:12px;
+  }
+  .queue a:hover{background:var(--app-hover);color:var(--app-fg)}
+  .queue a svg{width:13px;height:13px;color:var(--app-fg-subtle);flex:none}
+  .queue a:hover svg{color:var(--app-fg-muted)}
+  .queue a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
+  .queue a.on svg{color:var(--app-accent-fg)}
+  /* 计数：收件箱是外部推来的未知增量 → 橙字提示；草稿箱是自己建的已知存量 → 中性灰 */
+  .queue .q{
+    margin-left:auto;flex:none;font-family:var(--app-font-mono);font-size:10px;
+    color:var(--app-accent-fg);font-variant-numeric:tabular-nums;
+  }
+  .queue .q.quiet{color:var(--app-fg-faint)}
 
   /* 4 结构：主题组标题 + 树 + 私人空间 */
   .sec-label{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:3px}
@@ -193,19 +219,19 @@
   .vt span.on{background:var(--app-surface);color:var(--app-fg);box-shadow:0 1px 1px rgba(26,26,24,.08)}
   .vt svg{width:11px;height:11px}
 
-  .rows{display:flex;flex-direction:column;padding:4px 0 8px;min-height:0;overflow:hidden}
+  .rows{display:flex;flex-direction:column;padding:4px 0 8px;min-height:0;overflow-y:auto;scrollbar-gutter:stable}
   .grp{
     font-size:10.5px;color:var(--app-fg-subtle);
     padding:14px 16px 6px;display:flex;align-items:center;gap:9px;
   }
-  .grp::after{content:“”;flex:1;height:1px;background:var(--app-border-subtle)}
+  .grp::after{content:"";flex:1;height:1px;background:var(--app-border-subtle)}
 
   .nrow{
     position:relative;display:grid;grid-template-columns:16px 1fr auto;gap:2px 10px;
     align-items:baseline;padding:9px 14px;cursor:pointer;
     transition:background 130ms cubic-bezier(.2,.6,.3,1);
   }
-  .nrow:not(:last-child)::after{content:“”;position:absolute;left:40px;right:14px;bottom:0;height:1px;background:var(--app-border-subtle)}
+  .nrow:not(:last-child)::after{content:"";position:absolute;left:40px;right:14px;bottom:0;height:1px;background:var(--app-border-subtle)}
   .nrow:hover{background:var(--app-hover)}
   .nrow:hover::after,.nrow.on::after{opacity:0}
   .nrow.on{background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent)}
@@ -229,7 +255,7 @@
   .icon-b:hover{color:var(--app-fg)}
   .icon-b svg{width:13px;height:13px}
 
-  .doc-in{padding:24px 34px 0;overflow:hidden;flex:1;min-height:0}
+  .doc-in{padding:24px 34px 0;overflow-y:auto;scrollbar-gutter:stable;flex:1;min-height:0}
   .kicker{display:flex;align-items:center;gap:7px;margin-bottom:12px}
   .kicker::before{content:"";width:14px;height:1.5px;background:var(--app-accent);flex:none}
   .kicker span{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);text-transform:uppercase}
@@ -306,7 +332,7 @@
   .s-dark .vt span.on,.s-dark .modes span.on{background:#33383C;box-shadow:none}
   .s-dark .box.done{color:#1A1208}
   .s-dark .memo{background:#1D2023;border-color:#2E3235}
-  .s-dark .duo a{background:#1F2225}
+  .s-dark .formseg a.on{background:#33383C;box-shadow:none}
 
   footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--app-border);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--app-fg-subtle)}
   footer .k{font-family:var(--app-font-serif);font-style:italic;font-size:13px;color:var(--app-fg-muted)}
@@ -338,10 +364,13 @@
   /* ---------- Memo 视图 ---------- */
   .memo-app{grid-template-columns:248px minmax(0,1fr) 232px}
   .memo-main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--app-border)}
-  .memo-bar{height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
+  .memo-bar{height:48px;display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
   .memo-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
-  .memo-bar .r{display:flex;align-items:center;gap:10px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
-  .memo-list{flex:1;min-height:0;overflow:hidden;padding-bottom:8px}
+  .memo-bar .r{display:flex;align-items:center;gap:10px;margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .view-seg{display:flex;padding:2px;gap:2px;background:var(--app-surface-sunken);border-radius:6px;height:26px;flex:none}
+  .view-seg span{display:grid;place-items:center;padding:0 10px;border-radius:4px;font-size:11.5px;color:var(--app-fg-subtle);white-space:nowrap}
+  .view-seg span[aria-selected="true"]{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.06)}
+  .memo-list{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding-bottom:8px}
   .mgroup{font-size:10.5px;color:var(--app-fg-subtle);padding:18px 24px 10px 242px;display:flex;align-items:center;gap:9px}
   .mgroup::after{content:"";flex:1;height:1px;background:var(--app-border-subtle)}
   .m-item{display:grid;grid-template-columns:38px 1fr;gap:12px;padding:9px 24px;transition:background 130ms cubic-bezier(.2,.6,.3,1)}
@@ -356,38 +385,37 @@
   /* ---------- Memo 渲染元素（FR-MEMO-2 轻量语法集） ---------- */
   .ms-app{grid-template-columns:248px minmax(0,1fr)}
   .ms-app .memo-list{overflow-y:auto}
-  .m-block{font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
-  .m-block p{margin:0 0 6px}
-  .m-block p:last-child{margin-bottom:0}
-  .m-block strong{font-weight:650;color:var(--app-fg)}
-  .m-block em{font-style:italic}
-  .m-block del{color:var(--app-fg-faint)}
-  .m-block a{color:var(--app-link);text-decoration:none}
-  .m-block a:hover{text-decoration:underline;text-underline-offset:3px}
-  .m-block code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
-  .m-block ul,.m-block ol{padding-left:1.2em;margin:4px 0 0}
-  .m-block ul{list-style:disc}
-  .m-block ol{list-style:decimal}
-  .m-block li+li{margin-top:2px}
-  .m-block li::marker{color:var(--app-fg-faint)}
+  .tl-b p{margin:0 0 6px}
+  .tl-b p:last-child{margin-bottom:0}
+  .tl-b strong{font-weight:650;color:var(--app-fg)}
+  .tl-b em{font-style:italic}
+  .tl-b del{color:var(--app-fg-faint)}
+  .tl-b a{color:var(--app-link);text-decoration:none}
+  .tl-b a:hover{text-decoration:underline;text-underline-offset:3px}
+  .tl-b code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
+  .tl-b ul,.m-block ol{padding-left:1.2em;margin:4px 0 0}
+  .tl-b ul{list-style:disc}
+  .tl-b ol{list-style:decimal}
+  .tl-b li+li{margin-top:2px}
+  .tl-b li::marker{color:var(--app-fg-faint)}
   /* 任务列表：复选框可点，改写正文 [ ]/[x] */
-  .m-block .task{display:flex;gap:7px;align-items:flex-start;line-height:1.55}
-  .m-block .task+.task{margin-top:3px}
-  .m-block .task .bx{width:14px;height:14px;border:1px solid var(--app-border);border-radius:3px;flex:none;margin-top:2px;display:grid;place-items:center}
-  .m-block .task .bx.on{background:var(--app-accent);border-color:var(--app-accent);color:#241505}
-  .m-block .task .bx svg{width:9px;height:9px;stroke-width:3}
-  .m-block .task.done{color:var(--app-fg-faint);text-decoration:line-through;text-decoration-color:var(--app-border)}
+  .tl-b .task{display:flex;gap:7px;align-items:flex-start;line-height:1.55}
+  .tl-b .task+.task{margin-top:3px}
+  .tl-b .task .bx{width:14px;height:14px;border:1px solid var(--app-border);border-radius:3px;flex:none;margin-top:2px;display:grid;place-items:center}
+  .tl-b .task .bx.on{background:var(--app-accent);border-color:var(--app-accent);color:#241505}
+  .tl-b .task .bx svg{width:9px;height:9px;stroke-width:3}
+  .tl-b .task.done{color:var(--app-fg-faint);text-decoration:line-through;text-decoration-color:var(--app-border)}
   /* 引用：2px 橙左边线 */
-  .m-block blockquote{margin:4px 0 0;padding-left:11px;border-left:2px solid var(--app-accent);font-size:13px;line-height:1.7;color:var(--app-fg-subtle)}
-  .m-block blockquote cite{display:block;margin-top:3px;font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .tl-b blockquote{margin:4px 0 0;padding-left:11px;border-left:2px solid var(--app-accent);font-size:13px;line-height:1.7;color:var(--app-fg-subtle)}
+  .tl-b blockquote cite{display:block;margin-top:3px;font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
   /* 代码块：无高亮，等宽 */
-  .m-block pre{margin:6px 0 0;padding:8px 10px;background:var(--app-surface-sunken);border-radius:4px;overflow:auto}
-  .m-block pre code{font-family:var(--app-font-mono);font-size:11px;line-height:1.6;background:none;padding:0;color:var(--app-fg-muted)}
-  .m-block hr{border:0;height:1px;background:var(--app-border-subtle);margin:10px 0}
-  .m-block .imgs{display:flex;gap:6px;margin-top:7px}
-  .m-block .imgs i{width:64px;height:64px;border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
+  .tl-b pre{margin:6px 0 0;padding:8px 10px;background:var(--app-surface-sunken);border-radius:4px;overflow:auto}
+  .tl-b pre code{font-family:var(--app-font-mono);font-size:11px;line-height:1.6;background:none;padding:0;color:var(--app-fg-muted)}
+  .tl-b hr{border:0;height:1px;background:var(--app-border-subtle);margin:10px 0}
+  .tl-b .imgs{display:flex;gap:6px;margin-top:7px}
+  .tl-b .imgs i{width:64px;height:64px;border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
   /* 降级显示：超集语法原样保留 */
-  .m-block .raw{display:block;font-family:var(--app-font-mono);font-size:11.5px;line-height:1.7;color:var(--app-fg-faint)}
+  .tl-b .raw{display:block;font-family:var(--app-font-mono);font-size:11.5px;line-height:1.7;color:var(--app-fg-faint)}
   .m-spec{font-size:10.5px;color:var(--app-fg-faint);font-family:var(--app-font-mono);margin-top:6px}
 
   /* ---------- Memo 二级侧栏（V1 结构：概述 / 热力图 / 随机漫步 / 那年今日 / 日期 / 标签） ---------- */
@@ -468,6 +496,10 @@
   /* ---------- 时间轴：一条轴线 + 块 ---------- */
   .app{position:relative}
   .tl{position:relative;padding:6px 224px 18px 242px}
+  .tl--flat{position:relative;padding:6px 24px 18px 244px}
+  .tl--flat::before{display:none}
+  .tl--flat .mgroup{padding-left:0;padding-right:0}
+  .tl--flat .tl-item{max-width:760px}
   .tl::before{content:"";position:absolute;left:294px;top:14px;bottom:22px;width:1px;background:var(--app-fg-faint);opacity:.32}
   .tl-item{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:start}
   .tl-item::before{
@@ -481,6 +513,29 @@
   .tl-b p{margin:0;font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
   .tl-b p b{color:var(--app-fg);font-weight:600}
   .tl-b code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
+
+  /* ---------- 图片瀑布流（FR-MEMO-6 · DESIGN §4.5） ----------
+     基于同一批 Memo 附件的筛选浏览，不是独立图库类型。
+     3 列 masonry：列数固定，图片按原始比例落位，缩略图不裁切。
+     懒加载：未进入视口的图片只占位不加载（占位块保持原比例，避免布局跳动）。
+     点击任一图 → 回到该图所属的 Memo 原位（瀑布流是附件的另一种排布，不是内容搬家）。 */
+  .gal-toolbar{height:44px;display:flex;align-items:center;gap:14px;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none;background:var(--app-surface)}
+  .gal-toolbar .seg-full{width:auto;flex:none}
+  .gal-toolbar .seg-full span{flex:none;padding:0 10px}
+  .gal-toolbar .r{margin-left:auto;display:flex;align-items:center;gap:10px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  /* 右侧留 224px 让位给绝对定位的 Todo 浮条（与时间线 .tl 同宽），避免遮挡第三列 */
+  .gal-scroll{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:16px 24px 24px 244px}
+  .gal-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+  @media(max-width:1100px){.gal-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .gal-item{display:block;margin-bottom:14px;cursor:pointer}
+  .gal-thumb{position:relative;width:100%;border-radius:var(--app-radius);overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
+  .gal-thumb i{display:block;width:100%;height:100%;background:var(--app-surface-sunken)}
+  /* 懒加载占位：未加载时画低对比骨架，已加载画缩略图 */
+  .gal-thumb.lazy i{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
+  .gal-cap{display:flex;align-items:center;gap:8px;margin-top:6px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .gal-cap .t{color:var(--app-fg-subtle)}
+  .gal-cap .more{margin-left:auto;color:var(--app-fg-faint)}
+  .gal-tag{font-size:10.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);border-radius:999px;padding:1px 7px}
   .tl-b .m-tagrow{margin-top:8px}
   .tl-b .st{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:10.5px;margin-top:8px}
   .tl-b .st i{width:4px;height:4px;border-radius:50%;background:var(--app-accent)}
@@ -635,7 +690,7 @@
   .empty-block .d{font-size:11.5px;color:var(--app-fg-faint);line-height:1.7;max-width:240px}
   .empty-block .k{margin-top:14px;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);border:1px solid var(--app-border);border-radius:5px;padding:4px 9px}
 
-  /* ---------- 滚动条（DESIGN §4.4：极细发丝线 · 悬停加深） ---------- */
+  /* ---------- 滚动条（DESIGN §4.3：极细发丝线 · 悬停加深） ---------- */
   .sb-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 24px;padding:20px}
   @media(max-width:900px){.sb-grid{grid-template-columns:1fr}}
   .sb-cell{min-width:0}
@@ -648,24 +703,89 @@
     font-family:var(--app-font-ui);color:var(--app-fg-muted);font-size:12.5px;line-height:1.75}
   .sb-doc h2{font-family:var(--app-font-serif);font-weight:500;font-size:17px;color:var(--app-fg);margin:0 0 10px}
   .sb-doc p{margin:0 0 10px}
-  /* 常态与悬停两态：真实伪元素，与 tokens.css + scrollbar.css 同源 */
-  .sb-doc::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
-  .sb-doc::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
-  .sb-doc::-webkit-scrollbar-thumb{
+  /* 常态与悬停两态：真实伪元素，与 tokens.css + scrollbar.css 同源。
+     用 * 全局接管——伪元素不继承，只写 html::-webkit-scrollbar 覆盖不到后代容器
+     （.memo-list / .gal-scroll 等），那正是「还是老样子」的成因。 */
+  *::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+  html::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+  *::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+  html::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+  *::-webkit-scrollbar-thumb{
     background-color:var(--app-scrollbar-thumb);
     border:var(--app-scrollbar-inset) solid transparent;
     background-clip:padding-box;border-radius:999px;
   }
-  [data-sb$="hover"] .sb-doc::-webkit-scrollbar-thumb{background-color:var(--app-scrollbar-thumb-hover)}
-  /* 本页自身滚动条也用新形态 */
-  html::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
-  html::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
   html::-webkit-scrollbar-thumb{
     background-color:var(--app-scrollbar-thumb);
     border:var(--app-scrollbar-inset) solid transparent;
     background-clip:padding-box;border-radius:999px;
   }
+  *::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
   html::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+  *::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+  html::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+  @supports not selector(::-webkit-scrollbar){
+    *{scrollbar-width:thin;scrollbar-color:var(--app-scrollbar-thumb) var(--app-scrollbar-track)}
+  }
+  /* 滚动条屏的悬停演示：覆盖常态色 */
+  [data-sb$="hover"] .sb-doc::-webkit-scrollbar-thumb{background-color:var(--app-scrollbar-thumb-hover)}
+
+  /* ---------- 应用视觉框架（模块索引图 · 只标位置不填内容） ----------
+     一张图 + 一张索引表：图上只画方框与编号，表里给编号→名称→类名。
+     目的不是好看，是让人和 AI 说「改 A6」就能落到唯一一个元素上。 */
+  .fw{padding:18px 20px 22px;background:var(--app-surface);overflow-x:auto}
+  .fw + .fw{border-top:1px solid var(--app-border)}
+  .fw-cap{display:flex;align-items:baseline;gap:9px;margin-bottom:13px;min-width:980px}
+  .fw-cap b{font-family:var(--app-font-serif);font-size:13px;font-weight:500;color:var(--app-fg)}
+  .fw-cap .mono{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .fw-grid{display:grid;grid-template-columns:248px 340px minmax(0,1fr);gap:10px;height:394px;min-width:980px}
+  .fcol{
+    display:flex;flex-direction:column;gap:6px;min-width:0;
+    padding:8px;border:1px solid var(--app-border);border-radius:7px;background:var(--app-surface);
+  }
+  .fcol--side{background:var(--app-bg-side)}   /* 与真实界面同一条底色差：侧栏后退一档 */
+  .fcol-hd{
+    display:flex;align-items:baseline;gap:6px;padding:0 1px 1px;flex:none;
+    font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;
+  }
+  .fcol-hd .fc{color:var(--app-accent-fg);font-size:10px}
+  .fbox{
+    display:flex;align-items:center;gap:6px;min-height:0;padding:0 8px;flex:none;
+    border:1px dashed var(--app-border);border-radius:5px;
+    font-size:10.5px;line-height:1.3;color:var(--app-fg-subtle);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .fbox.grow{flex:1}
+  .fbox.mid{height:34px}
+  .fbox.top{align-items:flex-start;padding-top:8px}
+  .fbox .fc{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-accent-fg);flex:none}
+  .fbox .fm{font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
+  .fbox .rx{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint);flex:none}
+  .fbox.box-solid{border-style:solid;border-color:var(--app-border)}
+
+  /* Memo 形态：同一侧栏 + 两层浮层 */
+  .fw-grid--memo{grid-template-columns:248px minmax(0,1fr);height:268px}
+  .fw-row{display:flex;gap:8px;flex:1;min-height:0}
+  .fw-row > .fbox{border-style:solid;border-color:var(--app-border)}
+
+  /* 独立层 / 独立屏幕 */
+  .fw-layers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;min-width:980px}
+  .fw-layers .fbox{height:72px;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;white-space:normal}
+  .fw-layers .fbox b{font-weight:400}
+  .fw-layers .fbox .fm{line-height:1.4}
+
+  /* Memo 顶栏的「回到笔记」——就地返回，与侧栏形态切换分工不同 */
+  .bar-l{display:flex;align-items:center;gap:9px;min-width:0}
+  .back{
+    display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 7px;flex:none;
+    border-radius:5px;color:var(--app-fg-muted);font-size:11.5px;text-decoration:none;white-space:nowrap;
+    transition:background 110ms,color 110ms;
+  }
+  .back:hover{background:var(--app-hover);color:var(--app-fg)}
+  .back svg{width:12px;height:12px;color:var(--app-fg-faint);flex:none}
+  .back:hover svg{color:var(--app-fg-muted)}
+  .vdiv{width:1px;height:14px;background:var(--app-border);flex:none}
 
   @media (max-width:900px){.states{grid-template-columns:1fr}}
 
@@ -676,13 +796,138 @@
   <div class="kicker">Menote V2 · 设计预览 v1 · 2026-10-31</div>
   <h1>Menote V2 界面与组件</h1>
   <p>本文件只放界面本体；令牌、组件规范、交互不变式与验收清单见 <a href="../DESIGN.md">DESIGN.md</a>。全部屏幕共用一套 CSS 变量，浅色与深色只切换令牌，不切换结构。</p>
+  <p><b>改动前先看 00</b>：那里把界面拆成 A–H 的方框并给了编号，说「改 A6」就能落到唯一一个元素上。</p>
 </header>
 
 <main class="board">
 
+  <section class="screen" id="s0">
+    <div class="screen-head"><span class="n">00</span><h2>应用视觉框架</h2><span class="desc">只标位置与名称、不填内容；说「改 A6」比说「左边那个箱子」准</span></div>
+    <div class="frame">
+      <div class="fw">
+        <div class="fw-cap"><b>① 应用外壳</b><span class="mono">.app · grid 248 / 340 / 1fr · 高 792 · 最小宽 1120</span></div>
+        <div class="fw-grid">
+
+          <div class="fcol fcol--side">
+            <div class="fcol-hd"><span class="fc">A</span>侧栏 · 248</div>
+            <div class="fbox" style="height:22px"><span class="fc">A1</span>品牌与设置</div>
+            <div class="fbox" style="height:32px"><span class="fc">A2</span>Memo 记录条</div>
+            <div class="fbox" style="height:30px"><span class="fc">A3</span>新建笔记</div>
+            <div class="fbox" style="height:26px"><span class="fc">A4</span>形态切换 · 笔记｜Memo</div>
+            <div class="fbox" style="height:40px"><span class="fc">A5</span>回看导航</div>
+            <div class="fbox" style="height:52px"><span class="fc">A6</span>待整理 · 收件箱／草稿箱</div>
+            <div class="fbox grow top"><span class="fc">A7</span>主题树<span class="rx">滚动</span></div>
+            <div class="fbox" style="height:34px"><span class="fc">A8</span>标签</div>
+            <div class="fbox" style="height:22px"><span class="fc">A9</span>账号与同步</div>
+          </div>
+
+          <div class="fcol">
+            <div class="fcol-hd"><span class="fc">B</span>笔记清单 · 340</div>
+            <div class="fbox" style="height:30px"><span class="fc">B1</span>清单头 · 标题＋视图切换</div>
+            <div class="fbox" style="height:22px"><span class="fc">B2</span>分组标题</div>
+            <div class="fbox grow top"><span class="fc">B3</span>笔记行（重复）<span class="rx">滚动</span></div>
+          </div>
+
+          <div class="fcol">
+            <div class="fcol-hd"><span class="fc">C</span>文档 · 1fr</div>
+            <div class="fbox" style="height:30px"><span class="fc">C1</span>文档栏 · 面包屑＋模式切换</div>
+            <div class="fbox" style="height:44px"><span class="fc">C2</span>文档头 · 类型标签＋标题</div>
+            <div class="fbox" style="height:56px"><span class="fc">C3</span>属性区 · 两列</div>
+            <div class="fbox grow top"><span class="fc">C4</span>正文<span class="rx">滚动</span></div>
+            <div class="fbox" style="height:20px"><span class="fc">C5</span>状态栏</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="fw">
+        <div class="fw-cap"><b>② Memo 形态</b><span class="mono">.app.mvb-app · grid 248 / 1fr · D1／D3 是绝对定位浮层，不占栅格列</span></div>
+        <div class="fw-grid fw-grid--memo">
+          <div class="fcol fcol--side">
+            <div class="fcol-hd"><span class="fc">A</span>侧栏（同 ①，不变）</div>
+            <div class="fbox grow top"><span class="fc">A</span>同一套侧栏；切形态不改结构，只改主区</div>
+          </div>
+          <div class="fcol">
+            <div class="fcol-hd"><span class="fc">D</span>Memo 主区 · 1fr</div>
+            <div class="fbox box-solid" style="height:28px"><span class="fc">D4</span>Memo 顶栏 · 返回＋标题＋视图切换</div>
+            <div class="fw-row">
+              <div class="fbox grow" style="flex:0 0 216px"><span class="fc">D1</span>工作栏</div>
+              <div class="fbox grow top"><span class="fc">D2</span>时间轴 · 轴线＋块<span class="rx">滚动</span></div>
+              <div class="fbox grow" style="flex:0 0 196px"><span class="fc">D3</span>Todo 浮条</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fw">
+        <div class="fw-cap"><b>③ 独立层与独立屏幕</b><span class="mono">不参与 ①② 的栅格，浮在上层或整屏替换</span></div>
+        <div class="fw-layers">
+          <div class="fbox"><span class="fc">E</span><b>设置对话框</b><span class="fm">648 × 530 · 唯一大阴影</span></div>
+          <div class="fbox"><span class="fc">F</span><b>锁定卡</b><span class="fm">宽 346 · 内容区居中</span></div>
+          <div class="fbox"><span class="fc">G</span><b>网格区</b><span class="fm">替换 B／C · 3 列卡片</span></div>
+          <div class="fbox"><span class="fc">H</span><b>图册区</b><span class="fm">替换 D2 · 3 列瀑布流</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>编号</th><th>模块</th><th>类名 / 选择器</th><th>改这里会牵动什么</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>侧栏</td><td class="mono">.sb · 248px</td><td>全屏一级导航；宽度改动会挤压 B／C 两栏</td></tr>
+          <tr><td>A1</td><td>品牌与设置</td><td class="mono">.sb-top · .brand · .ic</td><td>产品名与设置入口，始终吸在侧栏顶</td></tr>
+          <tr><td>A2</td><td>Memo 记录条</td><td class="mono">.memo</td><td>快速录入；展开时占用 A3 位置，不推开导航</td></tr>
+          <tr><td>A3</td><td>新建笔记</td><td class="mono">.btn</td><td>全屏唯一橙色实心块；改样式会改变整屏视觉落点</td></tr>
+          <tr><td>A4</td><td>形态切换 · 笔记｜Memo</td><td class="mono">.formseg</td><td>一级形态切换，与 A7 的层级选中互不干扰</td></tr>
+          <tr><td>A5</td><td>回看导航</td><td class="mono">.nav</td><td>最近编辑 / 收藏；回看类入口，位于待整理之前</td></tr>
+          <tr><td>A6</td><td>待整理 · 收件箱／草稿箱</td><td class="mono">.queue</td><td>两条未归类队列；紧贴 A7，因为整理动作的终点是树</td></tr>
+          <tr><td>A7</td><td>主题树</td><td class="mono">.tree · .sec-label</td><td>主题／分组／私人空间；只显示层级，不显示笔记</td></tr>
+          <tr><td>A8</td><td>标签</td><td class="mono">.tags · .tag-chip</td><td>跨主题检索入口，不参与层级</td></tr>
+          <tr><td>A9</td><td>账号与同步</td><td class="mono">.sb-foot · .ava</td><td>用 <span class="mono">margin-top:auto</span> 钉在底，树再长也不被推走</td></tr>
+          <tr><td>B</td><td>笔记清单</td><td class="mono">.list-col · 340px</td><td>定位与比较区；行高 60，紧凑模式 52</td></tr>
+          <tr><td>B1</td><td>清单头</td><td class="mono">.list-head</td><td>当前范围 + 条数 + 列表／网格切换</td></tr>
+          <tr><td>B2</td><td>分组标题</td><td class="mono">.grp</td><td>时间分组；右侧延展发丝线，与 C 区无关</td></tr>
+          <tr><td>B3</td><td>笔记行</td><td class="mono">.nrow · .nr-t · .nr-d</td><td>三行信息（标题／摘要／时间）；选中是淡橙底＋3px 橙条</td></tr>
+          <tr><td>C</td><td>文档</td><td class="mono">.doc · 1fr（最小 420）</td><td>阅读与写作区；唯一允许大留白的栏</td></tr>
+          <tr><td>C1</td><td>文档栏</td><td class="mono">.doc-bar · .crumb</td><td>面包屑与编辑／预览；固定不滚</td></tr>
+          <tr><td>C2</td><td>文档头</td><td class="mono">.kicker · .doc-title</td><td>类型标签＋ 32px 衬线标题；改字号会影响整页节奏</td></tr>
+          <tr><td>C3</td><td>属性区</td><td class="mono">.props · .prop · .pill-b</td><td>状态／更新／标签／来源，两列 key-value，无框</td></tr>
+          <tr><td>C4</td><td>正文</td><td class="mono">.prose</td><td>Markdown 渲染；列表、代码、表格、任务都在这里</td></tr>
+          <tr><td>C5</td><td>状态栏</td><td class="mono">.doc-foot</td><td>保存状态与字数；固定在最底</td></tr>
+          <tr><td>D1</td><td>Memo 工作栏</td><td class="mono">.mside · 216px</td><td>概述／热力图／随机漫步／那年今日／日期／标签</td></tr>
+          <tr><td>D2</td><td>时间轴</td><td class="mono">.tl · .tl-item · .tl-b</td><td>一条轴线＋块；左右内距让位给 D1／D3</td></tr>
+          <tr><td>D3</td><td>Todo 浮条</td><td class="mono">.todo-float · 196px</td><td>浮层：切视图时消失，轴的位置不跳</td></tr>
+          <tr><td>D4</td><td>Memo 顶栏</td><td class="mono">.memo-bar · .back</td><td>返回笔记＋视图切换；.back 是回主界面的就近入口</td></tr>
+          <tr><td>E</td><td>设置对话框</td><td class="mono">.dialog · .dlg-*</td><td>648 × 530；左导航 158 + 右内容滚动</td></tr>
+          <tr><td>F</td><td>锁定卡</td><td class="mono">.lock-card</td><td>私人空间锁定态；宽 346 固定，不随窗口拉宽</td></tr>
+          <tr><td>G</td><td>网格区</td><td class="mono">.gcards · .gcard</td><td>替换 B＋C；3 列，卡片点开进入独立阅读区</td></tr>
+          <tr><td>H</td><td>图册区</td><td class="mono">.gal-scroll · .gal-cols</td><td>替换 D2；3 列瀑布流，懒加载占位保比例</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="notes">
+      <div><b>这张图的作用</b>：改版时先在图上报位置，再改代码。「把收件箱挪上去」会歧义，「把 A6 移到 A3 之下」不会。</div>
+      <div><b>只标结构，不标状态</b>：悬停、选中、禁用、加载、空态、错误统一在 <span class="mono">10 组件状态</span> 与各屏说明里，不塞进这张图。</div>
+      <div><b>三块底色就是三个区域</b>：侧栏后退一档、清单与文档同纸面，这个差是刻意的（DESIGN §1.2），图上已用底色画出。</div>
+      <div><b>「滚动」标记</b>：A7／B3／C4／D2 各自独立滚动，页面本身不滚（DESIGN §5.3）。改高度时先确认滚动容器是谁。</div>
+    </div>
+  </section>
+
   <section class="screen" id="s1">
     <div class="screen-head"><span class="n">01</span><h2>主界面 · 浅色</h2><span class="desc">侧栏 / 笔记清单 / 文档，三栏三密度</span></div>
     <div class="frame"><div class="shell s-light" data-screen="main"></div></div>
+    <div class="notes">
+      <div><b>A4 形态切换补齐了缺的那一半</b>：原来侧栏只有「Memo 时间线」一个形态入口，Note 形态没有入口，所以从 Memo 回不去——这是信息架构缺口，不是样式问题。</div>
+      <div><b>为什么用分段控件</b>：树上的选中项表达「位置」，形态切换表达「换一种内容形态」，两者正交。若也做成带橙条的导航行，会与树的选中打架（DESIGN §4.2 三种选中必须区分）。</div>
+      <div><b>A6 由并排白块改两行</b>：中文标签＋计数在 114px 里已经贴边；并排两块还借用了「侧栏选中 = 白底」的语言，读起来像同时选中了两项。</div>
+      <div><b>为什么紧贴主题树</b>：待整理的唯一终点是归类，归类发生在下面的树里。放在树之上的最后一段，动作和目标是相邻的。</div>
+      <div><b>计数只给收件箱上橙</b>：收件箱是外部／Agent 推来的未知增量，需要提示；草稿箱是自己建的已知存量，自己心里有数。两个都上橙，橙就不再有指示意义。</div>
+      <div><b>清空即退场</b>：计数归零后收件箱不再高亮，不再留「0」占位；队列本身常驻，不做自动过期删除（FR-IA-2）。</div>
+    </div>
+    <div class="callout">
+      <b>待你确认</b>：新增 A4 会改动 FR-IA-4 的侧栏条目表述（原为「Memo 时间线／最近编辑／收藏」），并按主文档 2.3 的导航顺序调整。这是对定稿的补充，我未擅自改动需求说明书与主文档；确认后再同步。
+    </div>
   </section>
 
   <section class="screen" id="s2">
@@ -691,32 +936,51 @@
   </section>
 
   <section class="screen" id="s3">
-    <div class="screen-head"><span class="n">03</span><h2>Memo 时间线</h2><span class="desc">工作栏（页内）/ 时间轴（块）/ Todo 浮动条，不打开完整编辑器</span></div>
+    <div class="screen-head"><span class="n">03</span><h2>Memo 时间线</h2><span class="desc">顶栏（返回＋视图切换）/ 工作栏 / 时间轴 / Todo 浮条，不打开完整编辑器</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memo"></div></div>
+    <div class="notes">
+      <div><b>两个返回入口分工</b>：侧栏 A4 是「换形态」，常驻、双向，滚到多深都在；顶栏 D4 的「← 笔记」是「回去」，就地在内容区左上角，回到你刚才那篇的确切位置。</div>
+      <div><b>为什么不做「首页」</b>：桌面端三栏本身就是主界面，再造一个首页会让「主题树在哪」变成第二个问题。返回的目标是「上次那篇笔记」，不是一张概览页（首页概念只在移动端成立）。</div>
+      <div><b>就地返回不抢戏</b>：24px 高、无底色、无边框，只在悬停时浮出浅底；它与右侧的视图切换同一行，但颜色更弱——返回是退路，不该比内容更响。</div>
+      <div><b>位置记忆</b>：切到 Memo 再回来，树上的选中项与清单滚动位置都不变，筛选不被清空。</div>
+      <div><b>键盘</b>：<span class="mono">⌘1</span> 笔记 / <span class="mono">⌘2</span> Memo，与 A4 等价；<span class="mono">Esc</span> 不承担返回，避免与关闭浮层冲突。</div>
+    </div>
   </section>
 
   <section class="screen" id="s4">
-    <div class="screen-head"><span class="n">04</span><h2>Memo 渲染样式 · 行内与列表</h2><span class="desc">行内格式、无序/有序列表、任务列表（可勾选，改写正文）</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="memoStylesInline"></div></div>
+    <div class="screen-head"><span class="n">04</span><h2>Memo 图册 · 图片瀑布流</h2><span class="desc">同一批 Memo 附件的另一种排布，不是独立图库类型</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="memoGallery"></div></div>
+    <div class="notes" style="margin-left:38px">
+      <div><b>3 列 masonry</b>：列数固定，图片按原始宽高比落位，缩略图不裁切——裁切会让人认不出自己的素材。</div>
+      <div><b>懒加载占位保比例</b>：未进视口的图只画骨架，但占位块按原比例预留高度，滚动时不跳版。</div>
+      <div><b>不是独立类型</b>：瀑布流不新增内容形态，图册 = Memo 附件的筛选视图。点任一张回到它所属的 Memo 原位。</div>
+      <div><b>归属仍在 Memo</b>：每张图下保留来源 Memo 的时间与标签，删除/改状态在原条目里生效，图册不产生第二份状态。</div>
+      <div><b>加密条目不出现</b>：私人空间与单篇加密 Memo 的附件在图册中按可见性谓词整体排除，不做缩略图缓存。</div>
+    </div>
   </section>
 
   <section class="screen" id="s5">
-    <div class="screen-head"><span class="n">05</span><h2>Memo 渲染样式 · 块级与降级</h2><span class="desc">引用、代码块、分隔线、图片；不支持的语法原样保留</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="memoStylesBlock"></div></div>
+    <div class="screen-head"><span class="n">05</span><h2>Memo 渲染样式 · 行内与列表</h2><span class="desc">行内格式、无序/有序列表、任务列表（可勾选，改写正文）</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="memoStylesInline"></div></div>
   </section>
 
   <section class="screen" id="s6">
-    <div class="screen-head"><span class="n">06</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="grid"></div></div>
+    <div class="screen-head"><span class="n">06</span><h2>Memo 渲染样式 · 块级与降级</h2><span class="desc">引用、代码块、分隔线、图片；不支持的语法原样保留</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="memoStylesBlock"></div></div>
   </section>
 
   <section class="screen" id="s7">
-    <div class="screen-head"><span class="n">07</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="lock"></div></div>
+    <div class="screen-head"><span class="n">07</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="grid"></div></div>
   </section>
 
   <section class="screen" id="s8">
-    <div class="screen-head"><span class="n">08</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
+    <div class="screen-head"><span class="n">08</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="lock"></div></div>
+  </section>
+
+  <section class="screen" id="s9">
+    <div class="screen-head"><span class="n">09</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
     <div class="frame">
       <div class="stage">
         <div class="dialog">
@@ -770,8 +1034,8 @@
     </div>
   </section>
 
-  <section class="screen" id="s9">
-    <div class="screen-head"><span class="n">09</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
+  <section class="screen" id="s10">
+    <div class="screen-head"><span class="n">10</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
     <div class="states">
       <div class="state-card">
         <h4>按钮</h4>
@@ -827,13 +1091,13 @@
     </div>
   </section>
 
-  <section class="screen" id="s10">
-    <div class="screen-head"><span class="n">10</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
+  <section class="screen" id="s11">
+    <div class="screen-head"><span class="n">11</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
     <div class="frame"><div class="shell s-light" data-screen="empty"></div></div>
   </section>
 
-  <section class="screen" id="s11">
-    <div class="screen-head"><span class="n">11</span><h2>滚动条</h2><span class="desc">极细发丝线 · 悬停加深 · 全局接管所有原生滚动容器</span></div>
+  <section class="screen" id="s12">
+    <div class="screen-head"><span class="n">12</span><h2>滚动条</h2><span class="desc">极细发丝线 · 悬停加深 · 全局接管所有原生滚动容器</span></div>
     <div class="frame">
       <div class="sb-grid">
         <div class="sb-cell">
@@ -922,6 +1186,7 @@
     memo:  S('<path d="M4 5h16M4 11h16M4 17h9"/>'),
     down:  S('<path d="m6 9 6 6 6-6"/>'),
     right: S('<path d="m9 6 6 6-6 6"/>'),
+    left:  S('<path d="m15 6-6 6 6 6"/>'),
     more:  S('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
     list:  S('<path d="M4 7h16M4 12h16M4 17h11"/>'),
     grid:  S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
@@ -931,7 +1196,10 @@
 
   /* ---------- 侧栏 ---------- */
   function sidebar(cur){
-    var navMemo = cur==='memo' ? ' class="on"' : '';
+    /* cur: 'ue5' | 'priv' | 'memo' —— 前两者是「笔记」形态，memo 是「Memo」形态 */
+    var formMemo = cur==='memo';
+    var onNote = formMemo ? '' : ' class="on"';
+    var onMemo = formMemo ? ' class="on"' : '';
     var treeUE5  = cur==='ue5'  ? ' class="l2 on"' : ' class="l2"';
     var treePriv = cur==='priv' ? ' class="priv on"' : ' class="priv"';
     return ''
@@ -940,14 +1208,21 @@
     +     '<button class="ic" aria-label="设置">'+ic.sliders+'</button></div>'
     +   '<div class="memo"><span class="dot-mark"></span><span>记一条 Memo…</span><span class="kbd">⌘↵</span></div>'
     +   '<button class="btn">'+ic.plus+'新建笔记</button>'
+    /* A4 形态切换：笔记 ↔ Memo。切形态不改树上的位置，回来还是上次那篇 */
+    +   '<div class="formseg" role="group" aria-label="内容形态">'
+    +     '<a href="#s1"'+onNote+'>笔记</a>'
+    +     '<a href="#s3"'+onMemo+'>Memo</a>'
+    +   '</div>'
+    /* A5 回看 */
     +   '<nav class="nav">'
-    +     '<a href="#"'+navMemo+'>'+ic.memo+'Memo 时间线<span class="cnt plain">24</span></a>'
     +     '<a href="#">'+ic.clock+'最近编辑</a>'
     +     '<a href="#">'+ic.star+'收藏<span class="cnt plain">6</span></a>'
     +   '</nav>'
-    +   '<div class="duo">'
-    +     '<a href="#">'+ic.inbox+'收件箱<span class="cnt">3</span></a>'
-    +     '<a href="#">'+ic.file+'草稿箱<span class="cnt plain">2</span></a>'
+    /* A6 待整理：两条队列，紧贴主题树之上 */
+    +   '<div class="sec-label"><span class="lb">待整理</span></div>'
+    +   '<div class="queue">'
+    +     '<a href="#s1">'+ic.inbox+'收件箱<span class="q">3</span></a>'
+    +     '<a href="#s1">'+ic.file+'草稿箱<span class="q quiet">2</span></a>'
     +   '</div>'
     +   '<div class="sec-label"><span class="lb">主题</span>'
     +     '<button class="mini" aria-label="新建主题">'+ic.plus+'</button></div>'
@@ -1058,7 +1333,8 @@
   /* ---------- Memo 视图 ---------- */
   /* ---------- 网格视图 ---------- */
   /* ---------- Memo 二级侧栏（V1：概述 / 热力图 / 随机漫步 / 那年今日 / 日期 / 标签） ---------- */
-  function memoScreen(){
+  /* 工作栏：时间轴与图册共用，切换视图时不跳 */
+  function memoWorkbar(){
     /* 84 格 = 12 列 x 7 行，按列优先排；固定序列，避免每次刷新都不一样 */
     var heat = [0,0,1,0,2,0,0, 1,0,0,3,0,1,0, 0,2,0,0,1,0,4, 0,0,1,0,0,2,0,
                 1,0,0,2,0,0,1, 0,3,0,0,1,0,0, 2,0,1,0,0,4,0, 0,0,2,0,1,0,0,
@@ -1067,6 +1343,48 @@
       return '<i class="hm' + (v > 0 ? ' hm-' + v : '') + '"></i>';
     }).join('');
 
+    return '<aside class="mside">'
+      + '<div class="subblk">'
+      +   '<div class="subblk-t">概述</div>'
+      +   '<div class="stat3">'
+      +     '<div class="stat3-c"><b class="stat3-n">1,076</b><span class="stat3-l">总条数</span></div>'
+      +     '<div class="stat3-c"><b class="stat3-n">86</b><span class="stat3-l">本月新增</span></div>'
+      +     '<div class="stat3-c"><b class="stat3-n">144</b><span class="stat3-l">记录天数</span></div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="subblk">'
+      +   '<div class="subblk-t">热力图</div>'
+      +   '<p class="heat-sum">近 12 周 · 428 条</p>'
+      +   '<div class="heat">' + cells + '</div>'
+      +   '<div class="heat-lg"><span>少</span><i class="hm hm-1"></i><i class="hm hm-2"></i><i class="hm hm-3"></i><i class="hm hm-4"></i><span>多</span></div>'
+      + '</div>'
+      + '<div class="subblk">'
+      +   '<button class="subact"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>'
+      +     '随机漫步<svg class="go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'
+      + '</div>'
+      + '<div class="subblk">'
+      +   '<div class="subblk-t">那年今日</div>'
+      +   '<button class="otd">'
+      +     '<span class="otd-hd"><span class="otd-d">2025年3月14日</span><span class="otd-n">3 条</span></span>'
+      +     '<span class="otd-x">材质分层再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩。</span>'
+      +   '</button>'
+      + '</div>'
+      + '<div class="subblk">'
+      +   '<div class="subblk-t">日期</div>'
+      +   '<div class="seg-full"><span aria-selected="true">全部</span><span>今天</span><span>近 7 天</span><span>近 30 天</span></div>'
+      + '</div>'
+      + '<div class="subblk">'
+      +   '<div class="subblk-t">标签</div>'
+      +   '<nav class="sublist">'
+      +     '<button class="subitem" aria-pressed="true">全部<span class="n">1,076</span></button>'
+      +     '<button class="subitem"># 材质<span class="n">128</span></button>'
+      +     '<button class="subitem"># 光照<span class="n">96</span></button>'
+      +   '</nav>'
+      + '</div>'
+      + '</aside>';
+  }
+
+  function memoScreen(){
     function memo(t, html, tags, state){
       return '<div class="tl-item' + (state === 'now' ? ' now' : '') + '">'
         + '<div class="tl-t">' + t + '</div>'
@@ -1077,55 +1395,15 @@
     }
 
     return sidebar('memo')
-      + '<aside class="mside">'
-
-      +   '<div class="subblk">'
-      +     '<div class="subblk-t">概述</div>'
-      +     '<div class="stat3">'
-      +       '<div class="stat3-c"><b class="stat3-n">1,076</b><span class="stat3-l">总条数</span></div>'
-      +       '<div class="stat3-c"><b class="stat3-n">86</b><span class="stat3-l">本月新增</span></div>'
-      +       '<div class="stat3-c"><b class="stat3-n">144</b><span class="stat3-l">记录天数</span></div>'
-      +     '</div>'
-      +   '</div>'
-
-      +   '<div class="subblk">'
-      +     '<div class="subblk-t">热力图</div>'
-      +     '<p class="heat-sum">近 12 周 · 428 条</p>'
-      +     '<div class="heat">' + cells + '</div>'
-      +     '<div class="heat-lg"><span>少</span><i class="hm hm-1"></i><i class="hm hm-2"></i><i class="hm hm-3"></i><i class="hm hm-4"></i><span>多</span></div>'
-      +   '</div>'
-
-      +   '<div class="subblk">'
-      +     '<button class="subact"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>'
-      +       '随机漫步<svg class="go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'
-      +   '</div>'
-
-      +   '<div class="subblk">'
-      +     '<div class="subblk-t">那年今日</div>'
-      +     '<button class="otd">'
-      +       '<span class="otd-hd"><span class="otd-d">2025年3月14日</span><span class="otd-n">3 条</span></span>'
-      +       '<span class="otd-x">材质分层再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩。</span>'
-      +     '</button>'
-      +   '</div>'
-
-      +   '<div class="subblk">'
-      +     '<div class="subblk-t">日期</div>'
-      +     '<div class="seg-full"><span aria-selected="true">全部</span><span>今天</span><span>近 7 天</span><span>近 30 天</span></div>'
-      +   '</div>'
-
-      +   '<div class="subblk">'
-      +     '<div class="subblk-t">标签</div>'
-      +     '<nav class="sublist">'
-      +       '<button class="subitem" aria-pressed="true">全部<span class="n">1,076</span></button>'
-      +       '<button class="subitem"># 材质<span class="n">128</span></button>'
-      +       '<button class="subitem"># 光照<span class="n">96</span></button>'
-      +     '</nav>'
-      +   '</div>'
-
-      + '</aside>'
+      + memoWorkbar()
 
       + '<div class="memo-main">'
-      +   '<div class="memo-bar"><span class="t">Memo</span><span class="r">全部 · 1,076 条</span></div>'
+      +   '<div class="memo-bar">'
+      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +       '<span class="t">Memo</span></div>'
+      +     '<span class="r">全部 · 1,076 条</span>'
+      +     '<div class="view-seg"><span aria-selected="true">时间轴</span><span>图册</span></div>'
+      +   '</div>'
       +   '<div class="memo-list"><div class="tl">'
       +     '<div class="mgroup">今天</div>'
       +     memo('14:02', '<b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。', ['#材质','#UE5'], 'now')
@@ -1136,7 +1414,6 @@
       +     memo('17:02', 'Houdini 出的资产在引擎里参数化成本太高，先只保留三个可调项。', ['#工作流'])
       +   '</div></div>'
       + '</div>'
-
       + '<aside class="todo-float">'
       +   '<div class="tf-head"><span class="lb">Todo</span><span class="n">10</span>'
       +     '<span class="fold"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>'
@@ -1149,27 +1426,25 @@
       +     '<div class="tf-item"><span class="ds"></span><span class="t">地形四层混合验证</span></div>'
       +     '<div class="tf-item"><span class="ds"></span><span class="t">LOD 分级规则</span></div>'
       +   '</div>'
-      +   '<div class="tf-group"><div class="gh">已完成 <span class="n">5</span></div>'
-      +     '<div class="tf-item done"><span class="ds"></span><span class="t">确认采样默认值</span></div>'
-      +     '<div class="tf-item done"><span class="ds"></span><span class="t">写灯光规范初稿</span></div>'
-      +   '</div>'
       + '</aside>';
   }
 
   /* ---------- Memo 渲染样式 ---------- */
   function memoRow(t, html){
-    return '<div class="m-item"><div class="m-time">'+t+'</div><div>'
-      + '<div class="m-block">'+html+'</div>'
-      + '</div></div>';
+    return '<div class="tl-item"><div class="tl-t">'+t+'</div>'
+      + '<div class="tl-b">'+html+'</div></div>';
   }
   var memoCheck = '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 5"/></svg>';
 
   function memoStylesInline(){
     return sidebar('memo')
+      + memoWorkbar()
       + '<div class="memo-main">'
-      +   '<div class="memo-bar"><span class="t">Memo</span>'
+      +   '<div class="memo-bar">'
+      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +       '<span class="t">Memo</span></div>'
       +     '<span class="r">渲染样式 · 行内与列表</span></div>'
-      +   '<div class="memo-list">'
+      +   '<div class="memo-list tl--flat">'
 
       +     '<div class="mgroup">段落</div>'
       +     memoRow('14:30', '<p>段间距 6px，行高 1.7。这是第一段。</p>'
@@ -1197,10 +1472,13 @@
 
   function memoStylesBlock(){
     return sidebar('memo')
+      + memoWorkbar()
       + '<div class="memo-main">'
-      +   '<div class="memo-bar"><span class="t">Memo</span>'
+      +   '<div class="memo-bar">'
+      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span>'
+      +       '<span class="t">Memo</span></div>'
       +     '<span class="r">渲染样式 · 块级与降级</span></div>'
-      +   '<div class="memo-list">'
+      +   '<div class="memo-list tl--flat">'
 
       +     '<div class="mgroup">引用</div>'
       +     memoRow('21:15', '<blockquote>不接受"看起来对"的往返，只接受 AST 层级无损。<cite>Milkdown PoC · 结论</cite></blockquote>')
@@ -1288,9 +1566,64 @@
       + '</article>';
   }
 
+  /* ---------- 图片瀑布流（FR-MEMO-6） ----------
+     同一批 Memo 附件的另一种排布，不是独立图库类型。
+     列高不等（masonry）：按图片原始比例落位，缩略图不裁切；
+     懒加载：未进视口只画占位骨架，占位块保持原比例，滚动时不跳版。 */
+  function galleryScreen(){
+    /* 固定序列：宽高比与懒加载状态写死，避免每次刷新版式跳动 */
+    var pics = [
+      {w:4,h:3, t:'14:02', tag:'#材质', lazy:false},
+      {w:3,h:4, t:'11:26', tag:'#UE5',  lazy:false},
+      {w:1,h:1, t:'09:40', tag:'#光照', lazy:true },
+      {w:16,h:9,t:'21:15', tag:'#工作流',lazy:false},
+      {w:3,h:4, t:'17:02', tag:'#工作流',lazy:true },
+      {w:4,h:3, t:'16:40', tag:'#材质', lazy:true },
+      {w:2,h:3, t:'15:12', tag:'#渲染', lazy:true },
+      {w:3,h:2, t:'14:55', tag:'#光照', lazy:false},
+      {w:4,h:5, t:'13:20', tag:'#材质', lazy:true },
+      {w:16,h:10,t:'11:48',tag:'#UE5',  lazy:true },
+      {w:1,h:2, t:'10:31', tag:'#工作流',lazy:true },
+      {w:4,h:3, t:'09:15', tag:'#光照', lazy:true }
+    ];
+    function pic(p){
+      /* 列底 = 100% 宽 × 原始宽高比；缩略图按比例撑开，不裁切 */
+      var pad = (p.h / p.w * 100).toFixed(3);
+      return '<div class="gal-item">'
+        + '<div class="gal-thumb' + (p.lazy ? ' lazy' : '') + '" style="padding-bottom:' + pad + '%">'
+        +   '<i></i>'
+        + '</div>'
+        + '<div class="gal-cap"><span class="t">' + p.t + '</span><span class="gal-tag">' + p.tag + '</span>'
+        +   '<span class="more">' + ic.more + '</span>'
+        + '</div></div>';
+    }
+    /* masonry：按列分配到当前最矮的一列 */
+    var cols = [[],[],[]], heights = [0,0,0];
+    pics.forEach(function(p){
+      var k = heights.indexOf(Math.min.apply(null, heights));
+      cols[k].push(pic(p));
+      heights[k] += p.h / p.w + 0.42;
+    });
+    return sidebar('memo')
+      + memoWorkbar()
+      + '<div class="memo-main">'
+      +   '<div class="gal-toolbar">'
+      +     '<div class="bar-l"><a class="back" href="#s1">'+ic.left+'笔记</a><span class="vdiv"></span></div>'
+      +     '<div class="seg-full"><span aria-selected="true">全部</span><span>材质</span><span>光照</span><span>工作流</span></div>'
+      +     '<span class="r">24 张 · 按时间倒序</span>'
+      +     '<div class="view-seg"><span>时间轴</span><span aria-selected="true">图册</span></div>'
+      +   '</div>'
+      +   '<div class="gal-scroll"><div class="gal-cols">'
+      +     cols.map(function(c){ return '<div class="gal-col">' + c.join('') + '</div>'; }).join('')
+      +   '</div></div>'
+      + '</div>'
+      + '</div>';
+  }
+
   var builders = {
     main:  function(){ return '<div class="app">' + sidebar('ue5') + listPane() + docPane() + '</div>'; },
     memo:  function(){ return '<div class="app mvb-app">' + memoScreen() + '</div>'; },
+    memoGallery: function(){ return '<div class="app mvb-app">' + galleryScreen() + '</div>'; },
     memoStylesInline: function(){ return '<div class="app ms-app">' + memoStylesInline() + '</div>'; },
     memoStylesBlock:  function(){ return '<div class="app ms-app">' + memoStylesBlock() + '</div>'; },
     grid:  function(){ return '<div class="app grid-app">' + gridScreen() + '</div>'; },

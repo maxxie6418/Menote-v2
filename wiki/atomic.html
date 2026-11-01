@@ -470,7 +470,7 @@
   .lv-head h2{font-family:var(--app-font-serif);font-weight:500;font-size:22px;margin:0}
   .lv-d{font-size:12px;color:var(--app-fg-subtle)}
 
-  .cgrid{display:grid;gap:14px}
+  .cgrid{display:grid;gap:14px;align-items:start}
   .cgrid.g2{grid-template-columns:1fr 1fr}
   .cgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
   @media(max-width:900px){.cgrid.g2,.cgrid.g3{grid-template-columns:1fr}}
@@ -502,6 +502,13 @@
   .sb-a-thumb{position:absolute;top:8px;right:2px;width:6px;height:34px;border-radius:999px;background:#C4C4C0}
   .sb-a-hover .sb-a-thumb{background:#8E8E8A}
   .sb-a-hover .sb-a-thumb::after{content:"";position:absolute;inset:-2px -4px -2px -4px}
+
+  /* 图片瀑布流原子（DESIGN §4.5）：按原比例占位，列高自然不等 */
+  .gal-atoms{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
+  .gal-a-col{display:flex;flex-direction:column;gap:8px}
+  .gal-a-item{width:100%}
+  .gal-a-t{position:relative;width:100%;border-radius:4px;overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
+  .gal-a-t.lazy{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
   .s32{font-family:var(--app-font-serif);font-size:32px;line-height:1.2;color:var(--app-fg)}
   .s17{font-family:var(--app-font-serif);font-size:17px;color:var(--app-fg)}
   .s14{font-size:14px;color:var(--app-fg-muted)}
@@ -744,6 +751,22 @@
             </div>
           </div>
           <p class="cnote">发丝线 · 悬停加深；轨道透明，槽位恒定预留。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">图片瀑布流 · gallery</span><span class="path">3 列 / 不裁切</span></div>
+        <div class="card-b">
+          <div class="gal-atoms">
+            <div class="gal-a-col">
+              <div class="gal-a-item"><div class="gal-a-t" style="height:56px"></div></div>
+              <div class="gal-a-item"><div class="gal-a-t lazy" style="height:100px"></div></div>
+            </div>
+            <div class="gal-a-col">
+              <div class="gal-a-item"><div class="gal-a-t" style="height:74px"></div></div>
+              <div class="gal-a-item"><div class="gal-a-t lazy" style="height:42px"></div></div>
+            </div>
+          </div>
+          <p class="cnote">按原始比例落位不裁切；懒加载占位保比例，滚动不跳版。</p>
         </div>
       </div>
     </div>

@@ -136,7 +136,7 @@
   --app-scrollbar-track: transparent;
   --app-scrollbar-thumb: #c4c4c0;            /* 常态滑块 */
   --app-scrollbar-thumb-hover: #8e8e8a;      /* 悬停/拖拽滑块 */
-  /* 动效（DESIGN §4.4 关键 CSS） */
+  /* 动效（DESIGN §4.6 关键 CSS） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
   --app-motion-loop: 1.8s;         /* 登录检查屏云/书往复周期（参考 V1 authloading） */

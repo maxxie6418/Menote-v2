@@ -24,6 +24,9 @@
   --app-link:#0051C3;
   --app-success:#5F8B3F;
   --app-scrim:rgba(26,26,24,.30);
+  /* 滚动条（DESIGN §4.3：极细发丝线 · 悬停加深）——与桌面端同一套令牌 */
+  --app-scrollbar-size:10px;--app-scrollbar-inset:2px;--app-scrollbar-track:transparent;
+  --app-scrollbar-thumb:#C4C4C0;--app-scrollbar-thumb-hover:#8E8E8A;
   --app-font-serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
   --app-font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
   --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
@@ -47,8 +50,34 @@ html.s-dark{
   --app-link:#7FA8FF;
   --app-success:#8CA86B;
   --app-scrim:rgba(0,0,0,.48);
+  /* 滚动条深色（DESIGN §4.3）：常态 1.88:1，悬停 3.46:1 */
+  --app-scrollbar-thumb:#45494D;--app-scrollbar-thumb-hover:#6B7176;
 }
 *{box-sizing:border-box}
+/* 滚动条（DESIGN §4.3）：发丝线 · 悬停加深。
+   本页是桌面浏览器预览，故显式呈现形态；真机为触屏时由 AppShell 的
+   data-pointer="coarse" 交回系统覆盖式滚动条（不占布局宽度）。 */
+*::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+html::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+*::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+html::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+*::-webkit-scrollbar-thumb{
+  background-color:var(--app-scrollbar-thumb);
+  border:var(--app-scrollbar-inset) solid transparent;
+  background-clip:padding-box;border-radius:999px;
+}
+html::-webkit-scrollbar-thumb{
+  background-color:var(--app-scrollbar-thumb);
+  border:var(--app-scrollbar-inset) solid transparent;
+  background-clip:padding-box;border-radius:999px;
+}
+*::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+html::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+*::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+html::-webkit-scrollbar-corner{background:var(--app-scrollbar-track)}
+@supports not selector(::-webkit-scrollbar){
+  *{scrollbar-width:thin;scrollbar-color:var(--app-scrollbar-thumb) var(--app-scrollbar-track)}
+}
 body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font-ui);line-height:1.62;letter-spacing:0;-webkit-font-smoothing:antialiased}
 svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 svg [fill="currentColor"]{fill:currentColor;stroke:none}
@@ -111,7 +140,7 @@ h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:
 .safebar i{display:block;width:104px;height:4px;border-radius:2px;background:var(--app-border)}
 
 /* 首页 */
-.home{flex:1;min-height:0;overflow:hidden;padding-bottom:6px}
+.home{flex:1;min-height:0;overflow:hidden;padding-bottom:6px;scrollbar-gutter:stable}
 .hhead{display:flex;align-items:baseline;justify-content:space-between;padding:15px 16px 7px}
 .hhead b{font-size:12px;font-weight:600;color:var(--app-fg)}
 .hhead a{font-size:11px;color:var(--app-fg-faint);display:inline-flex;align-items:center;gap:1px}
@@ -144,7 +173,7 @@ h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:
 .filters span em{font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
 .filters span.on{color:var(--app-fg);font-weight:600}
 .filters span.on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--app-accent)}
-.stream{flex:1;min-height:0;overflow:hidden}
+.stream{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable}
 .dhead{display:flex;align-items:center;gap:8px;height:26px;padding:0 14px;background:var(--app-surface)}
 .dhead b{font-size:10.5px;font-weight:400;color:var(--app-fg-subtle);font-family:var(--app-font-mono)}
 .dhead i{flex:1;height:1px;background:var(--app-border-subtle)}
@@ -157,6 +186,20 @@ h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:
 .mm .task .bx.on svg{width:9px;height:9px;color:#241505;stroke-width:2.4}
 .mm .thumb{margin-top:8px;display:flex;gap:6px}
 .mm .thumb i{width:60px;height:60px;border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
+
+/* ---------- Memo 图册 · 图片瀑布流（FR-MEMO-6 · DESIGN §4.5） ----------
+   移动端 2 列（375 宽，2 列各约 165px）。规则与桌面同一套：
+   按原始比例落位不裁切、懒加载占位保比例、点图回到原 Memo。 */
+.mgal{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable;padding:12px 14px 16px;
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.mgal-col{display:flex;flex-direction:column;gap:10px}
+.mgal-item{display:block}
+.mgal-thumb{position:relative;width:100%;border-radius:8px;overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
+.mgal-thumb i{display:block;width:100%;height:100%;background:var(--app-surface-sunken)}
+.mgal-thumb.lazy i{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
+.mgal-cap{display:flex;align-items:center;gap:6px;margin-top:5px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+.mgal-cap .t{color:var(--app-fg-subtle)}
+.mgal-cap .tg{font-family:var(--app-font-ui);font-size:10.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);border-radius:999px;padding:1px 6px}
 .mmeta{display:flex;align-items:center;gap:8px;margin-top:8px}
 .mmeta .t{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
 .mmeta .chip{font-size:11.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);height:19px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center}
@@ -252,7 +295,7 @@ h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:
 .composer.full{top:30px;bottom:282px;border-radius:0}
 .note-title{flex:none;padding:16px 16px 0;font-family:var(--app-font-serif);font-size:24px;font-weight:500;line-height:1.35;color:var(--app-fg)}
 .note-title .ph{color:var(--app-fg-faint)}
-.note-body{flex:1;min-height:0;overflow:hidden;padding:12px 16px 0;font-size:15px;line-height:1.75;color:var(--app-fg-muted)}
+.note-body{flex:1;min-height:0;overflow:hidden;scrollbar-gutter:stable;padding:12px 16px 0;font-size:15px;line-height:1.75;color:var(--app-fg-muted)}
 .note-body h3{font-size:14px;font-weight:600;line-height:1.5;color:var(--app-fg);margin:18px 0 6px}
 .note-body p{margin:0 0 12px}
 
@@ -1032,6 +1075,77 @@ table.cmp .tag.hot{background:var(--app-accent-subtle);color:var(--app-accent-fg
       <li>形态只在编辑中可选（04 屏）。一个东西在最容易选的时候选，定下来之后不再反复搬。</li>
       <li>不用右键菜单、不用滑动行（滑动与时间线的横向滚动冲突），统一长按。</li>
       <li>删除不给二次确认，但给 8 秒撤销条（DESIGN.md §8.3 恢复原则）。</li>
+    </ul>
+  </figure>
+
+  <!-- ============ 10 ============ -->
+  <figure class="screen">
+    <div class="cap"><b>10</b><span>Memo 图册</span><i>图片瀑布流 · 2 列</i></div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+      <div class="body">
+        <div class="filters">
+          <span>全部</span>
+          <span>待办<em>5</em></span>
+          <span class="on">图册<em>24</em></span>
+        </div>
+
+        <div class="mgal">
+          <div class="mgal-col">
+            <div class="mgal-item">
+              <div class="mgal-thumb" style="padding-bottom:75%"><i></i></div>
+              <div class="mgal-cap"><span class="t">14:02</span><span class="tg">#材质</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:133%"><i></i></div>
+              <div class="mgal-cap"><span class="t">11:26</span><span class="tg">#UE5</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:56%"><i></i></div>
+              <div class="mgal-cap"><span class="t">09:40</span><span class="tg">#光照</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:125%"><i></i></div>
+              <div class="mgal-cap"><span class="t">16:40</span><span class="tg">#材质</span></div>
+            </div>
+          </div>
+          <div class="mgal-col">
+            <div class="mgal-item">
+              <div class="mgal-thumb" style="padding-bottom:100%"><i></i></div>
+              <div class="mgal-cap"><span class="t">21:15</span><span class="tg">#工作流</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:67%"><i></i></div>
+              <div class="mgal-cap"><span class="t">17:02</span><span class="tg">#工作流</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:150%"><i></i></div>
+              <div class="mgal-cap"><span class="t">13:20</span><span class="tg">#材质</span></div>
+            </div>
+            <div class="mgal-item">
+              <div class="mgal-thumb lazy" style="padding-bottom:62%"><i></i></div>
+              <div class="mgal-cap"><span class="t">11:48</span><span class="tg">#UE5</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+        <div class="tab on"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+        <div class="tab mid"><button class="fab"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+        <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+      </nav>
+      <div class="safebar"><i></i></div>
+    </div>
+    <ul class="notes">
+      <li><b>「图册」是筛选行的第三项</b>，不是独立页面——和「全部 / 待办」同级，切换不改变底部导航的当前页。</li>
+      <li><b>2 列而非 3 列</b>：375 宽减边距后每列约 165px，3 列会压到 100px 以下，认不出素材内容。</li>
+      <li><b>按原始比例不裁切</b>：图高随原图走，列高自然不等——这正是瀑布流的形态。裁切会让人认不出自己的图。</li>
+      <li><b>懒加载占位保比例</b>：没进视口的图只画骨架，但占位高度按原比例预留，滚动时不跳版。</li>
+      <li><b>点图回原条目</b>：图册不是独立图库，点任一张回到它所属的 Memo 原位；状态与标签仍在原条目里改。</li>
+      <li><b>加密条目整体不出现</b>：私人空间与单篇加密 Memo 的附件按可见性谓词排除，不做缩略图缓存。</li>
     </ul>
   </figure>
 </div>
