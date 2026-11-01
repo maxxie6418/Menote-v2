@@ -7,3 +7,4 @@ dist/
 .env*
 /draft/tmp/
 /.zcode/
+editor-adapter.bundle.tmp.mjs
