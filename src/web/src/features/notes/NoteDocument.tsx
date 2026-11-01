@@ -29,16 +29,12 @@ interface NoteDocumentProps {
   onBack: () => void;
   showBack: boolean;
   crumb: string;
-  /** FR-TBL-3：表格抽出为独立表格文档（fields: + 表格主体）。 */
-  onExtractDoc: (content: string) => void;
 }
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; message: string };
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
-export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, onExtractDoc }: NoteDocumentProps) {
-  // 抽出为独立表格文档的入口随「表格结构化编辑」一并撤下（TP4）；参数保留，避免改动 AppShell 的调用约定。
-  void onExtractDoc;
+export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");

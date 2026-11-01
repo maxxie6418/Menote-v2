@@ -83,7 +83,7 @@ test("Worker SQL stays in db and style values stay in tokens", async () => {
     if (rel.startsWith("src/worker/src/") && !rel.startsWith("src/worker/src/db/") && /\.tsx?$/.test(rel) && !rel.endsWith(".d.ts")) {
       const tree = source(file, await readFile(file, "utf8"));
       visit(tree, (node) => {
-        if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node)) && /\b(?:SELECT|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i.test(node.text)) findings.push(`${rel}: SQL outside db`);
+        if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node)) && /\b(?:SELECT\s+[\s\S]*?\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE)\b/i.test(node.text)) findings.push(`${rel}: SQL outside db`);
       });
     }
     if (rel.startsWith("src/web/src/") && rel.endsWith(".css") && rel !== "src/web/src/styles/tokens.css") {

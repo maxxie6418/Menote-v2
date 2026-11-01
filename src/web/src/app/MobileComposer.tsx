@@ -24,6 +24,7 @@ export function MobileComposer({ userId, mode, body, title, tags, onMode, onBody
   const [saving, setSaving] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingNoteId, setPendingNoteId] = useState<string | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const grabY = useRef<number | null>(null);
@@ -52,10 +53,18 @@ export function MobileComposer({ userId, mode, body, title, tags, onMode, onBody
         const item = await createMemo(userId, body, parsedTags);
         onSaved(item);
       } else {
-        const item = await createNote(userId, { title: title.trim() || undefined });
-        const saved = body.trim() ? await saveItemContent(userId, item.id, body) : item;
-        const tagged = parsedTags.length ? await saveItemMeta(userId, item.id, { tags: parsedTags }) : saved;
-        onSaved(tagged);
+        const item = pendingNoteId
+          ? null
+          : await createNote(userId, { title: title.trim() || undefined });
+        const noteId = item?.id ?? pendingNoteId;
+        if (!noteId) throw new Error("笔记草稿创建失败");
+        if (item) setPendingNoteId(item.id);
+        let saved = item;
+        if (!item && title.trim()) saved = await saveItemMeta(userId, noteId, { title: title.trim() });
+        if (body.trim()) saved = await saveItemContent(userId, noteId, body);
+        if (parsedTags.length) saved = await saveItemMeta(userId, noteId, { tags: parsedTags });
+        if (!saved) throw new Error("笔记草稿暂不可用，请重试");
+        onSaved(saved);
       }
     } catch (cause) {
       setError(String(cause));

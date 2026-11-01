@@ -144,7 +144,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
 
   if (selected) return <div className="m-mobile-document"><NoteDocument key={selected.id} userId={userId} noteId={selected.id} topics={topics}
     unfiled={section.kind === "inbox" || section.kind === "drafts"} onBack={() => onSelect(null)} showBack crumb={selected.title ?? "无标题"}
-    onExtractDoc={() => undefined} /></div>;
+    /></div>;
 
   return <div className="m-screen m-notes-screen">
     <header className="m-topbar m-notes-topbar"><button type="button" className="m-ptitle" onClick={onTopicSheet}><span>{title}</span><ChevronDown /></button><span className="grow" /><button type="button" className="m-icon-btn" aria-label="新建笔记" onClick={onCreate}><Plus /></button></header>

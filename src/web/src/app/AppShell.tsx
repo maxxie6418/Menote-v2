@@ -9,7 +9,7 @@ import { purgeItemsPermanently } from "../services/versionService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
-import { createNote, saveItemContent, sweepBlankDrafts } from "../services/contentService";
+import { createNote, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
 import { lockIfIdle } from "../services/keyringService";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
@@ -97,7 +97,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   }, []);
   const goBack = useCallback((fallback: AppRoute) => {
     if (window.history.state?.menoteParentPath) window.history.back();
-    else navigate(fallback);
+    else navigate(fallback, true);
   }, [navigate]);
   const [view, setView] = useState<MainView>(() => route.kind === "status" ? "status" : "main");
   const [collapsed, setCollapsed] = useState(false);
@@ -354,7 +354,9 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
           onOpenDrawer={() => setDrawerOpen(true)}
-          onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); navigate(sectionRoute(noteReturn.section, noteReturn.noteId ?? undefined)); }}
+          selectedMemoId={route.kind === "memos" ? route.itemId : undefined}
+          onSelectMemo={(id) => navigate({ kind: "memos", itemId: id })}
+          onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); navigate(sectionRoute(noteReturn.section, noteReturn.noteId ?? undefined), true); }}
         />
         {settingsDialog}
       </div>
@@ -389,10 +391,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             </button>
           )}
           mobilePane={mobilePane}
-          onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
+          onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
           onOpenDrawer={() => setDrawerOpen(true)}
           document={trashItem ? (
-            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }} showBack={layout === "tablet"} />
+            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }} showBack={layout === "tablet"} />
           ) : (
             <article className="mn-doc" aria-label="文档区">
               <div className="mn-docbar"><span className="mn-docbar-left"><span className="mn-crumb">回收站</span></span></div>
@@ -431,7 +433,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         emptyTitle={emptyTitle}
         emptyDetail={emptyDetail}
         mobilePane={mobilePane}
-        onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
+        onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
         onOpenDrawer={() => setDrawerOpen(true)}
         document={noteId ? (
           <NoteDocument
@@ -440,17 +442,9 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             noteId={noteId}
             topics={topics}
             unfiled={section.kind === "inbox" || section.kind === "drafts"}
-            onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
+            onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
             showBack={layout === "tablet"}
             crumb={title}
-            onExtractDoc={async (content) => {
-              const created = await createNote(userId, { title: "表格文档", type: "table" });
-              await saveItemContent(userId, created.id, content);
-              setSection({ kind: "drafts" });
-              setNoteId(created.id);
-              setMobilePane("doc");
-              navigate(sectionRoute({ kind: "drafts" }, created.id));
-            }}
           />
         ) : (
           <article className="mn-doc" aria-label="文档区">

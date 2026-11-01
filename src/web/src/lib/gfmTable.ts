@@ -12,17 +12,35 @@ export interface ParsedTable {
 }
 
 export function splitRow(line: string): string[] {
-  // 去首尾管道后按未转义竖线切分；还原转义。
-  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  // 按未转义竖线切分；连续反斜线按 GFM 奇偶规则处理。
+  const trimmed = line.trim();
   const cells: string[] = [];
   let current = "";
   for (let i = 0; i < trimmed.length; i += 1) {
     const char = trimmed[i]!;
-    if (char === "\\" && trimmed[i + 1] === "|") { current += "|"; i += 1; continue; }
+    if (char === "\\") {
+      let end = i;
+      while (trimmed[end + 1] === "\\") end += 1;
+      const count = end - i + 1;
+      if (trimmed[end + 1] === "|") {
+        current += "\\".repeat(Math.floor(count / 2));
+        if (count % 2) current += "|";
+        else { cells.push(current); current = ""; }
+        i = end + 1;
+        continue;
+      }
+      current += "\\".repeat(count);
+      i = end;
+      continue;
+    }
     if (char === "|") { cells.push(current); current = ""; continue; }
     current += char;
   }
   cells.push(current);
+  if (trimmed.startsWith("|")) cells.shift();
+  let trailingSlashes = 0;
+  for (let index = trimmed.length - 2; index >= 0 && trimmed[index] === "\\"; index -= 1) trailingSlashes += 1;
+  if (trimmed.endsWith("|") && trailingSlashes % 2 === 0) cells.pop();
   return cells.map((cell) => cell.trim());
 }
 
@@ -31,18 +49,28 @@ function isDelimiter(line: string): boolean {
   return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
 }
 
+function hasUnescapedPipe(line: string): boolean {
+  let backslashes = 0;
+  for (const char of line.trim()) {
+    if (char === "\\") { backslashes += 1; continue; }
+    if (char === "|" && backslashes % 2 === 0) return true;
+    backslashes = 0;
+  }
+  return false;
+}
+
 /** 找出正文中所有可解析的 GFM 表格（表头+分隔+若干行）；不完整的块不视为表格。 */
 export function findTables(body: string): ParsedTable[] {
   const lines = body.split(/\r?\n/);
   const tables: ParsedTable[] = [];
   for (let i = 0; i < lines.length - 1; i += 1) {
     const line = lines[i]!;
-    if (!line.trim().startsWith("|") || !isDelimiter(lines[i + 1]!)) continue;
+    if (!hasUnescapedPipe(line) || !isDelimiter(lines[i + 1]!)) continue;
     const header = splitRow(line);
     let end = i + 1;
     const rows: string[][] = [];
     for (let j = i + 2; j < lines.length; j += 1) {
-      if (!lines[j]!.trim().startsWith("|")) break;
+      if (!hasUnescapedPipe(lines[j]!)) break;
       rows.push(splitRow(lines[j]!));
       end = j;
     }

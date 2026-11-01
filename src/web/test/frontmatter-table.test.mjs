@@ -38,6 +38,13 @@ test("reserved namespaces props/fields carry type definitions (开放项 #5)", (
   assert.deepEqual(rows.find((row) => row.key === "due").raw, "2026-11-01");
 });
 
+test("table field definitions do not create property values (FR-TBL-3 / FR-PROP-4)", () => {
+  const markdown = fm.writeDef("", fm.FIELDS_KEY, "状态", { type: "select", options: ["待办", "完成"] });
+  const data = fm.parseFrontmatterData(markdown);
+  assert.equal(data.状态, undefined);
+  assert.deepEqual(fm.readDefs(markdown, fm.FIELDS_KEY).状态.options, ["待办", "完成"]);
+});
+
 test("unknown scalar types degrade to text; arrays stay native (FR-PROP-6/8)", () => {
   const markdown = `---\nfree: "任意文本"\nnums: [工作, 生活]\nflag: true\nwhen: 2026-11-01\n---\n正文`;
   const rows = fm.readPropRows(markdown, fm.PROPS_KEY);
@@ -52,15 +59,27 @@ test("unknown scalar types degrade to text; arrays stay native (FR-PROP-6/8)", (
 });
 
 test("GFM table parse, escape and replace keep the carrier standard (FR-TBL-1/6)", () => {
-  const body = ["前置", "| 名称 | 备注 |", "| --- | --- |", "| a\|b | 多 | 词 |", "", "后缀"].join("\n");
+  const body = ["前置", "| 名称 | 备注 |", "| --- | --- |", "| a\\|b | 多 词 |", "", "后缀"].join("\n");
   const tables = table.findTables(body);
   assert.equal(tables.length, 1);
   assert.deepEqual(tables[0].header, ["名称", "备注"]);
-  assert.deepEqual(tables[0].rows[0], ["a|b", "多 | 词"].map((cell) => cell.replace(" | ", " ").trim()) === ["a|b", "多 词"] ? ["a|b", "多 词"] : tables[0].rows[0]);
+  assert.deepEqual(tables[0].rows[0], ["a|b", "多 词"]);
   const next = { ...tables[0], rows: [["x", "含|竖线"]] };
   const replaced = table.replaceTable(body, 0, next);
-  assert.match(replaced, /^\| x \| 含\|竖线 \|\)$/m.test(replaced) ? /含\\|竖线/ : /x/);
+  assert.match(replaced, /\| x \| 含\\\|竖线 \|/);
   assert.match(replaced, /后缀/);
   assert.equal(table.joinMultiCell([" A ", "B"]), "A, B");
   assert.deepEqual(table.splitMultiCell("A, B"), ["A", "B"]);
+});
+
+test("GFM table parsing accepts omitted outer pipes (FR-TBL-1)", () => {
+  const parsed = table.findTables("名称 | 备注\n--- | ---\n甲 | 第一条");
+  assert.equal(parsed.length, 1);
+  assert.deepEqual(parsed[0].header, ["名称", "备注"]);
+  assert.deepEqual(parsed[0].rows, [["甲", "第一条"]]);
+});
+
+test("GFM table parser handles escaped backslash parity around pipes", () => {
+  assert.deepEqual(table.splitRow("| a\\\\|b | c |"), ["a\\", "b", "c"]);
+  assert.deepEqual(table.splitRow("| a\\\\\\|b | c |"), ["a\\|b", "c"]);
 });

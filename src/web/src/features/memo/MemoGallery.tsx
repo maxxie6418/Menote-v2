@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { attachmentUrl } from "../../services/attachmentService";
 import type { MemoImage } from "./memoView";
 
@@ -30,6 +30,7 @@ export function MemoGallery({ images, onOpen }: MemoGalleryProps) {
 
 function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: string) => void }) {
   const ref = useRef<HTMLButtonElement>(null);
+  const thumbRef = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
   const [ratio, setRatio] = useState<number | null>(null);
 
@@ -43,9 +44,16 @@ function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: str
     return () => observer.disconnect();
   }, []);
 
+  useLayoutEffect(() => {
+    const thumb = thumbRef.current;
+    if (!thumb) return;
+    if (ratio) thumb.style.setProperty("--mn-memo-gallery-ratio", String(ratio));
+    else thumb.style.removeProperty("--mn-memo-gallery-ratio");
+  }, [ratio]);
+
   return (
     <button ref={ref} type="button" className="mn-memo-gal-item" onClick={() => onOpen(image.memoId)}>
-      <span className="mn-memo-gal-thumb" data-loaded={ratio !== null} style={ratio ? { aspectRatio: String(ratio) } : undefined}>
+      <span ref={thumbRef} className="mn-memo-gal-thumb" data-loaded={ratio !== null}>
         {visible && (
           <img
             src={attachmentUrl(image.sha256)}

@@ -1,21 +1,10 @@
 import { useEffect, useState } from "react";
 import type { ClipTemplateV1, StoredClipTemplate } from "@menote/shared";
-import { listClipTemplates, removeClipTemplate, saveClipTemplate } from "../../services/clipTemplateService";
-
-function emptyTemplate(): string { return `{
-  "schemaVersion": 1,
-  "id": "${crypto.randomUUID()}",
-  "name": "新剪藏规则",
-  "enabled": false,
-  "match": { "hosts": ["example.com"], "paths": ["/*"] },
-  "selectors": { "title": { "selector": "h1", "value": "text" }, "content": { "selector": "article", "value": "html" } },
-  "exclude": [],
-  "source": { "kind": "manual" }
-}`; }
+import { emptyClipTemplateDraft, listClipTemplates, removeClipTemplate, saveClipTemplate } from "../../services/clipTemplateService";
 
 export function ClipTemplateManager() {
   const [templates, setTemplates] = useState<StoredClipTemplate[]>([]);
-  const [draft, setDraft] = useState(emptyTemplate);
+  const [draft, setDraft] = useState(emptyClipTemplateDraft);
   const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [message, setMessage] = useState("剪藏规则与笔记读取权限相互独立；模板只保存选择器，不含网页内容。");
   const [busy, setBusy] = useState(false);
@@ -63,6 +52,6 @@ export function ClipTemplateManager() {
     </div>)}
     <label className="mn-setlabel" htmlFor="mn-clip-template-json">模板 JSON</label>
     <textarea id="mn-clip-template-json" className="mn-cliptemplate-json" rows={14} value={draft} onChange={(event) => setDraft(event.target.value)} />
-    <div className="mn-setrow"><button type="button" className="mn-btn" disabled={busy} onClick={() => void saveDraft()}>保存规则</button><button type="button" className="mn-btn" onClick={() => { setDraft(emptyTemplate()); setEditingVersion(null); }}>新建空白规则</button><p className="mn-sethint" role="status">{message}</p></div>
+    <div className="mn-setrow"><button type="button" className="mn-btn" disabled={busy} onClick={() => void saveDraft()}>保存规则</button><button type="button" className="mn-btn" onClick={() => { setDraft(emptyClipTemplateDraft()); setEditingVersion(null); }}>新建空白规则</button><p className="mn-sethint" role="status">{message}</p></div>
   </section>;
 }

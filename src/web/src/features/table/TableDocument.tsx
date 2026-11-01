@@ -133,7 +133,14 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
       const rest = { ...renames };
       delete rest[col];
       setRenames(rest);
-      if (draft.trim() && draft !== oldName) onChangeMarkdown(renameDef(markdown, FIELDS_KEY, oldName, draft.trim()));
+      const newName = draft.trim();
+      if (!newName || newName === oldName) return;
+      if ((scaffoldHeader ?? []).some((item, index) => index !== col && item.trim() === newName)) {
+        setError(`字段名「${newName}」已存在`);
+        return;
+      }
+      onChangeMarkdown(renameDef(markdown, FIELDS_KEY, oldName, newName));
+      setError(null);
       return;
     }
     const draft = renames[col];
@@ -298,7 +305,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                 onDrop={(event) => { event.preventDefault(); if (draggingRow !== null) moveRow(draggingRow, row); setDraggingRow(null); }}>
                 <div className="mn-tabledoc-rownum" role="rowheader">
                   <span className="mn-tabledoc-drag" aria-hidden="true" title="拖动调整行顺序" draggable
-                    onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; setDraggingRow(row); }}
+                    onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(row)); setDraggingRow(row); }}
                     onClick={(event) => event.stopPropagation()}>⠿</span>
                   <span>{row + 1}</span>
                   <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}>×</button>

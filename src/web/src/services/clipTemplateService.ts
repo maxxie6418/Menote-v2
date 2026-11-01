@@ -1,5 +1,16 @@
 import type { StoredClipTemplate, ClipTemplateV1 } from "@menote/shared";
 
+export function emptyClipTemplateDraft(): string { return `{
+  "schemaVersion": 1,
+  "id": "${crypto.randomUUID()}",
+  "name": "新剪藏规则",
+  "enabled": false,
+  "match": { "hosts": ["example.com"], "paths": ["/*"] },
+  "selectors": { "title": { "selector": "h1", "value": "text" }, "content": { "selector": "article", "value": "html" } },
+  "exclude": [],
+  "source": { "kind": "manual" }
+}`; }
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: "no-store", headers: { "Content-Type": "application/json", ...init?.headers } });
   const body: unknown = await response.json().catch(() => ({}));

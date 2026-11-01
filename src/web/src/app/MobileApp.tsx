@@ -14,7 +14,7 @@ interface MobileAppProps {
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenStatus: () => void;
   route: AppRoute;
-  onNavigate: (route: AppRoute) => void;
+  onNavigate: (route: AppRoute, replace?: boolean) => void;
 }
 
 export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus, route, onNavigate }: MobileAppProps) {
@@ -142,7 +142,7 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus, route,
         else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); onNavigate({ kind: "notes", section: { kind: "recent" }, itemId: item.id }); }
       }} onOpenSection={openSection} />}
       {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} />}
-      {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => { setSelectedNoteId(item?.id ?? null); onNavigate({ kind: "notes", section: noteSection, ...(item ? { itemId: item.id } : {}) }); }}
+      {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => { setSelectedNoteId(item?.id ?? null); onNavigate({ kind: "notes", section: noteSection, ...(item ? { itemId: item.id } : {}) }, !item); }}
         onTopicSheet={() => setTopicSheetOpen(true)} onCreate={() => void createAndOpenNote()} onLongPress={onLongPress} />}
       {page === "me" && <MobileMe userId={userId} username={user.username} role={user.role} onSettings={onOpenSettings} onStatus={onOpenStatus} onLogout={onLogout} onOpenSection={openSection} />}
     </div>

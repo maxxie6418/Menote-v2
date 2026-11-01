@@ -72,7 +72,9 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
 
 /** 新建 frontmatter（无 frontmatter 时）：写入定义并保持最小结构。 */
 export function createFrontmatter(markdown: string, namespace: string, def: PropertyDef, name: string): string {
-  const doc = new Document({ [namespace]: { [name]: defNode(def) }, [name]: emptyPropertyValue(def) });
+  const initial: Record<string, unknown> = { [namespace]: { [name]: defNode(def) } };
+  if (namespace === PROPS_KEY) initial[name] = emptyPropertyValue(def);
+  const doc = new Document(initial);
   return `---\n${doc.toString().replace(/\n$/, "")}\n---\n\n${markdown}`;
 }
 
@@ -101,7 +103,7 @@ export function writeDef(markdown: string, namespace: string, name: string, def:
   } else {
     doc.set(namespace, doc.createNode({ [name]: defNode(def) }));
   }
-  if (doc.get(name, true) === undefined) doc.set(name, doc.createNode(emptyPropertyValue(def)));
+  if (namespace === PROPS_KEY && doc.get(name, true) === undefined) doc.set(name, doc.createNode(emptyPropertyValue(def)));
   return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
 }
 

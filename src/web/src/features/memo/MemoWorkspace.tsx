@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos } from "../../services/contentHooks";
@@ -15,12 +15,14 @@ interface MemoWorkspaceProps {
   todoOpen: boolean;
   onToggleTodo: () => void;
   onOpenDrawer: () => void;
+  selectedMemoId?: string;
+  onSelectMemo: (id: string) => void;
   /** 回到进入 Memo 之前的笔记位置。未接上时按钮不出现。 */
   onBackToNotes?: () => void;
 }
 
 /** Memo 视图：顶栏 + 工作栏浮层 + 时间线或图册。Todo 只在时间轴出现。 */
-export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDrawer, onBackToNotes }: MemoWorkspaceProps) {
+export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDrawer, selectedMemoId, onSelectMemo, onBackToNotes }: MemoWorkspaceProps) {
   const memos = useMemos(userId);
   const [range, setRange] = useState<MemoRange>("all");
   const [tag, setTag] = useState<string | null>(null);
@@ -29,11 +31,17 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
   const images = memoImages(visible);
   const singlePane = layout === "tablet" || layout === "mobile";
 
-  const openMemo = (id: string) => {
+  useEffect(() => {
+    if (!selectedMemoId) return;
     setView("timeline");
     window.setTimeout(() => {
-      document.getElementById(`memo-${id}`)?.scrollIntoView({ block: "center" });
+      document.getElementById(`memo-${selectedMemoId}`)?.scrollIntoView({ block: "center" });
     }, 0);
+  }, [selectedMemoId, memos]);
+
+  const openMemo = (id: string) => {
+    setView("timeline");
+    onSelectMemo(id);
   };
 
   return (

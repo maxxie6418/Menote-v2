@@ -60,12 +60,15 @@ function CheckboxCell({ value, onChange }: { value: string; onChange: (value: st
   const isTrue = value === "true";
   const legacy = value !== "true" && value !== "false" && value !== "";
   return (
-    <input
-      className="mn-tcell-check" type="checkbox" checked={isTrue}
-      title={legacy ? `原值「${value}」，勾选后覆盖为 true/false` : "复选框单元格"}
-      aria-label="复选框单元格"
-      onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-    />
+    <span className="mn-tcell-checkwrap">
+      <input
+        className="mn-tcell-check" type="checkbox" checked={isTrue}
+        title={legacy ? `原值「${value}」，勾选后覆盖为 true/false` : "复选框单元格"}
+        aria-label="复选框单元格"
+        onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+      />
+      {legacy && <span className="mn-tcell-legacy" aria-label={`历史值：${value}`}>{value}</span>}
+    </span>
   );
 }
 

@@ -6,7 +6,9 @@ export type RouteSection =
   | { kind: "tag"; tag: string };
 
 export type AppRoute =
-  | { kind: "home" | "me" | "status" }
+  | { kind: "home" }
+  | { kind: "me" }
+  | { kind: "status" }
   | { kind: "notes"; section: RouteSection; itemId?: string }
   | { kind: "memos"; itemId?: string }
   | { kind: "settings"; section: SettingsSection };
@@ -45,7 +47,11 @@ export function parseAppRoute(pathname: string): AppRoute {
   }
   if (root === "memos") return { kind: "memos", ...(second ? { itemId: second } : {}) };
   if (root === "notes" || root === "inbox" || root === "drafts" || root === "starred" || root === "trash") {
-    const section = root === "notes" ? { kind: "recent" as const } : { kind: root };
+    const section: RouteSection = root === "notes" ? { kind: "recent" }
+      : root === "inbox" ? { kind: "inbox" }
+        : root === "drafts" ? { kind: "drafts" }
+          : root === "starred" ? { kind: "starred" }
+            : { kind: "trash" };
     return { kind: "notes", section, ...(second ? { itemId: second } : {}) };
   }
   if (root === "topics" && second) {
