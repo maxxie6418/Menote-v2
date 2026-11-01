@@ -6,7 +6,7 @@
 - **文档过时/冲突**：先提醒产品负责人确认，再修复；不得擅自修改定稿结论。
 - **状态图例**：⬜ 未开始 ｜ 🔵 进行中 ｜ ✅ 已完成 ｜ ⛔ 阻塞
 
-项目当前版本：**0.0.18**（权威位置：根 [package.json](../package.json) 的 `version` 字段，构建时注入前端品牌旁版本号与状态页完整标识）；升级及并行后缀规则见 [AGENTS.md](../AGENTS.md)。
+项目当前版本：**0.0.19**（权威位置：根 [package.json](../package.json) 的 `version` 字段，构建时注入前端品牌旁版本号与状态页完整标识）；升级及并行后缀规则见 [AGENTS.md](../AGENTS.md)。
 
 ## 里程碑总览（详见主文档 10.3）
 
@@ -55,4 +55,4 @@ M3：WYSIWYG 落地、交互与性能打磨、恢复体验及异常场景完善�
 
 ## 当前焦点
 
-**当前焦点：M2 G12 系统状态与 Cloudflare 资源监控已实现，待部署 API 实测**：状态入口在设置中一步直达；资源按 Worker 脚本、D1 ID、R2 桶名精确筛选；只读 Token 使用 `AUTH_PEPPER` 加密存储；展示手动/定时刷新和明确区分的应用抽样数据。刷新频率、阈值可调。`pnpm typecheck`、`pnpm build` 通过；Cloudflare Analytics API 需负责人 Token/资源标识实测。G9 WebDAV/S3 实测与 G11 恢复演练亦待完成。
+**当前焦点：M2 G12 系统状态与 Cloudflare 资源监控已实现，待部署 API 实测**：状态内容直接显示在设置页签；资源按 Worker 脚本、D1 ID、R2 桶名精确筛选；只读 Token 使用 `AUTH_PEPPER` 加密存储；展示手动/定时刷新和明确区分的应用抽样数据。刷新频率、阈值可调。`pnpm typecheck`、`pnpm build` 通过；Cloudflare Analytics API 需负责人 Token/资源标识实测。G9 WebDAV/S3 实测与 G11 恢复演练亦待完成。

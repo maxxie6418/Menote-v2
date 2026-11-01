@@ -368,6 +368,7 @@
 .mn-unlockmark { width: var(--app-lockmark-size); height: var(--app-lockmark-size); border-radius: var(--app-radius-pill); background: var(--app-surface-sunken); display: grid; place-items: center; margin: var(--app-zero) auto var(--app-space-md); color: var(--app-fg-subtle); }
 .mn-unlockinput { text-align: center; letter-spacing: var(--app-space-2); }
 .mn-dialog-settings { width: var(--app-settings-dialog); height: var(--app-settings-height); padding: var(--app-zero); gap: var(--app-zero); }
+.mn-dialog-settings-status { width: var(--app-settings-status-width); height: var(--app-settings-status-height); }
 .mn-dlg-head { height: var(--app-dlg-head-height); display: flex; align-items: center; justify-content: space-between; padding: var(--app-zero) var(--app-space-18) var(--app-zero) var(--app-space-lg); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-dlg-head h3 { font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); margin: var(--app-zero); }
 .mn-dlg-body { flex: 1; display: grid; grid-template-columns: var(--app-dlg-nav-width) minmax(0, 1fr); min-height: var(--app-zero); }
@@ -383,6 +384,10 @@
 .mn-setrow .mn-propselect { flex: 0 1 auto; min-width: var(--app-field-width); }
 .mn-statuslink { border: var(--app-zero); background: none; color: var(--app-link); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }
 .mn-statuslink:hover { background: var(--app-hover); }
+.mn-settings-status-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--app-space-sm); }
+.mn-settings-status-heading h2 { margin: var(--app-zero); font-size: var(--app-font-body); font-weight: var(--app-weight-medium); }
+.mn-settings-status-heading p { margin: var(--app-space-4) var(--app-zero) var(--app-zero); color: var(--app-fg-subtle); font-size: var(--app-font-small); }
+.mn-settings-status-sync { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-md); margin-top: var(--app-space-sm); padding: var(--app-space-sm) var(--app-space-md); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); color: var(--app-fg-muted); }
 .mn-note-row-icon { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-faint); flex: none; align-self: center; }
 .mn-note-row.on .mn-note-row-icon { color: var(--app-accent-fg); }
 .mn-unlocktitle { font-family: var(--app-font-serif); font-size: var(--app-font-title); font-weight: var(--app-weight-serif); margin: var(--app-zero) var(--app-zero) var(--app-space-6); color: var(--app-fg); }

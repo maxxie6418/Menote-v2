@@ -130,7 +130,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（648×530 左导航：远程备份/附件/恢复码/状态；点击状态直接进入完整状态页，不经二次跳转）、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航：远程备份/附件/恢复码/状态；状态页签内直接显示健康、同步和完整资源监控面板，不跳出设置窗口）、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 

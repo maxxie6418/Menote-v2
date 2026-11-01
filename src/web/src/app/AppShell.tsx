@@ -132,7 +132,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     <SettingsDialog
       userId={userId}
       onClose={() => setSettingsOpen(false)}
-      onOpenStatus={() => { setSettingsOpen(false); setView("status"); setDrawerOpen(false); }}
     />
   ) : null;
 
