@@ -1,16 +1,19 @@
 import type { Item, TopicNode } from "@menote/shared";
-import type { OutboxOperation, SyncConflictDetail, SyncOperationResult } from "@menote/shared";
+import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
-import { putItemWraps, putTopicWraps } from "../db/keyWraps";
+import { putItemWraps, putTopicWraps, readItemWrapGroups } from "../db/keyWraps";
+import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readItemAttachmentHashes,
-  readItemState, readSyncOperation, recordSyncOperation, upsertItemRow, upsertTopicRow,
+  appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
+  readTopics, recordSyncOperation, toTombstone, upsertItemRow, upsertTopicRow,
 } from "../db/sync";
 
 /**
  * 同步引擎服务端编排（G6，按 G2 定稿：管理线计划「专项设计 — 同步契约与边界」）。
  * 逐操作独立 D1 batch 事务；幂等 (user_id, operation_id)；冲突不回滚批内其他操作。
- * SQL 一律在 db 层（db/sync.ts、db/attachments.ts）。
+ * 拉取分页（G2 §4 游标 = sync_log.seq）与回收站永久清除（G8）同在本层编排。
+ * SQL 一律在 db 层（db/sync.ts、db/attachments.ts、db/trash.ts、db/keyWraps.ts）。
  */
 
 export interface ApplyContext {
@@ -136,4 +139,58 @@ export async function applyOperation(ctx: ApplyContext, operation: OutboxOperati
 /** 已知操作表清理（保留期 90 天随 G10 cleanup 执行；此处供测试与手动调用）。 */
 export async function purgeOperationsBefore(ctx: ApplyContext, before: number): Promise<void> {
   await purgeSyncOperations(ctx.db, ctx.userId, before);
+}
+
+/** 批量推送入口：逐操作独立事务，单操作确定失败不影响其余（G2 §3），失败映射为 rejected 结果。 */
+export async function applyOperations(ctx: ApplyContext, operations: OutboxOperation[]): Promise<SyncOperationResult[]> {
+  const results: SyncOperationResult[] = [];
+  for (const operation of operations) {
+    try {
+      results.push(await applyOperation(ctx, operation));
+    } catch (error) {
+      const code = error instanceof Error && error.message.startsWith("invalid") ? "invalid_payload" : "entity_missing";
+      results.push({ operationId: operation.operationId, result: "rejected", code });
+    }
+  }
+  return results;
+}
+
+/** 拉取分页上限（G2 定稿 200/页）。 */
+const PULL_PAGE_LIMIT = 200;
+
+/** 拉取一页（G2 §4）：游标早于保留窗口 → 全量重同步（fullResync，cursor=0 同样适用）；
+ *  否则按 sync_log.seq 增量返回条目与墓碑；加密条目附带包装块（G7）。 */
+export async function buildSyncPage(db: D1Database, userId: string, cursor: number, now: number): Promise<SyncPage> {
+  const page = await readLogPage(db, userId, cursor, PULL_PAGE_LIMIT);
+  // 游标早于保留窗口 → 全量重同步（G2 §4）；cursor=0 同样适用（有日志被清理即缺失状态）。
+  const oldestSeq = page.oldestSeq;
+  if (oldestSeq !== null && oldestSeq > cursor + 1) {
+    const items = await readAllItemsPage(db, userId, 0, PULL_PAGE_LIMIT);
+    const topics = await readAllTopics(db, userId);
+    const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
+    const wraps = await readItemWrapGroups(db, userId, encryptedIds);
+    return {
+      items, topics, tombstones: [], wraps, settings: await readSettings(db, userId),
+      nextCursor: String(oldestSeq - 1), hasMore: items.length === PULL_PAGE_LIMIT, fullResync: true,
+    };
+  }
+
+  const itemIds = page.entries.filter((entry) => entry.entity === "item" && entry.op === "upsert").map((entry) => entry.entityId);
+  const topicIds = page.entries.filter((entry) => entry.entity === "topic").map((entry) => entry.entityId);
+  const items = await readItems(db, userId, itemIds);
+  const topics = await readTopics(db, userId, topicIds);
+  const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
+  const wraps = await readItemWrapGroups(db, userId, encryptedIds);
+  const tombstones = page.entries.filter((entry) => entry.op === "delete")
+    .map((entry) => toTombstone(entry, userId, now));
+  return {
+    items, topics, tombstones, wraps, settings: await readSettings(db, userId),
+    nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(cursor),
+    hasMore: page.hasMore, fullResync: false,
+  };
+}
+
+/** 回收站永久删除（G8，FR-VER-6）：仅已软删行；墓碑在软删时已传播；包装块随行清除。 */
+export async function purgeTrashItems(db: D1Database, userId: string, ids: string[]): Promise<number> {
+  return purgeDeletedItems(db, userId, ids);
 }

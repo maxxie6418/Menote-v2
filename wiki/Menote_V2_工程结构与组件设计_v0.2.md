@@ -1,9 +1,9 @@
-# Menote V2 工程结构与组件设计（v0.2）
+# Menote V2 工程结构与组件设计（v0.4）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
-- **来源**：需求说明书 v1.2（FR/C/NFR）、主文档 v0.7（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
+- **来源**：需求说明书 v1.9（FR/C/NFR）、主文档 v0.10（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
 
 ## 1. 仓库结构与目录树
@@ -130,7 +130,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（左导航：远程备份/附件/恢复码/状态；状态页签内直接显示健康、同步和完整资源监控面板，不跳出设置窗口）、`BackupTargetForm`、`TokenManager`（令牌复显/复制分发）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含独立「MCP 接入」栏目，并与远程备份/附件/恢复码并列；状态页签内直接显示健康、同步和完整资源监控面板，不跳出设置窗口）、`BackupTargetForm`、`TokenManager`（逐 Token 创建/列表/复显复制/撤销/修改权限与范围，显示最后调用时间；动态变更立即生效）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
@@ -139,9 +139,11 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - `index.ts` 只做装配：`app.route(...)` 注册 + 中间件顺序（session → csrf → configGuard 按路由），**目标单文件 ≤ 200 行**（server.mjs 教训的硬对策）。
 - routes ↔ services ↔ db 三层；业务逻辑只在 services；SQL 只在 db 层。
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
+- 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
+- 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
-- MCP 模块（services/mcp/）：registry（工具注册）、scope（可见性谓词，私人空间/单篇加密两层）、audit——独立子目录，不与其他服务交叉引用。
+- MCP 模块（services/mcp/）：registry（工具注册）、token auth（每次请求读取最新权限）、permissions/scope（内容读取开关、创建/编辑/回收站/附件权限、用户范围与私人空间/单篇加密谓词）、attachments（受权限约束的上传/读取映射）、audit——独立子目录，不与其他服务交叉引用。MCP 协议发现、鉴权和范围解析可执行必需的内部读取；内容读取关闭时不得暴露既有条目。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
 - 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
@@ -154,7 +156,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 | Item | id、userId、type(note/table/memo)、topicId、groupId?、title、content(md)、tags[]、status?、source、rev、metaRev、contentHash、pinned、starred、encSelf、inEncSpace、createdAt/updatedAt/deletedAt | 5.1/5.2 |
 | Attachment | sha256、userId、size、mime、refCount | FR-SYNC-7/8 |
 | ItemVersion | itemId、snapshot、codec、reason、createdAt | FR-VER |
-| McpToken | id、userId、tokenPrefix、perms、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、**tokenEnc（可逆存储）** | FR-MCP |
+| McpToken | id、userId、tokenPrefix、perms（含可选内容读取/创建/编辑/回收站/附件权限）、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、lastUsedAt、**tokenEnc（可逆存储）** | FR-MCP-2/10 |
 | McpAudit | id、tokenId、tool、itemId、revBefore/After、result、operationId、at | FR-MCP-6 |
 | BackupTarget | id、userId、kind、endpoint、remotePath（默认 menote）、bucket、username、**secretEnc**、retentionCount、lastPushedAt、schedule、enabled、lastResult | FR-BAK |
 | MonitorSample | userId、service、metric、value、sampledAt | FR-MON |
