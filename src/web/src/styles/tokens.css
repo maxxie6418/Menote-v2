@@ -120,6 +120,7 @@
   --app-selected-bar-side: inset 0.125rem 0 0 var(--app-accent);
   --app-selected-bar-list: inset 0.1875rem 0 0 var(--app-accent);
   --app-selected-bar-top: inset 0 0.125rem 0 var(--app-accent);
+  --app-selected-bar-bottom: inset 0 -0.125rem 0 var(--app-accent);
   --app-hairline-inset: inset 0 0 0 var(--app-line) var(--app-border);
   --app-overlay-bg: rgba(26, 26, 24, 0.4);
   --app-drawer-hidden: translateX(-100%);

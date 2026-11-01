@@ -2,10 +2,10 @@
    选择器比 shell.css 里的旧 Memo 规则多一层，避免两边同时改 shell.css。
    侧栏分段、返回入口的接线留到编辑器那侧收工后再动共享文件。 */
 
-.mn-formseg { display: flex; gap: var(--app-space-2); height: var(--app-space-34); padding: var(--app-space-2); margin-bottom: var(--app-space-14); background: var(--app-surface-sunken); border-radius: var(--app-radius); flex: none; }
-.mn-formseg button { flex: 1; border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
+.mn-formseg { display: flex; gap: var(--app-space-18); height: var(--app-space-22); margin: var(--app-zero) var(--app-space-xs) var(--app-space-14); flex: none; }
+.mn-formseg button { position: relative; display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-nav); cursor: pointer; padding: var(--app-zero); }
 .mn-formseg button:hover { color: var(--app-fg); }
-.mn-formseg button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-shadow-seg); }
+.mn-formseg button[aria-pressed="true"] { color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-bottom); }
 .mn-formseg button:disabled { cursor: default; color: var(--app-fg-faint); }
 
 .mn-memo-main { flex-direction: column; min-width: 0; min-height: 0; position: relative; }

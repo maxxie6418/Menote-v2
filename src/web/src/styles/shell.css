@@ -39,8 +39,9 @@
 .mn-iconbtn:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-iconbtn svg { width: var(--app-icon-md); height: var(--app-icon-md); }
 .mn-iconbtn[aria-disabled="true"] { cursor: default; }
-.mn-memo-hint { display: flex; align-items: flex-start; gap: var(--app-space-xs); padding: var(--app-space-xs) var(--app-space-10); margin-bottom: var(--app-space-6); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius); color: var(--app-fg-subtle); font-size: var(--app-size-chip); background: var(--app-raised-on-side); cursor: default; text-align: left; }
-.mn-dot { width: var(--app-dot-size); height: var(--app-dot-size); border-radius: var(--app-radius-pill); background: var(--app-accent); flex: none; margin-top: var(--app-space-5); }
+.mn-memo-hint { display: flex; align-items: center; gap: var(--app-space-xs); padding: var(--app-space-6) var(--app-space-10); margin-bottom: var(--app-space-10); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius); color: var(--app-fg-faint); font-size: var(--app-size-chip); background: none; cursor: pointer; text-align: left; transition: border-color var(--app-motion-fast) var(--app-ease), color var(--app-motion-fast) var(--app-ease); }
+.mn-memo-hint:hover { border-color: var(--app-fg-faint); color: var(--app-fg-muted); }
+.mn-dot { width: var(--app-dot-size); height: var(--app-dot-size); border-radius: var(--app-radius-pill); background: var(--app-accent); flex: none; }
 .mn-kbd { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-btn { display: flex; align-items: center; justify-content: center; gap: var(--app-space-6); height: var(--app-btn-height); margin-bottom: var(--app-space-sm); border: var(--app-zero); border-radius: var(--app-radius); background: var(--app-accent); color: var(--app-accent-text); font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); cursor: pointer; box-shadow: var(--app-btn-sheen); transition: background var(--app-motion-fast) var(--app-ease); }
 .mn-btn:hover { background: var(--app-accent-hover); }
@@ -251,6 +252,9 @@
 .mn-tree-list { list-style: none; margin: var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-line); }
 .mn-tree-sublist { list-style: none; margin: var(--app-zero); padding: var(--app-zero) var(--app-zero) var(--app-zero) var(--app-tree-indent); display: flex; flex-direction: column; gap: var(--app-line); }
 .mn-treerow { width: var(--app-full-size); border: var(--app-zero); background: none; font-family: var(--app-font); cursor: pointer; justify-content: flex-start; }
+/* 层级靠字重与字号区分：一级主题重，分组轻 —— 一串同粗的灰字看着像清单不像目录 */
+.mn-tree-list > li > .mn-treerow { color: var(--app-fg); font-weight: var(--app-weight-medium); }
+.mn-tree-sublist .mn-treerow { color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-treerow .mn-tree-label { flex: 1; text-align: left; border: var(--app-zero); background: none; color: inherit; font: inherit; padding: var(--app-zero); cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-tree-new { width: var(--app-full-size); height: var(--app-nav-height); margin-bottom: var(--app-space-4); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-nav); padding: var(--app-zero) var(--app-space-xs); }
 .mn-tree-new.indent { margin-left: var(--app-tree-indent); width: var(--app-tree-indent-rest); }
