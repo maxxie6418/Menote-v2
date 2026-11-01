@@ -21,6 +21,7 @@ interface SidebarProps {
   onCloseDrawer: () => void;
   onOpenSettings: () => void;
   onOpenStatus: () => void;
+  memoComposerSignal: number;
 }
 
 const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean =>
@@ -29,9 +30,9 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
 /* 侧栏（负责人 2026-11-01 定序：搜索 / 视图切换 / 快速输入 / 新建笔记 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
    视图切换按 DESIGN §5.5 为「首页 | 笔记 | Memo」，置顶在快速输入之上——形态是目的地，应先于输入被看见。
    搜索入口为轻量命令行形式（无边框、无底色），与快速输入的输入框形态明显区分；搜索功能尚未实现，入口先禁用。
-   首页整屏尚未实现，按钮禁用。私人空间固定入口保持锁定态（G7）。
+   首页整屏由 app/HomePage 接入；搜索尚未实现，入口禁用。私人空间固定入口保持锁定态（G7）。
    版本号移到脚部用户名旁（悬停显构建 id）。 */
-export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus }: SidebarProps) {
+export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -63,12 +64,12 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
       )}
       {!collapsed && (
         <div className="mn-formseg" role="group" aria-label="视图切换">
-          <button type="button" disabled title="首页将在后续版本开放">首页</button>
-          <button type="button" aria-pressed={!isSection(section, "memos")} onClick={() => { if (isSection(section, "memos")) onSelectSection({ kind: "recent" }); }}>笔记</button>
+          <button type="button" aria-pressed={section.kind === "home"} onClick={() => onSelectSection({ kind: "home" })}>首页</button>
+          <button type="button" aria-pressed={section.kind !== "memos" && section.kind !== "home"} onClick={() => { if (section.kind === "memos" || section.kind === "home") onSelectSection({ kind: "recent" }); }}>笔记</button>
           <button type="button" aria-pressed={isSection(section, "memos")} onClick={() => onSelectSection({ kind: "memos" })}>Memo</button>
         </div>
       )}
-      {!collapsed && <QuickComposer userId={userId} />}
+      {!collapsed && <QuickComposer userId={userId} openSignal={memoComposerSignal} />}
       <button type="button" className="mn-btn" onClick={onCreateNote}>
         <Plus />
         {!collapsed && "新建笔记"}

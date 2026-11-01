@@ -54,6 +54,56 @@
   --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
   --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
   --app-size-brand: 1.0625rem;     /* 17px 品牌字 */
+  /* 首页尺寸（wiki/design.html 第 01 屏） */
+  --app-home-bar-pad: 2rem 2.625rem 1.375rem;
+  --app-home-content-pad: 1.75rem 2.625rem 2.125rem;
+  --app-home-title-size: 1.9375rem;
+  --app-home-title-track: 0.01em;
+  --app-home-section-gap: 1.875rem;
+  --app-home-action-height: 4.5rem;
+  --app-home-stat-size: 1.875rem;
+  --app-home-topic-gap: 1.625rem;
+  --app-home-links-top: 1.625rem;
+  --app-home-negative-inline: -0.75rem;
+  --app-home-lift: -0.125rem;
+  --app-home-tag-menu-height: 12rem;
+  --app-home-tag-menu-width: 10rem;
+  --app-icon-lg: 1.0625rem;
+  --app-dot-size-lg: 0.5rem;
+  /* 移动端专有尺寸（TP1 / wiki/Menote_V2_移动端设计_v0.1.md） */
+  --app-mobile-header-height: 2.75rem;
+  --app-mobile-tab-height: 3.125rem;
+  --app-mobile-tabbar-height: calc(var(--app-mobile-tab-height) + env(safe-area-inset-bottom, 0px));
+  --app-mobile-record-size: 2.75rem;
+  --app-mobile-record-color: var(--app-accent-text);
+  --app-mobile-title-size: 1.5rem;
+  --app-mobile-body-size: 0.9375rem;
+  --app-mobile-content-pad: 1rem;
+  --app-mobile-composer-half-top: 9.375rem;
+  --app-mobile-composer-full-top: env(safe-area-inset-top, 0px);
+  --app-mobile-composer-radius: 1rem 1rem 0 0;
+  --app-mobile-row-height: 4rem;
+  --app-mobile-row-min-height: 2.75rem;
+  --app-mobile-selection-shadow: inset 0.1875rem 0 0 var(--app-accent);
+  --app-mobile-sheet-height: min(84dvh, 42rem);
+  --app-mobile-filter-height: 2.375rem;
+  --app-mobile-sheet-radius: 1rem 1rem 0 0;
+  --app-mobile-empty-height: 10rem;
+  --app-mobile-action-sheet-height: 17rem;
+  --app-mobile-compose-side-width: 3.5rem;
+  --app-mobile-card-width: 9.375rem;
+  --app-mobile-card-height: 5.75rem;
+  --app-mobile-dock-height: 3rem;
+  --app-mobile-avatar-size: 2.375rem;
+  --app-mobile-segment-width: 3.125rem;
+  --app-mobile-press-scale: 0.96;
+  --app-mobile-disabled-opacity: 0.55;
+  --app-mobile-z-nav: 9;
+  --app-mobile-z-filter: 2;
+  --app-mobile-z-sheet: 12;
+  --app-mobile-z-composer: 14;
+  --app-mobile-z-action: 16;
+  --app-mobile-z-toast: 18;
   /* 间距（DESIGN §1.4：基准 4px，实际只用 4/6/8/10/12/14/18/22/24/34） */
   --app-space-2: 0.125rem;
   --app-space-4: 0.25rem;
@@ -166,7 +216,7 @@
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
   --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
-  --app-motion-loop: 2.4s;          /* 登录加载动画循环周期 */
+  --app-motion-loop: 1.4s;          /* 登录加载动画循环周期 */
   --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
   --app-visually-hidden: 1px;       /* 读屏隐藏通用尺寸 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */

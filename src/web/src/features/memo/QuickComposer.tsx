@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createMemo } from "../../services/contentService";
 
 /** Memo 快速输入（FR-IA-5）：默认单行，点击展开多行，占共享区域不推移导航；
  *  保存后留在当前页；收起保留未完成草稿。 */
-export function QuickComposer({ userId }: { userId: string }) {
+export function QuickComposer({ userId, openSignal = 0 }: { userId: string; openSignal?: number }) {
   const [expanded, setExpanded] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (openSignal > 0) setExpanded(true);
+  }, [openSignal]);
 
   const submit = async () => {
     const text = value.trim();

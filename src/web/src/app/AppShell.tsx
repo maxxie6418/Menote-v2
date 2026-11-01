@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser } from "@menote/shared";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
@@ -13,6 +13,8 @@ import { createNote, saveItemContent, sweepBlankDrafts } from "../services/conte
 import { requestSync } from "../services/syncEngine";
 import { lockIfIdle } from "../services/keyringService";
 import { SettingsDialog } from "../features/settings";
+import { HomePage } from "./HomePage";
+import { MobileApp } from "./MobileApp";
 
 /* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
 import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
@@ -72,7 +74,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [section, setSection] = useState<BrowseSection>({ kind: "recent" });
+  const [section, setSection] = useState<BrowseSection>({ kind: "home" });
   const [noteId, setNoteId] = useState<string | null>(null);
   const [noteReturn, setNoteReturn] = useState<{ section: BrowseSection; noteId: string | null }>({ section: { kind: "recent" }, noteId: null });
   const noteReturnRef = useRef(noteReturn);
@@ -80,19 +82,45 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [todoOpen, setTodoOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [memoComposerSignal, setMemoComposerSignal] = useState(0);
   const userId = user.id;
+
+  const openNewNote = useCallback(async () => {
+    const created = await createNote(userId);
+    setView("main");
+    setSection({ kind: "drafts" });
+    setNoteId(created.id);
+    setMobilePane("doc");
+    setDrawerOpen(false);
+  }, [userId]);
+  const openMemoComposer = useCallback(() => {
+    setCollapsed(false);
+    setMemoComposerSignal((value) => value + 1);
+    if (layout === "tablet" || layout === "mobile") setDrawerOpen(true);
+  }, [layout]);
 
   // ⌘/Ctrl 1 回笔记，2 进 Memo。Esc 不承担返回（DESIGN 第 03 屏）。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-      if (event.key !== "1" && event.key !== "2") return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select"))) return;
+      const key = event.key.toLowerCase();
+      if (key === "n") {
+        event.preventDefault();
+        void openNewNote();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        openMemoComposer();
+        return;
+      }
+      if (event.key !== "1" && event.key !== "2") return;
       event.preventDefault();
       if (event.key === "2") {
         setSection((current) => {
-          if (current.kind !== "memos") setNoteReturn({ section: current, noteId });
+          if (current.kind !== "memos") setNoteReturn({ section: current.kind === "home" ? { kind: "recent" } : current, noteId });
           return { kind: "memos" };
         });
       } else {
@@ -104,7 +132,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [noteId]);
+  }, [noteId, userId, layout, openNewNote, openMemoComposer]);
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
@@ -156,25 +184,19 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       section={section}
       onSelectSection={(next) => {
         setView("main");
-        if (next.kind === "memos" && section.kind !== "memos") setNoteReturn({ section, noteId });
+        if (next.kind === "memos" && section.kind !== "memos") setNoteReturn({ section: section.kind === "home" ? { kind: "recent" } : section, noteId });
         setSection(next);
         if (next.kind !== "memos") setNoteId(null);
         setMobilePane("list");
         setDrawerOpen(false);
       }}
-      onCreateNote={async () => {
-        const created = await createNote(userId);
-        setView("main");
-        setSection({ kind: "drafts" });
-        setNoteId(created.id);
-        setMobilePane("doc");
-        setDrawerOpen(false);
-      }}
+      onCreateNote={openNewNote}
       onLogout={onLogout}
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
       onOpenSettings={() => { setSettingsOpen(true); setDrawerOpen(false); }}
       onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
+      memoComposerSignal={memoComposerSignal}
     />
   );
   const settingsDialog = settingsOpen ? (
@@ -190,6 +212,49 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
         {sidebar}
         <SystemStatusPage onBack={() => setView("main")} />
+        {settingsDialog}
+      </div>
+    );
+  }
+
+  if (layout === "mobile") {
+    return (
+      <div className="mn-shell" {...shellProps}>
+        <MobileApp user={user} onLogout={onLogout} onOpenSettings={() => setSettingsOpen(true)} onOpenStatus={() => setView("status")} />
+        {settingsDialog}
+      </div>
+    );
+  }
+
+  if (section.kind === "home") {
+    return (
+      <div className="mn-shell" {...shellProps}>
+        {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
+        {sidebar}
+        <HomePage
+          userId={userId}
+          onCreateNote={openNewNote}
+          onOpenMemoComposer={openMemoComposer}
+          onOpenTodos={() => {
+            setNoteReturn({ section: { kind: "recent" }, noteId: null });
+            setTodoOpen(true);
+            setSection({ kind: "memos" });
+            setDrawerOpen(false);
+          }}
+          onOpenItem={(item) => {
+            setSection({ kind: "recent" });
+            setNoteId(item.id);
+            setMobilePane("doc");
+            setDrawerOpen(false);
+          }}
+          onNavigate={(next) => {
+            if (next.kind === "memos") setNoteReturn({ section: { kind: "recent" }, noteId: null });
+            setSection(next);
+            setNoteId(null);
+            setMobilePane("list");
+            setDrawerOpen(false);
+          }}
+        />
         {settingsDialog}
       </div>
     );
@@ -243,7 +308,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           onBackToList={() => setMobilePane("list")}
           onOpenDrawer={() => setDrawerOpen(true)}
           document={trashItem ? (
-            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => setMobilePane("list")} showBack={layout === "tablet" || layout === "mobile"} />
+            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => setMobilePane("list")} showBack={layout === "tablet"} />
           ) : (
             <article className="mn-doc" aria-label="文档区">
               <div className="mn-docbar"><span className="mn-docbar-left"><span className="mn-crumb">回收站</span></span></div>
@@ -256,12 +321,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             </article>
           )}
         />
-        {layout === "mobile" && (
-          <nav className="mn-bottomnav" aria-label="主导航">
-            <button type="button" className={mobilePane === "list" ? "on" : ""} onClick={() => setMobilePane("list")}>清单</button>
-            <button type="button" className={mobilePane === "doc" ? "on" : ""} onClick={() => setMobilePane("doc")}>文档</button>
-          </nav>
-        )}
       </div>
     );
   }
@@ -298,7 +357,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             topics={topics}
             unfiled={section.kind === "inbox" || section.kind === "drafts"}
             onBack={() => setMobilePane("list")}
-            showBack={layout === "tablet" || layout === "mobile"}
+            showBack={layout === "tablet"}
             crumb={title}
             onExtractDoc={async (content) => {
               const created = await createNote(userId, { title: "表格文档", type: "table" });
@@ -322,16 +381,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           </article>
         )}
       />
-      {layout === "mobile" && (
-        <nav className="mn-bottomnav" aria-label="主导航">
-          <button type="button" className={mobilePane === "list" ? "on" : ""} onClick={() => setMobilePane("list")}>
-            清单
-          </button>
-          <button type="button" className={mobilePane === "doc" ? "on" : ""} onClick={() => setMobilePane("doc")}>
-            文档
-          </button>
-        </nav>
-      )}
       {settingsDialog}
     </div>
   );
