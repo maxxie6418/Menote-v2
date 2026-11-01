@@ -127,6 +127,15 @@
   /* 焦点环（DESIGN §8.2：统一 3px 橙 35%，不用浏览器默认；outline 形态避免覆盖选中条阴影） */
   --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, 0.35);
   --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, 0.35);
+  /* 滚动条（DESIGN §4.4：极细发丝线，悬停提高对比度）
+     槽宽 10px；滑块以 2px 透明边内缩，可见宽 6px，两端圆角。
+     常态对比度 浅 1.75:1（纸面）/ 深 1.88:1（纸面），保持克制；
+     悬停 浅 3.29:1 / 深 3.46:1，达到非文本 3:1 门槛。 */
+  --app-scrollbar-size: 10px;        /* 槽宽（纵向为 width，横向为 height） */
+  --app-scrollbar-inset: 2px;        /* 滑块与槽边的透明内缩 */
+  --app-scrollbar-track: transparent;
+  --app-scrollbar-thumb: #c4c4c0;            /* 常态滑块 */
+  --app-scrollbar-thumb-hover: #8e8e8a;      /* 悬停/拖拽滑块 */
   /* 动效（DESIGN §4.3） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
@@ -235,6 +244,9 @@
   --app-link: #7fa8ff;
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
+  /* 滚动条深色：常态 1.89:1 保持克制，悬停 3.50:1 保证可发现 */
+  --app-scrollbar-thumb: #45494d;
+  --app-scrollbar-thumb-hover: #6b7176;
 }
 
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */

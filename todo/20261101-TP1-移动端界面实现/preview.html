@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="s-light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>移动端 UI 规格 · 样式校验</title>
+<!--
+  用途：验证 mobile-ui.css 是否自足。
+  这里只放「令牌 + 手机画框 + 假键盘」——这些都不属于产品样式。
+  产品样式全部来自 mobile-ui.css。
+-->
+<style>
+:root{
+  --canvas:#FCFCFB; --app-surface:#FFFFFF; --app-bg-side:#F1F1EE; --app-surface-sunken:#F4F4F2;
+  --app-selected:#FEF6EE; --app-hover:#F6F6F4;
+  --app-border:#E6E6E3; --app-border-subtle:#F0F0ED;
+  --app-fg:#1A1A18; --app-fg-muted:#4E504D; --app-fg-subtle:#6C6F6B; --app-fg-faint:#74776F;
+  --app-accent:#F6821F; --app-accent-fg:#B4530F; --app-accent-subtle:#FEF2E7;
+  --app-link:#0051C3; --app-success:#5F8B3F; --app-scrim:rgba(26,26,24,.30);
+  --app-font-serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+  --app-font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+  --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+}
+html.s-dark{
+  --canvas:#0F1113; --app-surface:#1A1C1E; --app-bg-side:#131518; --app-surface-sunken:#232629;
+  --app-selected:#2B2118; --app-hover:#222528;
+  --app-border:#2C3033; --app-border-subtle:#24282B;
+  --app-fg:#E9EBED; --app-fg-muted:#A7ADB2; --app-fg-subtle:#8A9095; --app-fg-faint:#7E848B;
+  --app-accent:#F6821F; --app-accent-fg:#FBAD41; --app-accent-subtle:#3A2716;
+  --app-link:#7FA8FF; --app-success:#8CA86B; --app-scrim:rgba(0,0,0,.48);
+}
+body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font-ui)}
+.wrap{max-width:1280px;margin:0 auto;padding:40px 28px 80px}
+h1{font-family:var(--app-font-serif);font-size:26px;font-weight:500;margin:0 0 6px}
+p.lead{font-size:13px;color:var(--app-fg-muted);margin:0 0 22px;line-height:1.75}
+button.ctrl{height:30px;padding:0 12px;border:1px solid var(--app-border);border-radius:6px;background:var(--app-surface);color:var(--app-fg-muted);font-size:12px;cursor:pointer;margin-bottom:26px}
+.deck{display:flex;gap:40px;flex-wrap:wrap}
+.stage{width:375px}
+.stage .cap{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.stage .cap b{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-accent-fg);font-weight:400}
+.stage .cap span{font-size:13px;font-weight:600}
+
+/* 手机画框（预览专用，不属于产品 CSS） */
+.device{
+  position:relative;width:375px;height:812px;overflow:hidden;
+  border:1px solid var(--app-border);border-radius:26px;background:var(--app-surface);
+  box-shadow:0 1px 2px rgba(26,26,24,.04);
+}
+.device .sysbar{
+  position:absolute;top:0;left:0;right:0;height:30px;z-index:30;
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint);
+  background:var(--app-surface);pointer-events:none;
+}
+/* 产品 CSS 用 100dvh 适配真实全屏；画框里改用 100% 贴合 812 */
+.device .m-app{padding-top:30px;padding-bottom:20px;height:100%}
+.device .kb{
+  position:absolute;left:0;right:0;bottom:20px;height:262px;z-index:40;
+  background:var(--app-surface-sunken);border-top:1px solid var(--app-border-subtle);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);
+  letter-spacing:.08em;
+}
+
+ul.notes{list-style:none;margin:12px 0 0;padding:0;font-size:12px;line-height:1.7;color:var(--app-fg-subtle)}
+ul.notes li{position:relative;padding-left:11px}
+ul.notes li::before{content:"";position:absolute;left:0;top:8px;width:4px;height:1px;background:var(--app-border)}
+</style>
+<link rel="stylesheet" href="mobile-ui.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>移动端 UI 规格 · 样式校验</h1>
+  <p class="lead">本页只验证 <code>mobile-ui.css</code> 是否自足：除令牌与手机画框外，所有样式都来自那份文件。三屏分别覆盖「列表 + 底部 dock」「吸顶筛选 + 时间线」「半屏面板 + 遮罩」。</p>
+  <button class="ctrl" id="theme">切换深色</button>
+
+  <div class="deck">
+
+    <!-- 首页 -->
+    <div class="stage">
+      <div class="cap"><b>01</b><span>首页</span></div>
+      <div class="device">
+        <div class="sysbar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="m-app">
+          <div class="m-body">
+            <div class="m-topbar">
+              <div class="m-brand grow">Menote</div>
+              <button class="m-icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg></button>
+            </div>
+
+            <div class="m-home">
+              <div class="m-sechead"><b>收藏</b><a>5<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a></div>
+              <div class="m-cardrail">
+                <div class="m-ncard">
+                  <b>Cloudflare Queues 的投递语义</b>
+                  <em>至少一次投递，重复消费必须带幂等键</em>
+                  <span class="meta">NOTE · 3 天前</span>
+                </div>
+                <div class="m-ncard">
+                  <b>锁屏页的三条规则</b>
+                  <em>密码错两次不抖动，恢复码入口不放首页</em>
+                  <span class="meta">MEMO · 昨天</span>
+                </div>
+                <div class="m-ncard">
+                  <b>令牌与恢复码的区别</b>
+                  <em>一个是访问权，一个是解密钥</em>
+                  <span class="meta">NOTE · 10-28</span>
+                </div>
+              </div>
+
+              <div class="m-sechead"><b>最近</b><a>12<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a></div>
+              <div class="m-rlist">
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">Milkdown 往返安全 PoC 结论</span><em>10-29</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">D1 写入上限与批量策略</span><em>10-30</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h12M4 17h8"/></svg></span><span class="t">周五前要处理的三件事</span><em>10-31</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">备份包字段对齐 v1.2</span><em>10-25</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">恢复码的文案还没写</span><em>10-25</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h12M4 17h8"/></svg></span><span class="t">时区显示统一到 UTC+8</span><em>10-24</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">同步冲突的三种解法</span><em>10-23</em></a>
+                <a class="m-rrow"><span class="ty"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg></span><span class="t">表格字段定义的 YAML 结构</span><em>10-22</em></a>
+              </div>
+            </div>
+
+            <div class="m-dock">
+              <div class="m-duo">
+                <a><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 9l8 5 8-5"/></svg>收件箱<em>3</em></a>
+                <a><svg viewBox="0 0 24 24"><path d="M6 4h9l4 4v12H6z"/><path d="M9 12h6M9 16h4"/></svg>草稿箱<em>7</em></a>
+              </div>
+            </div>
+          </div>
+
+          <nav class="m-tabbar">
+            <div class="m-tab" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+            <div class="m-tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+            <div class="m-tab m-tab--record"><button class="m-record" aria-label="记录"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+            <div class="m-tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+            <div class="m-tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+          </nav>
+        </div>
+      </div>
+      <ul class="notes">
+        <li>卡片横滑 + 最近列表 + 底部 dock</li>
+        <li>记录键 44px 收在导航内，不越界</li>
+      </ul>
+    </div>
+
+    <!-- Memo -->
+    <div class="stage">
+      <div class="cap"><b>02</b><span>Memo · 滚动态</span></div>
+      <div class="device">
+        <div class="sysbar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="m-app">
+          <div class="m-body">
+            <div class="m-filters">
+              <span aria-selected="true">全部</span>
+              <span>待办<em>5</em></span>
+              <span>图册<em>24</em></span>
+            </div>
+            <div class="m-stream">
+              <div class="m-day"><b>今天 · 11月1日</b><i></i></div>
+
+              <article class="m-memo">
+                <p>把 M2 的同步队列改成逐条落盘，先跑通再谈批量。D1 单次写入上限要复核一遍。</p>
+                <div class="m-meta">
+                  <span class="t">09:41</span>
+                  <span class="chip">工程</span>
+                  <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+                </div>
+              </article>
+
+              <article class="m-memo">
+                <p>周五前要处理的三件事：</p>
+                <div class="tasks">
+                  <div class="task"><span class="bx on"><svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 5"/></svg></span><span>备份包字段对齐 v1.2</span></div>
+                  <div class="task"><span class="bx"></span><span>恢复码换码流程走查</span></div>
+                  <div class="task"><span class="bx"></span><span>时区显示统一到 UTC+8</span></div>
+                </div>
+                <div class="m-meta">
+                  <span class="t">08:20</span>
+                  <span class="st"><i></i>进行中</span>
+                  <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+                </div>
+              </article>
+
+              <div class="m-day"><b>昨天 · 10月31日</b><i></i></div>
+
+              <article class="m-memo">
+                <p>试了三种衬线，最后决定不引入 web 字体。跨平台字形不一致这口锅先背着。</p>
+                <div class="thumb"><i></i><i></i></div>
+                <div class="m-meta">
+                  <span class="t">21:07</span>
+                  <span class="chip">视觉</span>
+                  <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+                </div>
+              </article>
+
+              <article class="m-memo">
+                <p>锁屏页的三条规则：密码错两次不抖动只提示；恢复码入口不放首页；解锁失败不区分「密码错」和「不存在」。</p>
+                <div class="m-meta">
+                  <span class="t">18:33</span>
+                  <span class="chip">加密</span>
+                  <span class="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <nav class="m-tabbar">
+            <div class="m-tab"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M9.5 20v-5.6h5V20"/></svg><b>首页</b></div>
+            <div class="m-tab" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h9"/><circle cx="19" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg><b>Memo</b></div>
+            <div class="m-tab m-tab--record"><button class="m-record" aria-label="记录"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button></div>
+            <div class="m-tab"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/></svg><b>笔记</b></div>
+            <div class="m-tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg><b>我的</b></div>
+          </nav>
+        </div>
+      </div>
+      <ul class="notes">
+        <li>无顶栏滚动态，筛选行吸顶</li>
+        <li>条目无卡片，满宽发丝线</li>
+      </ul>
+    </div>
+
+    <!-- 写入面板 -->
+    <div class="stage">
+      <div class="cap"><b>03</b><span>写入面板 · 半屏</span></div>
+      <div class="device">
+        <div class="sysbar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="m-app" style="--kb:282px">
+          <div class="m-body">
+            <div class="m-topbar">
+              <div class="m-brand grow">Menote</div>
+              <button class="m-icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg></button>
+            </div>
+            <div class="m-filters">
+              <span aria-selected="true">全部</span>
+              <span>待办<em>5</em></span>
+              <span>图册<em>24</em></span>
+            </div>
+            <div class="m-stream">
+              <div class="m-day"><b>今天 · 11月1日</b><i></i></div>
+              <article class="m-memo">
+                <p>把 M2 的同步队列改成逐条落盘，先跑通再谈批量。</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="m-veil"></div>
+
+          <div class="m-composer m-composer--half">
+            <div class="m-grab"><i></i></div>
+            <div class="m-chead">
+              <button class="m-cancel">取消</button>
+              <div class="grow">
+                <span class="m-seg2"><span aria-selected="true">Memo</span><span>笔记</span></span>
+              </div>
+              <button class="m-save">保存</button>
+            </div>
+            <div class="m-carea">
+              <div class="src">队列逐条落盘后 D1 写入次数翻三倍，得先算配额<span class="caret"></span></div>
+            </div>
+            <div class="m-ctools">
+              <button><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 15l4-4 3 3 3-3 6 6"/></svg></button>
+              <button><svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg></button>
+              <span class="sep"></span>
+              <button><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l2.5 2.5L16 9"/></svg></button>
+              <span class="hint">→ 时间线</span>
+            </div>
+          </div>
+        </div>
+        <div class="kb">系统键盘（预览占位）</div>
+      </div>
+      <ul class="notes">
+        <li>遮罩 30%，面板 16 圆角</li>
+        <li>头部三段：取消 / 切换器 / 保存</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.getElementById('theme').addEventListener('click', function(){
+  document.documentElement.classList.toggle('s-dark');
+});
+</script>
+</body>
+</html>

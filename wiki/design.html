@@ -290,12 +290,16 @@
     --app-border:#E6E6E3;--app-border-subtle:#F0F0ED;
     --app-fg:#1A1A18;--app-fg-muted:#4E504D;--app-fg-subtle:#6C6F6B;--app-fg-faint:#74776F;
     --app-accent:#F6821F;--app-accent-fg:#B4530F;--app-accent-subtle:#FEF2E7;--app-link:#0051C3;
+    --app-scrollbar-size:10px;--app-scrollbar-inset:2px;--app-scrollbar-track:transparent;
+    --app-scrollbar-thumb:#C4C4C0;--app-scrollbar-thumb-hover:#8E8E8A;
   }
   .s-dark{
     --app-surface:#1A1C1E;--app-bg-side:#131518;--app-surface-sunken:#232629;--app-selected:#2B2118;--app-hover:#222528;
     --app-border:#2C3033;--app-border-subtle:#24282B;
     --app-fg:#E9EBED;--app-fg-muted:#A7ADB2;--app-fg-subtle:#8A9095;--app-fg-faint:#7E848B;
     --app-accent:#F6821F;--app-accent-fg:#FBAD41;--app-accent-subtle:#3A2716;--app-link:#7FA8FF;
+    --app-scrollbar-size:10px;--app-scrollbar-inset:2px;--app-scrollbar-track:transparent;
+    --app-scrollbar-thumb:#45494D;--app-scrollbar-thumb-hover:#6B7176;
   }
   .s-dark .btn{background:#F6821F;color:#1A1208}
   .s-dark .btn:hover{background:#FF9A3C}
@@ -348,6 +352,159 @@
   .m-text code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
   .m-tagrow{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
   .m-tag{font-size:10.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);border-radius:999px;padding:1px 8px}
+
+  /* ---------- Memo 渲染元素（FR-MEMO-2 轻量语法集） ---------- */
+  .ms-app{grid-template-columns:248px minmax(0,1fr)}
+  .ms-app .memo-list{overflow-y:auto}
+  .m-block{font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
+  .m-block p{margin:0 0 6px}
+  .m-block p:last-child{margin-bottom:0}
+  .m-block strong{font-weight:650;color:var(--app-fg)}
+  .m-block em{font-style:italic}
+  .m-block del{color:var(--app-fg-faint)}
+  .m-block a{color:var(--app-link);text-decoration:none}
+  .m-block a:hover{text-decoration:underline;text-underline-offset:3px}
+  .m-block code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
+  .m-block ul,.m-block ol{padding-left:1.2em;margin:4px 0 0}
+  .m-block ul{list-style:disc}
+  .m-block ol{list-style:decimal}
+  .m-block li+li{margin-top:2px}
+  .m-block li::marker{color:var(--app-fg-faint)}
+  /* 任务列表：复选框可点，改写正文 [ ]/[x] */
+  .m-block .task{display:flex;gap:7px;align-items:flex-start;line-height:1.55}
+  .m-block .task+.task{margin-top:3px}
+  .m-block .task .bx{width:14px;height:14px;border:1px solid var(--app-border);border-radius:3px;flex:none;margin-top:2px;display:grid;place-items:center}
+  .m-block .task .bx.on{background:var(--app-accent);border-color:var(--app-accent);color:#241505}
+  .m-block .task .bx svg{width:9px;height:9px;stroke-width:3}
+  .m-block .task.done{color:var(--app-fg-faint);text-decoration:line-through;text-decoration-color:var(--app-border)}
+  /* 引用：2px 橙左边线 */
+  .m-block blockquote{margin:4px 0 0;padding-left:11px;border-left:2px solid var(--app-accent);font-size:13px;line-height:1.7;color:var(--app-fg-subtle)}
+  .m-block blockquote cite{display:block;margin-top:3px;font-style:normal;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  /* 代码块：无高亮，等宽 */
+  .m-block pre{margin:6px 0 0;padding:8px 10px;background:var(--app-surface-sunken);border-radius:4px;overflow:auto}
+  .m-block pre code{font-family:var(--app-font-mono);font-size:11px;line-height:1.6;background:none;padding:0;color:var(--app-fg-muted)}
+  .m-block hr{border:0;height:1px;background:var(--app-border-subtle);margin:10px 0}
+  .m-block .imgs{display:flex;gap:6px;margin-top:7px}
+  .m-block .imgs i{width:64px;height:64px;border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle);display:block}
+  /* 降级显示：超集语法原样保留 */
+  .m-block .raw{display:block;font-family:var(--app-font-mono);font-size:11.5px;line-height:1.7;color:var(--app-fg-faint)}
+  .m-spec{font-size:10.5px;color:var(--app-fg-faint);font-family:var(--app-font-mono);margin-top:6px}
+
+  /* ---------- Memo 二级侧栏（V1 结构：概述 / 热力图 / 随机漫步 / 那年今日 / 日期 / 标签） ---------- */
+  .mvb-app{grid-template-columns:248px 232px minmax(0,1fr)}
+  .mside{
+    display:flex;flex-direction:column;min-width:0;
+    padding:14px 12px 0;border-right:1px solid var(--app-border);
+    background:var(--app-surface);overflow-y:auto;
+  }
+  .subblk{display:flex;flex-direction:column;gap:4px;padding-bottom:12px}
+  .subblk + .subblk{padding-top:12px;border-top:1px solid var(--app-border)}
+  .subblk-t{
+    display:flex;align-items:center;gap:4px;margin:0 0 4px;padding:0 8px;
+    color:var(--app-fg-subtle);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  }
+  /* 概述：三格并排 */
+  .stat3{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    overflow:hidden;border:1px solid var(--app-border);border-radius:6px;background:var(--app-surface);
+  }
+  .stat3-c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;padding:7px 4px}
+  .stat3-c + .stat3-c{border-left:1px solid var(--app-border)}
+  .stat3-n{color:var(--app-fg);font-size:16px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+  .stat3-l{max-width:100%;overflow:hidden;color:var(--app-fg-subtle);font-size:10.5px;white-space:nowrap;text-overflow:ellipsis}
+  /* 热力图：12 周 × 7 天 */
+  .heat-sum{margin:0 0 6px;padding:0 8px;color:var(--app-fg-subtle);font-size:10.5px}
+  .heat{
+    display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);
+    grid-template-columns:repeat(12,1fr);gap:2px;aspect-ratio:12/6.6;padding:0 8px;
+  }
+  .hm{border-radius:2px;background:var(--app-border)}
+  .hm-1{background:color-mix(in srgb,var(--app-accent) 22%,var(--app-surface))}
+  .hm-2{background:color-mix(in srgb,var(--app-accent) 45%,var(--app-surface))}
+  .hm-3{background:color-mix(in srgb,var(--app-accent) 70%,var(--app-surface))}
+  .hm-4{background:var(--app-accent)}
+  .heat-lg{display:flex;align-items:center;gap:4px;margin-top:6px;padding:0 8px;font-size:9.5px;color:var(--app-fg-faint)}
+  .heat-lg i{width:9px;height:9px;border-radius:2px;display:block}
+  /* 随机漫步 */
+  .subact{
+    display:flex;align-items:center;gap:8px;width:100%;padding:10px 8px;
+    border:1px solid var(--app-border);border-radius:6px;background:var(--app-surface);
+    color:var(--app-fg);font-size:13.5px;font-weight:600;
+  }
+  .subact svg{width:13px;height:13px;color:var(--app-fg-subtle);flex:none}
+  .subact .go{margin-left:auto;color:var(--app-accent-fg)}
+  .subact:hover{border-color:#F0CFAE;background:var(--app-accent-subtle);color:var(--app-accent-fg)}
+  /* 那年今日 */
+  .otd{
+    display:flex;flex-direction:column;gap:3px;width:100%;padding:7px;
+    border:1px solid var(--app-border);border-radius:6px;background:var(--app-surface);text-align:left;
+  }
+  .otd-hd{display:flex;align-items:baseline;gap:8px}
+  .otd-d{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+  .otd-n{margin-left:auto;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+  .otd-x{
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    font-size:12px;line-height:1.55;color:var(--app-fg-muted);
+  }
+  /* 日期分段 */
+  .seg-full{display:flex;padding:2px;gap:2px;background:var(--app-surface-sunken);border-radius:6px;height:24px}
+  .seg-full span{flex:1;display:grid;place-items:center;font-size:11px;color:var(--app-fg-subtle);border-radius:4px}
+  .seg-full span[aria-selected="true"]{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.06)}
+  /* 标签列表 */
+  .sublist{display:flex;flex-direction:column;gap:0}
+  .subitem{
+    position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;
+    border-radius:6px;color:var(--app-fg-muted);font-size:13.5px;text-align:left;
+  }
+  .subitem:hover{background:var(--app-hover);color:var(--app-fg)}
+  .subitem[aria-pressed="true"]{background:var(--app-accent-subtle);color:var(--app-accent-fg);font-weight:600}
+  .subitem[aria-pressed="true"]::before{
+    content:"";position:absolute;left:0;top:8px;bottom:8px;width:2.5px;border-radius:2px;background:var(--app-accent);
+  }
+  .subitem .n{margin-left:auto;color:var(--app-fg-faint);font-size:10.5px;font-variant-numeric:tabular-nums}
+
+  /* ---------- 时间轴：一条轴线 + 块 ---------- */
+  .app{position:relative}
+  .tl{position:relative;padding:2px 214px 14px 0}
+  .tl::before{content:"";position:absolute;left:60px;top:10px;bottom:18px;width:1px;background:var(--app-border)}
+  .tl-item{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:start}
+  .tl-item::before{
+    content:"";position:absolute;left:57.5px;top:17px;width:5px;height:5px;border-radius:50%;
+    background:var(--app-fg-faint);box-shadow:0 0 0 2px var(--app-surface);
+  }
+  .tl-item.now::before{background:var(--app-accent)}
+  .tl-t{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);text-align:right;padding:12px 8px 0 0}
+  .tl-b{margin-bottom:4px;padding:8px 10px 9px;border-radius:8px;background:var(--app-hover);transition:background 130ms cubic-bezier(.2,.6,.3,1)}
+  .tl-item:hover .tl-b{background:var(--app-surface-sunken)}
+  .tl-b p{margin:0;font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
+  .tl-b p b{color:var(--app-fg);font-weight:600}
+  .tl-b code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
+  .tl-b .m-tagrow{margin-top:6px}
+  .tl-b .st{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:10.5px;margin-top:6px}
+  .tl-b .st i{width:4px;height:4px;border-radius:50%;background:var(--app-accent)}
+
+  /* ---------- 右侧 Todo 浮动条 ---------- */
+  .todo-float{
+    position:absolute;right:14px;top:52px;width:196px;
+    display:flex;flex-direction:column;padding:10px 8px 6px;
+    background:var(--app-surface);border:1px solid var(--app-border);border-radius:10px;
+    box-shadow:0 2px 10px rgba(26,26,24,.05);
+  }
+  .tf-head{display:flex;align-items:center;gap:6px;padding:0 6px 8px;margin-bottom:6px;border-bottom:1px solid var(--app-border-subtle)}
+  .tf-head .lb{font-family:var(--app-font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--app-fg-faint)}
+  .tf-head .n{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
+  .tf-head .fold{color:var(--app-fg-faint);display:flex}
+  .tf-head .fold svg{width:12px;height:12px}
+  .tf-group + .tf-group{margin-top:6px}
+  .tf-group .gh{display:flex;align-items:center;gap:6px;padding:0 6px 3px;font-size:10.5px;color:var(--app-fg-subtle)}
+  .tf-group .gh .n{font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
+  .tf-item{display:flex;align-items:flex-start;gap:7px;padding:5px 6px;border-radius:5px;font-size:12px;line-height:1.5;color:var(--app-fg-muted)}
+  .tf-item:hover{background:var(--app-hover)}
+  .tf-item .ds{width:5px;height:5px;border-radius:50%;flex:none;margin-top:5px;background:var(--app-border)}
+  .tf-item.doing .ds{background:var(--app-accent)}
+  .tf-item.done{color:var(--app-fg-faint)}
+  .tf-item.done .ds{background:var(--app-border-subtle)}
+  .tf-item.done span.t{text-decoration:line-through;text-decoration-color:var(--app-border)}
 
   .todo-panel{display:flex;flex-direction:column;background:var(--app-bg-side);padding:13px 9px}
   .todo-head{display:flex;align-items:center;justify-content:space-between;padding:0 7px;margin-bottom:8px}
@@ -458,6 +615,38 @@
   .empty-block .d{font-size:11.5px;color:var(--app-fg-faint);line-height:1.7;max-width:240px}
   .empty-block .k{margin-top:14px;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);border:1px solid var(--app-border);border-radius:5px;padding:4px 9px}
 
+  /* ---------- 滚动条（DESIGN §4.4：极细发丝线 · 悬停加深） ---------- */
+  .sb-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 24px;padding:20px}
+  @media(max-width:900px){.sb-grid{grid-template-columns:1fr}}
+  .sb-cell{min-width:0}
+  .sb-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .sb-t{font-size:12px;font-weight:600;color:var(--app-fg)}
+  .sb-note{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+  .sb-demo{height:230px;border:1px solid var(--app-border);border-radius:6px;overflow:hidden;display:flex;background:var(--app-surface)}
+  .s-dark.sb-demo{border-color:#2B2F33}
+  .sb-doc{padding:16px 18px;overflow-y:auto;flex:1;min-width:0;min-height:0;scrollbar-gutter:stable;
+    font-family:var(--app-font-ui);color:var(--app-fg-muted);font-size:12.5px;line-height:1.75}
+  .sb-doc h2{font-family:var(--app-font-serif);font-weight:500;font-size:17px;color:var(--app-fg);margin:0 0 10px}
+  .sb-doc p{margin:0 0 10px}
+  /* 常态与悬停两态：真实伪元素，与 tokens.css + scrollbar.css 同源 */
+  .sb-doc::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+  .sb-doc::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+  .sb-doc::-webkit-scrollbar-thumb{
+    background-color:var(--app-scrollbar-thumb);
+    border:var(--app-scrollbar-inset) solid transparent;
+    background-clip:padding-box;border-radius:999px;
+  }
+  [data-sb$="hover"] .sb-doc::-webkit-scrollbar-thumb{background-color:var(--app-scrollbar-thumb-hover)}
+  /* 本页自身滚动条也用新形态 */
+  html::-webkit-scrollbar{width:var(--app-scrollbar-size);height:var(--app-scrollbar-size)}
+  html::-webkit-scrollbar-track{background:var(--app-scrollbar-track)}
+  html::-webkit-scrollbar-thumb{
+    background-color:var(--app-scrollbar-thumb);
+    border:var(--app-scrollbar-inset) solid transparent;
+    background-clip:padding-box;border-radius:999px;
+  }
+  html::-webkit-scrollbar-thumb:hover{background-color:var(--app-scrollbar-thumb-hover)}
+
   @media (max-width:900px){.states{grid-template-columns:1fr}}
 
 </style>
@@ -482,22 +671,32 @@
   </section>
 
   <section class="screen" id="s3">
-    <div class="screen-head"><span class="n">03</span><h2>Memo 时间线</h2><span class="desc">侧栏 / 时间线 / todo 侧板，不打开完整编辑器</span></div>
+    <div class="screen-head"><span class="n">03</span><h2>Memo 时间线</h2><span class="desc">工作栏（页内）/ 时间轴（块）/ Todo 浮动条，不打开完整编辑器</span></div>
     <div class="frame"><div class="shell s-light" data-screen="memo"></div></div>
   </section>
 
   <section class="screen" id="s4">
-    <div class="screen-head"><span class="n">04</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="grid"></div></div>
+    <div class="screen-head"><span class="n">04</span><h2>Memo 渲染样式 · 行内与列表</h2><span class="desc">行内格式、无序/有序列表、任务列表（可勾选，改写正文）</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="memoStylesInline"></div></div>
   </section>
 
   <section class="screen" id="s5">
-    <div class="screen-head"><span class="n">05</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
-    <div class="frame"><div class="shell s-light" data-screen="lock"></div></div>
+    <div class="screen-head"><span class="n">05</span><h2>Memo 渲染样式 · 块级与降级</h2><span class="desc">引用、代码块、分隔线、图片；不支持的语法原样保留</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="memoStylesBlock"></div></div>
   </section>
 
   <section class="screen" id="s6">
-    <div class="screen-head"><span class="n">06</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
+    <div class="screen-head"><span class="n">06</span><h2>网格布局</h2><span class="desc">侧栏 / 卡片网格，卡片进入独立阅读区</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="grid"></div></div>
+  </section>
+
+  <section class="screen" id="s7">
+    <div class="screen-head"><span class="n">07</span><h2>私人空间 · 锁定态</h2><span class="desc">新会话默认锁定；标题明文，正文密文</span></div>
+    <div class="frame"><div class="shell s-light" data-screen="lock"></div></div>
+  </section>
+
+  <section class="screen" id="s8">
+    <div class="screen-head"><span class="n">08</span><h2>设置</h2><span class="desc">643 × 530 对话框，左侧分组，右侧逐行项</span></div>
     <div class="frame">
       <div class="stage">
         <div class="dialog">
@@ -551,8 +750,8 @@
     </div>
   </section>
 
-  <section class="screen" id="s7">
-    <div class="screen-head"><span class="n">07</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
+  <section class="screen" id="s9">
+    <div class="screen-head"><span class="n">09</span><h2>组件状态</h2><span class="desc">每个控件的默认 / 悬停 / 焦点 / 禁用 / 错误</span></div>
     <div class="states">
       <div class="state-card">
         <h4>按钮</h4>
@@ -608,9 +807,83 @@
     </div>
   </section>
 
-  <section class="screen" id="s8">
-    <div class="screen-head"><span class="n">08</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
+  <section class="screen" id="s10">
+    <div class="screen-head"><span class="n">10</span><h2>空状态</h2><span class="desc">空清单 / 空文档 / 无搜索结果</span></div>
     <div class="frame"><div class="shell s-light" data-screen="empty"></div></div>
+  </section>
+
+  <section class="screen" id="s11">
+    <div class="screen-head"><span class="n">11</span><h2>滚动条</h2><span class="desc">极细发丝线 · 悬停加深 · 全局接管所有原生滚动容器</span></div>
+    <div class="frame">
+      <div class="sb-grid">
+        <div class="sb-cell">
+          <div class="sb-head"><span class="sb-t">浅色 · 常态</span><span class="sb-note">滑块 6px，轨道透明，对纸面 1.75:1</span></div>
+          <div class="sb-demo s-light" data-sb="light-normal">
+            <div class="sb-doc">
+              <h2>材质工作流</h2>
+              <p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>
+              <p>任何一层出问题，都能单独回滚，不需要重做整份材质。这是分层的第一条纪律。</p>
+              <p>滚动条常态刻意压到 1.75:1，低于 3:1。它不该与正文争夺注意力，只有当指针移上去时才升到 3.29:1——那时它才需要被看见。</p>
+              <p>侧栏树区、清单、文档、编辑器、时间线、todo 侧板、状态页、设置对话框、代码块、宽表格、版本对比——十一处滚动容器共用同一套令牌，任何一处新增都不必重复声明。</p>
+              <p>槽位由 scrollbar-gutter 恒定预留：内容从短变长时，滚动条出现不改变可用宽度，正在阅读的段落不会突然换行。</p>
+            </div>
+          </div>
+        </div>
+        <div class="sb-cell">
+          <div class="sb-head"><span class="sb-t">浅色 · 悬停</span><span class="sb-note">加深至 3.29:1，达到非文本对比度门槛</span></div>
+          <div class="sb-demo s-light" data-sb="light-hover">
+            <div class="sb-doc">
+              <h2>材质工作流</h2>
+              <p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>
+              <p>任何一层出问题，都能单独回滚，不需要重做整份材质。这是分层的第一条纪律。</p>
+              <p>滚动条常态刻意压到 1.75:1，低于 3:1。它不该与正文争夺注意力，只有当指针移上去时才升到 3.29:1——那时它才需要被看见。</p>
+              <p>侧栏树区、清单、文档、编辑器、时间线、todo 侧板、状态页、设置对话框、代码块、宽表格、版本对比——十一处滚动容器共用同一套令牌，任何一处新增都不必重复声明。</p>
+              <p>槽位由 scrollbar-gutter 恒定预留：内容从短变长时，滚动条出现不改变可用宽度，正在阅读的段落不会突然换行。</p>
+            </div>
+          </div>
+        </div>
+        <div class="sb-cell">
+          <div class="sb-head"><span class="sb-t">深色 · 常态</span><span class="sb-note">滑块 6px，对纸面 1.88:1</span></div>
+          <div class="sb-demo s-dark" data-sb="dark-normal">
+            <div class="sb-doc">
+              <h2>材质工作流</h2>
+              <p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>
+              <p>任何一层出问题，都能单独回滚，不需要重做整份材质。这是分层的第一条纪律。</p>
+              <p>滚动条常态刻意压到 1.75:1，低于 3:1。它不该与正文争夺注意力，只有当指针移上去时才升到 3.29:1——那时它才需要被看见。</p>
+              <p>侧栏树区、清单、文档、编辑器、时间线、todo 侧板、状态页、设置对话框、代码块、宽表格、版本对比——十一处滚动容器共用同一套令牌，任何一处新增都不必重复声明。</p>
+              <p>槽位由 scrollbar-gutter 恒定预留：内容从短变长时，滚动条出现不改变可用宽度，正在阅读的段落不会突然换行。</p>
+            </div>
+          </div>
+        </div>
+        <div class="sb-cell">
+          <div class="sb-head"><span class="sb-t">深色 · 悬停</span><span class="sb-note">加深至 3.46:1</span></div>
+          <div class="sb-demo s-dark" data-sb="dark-hover">
+            <div class="sb-doc">
+              <h2>材质工作流</h2>
+              <p>材质不靠单张贴图堆细节。基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡——三层各自可替换，改一处不会全盘崩。</p>
+              <p>任何一层出问题，都能单独回滚，不需要重做整份材质。这是分层的第一条纪律。</p>
+              <p>滚动条常态刻意压到 1.75:1，低于 3:1。它不该与正文争夺注意力，只有当指针移上去时才升到 3.29:1——那时它才需要被看见。</p>
+              <p>侧栏树区、清单、文档、编辑器、时间线、todo 侧板、状态页、设置对话框、代码块、宽表格、版本对比——十一处滚动容器共用同一套令牌，任何一处新增都不必重复声明。</p>
+              <p>槽位由 scrollbar-gutter 恒定预留：内容从短变长时，滚动条出现不改变可用宽度，正在阅读的段落不会突然换行。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tokens" style="margin-left:0">
+        <span class="sw"><i style="background:#C4C4C0"></i><b>--app-scrollbar-thumb</b></span>
+        <span class="sw"><i style="background:#8E8E8A"></i><b>--app-scrollbar-thumb-hover</b></span>
+        <span class="sw"><i style="background:#45494D"></i><b>深色 thumb</b></span>
+        <span class="sw"><i style="background:#6B7176"></i><b>深色 hover</b></span>
+      </div>
+      <div class="notes" style="margin-left:0">
+        <div><b>槽宽 10px</b>，滑块 2px 透明边内缩后可见 6px，两端全圆角；轨道完全透明，不占视觉重量。</div>
+        <div><b>全局接管</b>：侧栏、清单、文档、编辑器、Memo 时间线、todo 侧板、状态页、设置对话框、代码块、宽表格、版本对比，共 11 处滚动容器。</div>
+        <div><b>布局稳定</b>：槽位由 <span class="mono">scrollbar-gutter: stable</span> 恒定预留，滚动条出现与否不改变内容宽度，正文不重排。</div>
+        <div><b>移动端</b>：触屏由 <span class="mono">data-pointer="coarse"</span> 判定，交回系统覆盖式滚动条，不占布局宽度。</div>
+        <div><b>Firefox 降级</b>：标准属性无法做内缩，发丝线宽度不可得，仅保颜色；Chrome 121+ 用 <span class="mono">@supports not selector()</span> 隔离，避免标准属性反向覆盖伪元素。</div>
+        <div><b>不与橙色争</b>：滚动条只用中性灰，不使用强调色——它是结构件，不是可点击目标。</div>
+      </div>
+    </div>
   </section>
 
 </main>
@@ -763,51 +1036,175 @@
   }
 
   /* ---------- Memo 视图 ---------- */
+  /* ---------- 网格视图 ---------- */
+  /* ---------- Memo 二级侧栏（V1：概述 / 热力图 / 随机漫步 / 那年今日 / 日期 / 标签） ---------- */
   function memoScreen(){
-    var items1 = [
-      {t:'14:02', h:'<b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。', tags:['#材质','#UE5']},
-      {t:'11:26', h:'明天把采样对照表补完，先跑 16 和 8 两组。', tags:[]},
-      {t:'09:40', h:'灯光的 <b>Lumen 分界</b>：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。', tags:['#光照']}
-    ];
-    var items2 = [
-      {t:'21:15', h:'后处理栈改成 Bloom → 色调映射，高光溢出形态对了。', tags:['#工作流']},
-      {t:'17:02', h:'Houdini 出的资产在引擎里参数化成本太高，先只保留三个可调项。', tags:['#工作流']},
-      {t:'10:30', h:'地形四层混合上限到了，再往上要上虚拟纹理。', tags:[]}
-    ];
-    function item(o){
-      return '<div class="m-item"><div class="m-time">'+o.t+'</div><div>'
-        + '<div class="m-text">'+o.h+'</div>'
-        + (o.tags.length? '<div class="m-tagrow">'+o.tags.map(function(x){return '<span class="m-tag">'+x+'</span>';}).join('')+'</div>' : '')
+    /* 84 格 = 12 列 x 7 行，按列优先排；固定序列，避免每次刷新都不一样 */
+    var heat = [0,0,1,0,2,0,0, 1,0,0,3,0,1,0, 0,2,0,0,1,0,4, 0,0,1,0,0,2,0,
+                1,0,0,2,0,0,1, 0,3,0,0,1,0,0, 2,0,1,0,0,4,0, 0,0,2,0,1,0,0,
+                1,0,0,0,3,0,0, 0,2,0,1,0,0,2, 0,1,0,0,2,0,0, 0,0,3,0,0,1,0];
+    var cells = heat.map(function(v){
+      return '<i class="hm' + (v > 0 ? ' hm-' + v : '') + '"></i>';
+    }).join('');
+
+    function memo(t, html, tags, state){
+      return '<div class="tl-item' + (state === 'now' ? ' now' : '') + '">'
+        + '<div class="tl-t">' + t + '</div>'
+        + '<div class="tl-b"><p>' + html + '</p>'
+        + (tags ? '<div class="m-tagrow">' + tags.map(function(x){ return '<span class="m-tag">' + x + '</span>'; }).join('') + '</div>' : '')
+        + (state === 'doing' ? '<span class="st"><i></i>进行中</span>' : '')
         + '</div></div>';
     }
+
     return sidebar('memo')
+      + '<aside class="mside">'
+
+      +   '<div class="subblk">'
+      +     '<div class="subblk-t">概述</div>'
+      +     '<div class="stat3">'
+      +       '<div class="stat3-c"><b class="stat3-n">1,076</b><span class="stat3-l">总条数</span></div>'
+      +       '<div class="stat3-c"><b class="stat3-n">86</b><span class="stat3-l">本月新增</span></div>'
+      +       '<div class="stat3-c"><b class="stat3-n">144</b><span class="stat3-l">记录天数</span></div>'
+      +     '</div>'
+      +   '</div>'
+
+      +   '<div class="subblk">'
+      +     '<div class="subblk-t">热力图</div>'
+      +     '<p class="heat-sum">近 12 周 · 428 条</p>'
+      +     '<div class="heat">' + cells + '</div>'
+      +     '<div class="heat-lg"><span>少</span><i class="hm hm-1"></i><i class="hm hm-2"></i><i class="hm hm-3"></i><i class="hm hm-4"></i><span>多</span></div>'
+      +   '</div>'
+
+      +   '<div class="subblk">'
+      +     '<button class="subact"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>'
+      +       '随机漫步<svg class="go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>'
+      +   '</div>'
+
+      +   '<div class="subblk">'
+      +     '<div class="subblk-t">那年今日</div>'
+      +     '<button class="otd">'
+      +       '<span class="otd-hd"><span class="otd-d">2025年3月14日</span><span class="otd-n">3 条</span></span>'
+      +       '<span class="otd-x">材质分层再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩。</span>'
+      +     '</button>'
+      +   '</div>'
+
+      +   '<div class="subblk">'
+      +     '<div class="subblk-t">日期</div>'
+      +     '<div class="seg-full"><span aria-selected="true">全部</span><span>今天</span><span>近 7 天</span><span>近 30 天</span></div>'
+      +   '</div>'
+
+      +   '<div class="subblk">'
+      +     '<div class="subblk-t">标签</div>'
+      +     '<nav class="sublist">'
+      +       '<button class="subitem" aria-pressed="true">全部<span class="n">1,076</span></button>'
+      +       '<button class="subitem"># 材质<span class="n">128</span></button>'
+      +       '<button class="subitem"># 光照<span class="n">96</span></button>'
+      +     '</nav>'
+      +   '</div>'
+
+      + '</aside>'
+
       + '<div class="memo-main">'
-      +   '<div class="memo-bar"><span class="t">Memo</span>'
-      +     '<span class="r">全部 · 24 条</span></div>'
-      +   '<div class="memo-list">'
-      +     '<div class="mgroup">今天</div>' + items1.map(item).join('')
-      +     '<div class="mgroup">昨天</div>' + items2.map(item).join('')
-      +   '</div>'
+      +   '<div class="memo-bar"><span class="t">Memo</span><span class="r">全部 · 1,076 条</span></div>'
+      +   '<div class="memo-list"><div class="tl">'
+      +     '<div class="mgroup">今天</div>'
+      +     memo('14:02', '<b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。', ['#材质','#UE5'], 'now')
+      +     memo('11:26', '明天把采样对照表补完，先跑 16 和 8 两组。', [], 'doing')
+      +     memo('09:40', '灯光的 <b>Lumen 分界</b>：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。', ['#光照'])
+      +     '<div class="mgroup">昨天</div>'
+      +     memo('21:15', '后处理栈改成 Bloom → 色调映射，高光溢出形态对了。', ['#工作流'])
+      +     memo('17:02', 'Houdini 出的资产在引擎里参数化成本太高，先只保留三个可调项。', ['#工作流'])
+      +   '</div></div>'
       + '</div>'
-      + '<aside class="todo-panel">'
-      +   '<div class="todo-head"><span class="lb">Todo</span></div>'
-      +   '<div class="todo-group"><div class="gh">进行中 <span class="n">2</span></div>'
-      +     '<div class="todo-item doing"><span class="ds"></span><span>整理材质命名与分组</span></div>'
-      +     '<div class="todo-item doing"><span class="ds"></span><span>补齐采样对照表</span></div>'
+
+      + '<aside class="todo-float">'
+      +   '<div class="tf-head"><span class="lb">Todo</span><span class="n">10</span>'
+      +     '<span class="fold"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>'
+      +   '<div class="tf-group"><div class="gh">进行中 <span class="n">2</span></div>'
+      +     '<div class="tf-item doing"><span class="ds"></span><span class="t">整理材质命名与分组</span></div>'
+      +     '<div class="tf-item doing"><span class="ds"></span><span class="t">补齐采样对照表</span></div>'
       +   '</div>'
-      +   '<div class="todo-group"><div class="gh">待办 <span class="n">3</span></div>'
-      +     '<div class="todo-item todo"><span class="ds"></span><span>后处理栈顺序定稿</span></div>'
-      +     '<div class="todo-item todo"><span class="ds"></span><span>地形四层混合验证</span></div>'
-      +     '<div class="todo-item todo"><span class="ds"></span><span>LOD 分级规则</span></div>'
+      +   '<div class="tf-group"><div class="gh">待办 <span class="n">3</span></div>'
+      +     '<div class="tf-item"><span class="ds"></span><span class="t">后处理栈顺序定稿</span></div>'
+      +     '<div class="tf-item"><span class="ds"></span><span class="t">地形四层混合验证</span></div>'
+      +     '<div class="tf-item"><span class="ds"></span><span class="t">LOD 分级规则</span></div>'
       +   '</div>'
-      +   '<div class="todo-group"><div class="gh">已完成 <span class="n">5</span></div>'
-      +     '<div class="todo-item done"><span class="ds"></span><span>确认采样默认值</span></div>'
-      +     '<div class="todo-item done"><span class="ds"></span><span>写灯光规范初稿</span></div>'
+      +   '<div class="tf-group"><div class="gh">已完成 <span class="n">5</span></div>'
+      +     '<div class="tf-item done"><span class="ds"></span><span class="t">确认采样默认值</span></div>'
+      +     '<div class="tf-item done"><span class="ds"></span><span class="t">写灯光规范初稿</span></div>'
       +   '</div>'
       + '</aside>';
   }
 
-  /* ---------- 网格视图 ---------- */
+  /* ---------- Memo 渲染样式 ---------- */
+  function memoRow(t, html){
+    return '<div class="m-item"><div class="m-time">'+t+'</div><div>'
+      + '<div class="m-block">'+html+'</div>'
+      + '</div></div>';
+  }
+  var memoCheck = '<svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 5"/></svg>';
+
+  function memoStylesInline(){
+    return sidebar('memo')
+      + '<div class="memo-main">'
+      +   '<div class="memo-bar"><span class="t">Memo</span>'
+      +     '<span class="r">渲染样式 · 行内与列表</span></div>'
+      +   '<div class="memo-list">'
+
+      +     '<div class="mgroup">段落</div>'
+      +     memoRow('14:30', '<p>段间距 6px，行高 1.7。这是第一段。</p>'
+      +       '<p>这是第二段——两段之间只靠间距区分，不加分隔线、不加底色。</p>')
+
+      +     '<div class="mgroup">行内格式</div>'
+      +     memoRow('14:02', '<p>这是 <strong>加粗</strong>、<em>斜体</em>、<del>删除线</del>、<code>inline code</code> 与 <a href="#">链接</a> 混排的一行。<strong>字重 650</strong>，中文不糊。</p>')
+
+      +     '<div class="mgroup">无序列表</div>'
+      +     memoRow('11:26', '<ul><li>基础层只放底色与粗糙度</li><li>细节层用平铺遮罩控制磨损</li><li>混合层解决边缘过渡</li></ul>')
+
+      +     '<div class="mgroup">有序列表</div>'
+      +     memoRow('11:20', '<ol><li>先跑 16 采样</li><li>再跑 8 采样对照远景观感</li></ol>')
+
+      +     '<div class="mgroup">任务列表</div>'
+      +     memoRow('09:40',
+        '<div class="task done"><span class="bx on">'+memoCheck+'</span><span>备份包字段对齐 v1.2</span></div>'
+        + '<div class="task"><span class="bx"></span><span>恢复码换码流程走查</span></div>'
+        + '<div class="task"><span class="bx"></span><span>时区显示统一到 UTC+8</span></div>'
+        + '<div class="m-spec">勾选改写正文 [ ] / [x]，与结构化状态相互独立</div>')
+
+      +   '</div>'
+      + '</div>';
+  }
+
+  function memoStylesBlock(){
+    return sidebar('memo')
+      + '<div class="memo-main">'
+      +   '<div class="memo-bar"><span class="t">Memo</span>'
+      +     '<span class="r">渲染样式 · 块级与降级</span></div>'
+      +   '<div class="memo-list">'
+
+      +     '<div class="mgroup">引用</div>'
+      +     memoRow('21:15', '<blockquote>不接受"看起来对"的往返，只接受 AST 层级无损。<cite>Milkdown PoC · 结论</cite></blockquote>')
+
+      +     '<div class="mgroup">代码块</div>'
+      +     memoRow('17:02', '<pre><code>rowsRead = 12_400  ·  budget = 5_000_000</code></pre>')
+
+      +     '<div class="mgroup">分隔线</div>'
+      +     memoRow('14:40', '<p>分隔线只用 1px 发丝，不加间距以外的装饰。</p><hr><p>上下各 10px，不额外包一层容器。</p>')
+
+      +     '<div class="mgroup">图片</div>'
+      +     memoRow('10:30', '<p>走附件上传自动插入引用，缩略 64 见方。</p>'
+      +       '<div class="imgs"><i></i><i></i><i></i></div>')
+
+      +     '<div class="mgroup">降级显示 · 不支持的语法</div>'
+      +     memoRow('08:12', '<span class="raw"># 这是标题语法，Memo 不支持</span>'
+      +       '<span class="raw">| 列 A | 列 B |</span>'
+      +       '<span class="raw">| --- | --- |</span>'
+      +       '<div class="m-spec">原样保留，不渲染、不改写、不转义（C-1）</div>')
+
+      +   '</div>'
+      + '</div>';
+  }
+
   function gridScreen(){
     var cards = [
       {t:'材质工作流', d:'基础层只负责底色与粗糙度，细节层用平铺遮罩控制磨损位置，混合层解决边缘过渡。', m:'14:02', on:true},
@@ -873,7 +1270,9 @@
 
   var builders = {
     main:  function(){ return '<div class="app">' + sidebar('ue5') + listPane() + docPane() + '</div>'; },
-    memo:  function(){ return '<div class="app memo-app">' + memoScreen() + '</div>'; },
+    memo:  function(){ return '<div class="app mvb-app">' + memoScreen() + '</div>'; },
+    memoStylesInline: function(){ return '<div class="app ms-app">' + memoStylesInline() + '</div>'; },
+    memoStylesBlock:  function(){ return '<div class="app ms-app">' + memoStylesBlock() + '</div>'; },
     grid:  function(){ return '<div class="app grid-app">' + gridScreen() + '</div>'; },
     lock:  function(){ return '<div class="app lock-app">' + lockScreen() + '</div>'; },
     empty: function(){ return '<div class="app">' + emptyScreen() + '</div>'; }
