@@ -87,6 +87,7 @@
   .shell{min-width:1120px}
   .app{
     display:grid;grid-template-columns:248px 340px minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr);   /* 行高锁死 792：内容再长也不许撑高外壳 */
     height:792px;background:var(--app-surface);color:var(--app-fg);
     font-family:var(--app-font-ui);font-size:12.5px;overflow:hidden;
   }
@@ -209,7 +210,7 @@
   .ava{width:19px;height:19px;border-radius:999px;background:var(--app-fg);color:var(--app-surface);display:grid;place-items:center;font-family:var(--app-font-mono);font-size:9px;flex:none}
 
   /* ---------- 区域二：笔记清单 ---------- */
-  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--app-border);min-width:0;background:var(--app-surface)}
+  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--app-border);min-width:0;min-height:0;background:var(--app-surface)}
   .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 12px;border-bottom:1px solid var(--app-border)}
   .list-head .t{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-muted);text-transform:uppercase;display:flex;align-items:center;gap:7px}
   .list-head .t .n{color:var(--app-fg-faint);font-weight:400}
@@ -244,7 +245,7 @@
   .nrow.on .nr-d{color:var(--app-fg-muted)}
 
   /* ---------- 区域三：文档 ---------- */
-  .doc{display:flex;flex-direction:column;min-width:0}
+  .doc{display:flex;flex-direction:column;min-width:0;min-height:0}
   .doc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 34px;border-bottom:1px solid var(--app-border);flex:none}
   .crumb{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bar-r{display:flex;align-items:center;gap:12px;flex:none}
@@ -363,7 +364,7 @@
 
   /* ---------- Memo 视图 ---------- */
   .memo-app{grid-template-columns:248px minmax(0,1fr) 232px}
-  .memo-main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--app-border)}
+  .memo-main{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--app-border)}
   .memo-bar{height:48px;display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
   .memo-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
   .memo-bar .r{display:flex;align-items:center;gap:10px;margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
@@ -597,7 +598,7 @@
 
   /* ---------- 网格视图 ---------- */
   .grid-app{grid-template-columns:248px minmax(0,1fr)}
-  .grid-main{display:flex;flex-direction:column;min-width:0}
+  .grid-main{display:flex;flex-direction:column;min-width:0;min-height:0}
   .grid-bar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
   .grid-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
   .gcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px 24px;overflow:hidden}
@@ -611,7 +612,7 @@
 
   /* ---------- 私人空间锁定 ---------- */
   .lock-app{grid-template-columns:248px minmax(0,1fr)}
-  .lock-main{display:grid;place-items:center;min-width:0}
+  .lock-main{display:grid;place-items:center;min-width:0;min-height:0}
   .lock-card{width:346px;text-align:center}
   .lock-mark{width:46px;height:46px;border-radius:999px;background:var(--app-surface-sunken);display:grid;place-items:center;margin:0 auto 16px;color:var(--app-fg-subtle)}
   .lock-mark svg{width:20px;height:20px;stroke-width:1.5}
