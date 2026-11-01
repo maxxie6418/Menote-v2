@@ -36,6 +36,11 @@ export function splitFrontmatter(markdown: string): { frontText: string | null; 
   return { frontText, body: rest.startsWith("\n") ? rest.slice(1) : rest };
 }
 
+/** 把编辑器里的纯正文拼回属性区管理的 frontmatter（FR-PROP-1）。无属性时原样返回正文。 */
+export function joinFrontmatter(frontText: string | null, body: string): string {
+  return frontText ? `${frontText}\n\n${body}` : body;
+}
+
 /** 解析 frontmatter 数据面；空/损坏 frontmatter 视为无属性（不抛出，C-1 不阻断）。 */
 export function parseFrontmatterData(markdown: string): Record<string, unknown> {
   const { frontText } = splitFrontmatter(markdown);

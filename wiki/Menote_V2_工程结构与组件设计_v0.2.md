@@ -1,7 +1,7 @@
-# Menote V2 工程结构与组件设计（v0.5）
+# Menote V2 工程结构与组件设计（v0.6）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单：常驻格式栏与「/」菜单取代选中浮条，源码入口并入「更多」菜单。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.9（FR/C/NFR）、主文档 v0.10（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
@@ -113,8 +113,9 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
         └── SourceEditorAdapter（源码高级入口，FR-EDT-3；等宽 textarea [实施定]）
 ```
 
-- 上层（保存链路、附件插入、选中浮条）只面向接口，**更换编辑器零改造上层**（已验证：G7~G8 功能在两种适配器下共用）。
-- 源码编辑退居"更多操作"高级入口（FR-EDT-3），复用同一 SourceEditorAdapter；Milkdown 往返 PoC 证据与等价规范化清单见 `src/web/poc/`。
+- 上层（保存链路、附件插入、格式栏、「/」菜单）只面向接口，**更换编辑器零改造上层**（已验证：G7~G8 功能在两种适配器下共用）。
+- 源码编辑收进文档栏「更多」菜单（FR-EDT-3），复用同一 SourceEditorAdapter；Milkdown 往返 PoC 证据与等价规范化清单见 `src/web/poc/`。
+- 格式栏与「/」菜单只调用 adapter 上的纯数据方法（Markdown 字符串与选区描述），Milkdown 类型不出 `features/editor/`。
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
@@ -122,7 +123,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **tree/**：`TopicTree`（仅主题+分组）、`TreeNode`、`LockBadge`。
 **notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）；`BlankFormChooser`（空白种子期形态选择条，FR-TBL-9，TP2）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
-**editor/**：`EditorHost`、`SourceEditor`、`WysiwygEditor`（M3）、`SelectionToolbar`、`MarkdownPreview`、`SourceModeMenuItem`。
+**editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
 **table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理+行管理+单元格编辑，TP2）。
 **memo/**：`Timeline`、`MemoCard`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。

@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
+import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
+import { FormatBar } from "./FormatBar";
+import { SlashMenu } from "./SlashMenu";
+import { filterActions, type FormatAction } from "./formatActions";
+import { activeInline, applyBlock, applySlash, insertAttachment, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
 
 export type EditorKind = "wysiwyg" | "source";
 
@@ -16,59 +21,71 @@ interface NoteEditorProps {
   registerGetMarkdown: (get: (() => string) | null) => void;
   /** 属性区/表格等结构化写回合并进编辑器（FR-PROP-3 统一链路）：强制刷新并清除脏标记。 */
   registerApplyExternal: (apply: ((markdown: string) => void) | null) => void;
+  /** 上传一个文件并返回内容寻址结果；失败时返回错误文案，由底栏显示。 */
+  uploadFile?: (file: File) => Promise<{ sha256: string; name: string } | { error: string }>;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<EditorAdapter | null>(null);
   const dirtyRef = useRef(false);
+  const namesRef = useRef(new Map<string, string>());
+  const [active, setActive] = useState<InlineAction[]>([]);
+  const [slash, setSlash] = useState<{ query: string; index: number; top: number; left: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
+
+  const emit = (markdown: string) => {
+    dirtyRef.current = true;
+    onInputRef.current(fromEditorMarkdown(markdown, namesRef.current));
+  };
 
   useEffect(() => {
     if (mode !== "edit" || !hostRef.current) return;
     let cancelled = false;
     const host = hostRef.current;
-    const initial = externalMarkdown;
+    const initial = toEditorMarkdown(externalMarkdown, namesRef.current);
 
     if (kind === "source") {
       const adapter = new TextareaSourceAdapter(host, {
         initialMarkdown: initial,
-        onInput: (value) => { dirtyRef.current = true; onInputRef.current(value); },
+        onInput: emit,
       });
       adapterRef.current = adapter;
-      registerGetMarkdown(() => adapter.getMarkdown());
+      registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
       registerApplyExternal((markdown) => {
         dirtyRef.current = false;
-        adapter.loadMarkdown(markdown);
+        adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
       });
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
       // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
       void MilkdownWysiwygAdapter.create(host, {
         initialMarkdown: initial,
-        onInput: (value) => { dirtyRef.current = true; onInputRef.current(value); },
+        onInput: emit,
       }).then((adapter) => {
         if (cancelled) { void adapter.destroy(); return; }
         adapterRef.current = adapter;
-        registerGetMarkdown(() => adapter.getMarkdown());
+        registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
         registerApplyExternal((markdown) => {
           dirtyRef.current = false;
-          adapter.loadMarkdown(markdown);
+          adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
         });
       }).catch((cause) => {
         console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
         const fallback = new TextareaSourceAdapter(host, {
           initialMarkdown: initial,
-          onInput: (value) => { dirtyRef.current = true; onInputRef.current(value); },
+          onInput: emit,
         });
         if (cancelled) { fallback.destroy(); return; }
         adapterRef.current = fallback;
-        registerGetMarkdown(() => fallback.getMarkdown());
+        registerGetMarkdown(() => fromEditorMarkdown(fallback.getMarkdown(), namesRef.current));
         registerApplyExternal((markdown) => {
           dirtyRef.current = false;
-          fallback.loadMarkdown(markdown);
+          fallback.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
         });
       });
     }
@@ -85,15 +102,118 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, kind]);
 
+  const commit = (markdown: string, start: number, end: number) => {
+    const adapter = adapterRef.current;
+    if (!adapter) return;
+    dirtyRef.current = true;
+    adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
+    adapter.setSelection(start, end);
+    onInputRef.current(markdown);
+  };
+
+  const runAction = (action: FormatAction) => {
+    const adapter = adapterRef.current;
+    if (!adapter) return;
+    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const { start, end } = adapter.getSelection();
+    if (action.id === "image") { setSlash(null); fileInputRef.current?.click(); return; }
+    const context = slash ? slashContext(markdown, start) : null;
+    const result = context
+      ? applySlash(markdown, context, start, action.id as Parameters<typeof applySlash>[3])
+      : action.group === "inline"
+        ? toggleInline(markdown, start, end, action.id as InlineAction)
+        : applyBlock(markdown, start, action.id as Parameters<typeof applyBlock>[2]);
+    commit(result.markdown, result.selectionStart, result.selectionEnd);
+    setSlash(null);
+  };
+
+  const placeFiles = async (files: File[], cursor: number) => {
+    const adapter = adapterRef.current;
+    if (!adapter || !uploadFile) return;
+    let markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    let caret = cursor;
+    for (const file of files) {
+      const uploaded = await uploadFile(file);
+      if ("error" in uploaded) { onInputRef.current(markdown); return; }
+      namesRef.current.set(uploaded.sha256, uploaded.name);
+      const placed = insertAttachment(markdown, caret, uploaded, file.type.startsWith("image/"));
+      markdown = placed.markdown;
+      caret = placed.selectionStart;
+    }
+    commit(markdown, caret, caret);
+  };
+
+  const refreshSlash = () => {
+    const adapter = adapterRef.current;
+    if (!adapter || kind !== "wysiwyg") { setSlash(null); return; }
+    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const { start, end } = adapter.getSelection();
+    setActive(activeInline(markdown, start, end));
+    if (start !== end) { setSlash(null); return; }
+    const context = slashContext(markdown, start);
+    if (!context) { setSlash(null); return; }
+    const caret = adapter.caretRect();
+    const host = hostRef.current?.getBoundingClientRect();
+    const top = caret && host ? caret.bottom - host.top + hostRef.current!.scrollTop : 0;
+    const left = caret && host ? caret.left - host.left : 0;
+    setSlash({ query: context.query, index: 0, top, left });
+  };
+
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
-    if (adapter.getMarkdown() === externalMarkdown) {
+    const visible = toEditorMarkdown(externalMarkdown, namesRef.current);
+    if (fromEditorMarkdown(adapter.getMarkdown(), namesRef.current) === externalMarkdown) {
       dirtyRef.current = false;
       return;
     }
-    if (!dirtyRef.current) adapter.loadMarkdown(externalMarkdown);
+    if (!dirtyRef.current) adapter.loadMarkdown(visible);
   }, [externalMarkdown, mode]);
 
-  return <div ref={hostRef} className="mn-editor-host" data-mode={mode} data-kind={kind} />;
+  return (
+    <div className="mn-editor-wrap" data-dragging={dragging || undefined}>
+      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={runAction} />}
+      <div
+        ref={hostRef} className="mn-editor-host" data-mode={mode} data-kind={kind}
+        onKeyUp={refreshSlash} onMouseUp={refreshSlash}
+        onKeyDown={(event) => {
+          if (!slash) return;
+          const actions = filterActions(slash.query);
+          if (actions.length === 0) return;
+          if (event.key === "ArrowDown") { event.preventDefault(); setSlash({ ...slash, index: (slash.index + 1) % actions.length }); }
+          if (event.key === "ArrowUp") { event.preventDefault(); setSlash({ ...slash, index: (slash.index - 1 + actions.length) % actions.length }); }
+          if (event.key === "Enter" && actions[slash.index]) { event.preventDefault(); runAction(actions[slash.index]!); }
+          if (event.key === "Escape") setSlash(null);
+        }}
+        onPaste={(event) => {
+          const files = [...(event.clipboardData?.files ?? [])];
+          if (files.length === 0 || !uploadFile) return;
+          event.preventDefault();
+          const cursor = adapterRef.current?.getSelection().start ?? 0;
+          void placeFiles(files, cursor);
+        }}
+        onDragOver={(event) => { if (event.dataTransfer?.types.includes("Files")) { event.preventDefault(); setDragging(true); } }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          const files = [...(event.dataTransfer?.files ?? [])];
+          if (files.length === 0) return;
+          event.preventDefault();
+          setDragging(false);
+          void placeFiles(files, adapterRef.current?.getSelection().start ?? 0);
+        }}
+      />
+      {slash && (
+        <SlashMenu
+          query={slash.query} activeIndex={slash.index} position={{ top: slash.top, left: slash.left }} onHover={(index) => setSlash({ ...slash, index })}
+          onPick={(action) => runAction(action)}
+        />
+      )}
+      <input ref={fileInputRef} type="file" accept="image/*" hidden aria-hidden="true"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void placeFiles([file], adapterRef.current?.getSelection().start ?? 0);
+          event.target.value = "";
+        }} />
+    </div>
+  );
 }

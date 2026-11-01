@@ -7,6 +7,7 @@ import { TableDocument } from "../table";
 import { useItem, useLockVersion } from "../../services/contentHooks";
 import { degradeTableToNote } from "../../services/contentService";
 import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/encryptionCommandService";
+import { uploadAttachment } from "../../services/attachmentService";
 import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyringService";
 import { UnlockPanel } from "../encryption";
 
@@ -118,6 +119,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             kind="wysiwyg"
             externalMarkdown={plain}
             onInput={(value) => setPlain(value)}
+            uploadFile={uploadAttachment}
             registerGetMarkdown={(get) => { void get; }}
             registerApplyExternal={() => {}}
           />

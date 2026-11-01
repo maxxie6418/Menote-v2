@@ -203,6 +203,21 @@
 .mn-tagchip:hover { color: var(--app-danger); }
 .mn-taginput { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); width: var(--app-field-width); padding: var(--app-space-2) var(--app-space-4); }
 .mn-taginput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
+.mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.mn-editor-wrap[data-dragging] { outline: var(--app-line) dashed var(--app-accent); outline-offset: calc(var(--app-line) * -1); }
+.mn-formatbar { display: flex; flex-wrap: wrap; gap: var(--app-space-4); padding-bottom: var(--app-space-6); }
+.mn-formatbar-gap { width: var(--app-line); background: var(--app-border); margin: var(--app-zero) var(--app-space-4); }
+.mn-formatbtn { border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-formatbtn[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); box-shadow: var(--app-shadow-card); }
+.mn-formatbtn:hover { color: var(--app-fg); }
+.mn-slashmenu { position: absolute; z-index: 5; display: flex; flex-direction: column; max-height: var(--app-auth-card-width); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
+.mn-slashmenu button { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-4) var(--app-space-10); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-slashmenu button.on { background: var(--app-surface-sunken); }
+.mn-docmore { position: relative; }
+.mn-docmore-menu { position: absolute; z-index: 6; top: var(--app-full-size); right: var(--app-zero); display: flex; flex-direction: column; min-width: var(--app-field-width); padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
+.mn-docmore-menu button { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-4) var(--app-space-10); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-docmore-menu button:hover { background: var(--app-surface-sunken); }
+.mn-docmore-menu svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-editor-host { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .mn-editor-host .milkdown { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .mn-editor-source { flex: 1; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
@@ -491,15 +506,23 @@
 /* ---------- WYSIWYG（Milkdown 接入） ---------- */
 .mn-editor-host .ProseMirror { outline: none; flex: 1; min-height: var(--app-editor-min); cursor: text; font-size: var(--md-body-size); line-height: var(--md-body-leading); color: var(--md-body-color); }
 .mn-editor-host .ProseMirror h1 { font-family: var(--app-font-serif); font-size: var(--md-h1-size); font-weight: var(--md-h1-weight); line-height: var(--app-leading-doc-title); color: var(--md-h1-color); margin: 0 0 var(--app-space-18); }
-.mn-editor-host .ProseMirror h2, .mn-editor-host .ProseMirror h3, .mn-editor-host .ProseMirror h4, .mn-editor-host .ProseMirror h5, .mn-editor-host .ProseMirror h6 { color: var(--md-h2-color); font-weight: var(--md-h2-weight); margin: var(--app-space-md) 0 var(--app-space-6); }
+.mn-editor-host .ProseMirror h2 { color: var(--md-h2-color); font-size: var(--md-h2-size); font-weight: var(--md-h2-weight); }
+.mn-editor-host .ProseMirror h3 { color: var(--md-h3-color); font-size: var(--md-h3-size); font-weight: var(--md-h3-weight); }
+.mn-editor-host .ProseMirror h4, .mn-editor-host .ProseMirror h5, .mn-editor-host .ProseMirror h6 { color: var(--md-h2-color); font-weight: var(--md-h2-weight); }
+.mn-editor-host .ProseMirror :is(h2, h3, h4, h5, h6) { margin: var(--app-space-md) 0 var(--app-space-6); }
+.mn-editor-host .ProseMirror a { color: var(--md-link-color); }
+.mn-editor-host .ProseMirror hr { border: var(--app-zero); border-top: var(--md-quote-line) solid var(--app-border); margin: var(--app-space-14) var(--app-zero); }
 .mn-editor-host .ProseMirror p { margin: 0 0 var(--app-space-14); }
-.mn-editor-host .ProseMirror ul, .mn-editor-host .ProseMirror ol { margin: 0 0 var(--app-space-14); padding-left: var(--md-list-indent); }
-.mn-editor-host .ProseMirror code { font-family: var(--md-code-font); font-size: var(--md-code-size); background: var(--md-code-bg); border-radius: var(--md-code-radius); padding: var(--md-code-inline-padding); }
-.mn-editor-host .ProseMirror pre { background: var(--md-code-bg); border-radius: var(--md-code-radius); padding: var(--md-code-padding); overflow-x: auto; }
+.mn-editor-host .ProseMirror ul, .mn-editor-host .ProseMirror ol { margin: var(--app-zero) var(--app-zero) var(--md-list-gap); padding-left: var(--md-list-indent-tight); }
+.mn-editor-host .ProseMirror li::marker { color: var(--app-fg-faint); }
+.mn-editor-host .ProseMirror code { font-family: var(--md-code-font); font-size: var(--md-code-size); color: var(--md-body-color); background: var(--md-code-bg); border-radius: var(--md-code-radius-inline); padding: var(--md-code-inline-padding); }
+.mn-editor-host .ProseMirror pre { margin: var(--app-zero) var(--app-zero) var(--md-list-gap); background: var(--md-code-bg); border-radius: var(--md-code-radius); padding: var(--md-code-padding); overflow-x: auto; font-family: var(--md-code-font); font-size: var(--md-code-size); line-height: var(--md-code-leading); color: var(--md-body-color); }
 .mn-editor-host .ProseMirror pre code { background: none; padding: var(--app-zero); }
-.mn-editor-host .ProseMirror blockquote { margin: 0 0 var(--app-space-14); padding: var(--app-quote-pad-y) 0 var(--app-quote-pad-y) var(--app-space-14); border-left: var(--md-quote-line) solid var(--md-quote-color); color: var(--md-body-color); }
+.mn-editor-host .ProseMirror blockquote { margin: var(--app-zero) var(--app-zero) var(--md-list-gap); padding: var(--app-quote-pad-y) var(--app-zero) var(--app-quote-pad-y) var(--md-quote-padding-tight); border-left: var(--md-quote-line) solid var(--md-quote-color); color: var(--md-body-color); }
 .mn-editor-host .ProseMirror img { max-width: var(--app-full-size); border-radius: var(--app-radius-md); }
-.mn-editor-host .ProseMirror table { width: var(--app-full-size); border-collapse: collapse; margin-bottom: var(--app-space-14); }
-.mn-editor-host .ProseMirror th, .mn-editor-host .ProseMirror td { border: var(--md-table-border); padding: var(--md-table-padding); text-align: left; }
-.mn-editor-host .ProseMirror th { background: var(--md-table-head-bg); }
+.mn-editor-host .ProseMirror table { width: var(--app-full-size); border-collapse: collapse; margin: var(--app-zero) var(--app-zero) var(--md-table-gap); font-size: var(--md-table-size); table-layout: fixed; }
+.mn-editor-host .ProseMirror th, .mn-editor-host .ProseMirror td { border: var(--app-zero); border-bottom: var(--md-table-border); padding: var(--md-table-cell-pad); text-align: left; }
+.mn-editor-host .ProseMirror th { background: none; font-family: var(--md-code-font); font-size: var(--md-table-head-size); font-weight: var(--app-weight-regular); color: var(--app-fg-subtle); }
+.mn-editor-host .ProseMirror td { color: var(--md-body-color); }
+.mn-editor-host .ProseMirror td:first-child { color: var(--app-fg); }
 .mn-iconbtn.on { color: var(--app-accent-fg); }

@@ -36,6 +36,40 @@ export class TextareaSourceAdapter implements EditorAdapter {
     return this.textarea.value;
   }
 
+  getSelection(): { start: number; end: number } {
+    return { start: this.textarea.selectionStart, end: this.textarea.selectionEnd };
+  }
+
+  setSelection(start: number, end: number): void {
+    if (this.disposed) return;
+    this.textarea.setSelectionRange(start, end);
+  }
+
+  caretRect(): { top: number; left: number; bottom: number } | null {
+    const box = this.textarea.getBoundingClientRect();
+    const style = getComputedStyle(this.textarea);
+    const mirror = document.createElement("div");
+    mirror.style.position = "fixed";
+    mirror.style.visibility = "hidden";
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.overflowWrap = "break-word";
+    mirror.style.width = style.width;
+    mirror.style.font = style.font;
+    mirror.style.lineHeight = style.lineHeight;
+    mirror.style.padding = style.padding;
+    mirror.textContent = this.textarea.value.slice(0, this.textarea.selectionStart);
+    const marker = document.createElement("span");
+    marker.textContent = "\u200b";
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+    const markerBox = marker.getBoundingClientRect();
+    const mirrorBox = mirror.getBoundingClientRect();
+    mirror.remove();
+    const top = box.top + (markerBox.top - mirrorBox.top) - this.textarea.scrollTop;
+    const left = box.left + (markerBox.left - mirrorBox.left);
+    return { top, left, bottom: top + markerBox.height };
+  }
+
   focus(): void {
     this.textarea.focus();
   }
