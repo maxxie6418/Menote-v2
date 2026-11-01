@@ -97,7 +97,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `settings` | 备份目标、令牌管理、样式编辑、凭据复显 | FR-BAK/FR-MCP/FR-STYLE |
 | `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
 | `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
-| `backup` | 备份目标管理面板（CRUD/凭据复显/推送一次）（G9） | FR-BAK-1/2/8 |
+| `backup` | 备份目标管理面板（逐条添加、连接测试、推送调度、远端快照浏览/删除、保留数量）（G9） | FR-BAK-1/2/4/8 |
 | `markdown` | MarkdownView 渲染组件（react-markdown+gfm，任务复选框互写、附件 URL 解析）（G5/E2） | FR-STYLE-1、FR-MEMO-3 |
 | `monitor` | Resource Monitor（独立边界，见第 5 章） | FR-MON |
 
@@ -138,6 +138,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 
 - `index.ts` 只做装配：`app.route(...)` 注册 + 中间件顺序（session → csrf → configGuard 按路由），**目标单文件 ≤ 200 行**（server.mjs 教训的硬对策）。
 - routes ↔ services ↔ db 三层；业务逻辑只在 services；SQL 只在 db 层。
+- 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
 - MCP 模块（services/mcp/）：registry（工具注册）、scope（可见性谓词，私人空间/单篇加密两层）、audit——独立子目录，不与其他服务交叉引用。
@@ -154,7 +155,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 | ItemVersion | itemId、snapshot、codec、reason、createdAt | FR-VER |
 | McpToken | id、userId、tokenPrefix、perms、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、**tokenEnc（可逆存储）** | FR-MCP |
 | McpAudit | id、tokenId、tool、itemId、revBefore/After、result、operationId、at | FR-MCP-6 |
-| BackupTarget | id、userId、kind、endpoint、bucket、username、**secretEnc**、deletePolicy、schedule、cursorSeq、lastResult | FR-BAK |
+| BackupTarget | id、userId、kind、endpoint、remotePath（默认 menote）、bucket、username、**secretEnc**、retentionCount、lastPushedAt、schedule、enabled、lastResult | FR-BAK |
 | MonitorSample | userId、service、metric、value、sampledAt | FR-MON |
 | Settings | userId、key、value | 全局 |
 

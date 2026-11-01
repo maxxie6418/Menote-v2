@@ -6,6 +6,7 @@ interface TargetRow {
   id: string; user_id: string; kind: string; endpoint: string | null; bucket: string | null;
   username: string | null; secret_ciphertext: string | null; delete_policy: string;
   schedule: string | null; enabled: number; name: string | null;
+  remote_path?: string; retention_count?: number; last_pushed_at?: number | null;
   cursor_seq?: number; last_result?: string | null;
 }
 
@@ -14,6 +15,8 @@ function toTarget(row: TargetRow) {
     id: row.id, userId: row.user_id,
     kind: row.kind === "s3" ? "s3" : "webdav",
     endpoint: row.endpoint ?? "", bucket: row.bucket, username: row.username,
+    remotePath: row.remote_path ?? "menote", retentionCount: row.retention_count ?? 0,
+    lastPushedAt: row.last_pushed_at ?? null,
     secretCiphertext: row.secret_ciphertext,
     deletePolicy: row.delete_policy === "sync" ? "sync" : "append_only",
     schedule: row.schedule === "weekly" ? "weekly" : row.schedule === "daily" ? "daily" : "manual",
@@ -25,14 +28,14 @@ function toTarget(row: TargetRow) {
 
 export async function listTargets(db: D1Database, userId: string) {
   const rows = await db.prepare(
-    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name FROM backup_targets WHERE user_id = ? ORDER BY id",
+    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at FROM backup_targets WHERE user_id = ? ORDER BY id",
   ).bind(userId).all<TargetRow>();
   return rows.results.map(toTarget);
 }
 
 export async function getTarget(db: D1Database, userId: string, id: string) {
   const row = await db.prepare(
-    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name FROM backup_targets WHERE id = ? AND user_id = ?",
+    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at FROM backup_targets WHERE id = ? AND user_id = ?",
   ).bind(id, userId).first<TargetRow>();
   return row ? toTarget(row) : null;
 }
@@ -41,13 +44,14 @@ export async function createTarget(
   db: D1Database, userId: string, input: {
     kind: "s3" | "webdav"; endpoint: string; bucket: string | null; username: string | null;
     secretCiphertext: string; deletePolicy: "append_only" | "sync"; schedule: "manual" | "daily" | "weekly"; name: string;
+    remotePath?: string; retentionCount?: number;
   },
 ): Promise<string> {
   const id = crypto.randomUUID();
   await db.prepare(
-    `INSERT INTO backup_targets (id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-  ).bind(id, userId, input.kind, input.endpoint, input.bucket, input.username, input.secretCiphertext, input.deletePolicy, input.schedule, input.name).run();
+    `INSERT INTO backup_targets (id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+  ).bind(id, userId, input.kind, input.endpoint, input.bucket, input.username, input.secretCiphertext, input.deletePolicy, input.schedule, input.name, input.remotePath ?? "menote", input.retentionCount ?? 0).run();
   return id;
 }
 
@@ -55,6 +59,7 @@ export async function updateTarget(
   db: D1Database, userId: string, id: string, patch: {
     name?: string; endpoint?: string; bucket?: string | null; username?: string | null;
     secretCiphertext?: string; schedule?: "manual" | "daily" | "weekly"; enabled?: boolean;
+    remotePath?: string; retentionCount?: number;
   },
 ): Promise<void> {
   const sets: string[] = [];
@@ -65,15 +70,17 @@ export async function updateTarget(
   if (patch.username !== undefined) { sets.push("username = ?"); values.push(patch.username); }
   if (patch.secretCiphertext !== undefined) { sets.push("secret_ciphertext = ?"); values.push(patch.secretCiphertext); }
   if (patch.schedule !== undefined) { sets.push("schedule = ?"); values.push(patch.schedule); }
+  if (patch.remotePath !== undefined) { sets.push("remote_path = ?"); values.push(patch.remotePath); }
+  if (patch.retentionCount !== undefined) { sets.push("retention_count = ?"); values.push(patch.retentionCount); }
   if (patch.enabled !== undefined) { sets.push("enabled = ?"); values.push(patch.enabled ? 1 : 0); }
   if (sets.length === 0) return;
   values.push(userId, id);
   await db.prepare(`UPDATE backup_targets SET ${sets.join(", ")} WHERE user_id = ? AND id = ?`).bind(...values).run();
 }
 
-export async function recordTargetResult(db: D1Database, userId: string, id: string, result: string): Promise<void> {
-  await db.prepare("UPDATE backup_targets SET last_result = ? WHERE user_id = ? AND id = ?")
-    .bind(result.slice(0, 500), userId, id).run();
+export async function recordTargetResult(db: D1Database, userId: string, id: string, result: string, pushedAt: number | null = null): Promise<void> {
+  await db.prepare("UPDATE backup_targets SET last_result = ?, last_pushed_at = COALESCE(?, last_pushed_at) WHERE user_id = ? AND id = ?")
+    .bind(result.slice(0, 500), pushedAt, userId, id).run();
 }
 
 export async function deleteTarget(db: D1Database, userId: string, id: string): Promise<void> {
@@ -83,8 +90,8 @@ export async function deleteTarget(db: D1Database, userId: string, id: string): 
 /** 到期目标（调度默认值：daily 24h / weekly 7d；开放项 #9 定稿）。 */
 export async function listDueTargets(db: D1Database, now: number) {
   const rows = await db.prepare(
-    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, schedule, last_result FROM backup_targets WHERE enabled = 1 AND schedule IN ('daily', 'weekly')",
-  ).all<{ id: string; user_id: string; kind: string; endpoint: string | null; bucket: string | null; username: string | null; secret_ciphertext: string | null; schedule: string; last_result: string | null }>();
+    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, schedule, last_result, remote_path, retention_count FROM backup_targets WHERE enabled = 1 AND schedule IN ('daily', 'weekly')",
+  ).all<{ id: string; user_id: string; kind: string; endpoint: string | null; bucket: string | null; username: string | null; secret_ciphertext: string | null; schedule: string; last_result: string | null; remote_path: string; retention_count: number }>();
   const intervalMs = (schedule: string): number => (schedule === "weekly" ? 7 * 86_400_000 : 86_400_000);
   return rows.results
     .map((row) => ({ ...row, lastOkAt: parseLastOk(row.last_result) }))

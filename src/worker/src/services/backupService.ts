@@ -1,22 +1,13 @@
-import { AwsClient } from "aws4fetch";
 import { collectBackupRows } from "../db/backup";
+import { deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath, remotePut, type RemoteTarget } from "./backupRemote";
 
 /**
  * 备份服务（G9，FR-BAK-1~8；备份专项设计=管理线计划 G9 定稿）：
- * - 快照模型：当前完整状态按月分片（一月一片 JSON）+ manifest（版本与哈希）+ COMPLETE 标记；
- *   无重放链；老月份变更重推其分片（实现口径：每次推送重算全部月份分片并逐片 PUT，天然覆盖变更重推）。
+ * - 快照模型：每次完整状态写入独立的时间戳目录，目录含月度数据分片、附件、manifest 和 COMPLETE。
  * - 备份包 = 结构化 JSON（含加密条目密文与包装块）+ 附件（按引用打包）+ manifest；主密码/明文恢复码绝不入包（FR-BAK-5）。
- * - append_only 绝不产生远端删除（FR-BAK-4）。
+ * - 可按目标保留数量清理旧快照；删除只作用于 Menote 自己命名的快照目录。
  * - 凭据：AUTH_PEPPER 派生密钥做可逆加密存储（C-7 复显口径；与内容密钥无关，G4 差异注记）。
  */
-
-export interface TargetInput {
-  kind: "s3" | "webdav";
-  endpoint: string;
-  bucket: string | null;
-  username: string | null;
-  secret: string;
-}
 
 /** 凭据可逆加密（AUTH_PEPPER HKDF → AES-GCM；仅服务端，供复显与推送）。 */
 export async function sealSecret(pepper: string, secret: string): Promise<string> {
@@ -79,48 +70,43 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   };
 }
 
-function shardKey(month: string): string {
-  return `menote/${month}.json`;
-}
-
-/** 推送一次：逐分片 PUT → manifest PUT → COMPLETE 标记（双标记校验链，FR-BAK-7）。 */
+/** 推送一次：建立独立快照目录，先传内容与 manifest，最后写 COMPLETE。 */
 export async function pushBackup(
   ctx: { db: D1Database; userId: string; bucket: R2Bucket },
-  target: { kind: "s3" | "webdav"; endpoint: string; bucket: string | null; username: string | null; secret: string },
-): Promise<{ ok: true; shards: number } | { ok: false; error: string }> {
+  target: RemoteTarget,
+): Promise<{ ok: true; shards: number; backupId: string } | { ok: false; error: string }> {
   try {
     const { months, manifest, attachments } = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
-    const put = async (key: string, body: Uint8Array | string, contentType: string): Promise<void> => {
-      if (target.kind === "webdav") {
-        const url = `${target.endpoint.replace(/\/$/, "")}/${key}`;
-        const response = await fetch(url, {
-          method: "PUT", headers: {
-            Authorization: `Basic ${btoa(`${target.username ?? ""}:${target.secret}`)}`, "Content-Type": contentType,
-          }, body: body as BodyInit,
-        });
-        if (!response.ok) throw new Error(`webdav_put_${response.status}`);
-        return;
-      }
-      const client = new AwsClient({ accessKeyId: target.username ?? "", secretAccessKey: target.secret });
-      const base = target.endpoint.replace(/\/$/, "");
-      const url = base.startsWith("http")
-        ? (target.bucket ? `${base}/${target.bucket}/${key}` : `${base}/${key}`)
-        : `https://s3.${base}.amazonaws.com/${target.bucket}/${key}`;
-      const response = await client.fetch(url, { method: "PUT", body: body as BodyInit, headers: { "Content-Type": contentType } });
-      if (!response.ok) throw new Error(`s3_put_${response.status}`);
-    };
-
-    // 附件随行（FR-BAK-6 备份包=JSON+附件+manifest）
-    for (const attachment of attachments) {
-      await put(attachment.key, new Uint8Array(attachment.bytes), "application/octet-stream");
+    const root = normalizeRemotePath(target.remotePath);
+    const id = newSnapshotId();
+    const directory = `${root}/${id}`;
+    if (target.kind === "webdav") {
+      // Create namespace and snapshot collection before PUT; DAV servers do not create parents implicitly.
+      await ensureDavSnapshotDirectories(target, root, directory);
     }
-    for (const month of Object.keys(months).sort()) {
-      await put(shardKey(month), JSON.stringify(months[month]), "application/json");
+    const files: Array<{ path: string; bytes: Uint8Array; contentType: string }> = [];
+    for (const attachment of attachments) files.push({ path: `attachment-${attachment.key.split("/").pop()}`, bytes: new Uint8Array(attachment.bytes), contentType: "application/octet-stream" });
+    for (const month of Object.keys(months).sort()) files.push({ path: `${month}.json`, bytes: new TextEncoder().encode(JSON.stringify(months[month])), contentType: "application/json" });
+    const fileMetadata = await Promise.all(files.map(async (file) => ({ path: file.path, size: file.bytes.byteLength, sha256: await hashHex(file.bytes) })));
+    const completeManifest = { ...manifest, snapshotId: id, files: fileMetadata };
+    const manifestBytes = new TextEncoder().encode(JSON.stringify(completeManifest));
+    const manifestHash = await hashHex(manifestBytes);
+    for (const file of files) await remotePut(target, `${directory}/${file.path}`, file.bytes, file.contentType);
+    await remotePut(target, `${directory}/manifest.json`, manifestBytes, "application/json");
+    await remotePut(target, `${directory}/COMPLETE`, new TextEncoder().encode(manifestHash), "text/plain");
+    if (target.retentionCount > 0) {
+      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete);
+      for (const old of backups.slice(target.retentionCount)) await deleteRemoteBackup(target, old.id);
     }
-    await put("menote/manifest.json", JSON.stringify(manifest), "application/json");
-    await put("menote/COMPLETE", new Date().toISOString(), "text/plain");
-    return { ok: true, shards: Object.keys(months).length };
+    return { ok: true, shards: Object.keys(months).length, backupId: id };
   } catch (error) {
     return { ok: false, error: String(error).slice(0, 300) };
   }
 }
+
+function hashHex(bytes: Uint8Array): Promise<string> {
+  return crypto.subtle.digest("SHA-256", bytes as BufferSource).then((digest) =>
+    [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""));
+}
+
+export { deleteRemoteBackup, listRemoteBackups, testRemoteTarget } from "./backupRemote";
