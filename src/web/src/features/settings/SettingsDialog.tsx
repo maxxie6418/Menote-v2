@@ -22,10 +22,11 @@ interface SettingsDialogProps {
   userId: string;
   initialSection?: SettingsSection;
   onClose: () => void;
+  onSectionChange?: (section: SettingsSection) => void;
 }
 
 /** 设置对话框：外观、远程备份、附件与恢复码。 */
-export function SettingsDialog({ userId, initialSection = "backup", onClose }: SettingsDialogProps) {
+export function SettingsDialog({ userId, initialSection = "backup", onClose, onSectionChange }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose }: S
           <nav className="mn-dlg-nav" aria-label="设置分类">
             {NAV.map((entry) => (
               <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
-                onClick={(event) => { event.preventDefault(); setSection(entry.id); }}>
+                onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
                 {entry.label}
               </a>
             ))}

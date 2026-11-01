@@ -26,7 +26,7 @@ Menote-v2/
     │   ├── vite.config.ts / tailwind 配置
     │   └── src/
     │       ├── main.tsx / App.tsx        # 应用装配（路由、Provider），禁业务逻辑
-    │       ├── app/                      # 全局布局壳：侧栏、路由出口、布局（列表/网格）
+    │       ├── app/                      # 全局布局壳：侧栏、appRoutes 路径契约与路由出口、布局（列表/网格）
     │       ├── features/                 # ★ 功能模块（边界见第 3 章）
     │       ├── components/ui/            # shadcn/ui 基础控件（生成后进 here，可改造）
     │       ├── components/               # 跨 feature 业务组件（少量，需公共才放）

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { useHomeSnapshot, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
@@ -64,14 +64,19 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   );
 }
 
-export function MobileMemo({ userId, onLongPress, onOpenMemo }: {
-  userId: string; onLongPress: (item: Item) => void; onOpenMemo: (id: string) => void;
+export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId }: {
+  userId: string; onLongPress: (item: Item) => void; onOpenMemo: (id: string) => void; selectedId?: string | null;
 }) {
   const memos = useMemos(userId);
   const [tab, setTab] = useState<"all" | "todo" | "gallery">("all");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(["done"]));
   const images = memoImages(memos);
   const counts = { todo: memos.filter((memo) => memo.status === "todo").length, doing: memos.filter((memo) => memo.status === "doing").length, done: memos.filter((memo) => memo.status === "done").length };
+
+  useEffect(() => {
+    if (!selectedId) return;
+    window.setTimeout(() => document.getElementById(`memo-${selectedId}`)?.scrollIntoView({ block: "center" }), 0);
+  }, [selectedId, memos]);
 
   const goMemo = (id: string) => {
     setTab("all");

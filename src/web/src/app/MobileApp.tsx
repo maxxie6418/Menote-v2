@@ -4,6 +4,7 @@ import type { AuthUser, Item } from "@menote/shared";
 import { createNote, saveItemMeta, softDeleteItem } from "../services/contentService";
 import { restoreFromTrash } from "../services/versionService";
 import type { SettingsSection } from "../features/settings";
+import type { AppRoute } from "./appRoutes";
 import { MobileComposer, type ComposeMode } from "./MobileComposer";
 import { MobileHome, MobileMe, MobileMemo, MobileNotes, MobileTopicSheet, type MobilePage, type NoteSection } from "./MobileScreens";
 
@@ -12,11 +13,14 @@ interface MobileAppProps {
   onLogout: () => void;
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenStatus: () => void;
+  route: AppRoute;
+  onNavigate: (route: AppRoute) => void;
 }
 
-export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus }: MobileAppProps) {
+export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus, route, onNavigate }: MobileAppProps) {
   const appRef = useRef<HTMLDivElement>(null);
-  const [page, setPage] = useState<MobilePage>("home");
+  const routePage: MobilePage = route.kind === "memos" ? "memo" : route.kind === "notes" ? "notes" : route.kind === "me" || route.kind === "settings" ? "me" : "home";
+  const [page, setPage] = useState<MobilePage>(routePage);
   const [noteSection, setNoteSection] = useState<NoteSection>({ kind: "recent" });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [topicSheetOpen, setTopicSheetOpen] = useState(false);
@@ -47,10 +51,27 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus }: Mobi
     };
   }, []);
 
+  useEffect(() => {
+    setPage(routePage);
+    if (route.kind === "notes") {
+      setNoteSection(route.section);
+      setSelectedNoteId(route.itemId ?? null);
+    } else if (route.kind === "memos") setSelectedNoteId(route.itemId ?? null);
+  }, [route, routePage]);
+
+  const goPage = (next: MobilePage) => {
+    setPage(next);
+    if (next === "home") onNavigate({ kind: "home" });
+    else if (next === "memo") onNavigate({ kind: "memos" });
+    else if (next === "notes") onNavigate({ kind: "notes", section: noteSection });
+    else onNavigate({ kind: "me" });
+  };
+
   const openSection = (section: NoteSection) => {
     setPage("notes");
     setNoteSection(section);
     setSelectedNoteId(null);
+    onNavigate({ kind: "notes", section });
   };
 
   const createAndOpenNote = async () => {
@@ -58,10 +79,12 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus }: Mobi
     setNoteSection({ kind: "drafts" });
     setSelectedNoteId(created.id);
     setPage("notes");
+    onNavigate({ kind: "notes", section: { kind: "drafts" }, itemId: created.id });
   };
 
   const openMemo = (id: string) => {
     setPage("memo");
+    onNavigate({ kind: "memos", itemId: id });
     window.setTimeout(() => document.getElementById(`memo-${id}`)?.scrollIntoView({ block: "center" }), 0);
   };
 
@@ -108,6 +131,7 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus }: Mobi
       setPage("notes");
       setNoteSection({ kind: "drafts" });
       setSelectedNoteId(item.id);
+      onNavigate({ kind: "notes", section: { kind: "drafts" }, itemId: item.id });
     }
   };
 
@@ -115,16 +139,16 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenStatus }: Mobi
     <div className="m-body">
       {page === "home" && <MobileHome userId={userId} onOpenItem={(item) => {
         if (item.type === "memo") openMemo(item.id);
-        else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); }
+        else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); onNavigate({ kind: "notes", section: { kind: "recent" }, itemId: item.id }); }
       }} onOpenSection={openSection} />}
-      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} />}
-      {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => setSelectedNoteId(item?.id ?? null)}
+      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} />}
+      {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => { setSelectedNoteId(item?.id ?? null); onNavigate({ kind: "notes", section: noteSection, ...(item ? { itemId: item.id } : {}) }); }}
         onTopicSheet={() => setTopicSheetOpen(true)} onCreate={() => void createAndOpenNote()} onLongPress={onLongPress} />}
       {page === "me" && <MobileMe userId={userId} username={user.username} role={user.role} onSettings={onOpenSettings} onStatus={onOpenStatus} onLogout={onLogout} onOpenSection={openSection} />}
     </div>
-    <MobileTabBar page={page} onPage={(next) => { setPage(next); if (next === "notes") setSelectedNoteId(null); }} onRecord={() => setComposeOpen(true)} />
+    <MobileTabBar page={page} onPage={(next) => { goPage(next); if (next === "notes") setSelectedNoteId(null); }} onRecord={() => setComposeOpen(true)} />
 
-    {topicSheetOpen && <MobileTopicSheet userId={userId} selected={noteSection} onClose={() => setTopicSheetOpen(false)} onSelect={setNoteSection} />}
+    {topicSheetOpen && <MobileTopicSheet userId={userId} selected={noteSection} onClose={() => setTopicSheetOpen(false)} onSelect={(next) => { openSection(next); setTopicSheetOpen(false); }} />}
     {composeOpen && <MobileComposer userId={userId} mode={composeMode} body={composeBody} title={composeTitle} tags={composeTags}
       onMode={switchComposeMode} onBody={setComposeBody} onTitle={setComposeTitle} onTags={setComposeTags}
       onClose={() => setComposeOpen(false)} onSaved={handleSaved} />}

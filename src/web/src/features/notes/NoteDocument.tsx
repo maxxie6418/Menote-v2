@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -17,6 +17,7 @@ import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
 import { setSessionKey } from "../../services/keyringService";
+import { itemRoutePath } from "../../app/appRoutes";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -50,6 +51,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [encrypting, setEncrypting] = useState(false);
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
@@ -220,6 +222,14 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
               </button>
               {moreOpen && (
                 <span className="mn-docmore-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => {
+                    void navigator.clipboard.writeText(`${window.location.origin}${itemRoutePath(item.id)}`).then(() => {
+                      setLinkCopied(true);
+                      window.setTimeout(() => setLinkCopied(false), 2_000);
+                    }).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+                  }}>
+                    <Copy />{linkCopied ? "链接已复制" : "复制文档链接"}
+                  </button>
                   <button type="button" role="menuitem" onClick={() => { setEditorKind(editorKind === "source" ? "wysiwyg" : "source"); setMoreOpen(false); }}>
                     <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
                   </button>

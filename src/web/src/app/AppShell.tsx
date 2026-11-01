@@ -15,6 +15,7 @@ import { lockIfIdle } from "../services/keyringService";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
+import { appRoutePath, parseAppRoute, type AppRoute, type RouteSection } from "./appRoutes";
 
 /* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
 import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
@@ -66,25 +67,83 @@ const SECTION_EMPTY: Record<"recent" | "inbox" | "drafts" | "starred" | "trash",
   trash: ["回收站是空的", "移入回收站的内容会出现在这里，可恢复或永久删除。"],
 };
 
+function routeSection(route: AppRoute): BrowseSection {
+  if (route.kind === "notes") return route.section;
+  if (route.kind === "memos") return { kind: "memos" };
+  return { kind: "home" };
+}
+
+function sectionRoute(section: BrowseSection, itemId?: string): AppRoute {
+  if (section.kind === "home") return { kind: "home" };
+  if (section.kind === "memos") return { kind: "memos", ...(itemId ? { itemId } : {}) };
+  return { kind: "notes", section: section as RouteSection, ...(itemId ? { itemId } : {}) };
+}
+
 /* 主界面（M1.2 骨架 + E2 内容闭环）：三栏真数据、列表/网格、Memo 视图与 todo 侧板。 */
 export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const layout = useLayoutMode();
   const coarsePointer = useCoarsePointer();
-  const [view, setView] = useState<MainView>("main");
+  const [route, setRoute] = useState<AppRoute>(() => parseAppRoute(window.location.pathname));
+  const navigate = useCallback((next: AppRoute, replace = false) => {
+    const pathname = appRoutePath(next);
+    if (window.location.pathname !== pathname) {
+      const state = replace
+        ? { ...window.history.state, menoteRoute: true }
+        : { menoteRoute: true, menoteParentPath: window.location.pathname };
+      if (replace) window.history.replaceState(state, "", pathname);
+      else window.history.pushState(state, "", pathname);
+    }
+    setRoute(next);
+  }, []);
+  const goBack = useCallback((fallback: AppRoute) => {
+    if (window.history.state?.menoteParentPath) window.history.back();
+    else navigate(fallback);
+  }, [navigate]);
+  const [view, setView] = useState<MainView>(() => route.kind === "status" ? "status" : "main");
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [section, setSection] = useState<BrowseSection>({ kind: "home" });
-  const [noteId, setNoteId] = useState<string | null>(null);
+  const [section, setSection] = useState<BrowseSection>(() => routeSection(route));
+  const [noteId, setNoteId] = useState<string | null>(() => route.kind === "notes" ? route.itemId ?? null : null);
   const [noteReturn, setNoteReturn] = useState<{ section: BrowseSection; noteId: string | null }>({ section: { kind: "recent" }, noteId: null });
   const noteReturnRef = useRef(noteReturn);
   noteReturnRef.current = noteReturn;
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [todoOpen, setTodoOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>("backup");
+  const [settingsOpen, setSettingsOpen] = useState(() => route.kind === "settings" || route.kind === "me");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(() => route.kind === "settings" ? route.section : "appearance");
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
   const userId = user.id;
+  const settingsReturn = useRef<AppRoute>({ kind: "home" });
+
+  useEffect(() => {
+    const onPopState = () => setRoute(parseAppRoute(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    if (window.location.pathname === "/") navigate({ kind: "home" }, true);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [navigate]);
+
+  useEffect(() => {
+    setView(route.kind === "status" ? "status" : "main");
+    setDrawerOpen(false);
+    if (route.kind === "settings") {
+      setSettingsOpen(true);
+      setSettingsSection(route.section);
+      return;
+    }
+    if (route.kind === "me" && layout !== "mobile") {
+      setSettingsOpen(true);
+      setSettingsSection("appearance");
+      return;
+    }
+    setSettingsOpen(false);
+    if (route.kind === "status") return;
+    const nextSection = routeSection(route);
+    setSection(nextSection);
+    const nextNoteId = route.kind === "notes" ? route.itemId ?? null : null;
+    setNoteId(nextNoteId);
+    setMobilePane(nextNoteId ? "doc" : "list");
+  }, [route, layout]);
 
   const openNewNote = useCallback(async () => {
     const created = await createNote(userId);
@@ -93,7 +152,8 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setNoteId(created.id);
     setMobilePane("doc");
     setDrawerOpen(false);
-  }, [userId]);
+    navigate(sectionRoute({ kind: "drafts" }, created.id));
+  }, [userId, navigate]);
   const openMemoComposer = useCallback(() => {
     setCollapsed(false);
     setMemoComposerSignal((value) => value + 1);
@@ -103,7 +163,9 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setSettingsSection(next);
     setSettingsOpen(true);
     setDrawerOpen(false);
-  }, []);
+    settingsReturn.current = route;
+    navigate({ kind: "settings", section: next });
+  }, [navigate, route]);
 
   // ⌘/Ctrl 1 回笔记，2 进 Memo。Esc 不承担返回（DESIGN 第 03 屏）。
   useEffect(() => {
@@ -129,16 +191,18 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           if (current.kind !== "memos") setNoteReturn({ section: current.kind === "home" ? { kind: "recent" } : current, noteId });
           return { kind: "memos" };
         });
+        navigate({ kind: "memos" });
       } else {
         const back = noteReturnRef.current;
         setSection(back.section);
         setNoteId(back.noteId);
+        navigate(sectionRoute(back.section, back.noteId ?? undefined));
       }
       setView("main");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [noteId, userId, layout, openNewNote, openMemoComposer]);
+  }, [noteId, userId, layout, openNewNote, openMemoComposer, navigate]);
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
@@ -195,21 +259,24 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         if (next.kind !== "memos") setNoteId(null);
         setMobilePane("list");
         setDrawerOpen(false);
+        navigate(sectionRoute(next));
       }}
       onCreateNote={openNewNote}
       onLogout={onLogout}
       onToggleCollapse={() => setCollapsed((value) => !value)}
       onCloseDrawer={() => setDrawerOpen(false)}
       onOpenSettings={() => openSettings()}
-      onOpenStatus={() => { setView("status"); setDrawerOpen(false); }}
+      onOpenStatus={() => { navigate({ kind: "status" }); setView("status"); setDrawerOpen(false); }}
       memoComposerSignal={memoComposerSignal}
     />
   );
   const settingsDialog = settingsOpen ? (
     <SettingsDialog
+      key={`settings-${settingsSection}`}
       userId={userId}
       initialSection={settingsSection}
-      onClose={() => setSettingsOpen(false)}
+      onClose={() => { setSettingsOpen(false); goBack(settingsReturn.current); }}
+      onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
     />
   ) : null;
 
@@ -218,7 +285,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       <div className="mn-shell" {...shellProps}>
         {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
         {sidebar}
-        <SystemStatusPage onBack={() => setView("main")} />
+        <SystemStatusPage onBack={() => { goBack({ kind: "home" }); setView("main"); }} />
         {settingsDialog}
       </div>
     );
@@ -227,7 +294,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   if (layout === "mobile") {
     return (
       <div className="mn-shell" {...shellProps}>
-        <MobileApp user={user} onLogout={onLogout} onOpenSettings={openSettings} onOpenStatus={() => setView("status")} />
+        <MobileApp user={user} onLogout={onLogout} onOpenSettings={openSettings} onOpenStatus={() => { navigate({ kind: "status" }); setView("status"); }} route={route} onNavigate={navigate} />
         {settingsDialog}
       </div>
     );
@@ -247,10 +314,18 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             setTodoOpen(true);
             setSection({ kind: "memos" });
             setDrawerOpen(false);
+            navigate({ kind: "memos" });
           }}
           onOpenItem={(item) => {
-            setSection({ kind: "recent" });
-            setNoteId(item.id);
+            if (item.type === "memo") {
+              setSection({ kind: "memos" });
+              setNoteId(null);
+              navigate({ kind: "memos", itemId: item.id });
+            } else {
+              setSection({ kind: "recent" });
+              setNoteId(item.id);
+              navigate(sectionRoute({ kind: "recent" }, item.id));
+            }
             setMobilePane("doc");
             setDrawerOpen(false);
           }}
@@ -260,6 +335,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             setNoteId(null);
             setMobilePane("list");
             setDrawerOpen(false);
+            navigate(sectionRoute(next));
           }}
         />
         {settingsDialog}
@@ -278,7 +354,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
           onOpenDrawer={() => setDrawerOpen(true)}
-          onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); }}
+          onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); navigate(sectionRoute(noteReturn.section, noteReturn.noteId ?? undefined)); }}
         />
         {settingsDialog}
       </div>
@@ -298,7 +374,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           title="回收站"
           items={items}
           selectedNoteId={noteId}
-          onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); }}
+          onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined)); }}
           emptyTitle="回收站是空的"
           emptyDetail="移入回收站的内容会出现在这里，可恢复或永久删除。"
           headerExtra={(
@@ -307,15 +383,16 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
                 if (!items || items.length === 0 || !window.confirm(`清空回收站（${items.length} 项）？永久删除不可恢复。`)) return;
                 await purgeItemsPermanently(userId, items.map((row) => row.id));
                 setNoteId(null);
+                navigate(sectionRoute(section));
               }}>
               清空回收站
             </button>
           )}
           mobilePane={mobilePane}
-          onBackToList={() => setMobilePane("list")}
+          onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
           onOpenDrawer={() => setDrawerOpen(true)}
           document={trashItem ? (
-            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => setMobilePane("list")} showBack={layout === "tablet"} />
+            <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }} showBack={layout === "tablet"} />
           ) : (
             <article className="mn-doc" aria-label="文档区">
               <div className="mn-docbar"><span className="mn-docbar-left"><span className="mn-crumb">回收站</span></span></div>
@@ -350,11 +427,11 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         title={title}
         items={items}
         selectedNoteId={noteId}
-        onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); }}
+        onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined)); }}
         emptyTitle={emptyTitle}
         emptyDetail={emptyDetail}
         mobilePane={mobilePane}
-        onBackToList={() => setMobilePane("list")}
+        onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
         onOpenDrawer={() => setDrawerOpen(true)}
         document={noteId ? (
           <NoteDocument
@@ -363,7 +440,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             noteId={noteId}
             topics={topics}
             unfiled={section.kind === "inbox" || section.kind === "drafts"}
-            onBack={() => setMobilePane("list")}
+            onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section)); }}
             showBack={layout === "tablet"}
             crumb={title}
             onExtractDoc={async (content) => {
@@ -372,6 +449,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
               setSection({ kind: "drafts" });
               setNoteId(created.id);
               setMobilePane("doc");
+              navigate(sectionRoute({ kind: "drafts" }, created.id));
             }}
           />
         ) : (
