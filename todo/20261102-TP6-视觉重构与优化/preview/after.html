@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>修复后 · 0.0.35</title>
+<link rel="stylesheet" href="styles-after/tokens.css" />
+<link rel="stylesheet" href="styles-after/app.css" />
+<link rel="stylesheet" href="styles-after/shell.css" />
+<link rel="stylesheet" href="styles-after/markdown.css" />
+<link rel="stylesheet" href="styles-after/scrollbar.css" />
+<style>
+  html, body { margin: 0; background: #0d0f11; }
+  body { width: 1440px; font-family: system-ui, sans-serif; }
+  .shot { position: relative; width: 1440px; height: 560px; overflow: hidden; border-bottom: 2px solid #333; }
+  #dialog { height: 480px; }
+  .shot-cap { position: absolute; right: 0; bottom: 0; z-index: 30; padding: 4px 10px; background: rgba(0,0,0,.65); color: #7fd6a4; font-size: 12px; letter-spacing: .04em; }
+  .page { display: flex; height: 560px; }
+  .fake-side { width: var(--app-sidebar-width); flex: none; background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); padding: 16px 10px; }
+  .fake-list { width: var(--app-list-width); flex: none; border-right: var(--app-line) solid var(--app-border); padding: 14px 16px; }
+  .fake-list .mn-note-row { padding: 8px 0; border-bottom: var(--app-line) solid var(--app-border-subtle); }
+  .doc-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .mn-overlay { position: absolute; }
+  .ico { width: 12px; height: 12px; display: block; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<!-- ① 编辑器页面 -->
+<div class="shot">
+  <span class="shot-cap">① 编辑器页面 · 672 版心居中、标题 36、格式栏图标化并吸顶</span>
+  <div class="page">
+    <div class="fake-side">
+      <div class="mn-brand">Menote</div>
+      <nav class="mn-nav"><a href="#">首页</a><a href="#">笔记</a><a href="#">Memo</a></nav>
+    </div>
+    <div class="fake-list">
+      <div class="mn-listhead"><span class="mn-listhead-left"><span class="mn-listhead-title">全部笔记</span></span>
+        <span class="mn-vt"><button class="on">L</button><button>G</button></span></div>
+      <div class="mn-note-row"><div class="mn-note-row-title">项目周报 · 第 44 周</div><div class="mn-note-row-desc">本周完成事项与下周计划…</div></div>
+      <div class="mn-note-row"><div class="mn-note-row-title">阅读笔记：排版与阅读体验</div><div class="mn-note-row-desc">行长、留白与字号…</div></div>
+    </div>
+    <article class="doc-pane mn-doc" data-form="note">
+      <div class="mn-docbar">
+        <span class="mn-docbar-left"><span class="mn-crumb">全部笔记 / 项目周报 · 第 44 周</span></span>
+        <span class="mn-docbar-right"><span class="mn-vt"><button class="on">✎</button><button>👁</button></span></span>
+      </div>
+      <div class="mn-docbody">
+        <input class="mn-doc-title" value="项目周报 · 第 44 周" />
+        <div class="mn-proplist">
+          <div class="mn-proprow"><span class="mn-propkey">状态</span><span class="mn-propvalue">进行中</span></div>
+          <div class="mn-proprow"><span class="mn-propkey">负责人</span><span class="mn-propvalue">Max</span></div>
+        </div>
+        <div class="mn-doc-tags"><span class="mn-tagchip">#周报</span><span class="mn-tagchip">#项目</span><input class="mn-taginput" placeholder="加标签，回车确认" /></div>
+        <div class="mn-editor-wrap">
+          <div class="mn-formatbar">
+            <button class="mn-formatbtn" aria-pressed="true" title="加粗"><svg class="ico" viewBox="0 0 24 24"><path d="M7 5h6a4 4 0 0 1 0 8H7z"/><path d="M7 13h7a4 4 0 0 1 0 8H7z"/></svg></button>
+            <button class="mn-formatbtn" title="斜体"><svg class="ico" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></svg></button>
+            <button class="mn-formatbtn" title="删除线"><svg class="ico" viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2.83 4M14 12a4 4 0 0 1 0 8H6M4 12h16"/></svg></button>
+            <button class="mn-formatbtn" title="行内代码"><svg class="ico" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg></button>
+            <button class="mn-formatbtn" title="链接"><svg class="ico" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>
+            <span class="mn-formatbar-gap"></span>
+            <button class="mn-formatbtn" title="一级标题"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6M17 12l3-2v8"/></svg></button>
+            <button class="mn-formatbtn" title="二级标题"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"/></svg></button>
+            <button class="mn-formatbtn" title="三级标题"><svg class="ico" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6M17.5 10.5c1.7-1 3.5 0 3.5 1.5a2 2 0 0 1-2 2 2 2 0 0 1 2 2c0 1.5-1.8 2.5-3.5 1.5"/></svg></button>
+            <button class="mn-formatbtn" title="无序列表"><svg class="ico" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+            <button class="mn-formatbtn" title="有序列表"><svg class="ico" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+            <button class="mn-formatbtn" title="任务列表"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m4 8 2 2 3-3M14 7h7M14 17h7"/></svg></button>
+            <button class="mn-formatbtn" title="引用"><svg class="ico" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1V9h-2V5h2V3h-2zM6 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1V9H6V5h2V3H6z"/></svg></button>
+            <button class="mn-formatbtn" title="代码块"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m10 9-2 3 2 3M14 9l2 3-2 3"/></svg></button>
+            <button class="mn-formatbtn" title="分隔线"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+            <button class="mn-formatbtn" title="表格"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg></button>
+            <button class="mn-formatbtn" title="图片"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg></button>
+          </div>
+          <div class="mn-editor-host">
+            <div class="ProseMirror" style="padding-bottom: 12px">
+              <h2>本周完成</h2>
+              <p>本周把设置面板的备份目标管理补齐了，顺手修掉了文字按钮竖排的问题。远程备份这条链路目前只做了手动推送的验证，自动调度还没有在真实账户上跑过，因此下周需要安排一次端到端验收，确认调度、保留策略与失败重试都符合预期。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+
+<!-- ② 表格结构化编辑弹窗 -->
+<div class="shot" id="dialog">
+  <span class="shot-cap">② 表格结构化编辑弹窗 · 864 宽三段式，表头/操作固定，中段自身滚动</span>
+  <div class="mn-overlay" style="inset: 0">
+    <div class="mn-dialog mn-dialog-wide" role="dialog">
+      <div class="mn-dialog-head"><p class="mn-dialog-title">表格结构化编辑（第 1 个，字段类型来自 YAML fields:）</p></div>
+      <div class="mn-dialog-body">
+        <div class="mn-tablegrid" role="grid">
+          <div class="mn-tablegrid-row head"><div role="gridcell"><input class="mn-tablegrid-input" value="名称" /></div><div role="gridcell"><input class="mn-tablegrid-input" value="状态" /></div><div role="gridcell"><input class="mn-tablegrid-input" value="负责人" /></div><div role="gridcell"><input class="mn-tablegrid-input" value="截止日期" /></div><div role="gridcell"><input class="mn-tablegrid-input" value="标签" /></div><div role="gridcell"><input class="mn-tablegrid-input" value="备注" /></div></div>
+        </div>
+      </div>
+      <div class="mn-dialog-actions">
+        <button class="mn-auth-submit">写回正文</button>
+        <button class="mn-auth-link">加一行</button>
+        <button class="mn-auth-link">抽出为表格文档</button>
+        <button class="mn-auth-link">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 表格文档页 -->
+<div class="shot" id="table">
+  <span class="shot-cap">③ 表格文档页 · 顶部字段/行计数与操作，网格限高自滚、表头吸顶生效</span>
+  <div class="page">
+    <div class="fake-side"><div class="mn-brand">Menote</div><nav class="mn-nav"><a href="#">首页</a><a href="#">笔记</a><a href="#">Memo</a></nav></div>
+    <article class="doc-pane mn-doc" data-form="table">
+      <div class="mn-docbar">
+        <span class="mn-docbar-left"><span class="mn-crumb">全部笔记 / 发布计划</span></span>
+        <span class="mn-docbar-right"><span class="mn-vt"><button class="on">✎</button><button>👁</button></span></span>
+      </div>
+      <div class="mn-docbody">
+        <input class="mn-doc-title" value="发布计划" />
+        <div class="mn-doc-tags"><span class="mn-tagchip">#里程碑</span><input class="mn-taginput" placeholder="加标签，回车确认" /></div>
+        <div class="mn-tabledoc">
+          <div class="mn-tabledoc-bar">
+            <span class="mn-tabledoc-bar-meta">6 字段 · 7 行</span>
+            <div class="mn-tabledoc-bar-actions">
+              <button class="mn-textbtn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> 添加字段</button>
+              <button class="mn-textbtn">切换为普通笔记</button>
+            </div>
+          </div>
+          <div class="mn-tabledoc-scroll">
+            <div class="mn-tabledoc-grid" role="grid">
+              <div class="mn-tabledoc-row head" role="row">
+                <div class="mn-tabledoc-rownum"></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="名称" /><button class="mn-tabledoc-hbadge">文本</button></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="状态" /><button class="mn-tabledoc-hbadge">单选</button></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="负责人" /><button class="mn-tabledoc-hbadge">文本</button></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="截止日期" /><button class="mn-tabledoc-hbadge">日期</button></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="标签" /><button class="mn-tabledoc-hbadge">多选</button></div>
+                <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="备注" /><button class="mn-tabledoc-hbadge">文本</button></div>
+                <div class="mn-tabledoc-addcol"><button class="mn-iconbtn">+</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+
+<script>
+  const grid = document.querySelector('#table .mn-tabledoc-grid');
+  for (let i = 1; i <= 12; i += 1) {
+    const row = document.createElement('div');
+    row.className = 'mn-tabledoc-row';
+    row.innerHTML = '<div class="mn-tabledoc-rownum"><span class="mn-tabledoc-drag">⠿</span><span>' + (i + 1) + '</span><button class="mn-tabledoc-rowdel"><svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>'
+      + ['里程碑 ' + i, '进行中', 'Max', '2026-12-' + String(10 + i).padStart(2, '0'), '版本', '第 ' + i + ' 项说明']
+        .map((v) => '<div class="mn-tabledoc-cell"><input class="mn-tcell-input" value="' + v + '"></div>').join('')
+      + '<div class="mn-tabledoc-addspacer"></div>';
+    grid.appendChild(row);
+  }
+  const foot = document.createElement('div');
+  foot.className = 'mn-tabledoc-row foot';
+  foot.innerHTML = '<div class="mn-tabledoc-rownum"></div>' + Array.from({ length: 6 }, () => '<div class="mn-tabledoc-cell ghost"></div>').join('') + '<div class="mn-tabledoc-addspacer"></div>';
+  grid.appendChild(foot);
+  requestAnimationFrame(() => { document.querySelector('#table .mn-tabledoc-scroll').scrollTop = 150; });
+</script>
+
+<script>
+  const DIALOG_ROWS = [["备份调度验收","进行中","Max","2026-11-12","运维","需要真实账户"],["剪藏写入联调","待开始","Max","2026-11-15","剪藏","配合 MCP 权限"],["编辑器版式","待开始","Max","2026-11-18","体验","阅读宽度"],["表格工具栏","待开始","Max","2026-11-18","体验","字段类型徽标"],["弹窗尺寸档位","待开始","Max","2026-11-20","体验","max-height"],["恢复演练","未开始","Max","2026-11-30","备份","G11 进场门"],["正式数据进场","未开始","Max","2026-12-05","里程碑","依赖两线完成"],["WYSIWYG 落地","未开始","Max","2026-12-20","M3","Milkdown"],["MCP 六条","未开始","Max","2027-01-10","M4","发布候选"],["移动端真机验收","待开始","Max","2026-11-22","移动","iOS 与 Android"],["剪藏真实浏览器联调","待开始","Max","2026-11-24","剪藏","Edge 扩展"],["加密恢复演练","未开始","Max","2026-11-28","安全","含附件"],["监控资源核对","待开始","Max","2026-12-02","运维","Cloudflare API"],["发布候选冻结","未开始","Max","2027-01-20","M4","版本冻结"]];
+  const gridDialog = document.querySelector("#dialog .mn-tablegrid");
+  DIALOG_ROWS.forEach((cells) => {
+    const row = document.createElement("div");
+    row.className = "mn-tablegrid-row";
+    row.innerHTML = cells.map((v) => "<div role=\"gridcell\"><input class=\"mn-tablegrid-input\" value=\"" + v + "\"></div>").join("");
+    gridDialog.appendChild(row);
+  });
+</script>
+</body>
+</html>

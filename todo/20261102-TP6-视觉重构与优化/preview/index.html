@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>TP6 视觉重构 · 修复前后静态对照</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d0f11; color: #e9ebed; font: 13px/1.6 "Noto Sans SC", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; padding: 18px 24px 14px; background: rgba(13,15,17,.94); border-bottom: 1px solid #24282b; backdrop-filter: blur(6px); }
+  h1 { margin: 0 0 4px; font-size: 17px; font-weight: 600; letter-spacing: .01em; }
+  .sub { margin: 0; color: #8b9096; font-size: 12px; }
+  .sub code { font-family: ui-monospace, Menlo, Consolas, monospace; color: #b9bec4; }
+  .tabs { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .tabs button { padding: 5px 12px; border: 1px solid #2c3033; border-radius: 6px; background: none; color: #a9aeb4; font: inherit; font-size: 12px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { border-color: #f6821f; color: #f7b27a; background: rgba(246,130,31,.1); }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px 40px; }
+  .col { min-width: 0; }
+  .col h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+  .col h2 .tag { padding: 1px 7px; border-radius: 999px; font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .col.before h2 .tag { color: #ffb37a; background: rgba(246,130,31,.14); }
+  .col.after h2 .tag { color: #7fd6a4; background: rgba(63,160,106,.16); }
+  .col h2 a { margin-left: auto; color: #8b9096; font-size: 11px; text-decoration: none; border-bottom: 1px dashed #3a4045; }
+  .frame { position: relative; width: 100%; overflow: hidden; border: 1px solid #24282b; border-radius: 10px; background: #0d0f11; }
+  .frame iframe { display: block; width: 1440px; height: 560px; border: 0; transform-origin: top left; }
+  .note { margin: 10px 0 0; color: #8b9096; font-size: 12px; }
+  .note b { color: #c9cdd2; font-weight: 600; }
+  footer { padding: 0 24px 40px; color: #6c7076; font-size: 11.5px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>TP6 视觉重构与优化 · 修复前后静态对照</h1>
+  <p class="sub">两侧用同一份 mock 结构与各自的真实样式表快照渲染（左 <code>0.0.34</code> / 右 <code>0.0.35</code>），非截图，可在浏览器里放大细看。</p>
+  <div class="tabs" role="tablist" aria-label="场景">
+    <button type="button" role="tab" data-scene="doc" aria-selected="true">① 编辑器页面</button>
+    <button type="button" role="tab" data-scene="dialog" aria-selected="false">② 表格结构化编辑弹窗</button>
+    <button type="button" role="tab" data-scene="table" aria-selected="false">③ 表格文档页</button>
+  </div>
+</header>
+
+<main>
+  <section class="col before">
+    <h2><span class="tag">修复前</span>0.0.34<a href="before.html#doc" target="_blank" rel="noreferrer">1:1 打开 ↗</a></h2>
+    <div class="frame"><iframe id="frame-before" src="before.html#doc" title="修复前"></iframe></div>
+    <p class="note" id="note-before"></p>
+  </section>
+  <section class="col after">
+    <h2><span class="tag">修复后</span>0.0.35<a href="after.html#doc" target="_blank" rel="noreferrer">1:1 打开 ↗</a></h2>
+    <div class="frame"><iframe id="frame-after" src="after.html#doc" title="修复后"></iframe></div>
+    <p class="note" id="note-after"></p>
+  </section>
+</main>
+
+<footer>对应提交 02d8b14（版本 0.0.35）。样式快照分别在 <code>preview/styles-before/</code> 与 <code>preview/styles-after/</code>，若要回归比对，可把仓库当前样式覆盖到 styles-after 后重新打开本页。</footer>
+
+<script>
+  const NOTES = {
+    doc: {
+      before: "<b>问题</b>：正文无版心上限，1440 宽时每行约 55 个汉字；标题 32 与属性区几乎贴合；格式栏是 16 个 11.5px 灰字按钮、无分组，选中态底色与页面同色等于不可见。",
+      after: "<b>修复</b>：正文 672 版心居中；标题 36、与属性区拉开 18；格式栏图标化 + 行内｜块级分隔 + 橙底选中态，滚动时吸顶。"
+    },
+    dialog: {
+      before: "<b>问题</b>：宽度沿用登录卡的 352/640，六列只能看到四列；弹窗没有最大高度、遮罩不滚动，高于视口的部分直接被切掉且滚不到；主按钮被 flex:1 拉满整行。",
+      after: "<b>修复</b>：宽档 864、三段式（标题固定 / 中段滚动 / 操作固定），六列完整可见，主按钮回到内容宽度。"
+    },
+    table: {
+      before: "<b>问题</b>：表格页没有字段/行计数与顶层操作；行号列 30 塞不下拖拽+序号+删除；表头 sticky 挂在不滚动的容器上，长表滚下去就丢表头；类型徽标几乎看不见。",
+      after: "<b>修复</b>：新增工具条（6 字段 · 7 行 + 添加字段 + 切换普通笔记）；网格限高自滚、表头吸顶生效；行号列 46；类型徽标改胶囊描边。"
+    }
+  };
+
+  const SCENE_H = { doc: 560, dialog: 480, table: 560 };
+  let sceneH = 560;
+  const tabs = [...document.querySelectorAll('.tabs button')];
+  const before = document.getElementById('frame-before');
+  const after = document.getElementById('frame-after');
+
+  function select(scene) {
+    if (location.hash !== `#${scene}`) history.replaceState(null, '', `#${scene}`);
+    tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.scene === scene)));
+    before.src = `before.html#${scene}`;
+    after.src = `after.html#${scene}`;
+    document.querySelector('.col.before a').href = `before.html#${scene}`;
+    document.querySelector('.col.after a').href = `after.html#${scene}`;
+    document.getElementById('note-before').innerHTML = NOTES[scene].before;
+    document.getElementById('note-after').innerHTML = NOTES[scene].after;
+    sceneH = SCENE_H[scene] || 560;
+    fit();
+  }
+  tabs.forEach((tab) => tab.addEventListener('click', () => select(tab.dataset.scene)));
+
+  // 1440 宽页面按栏宽等比缩放；高度随场景切换（弹窗场景用更矮的视口模拟小窗口）
+  function fit() {
+    document.querySelectorAll('.frame').forEach((frame) => {
+      const scale = frame.clientWidth / 1440;
+      frame.style.height = `${Math.round(sceneH * scale)}px`;
+      const iframe = frame.querySelector('iframe');
+      iframe.style.height = `${sceneH}px`;
+      iframe.style.transform = `scale(${scale})`;
+    });
+  }
+  window.addEventListener('resize', fit);
+  fit();
+  const initial = location.hash.replace('#', '');
+  select(NOTES[initial] ? initial : 'doc');
+</script>
+</body>
+</html>

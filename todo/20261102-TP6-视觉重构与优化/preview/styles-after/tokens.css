@@ -1,0 +1,353 @@
+/* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
+   取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
+:root {
+  color-scheme: light dark;
+  /* 颜色 · 表面与结构（DESIGN §2.1） */
+  --app-surface: #fff;
+  --app-bg-side: #f1f1ee;
+  --app-surface-sunken: #f4f4f2;
+  --app-raised-on-side: #ffffff;
+  --app-seg-active: #ffffff;
+  --app-selected: #fef6ee;
+  --app-hover: #f6f6f4;
+  --app-border: #e6e6e3;
+  --app-border-subtle: #f0f0ed;
+  /* 颜色 · 文字四档（DESIGN §2.4 对比度已实测） */
+  --app-fg: #1a1a18;
+  --app-fg-muted: #4e504d;
+  --app-fg-subtle: #6c6f6b;
+  --app-fg-faint: #74776f;
+  /* 颜色 · 强调与状态（橙色不做文字，按钮字用 --app-accent-text） */
+  --app-accent: #f6821f;
+  --app-accent-hover: #e5760f;
+  --app-accent-text: #241505;
+  --app-accent-fg: #b4530f;
+  --app-accent-subtle: #fef2e7;
+  --app-link: #0051c3;
+  --app-success: #5f8b3f;
+  --app-danger: #b3261e;
+  /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据）。
+     界面默认字体为自托管 Noto Sans SC（@fontsource，main.tsx 按需引入字重）；
+     设置·外观可切回系统字体栈（data-font 由 lib/fontPreference 写入，缺省即 Noto）。 */
+  --app-font-system: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+  --app-font: "Noto Sans SC", var(--app-font-system);
+  --app-font-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
+  --app-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
+  /* 字重与行高 */
+  --app-weight-regular: 400;
+  --app-weight-serif: 500;
+  --app-weight-medium: 600;
+  --app-leading-nav: 1.2;
+  --app-leading-meta: 1.6;
+  --app-leading-summary: 1.55;
+  --app-leading-list-title: 1.45;
+  --app-leading-doc-title: 1.32;
+  /* 字号档位（DESIGN §3.2：9.5/10/10.5/11.5/12/12.5/13.5/14/17/32） */
+  --app-font-small: 0.8125rem;
+  --app-font-body: 0.875rem;
+  --app-font-title: 2rem;
+  --app-size-kicker: 0.59375rem;   /* 9.5px 角标 */
+  --app-size-micro: 0.625rem;      /* 10px 日期元信息 */
+  --app-size-label: 0.65625rem;    /* 10.5px 分组标题 */
+  --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
+  --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
+  --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
+  --app-size-brand: 1.0625rem;     /* 17px 品牌字 */
+  /* 首页尺寸（wiki/design.html 第 01 屏） */
+  --app-home-bar-pad: 2rem 2.625rem 1.375rem;
+  --app-home-content-pad: 1.75rem 2.625rem 2.125rem;
+  --app-home-title-size: 1.9375rem;
+  --app-home-title-track: 0.01em;
+  --app-home-section-gap: 1.875rem;
+  --app-home-action-height: 4.5rem;
+  --app-home-stat-size: 1.875rem;
+  --app-home-topic-gap: 1.625rem;
+  --app-home-links-top: 1.625rem;
+  --app-home-negative-inline: -0.75rem;
+  --app-home-lift: -0.125rem;
+  --app-home-tag-menu-height: 12rem;
+  --app-home-tag-menu-width: 10rem;
+  --app-icon-lg: 1.0625rem;
+  --app-dot-size-lg: 0.5rem;
+  /* 移动端专有尺寸（TP1 / wiki/Menote_V2_移动端设计_v0.1.md） */
+  --app-mobile-header-height: 2.75rem;
+  --app-mobile-tab-height: 3.125rem;
+  --app-mobile-tabbar-height: calc(var(--app-mobile-tab-height) + env(safe-area-inset-bottom, 0px));
+  --app-mobile-record-size: 2.75rem;
+  --app-mobile-record-color: var(--app-accent-text);
+  --app-mobile-title-size: 1.5rem;
+  --app-mobile-body-size: 0.9375rem;
+  --app-mobile-content-pad: 1rem;
+  --app-mobile-composer-half-top: 9.375rem;
+  --app-mobile-composer-full-top: env(safe-area-inset-top, 0px);
+  --app-mobile-composer-radius: 1rem 1rem 0 0;
+  --app-mobile-row-height: 4rem;
+  --app-mobile-row-min-height: 2.75rem;
+  --app-mobile-selection-shadow: inset 0.1875rem 0 0 var(--app-accent);
+  --app-mobile-sheet-height: min(84dvh, 42rem);
+  --app-mobile-filter-height: 2.375rem;
+  --app-mobile-sheet-radius: 1rem 1rem 0 0;
+  --app-mobile-empty-height: 10rem;
+  --app-mobile-action-sheet-height: 17rem;
+  --app-mobile-compose-side-width: 3.5rem;
+  --app-mobile-card-width: 9.375rem;
+  --app-mobile-card-height: 5.75rem;
+  --app-mobile-dock-height: 3rem;
+  --app-mobile-avatar-size: 2.375rem;
+  --app-mobile-segment-width: 3.125rem;
+  --app-mobile-safe-top: env(safe-area-inset-top, 0px);
+  --app-mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-mobile-settings-head-height: 3.5rem;
+  --app-mobile-settings-tab-height: 2.75rem;
+  --app-mobile-title-max-width: 76%;
+  --app-mobile-center-x: 50%;
+  --app-mobile-center-x-shift: -50%;
+  --app-safe-area-fallback: 0px;
+  --app-mobile-press-scale: 0.96;
+  --app-mobile-disabled-opacity: 0.55;
+  --app-mobile-z-nav: 9;
+  --app-mobile-z-filter: 2;
+  --app-mobile-z-sheet: 12;
+  --app-mobile-z-composer: 14;
+  --app-mobile-z-action: 16;
+  --app-mobile-z-toast: 18;
+  --app-mobile-z-settings: 20;
+  --app-mobile-z-settings-dialog: 21;
+  /* 间距（DESIGN §1.4：基准 4px，实际只用 4/6/8/10/12/14/18/22/24/34） */
+  --app-space-2: 0.125rem;
+  --app-space-4: 0.25rem;
+  --app-space-5: 0.3125rem;
+  --app-space-6: 0.375rem;
+  --app-space-10: 0.625rem;
+  --app-space-14: 0.875rem;
+  --app-space-18: 1.125rem;
+  --app-space-22: 1.375rem;
+  --app-space-34: 2.125rem;
+  --app-space-xs: 0.5rem;
+  --app-space-sm: 0.75rem;
+  --app-space-md: 1rem;
+  --app-space-lg: 1.5rem;
+  --app-space-xl: 2rem;
+  --app-space-2xl: 3rem;
+  /* 布局尺寸（DESIGN §5：三栏 248/340/1fr，最小 420） */
+  --app-sidebar-width: 15.5rem;    /* 248px */
+  --app-sidebar-collapsed: 3.5rem; /* 56px 图标条 */
+  --app-list-width: 21.25rem;      /* 340px */
+  --app-list-width-compact: 20rem; /* 320px，中屏 */
+  --app-doc-min: 26.25rem;         /* 420px */
+  --app-bar-height: 3rem;          /* 48px 工具条 */
+  --app-row-height: 3.75rem;       /* 60px 清单行 */
+  --app-nav-height: 1.8125rem;     /* 29px 侧栏导航项 */
+  --app-duo-height: 2.125rem;      /* 34px 收件箱/草稿箱块 */
+  --app-btn-height: 2rem;          /* 32px 主按钮 */
+  --app-doc-pad: var(--app-space-34);
+  /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
+  --app-doc-measure: 42rem;
+  --app-doc-measure-wide: 56rem;
+  --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
+  --app-icon-2xs: 0.5rem;          /* 8px */
+  --app-icon-xs: 0.75rem;          /* 12px */
+  --app-icon-sm: 0.8125rem;        /* 13px */
+  --app-icon-md: 0.875rem;         /* 14px */
+  --app-minibtn-size: 1.125rem;    /* 18px 侧栏分组小按钮（图标槽，不可放文字） */
+  --app-textbtn-height: 1.25rem;   /* 20px 行内文字按钮 */
+  --app-vt-size: 1.25rem;          /* 20px 视图切换段 */
+  --app-vt-height: 1.125rem;       /* 18px 视图切换段高 */
+  --app-tree-indent: 1.625rem;     /* 26px 树二级缩进 */
+  --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
+  --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
+  --app-prop-height: 2rem;         /* 32px 属性行 */
+  --app-prop-key-width: 1.875rem;  /* 30px 属性键名列 */
+  --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
+  --app-kicker-line-height: 0.09375rem; /* 1.5px */
+  --app-empty-max: 15rem;          /* 240px 空态文案宽 */
+  --app-touch-target: 2.75rem;     /* 44px 触控目标 */
+  --app-chip-height: 1.4375rem;    /* 23px 标签胶囊 */
+  --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
+  --app-dot-size: 0.3125rem;       /* 5px 状态点 */
+  --app-avatar-size: 1.1875rem;    /* 19px 头像 */
+  --app-account-menu-min: 13rem;   /* 208px 账户菜单 */
+  --app-logo-size: 1.375rem;       /* 22px 侧栏品牌图标 */
+  --app-authloading-logo: 6rem;    /* 96px 登录检查屏 logo（与 shell.css 动效幅度成对，见该处注释） */
+  --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
+  /* Memo workspace dimensions and rendering details (TP5). */
+  --app-memo-timeline-pad-right: 14rem;
+  --app-memo-timeline-pad-left: 15.125rem;
+  --app-memo-axis-left: 18.375rem;
+  --app-memo-meta-width: 3.25rem;
+  --app-memo-dot-left: 3.1rem;
+  --app-memo-dot-top: 1.3rem;
+  --app-memo-list-indent: 1.2em;
+  --app-memo-work-width: 13.5rem;
+  --app-memo-todo-width: 12.25rem;
+  --app-memo-letter-spacing: 0.06em;
+  --app-memo-heat-level-1: 22%;
+  --app-memo-heat-level-2: 45%;
+  --app-memo-heat-level-3: 70%;
+  --app-memo-gallery-default-ratio: 4 / 3;
+  --app-radius-sm: 0.25rem;        /* 4px */
+  --app-radius-md: 0.3125rem;      /* 5px */
+  --app-radius: 0.375rem;          /* 6px */
+  --app-radius-lg: 0.5rem;         /* 8px 网格卡片 */
+  --app-radius-xl: 0.625rem;       /* 10px 对话框 */
+  --app-radius-pill: 999px;
+  /* 阴影与描边组合（DESIGN §6：仅对话框/网格卡片悬停/主按钮材质三处；选中条与悬停内描边） */
+  --app-shadow-dialog: 0 1.125rem 2.75rem rgba(26, 26, 24, 0.12);
+  --app-shadow-card: 0 0.125rem 0.5rem rgba(26, 26, 24, 0.06);
+  --app-shadow-seg: 0 1px 1px rgba(26, 26, 24, 0.08);
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(120, 60, 0, 0.16);
+  --app-selected-bar-side: inset 0.125rem 0 0 var(--app-accent);
+  --app-selected-bar-list: inset 0.1875rem 0 0 var(--app-accent);
+  --app-selected-bar-top: inset 0 0.125rem 0 var(--app-accent);
+  --app-selected-bar-bottom: inset 0 -0.125rem 0 var(--app-accent);
+  --app-hairline-inset: inset 0 0 0 var(--app-line) var(--app-border);
+  --app-overlay-bg: rgba(26, 26, 24, 0.4);
+  --app-drawer-hidden: translateX(-100%);
+  --app-drawer-shown: translateX(0);
+  /* 焦点环（DESIGN §8.2：统一 3px 橙 35%，不用浏览器默认；outline 形态避免覆盖选中条阴影） */
+  --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, 0.35);
+  --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, 0.35);
+  /* 滚动条（DESIGN §4.3：极细发丝线，悬停提高对比度）
+     槽宽 10px；滑块以 2px 透明边内缩，可见宽 6px，两端圆角。
+     常态对比度 浅 1.75:1（纸面）/ 深 1.88:1（纸面），保持克制；
+     悬停 浅 3.29:1 / 深 3.46:1，达到非文本 3:1 门槛。 */
+  --app-scrollbar-size: 10px;        /* 槽宽（纵向为 width，横向为 height） */
+  --app-scrollbar-inset: 2px;        /* 滑块与槽边的透明内缩 */
+  --app-scrollbar-track: transparent;
+  --app-scrollbar-thumb: #c4c4c0;            /* 常态滑块 */
+  --app-scrollbar-thumb-hover: #8e8e8a;      /* 悬停/拖拽滑块 */
+  /* 动效（DESIGN §4.6 关键 CSS） */
+  --app-motion-fast: 130ms;
+  --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+  --app-motion-loop: 1.8s;         /* 登录检查屏云/书往复周期（参考 V1 authloading） */
+  /* 旧状态页与通用控件沿用 */
+  --app-zero: 0;
+  --app-full-size: 100%;
+  --app-viewport-height: 100vh;
+  --app-viewport-width: 100vw;
+  --app-line: 1px;
+  --app-focus-width: 2px;
+  --app-main-width: 38rem;
+  --app-status-content-width: 90rem;
+  --app-field-width: 9rem;
+  --app-main-top: 12vh;
+  --app-button-height: 2.5rem;
+  --app-auth-card-width: min(22rem, 100%); /* G1 认证卡片 */
+  /* 对话框宽度档位（DESIGN §5：内容决定档位，不再统一沿用登录卡宽度） */
+  --app-dialog-width-md: min(30rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-width-lg: min(40rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-width-xl: min(54rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-max-height: calc(100dvh - var(--app-space-2xl)); /* 让位遮罩内边距，保证不贴边 */
+  --app-dialog-head-gap: var(--app-space-6);
+  --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
+  --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
+  --app-settings-dialog: 40.5rem;  /* 设置对话框 648px */
+  --app-lock-card: 21.625rem;      /* 锁定卡 346px */
+  --app-settings-height: 33.125rem; /* 设置对话框 530px */
+  --app-dlg-head-height: 50px;      /* 设置对话框头 */
+  --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
+  --app-memo-time-col: 38px;        /* Memo 时间列 */
+  --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
+  --app-quote-pad-y: 2px;           /* 引用块上下留白 */
+  --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
+  --app-formatbtn-size: 1.5rem;     /* 格式栏图标按钮 24px 见方 */
+  --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
+  --app-tabledoc-rownum-width: 2.875rem; /* 46px：拖拽手柄 + 行号 + 删除按钮并排的最小宽 */
+  --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
+  --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
+  --app-motion-loop: 1.4s;          /* 登录加载动画循环周期 */
+  --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
+  --app-visually-hidden: 1px;       /* 读屏隐藏通用尺寸 */
+  --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
+  --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
+  --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
+  --app-tree-indent-rest: calc(100% - var(--app-tree-indent)); /* E2 分组输入缩进余宽 */
+  /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
+  --md-body-size: 0.875rem;
+  --md-body-leading: 1.78;
+  --md-body-color: var(--app-fg-muted);
+  --md-h1-size: 2rem;
+  --md-h1-color: var(--app-fg);
+  --md-h1-weight: 500;
+  --md-h2-size: 0.875rem;
+  --md-h2-color: var(--app-fg);
+  --md-h2-weight: 600;
+  --md-h3-size: 0.875rem;
+  --md-h3-color: var(--app-fg);
+  --md-h3-weight: 600;
+  --md-h4-size: 0.8125rem;
+  --md-h4-color: var(--app-fg);
+  --md-h4-weight: 600;
+  --md-h5-size: 0.8125rem;
+  --md-h5-color: var(--app-fg-muted);
+  --md-h5-weight: 600;
+  --md-h6-size: 0.8125rem;
+  --md-h6-color: var(--app-fg-subtle);
+  --md-h6-weight: 600;
+  --md-heading-leading: 1.3;
+  --md-block-space: 1rem;
+  --md-list-indent: 1.5rem;
+  --md-list-indent-tight: 1.0625rem; /* 17px，design.html .prose ul */
+  --md-list-gap: 0.6875rem;          /* 11px，design.html 列表/引用/代码块下边距 */
+  --md-code-font: var(--app-font-mono);
+  --md-code-size: 0.8125rem;
+  --md-code-bg: var(--app-surface-sunken);
+  --md-code-padding: 0.625rem 0.75rem; /* 10px 12px，design.html .prose pre */
+  --md-code-inline-padding: 0.0625rem 0.25rem; /* 1px 4px，design.html .prose code */
+  --md-code-radius: 0.375rem;        /* 6px，design.html .prose pre */
+  --md-code-radius-inline: 0.1875rem; /* 3px，design.html .prose code */
+  --md-code-leading: 1.72;
+  --md-quote-line: 2px;
+  --md-quote-color: var(--app-accent);
+  --md-quote-padding: 1rem;
+  --md-quote-padding-tight: 0.6875rem; /* 11px，design.html .prose blockquote */
+  --md-table-border: var(--app-line) solid var(--app-border);
+  --md-table-padding: 0.5rem 0.75rem;
+  --md-table-head-bg: var(--app-surface-sunken);
+  --md-table-head-size: 0.59375rem; /* 9.5px 表头 */
+  --md-table-size: 0.75rem;          /* 12px，design.html .prose table */
+  --md-table-gap: 0.75rem;           /* 12px，design.html .prose table 下边距 */
+  --md-table-cell-pad: 0.3125rem 0.5rem 0.3125rem 0; /* 5px 8px 5px 0 */
+  --md-table-col-1: 14%;            /* DESIGN §3.3 固定列宽，防止长英文截断 */
+  --md-table-col-2: 38%;
+  --md-table-col-3: 16%;
+  --md-table-col-4: 32%;
+  --md-link-color: var(--app-link);
+}
+/* 界面字体偏好（设置·外观）：data-font="system" 切回系统栈，由 index.html 引导脚本 + lib/fontPreference.ts
+   负责写入；缺省即内置 Noto Sans SC，无需属性。 */
+:root[data-font="system"] {
+  --app-font: var(--app-font-system);
+}
+/* 深色令牌由 data-theme 驱动（账户菜单·主题切换）：index.html 引导脚本 + lib/theme.ts
+   负责写入；“跟随系统”档由 JS 依据系统偏好解析后落 data-theme。 */
+:root[data-theme="dark"] {
+  --app-surface: #1a1c1e;
+  --app-bg-side: #131518;
+  --app-surface-sunken: #232629;
+  --app-raised-on-side: #1f2225;
+  --app-seg-active: #33383c;
+  --app-selected: #2b2118;
+  --app-hover: #222528;
+  --app-border: #2c3033;
+  --app-border-subtle: #24282b;
+  --app-fg: #e9ebed;
+  --app-fg-muted: #a7adb2;
+  --app-fg-subtle: #8a9095;
+  --app-fg-faint: #7e848b;
+  --app-accent-hover: #ff9a3c;
+  --app-accent-text: #1a1208;
+  --app-accent-fg: #fbad41;
+  --app-accent-subtle: #3a2716;
+  --app-link: #7fa8ff;
+  --app-success: #8ca86b;
+  --app-danger: #f2b8b5;
+  /* 滚动条深色：常态 1.88:1 保持克制，悬停 3.46:1 保证可发现 */
+  --app-scrollbar-thumb: #45494d;
+  --app-scrollbar-thumb-hover: #6b7176;
+}
+
+/* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
+@keyframes mn-authloading-cloud { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--app-authload-shift))); } }
+@keyframes mn-authloading-book { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--app-authload-shift)); } }

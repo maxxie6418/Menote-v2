@@ -1,0 +1,22 @@
+.markdown-content {
+  color: var(--md-body-color);
+  font-size: var(--md-body-size);
+  line-height: var(--md-body-leading);
+}
+.markdown-content :is(h1, h2, h3, h4, h5, h6) { line-height: var(--md-heading-leading); margin-block: var(--md-block-space); }
+.markdown-content h1 { color: var(--md-h1-color); font-size: var(--md-h1-size); font-weight: var(--md-h1-weight); }
+.markdown-content h2 { color: var(--md-h2-color); font-size: var(--md-h2-size); font-weight: var(--md-h2-weight); }
+.markdown-content h3 { color: var(--md-h3-color); font-size: var(--md-h3-size); font-weight: var(--md-h3-weight); }
+.markdown-content h4 { color: var(--md-h4-color); font-size: var(--md-h4-size); font-weight: var(--md-h4-weight); }
+.markdown-content h5 { color: var(--md-h5-color); font-size: var(--md-h5-size); font-weight: var(--md-h5-weight); }
+.markdown-content h6 { color: var(--md-h6-color); font-size: var(--md-h6-size); font-weight: var(--md-h6-weight); }
+.markdown-content :is(p, pre, blockquote, ul, ol, table) { margin-block: var(--md-block-space); }
+.markdown-content :is(ul, ol) { padding-inline-start: var(--md-list-indent); }
+.markdown-content blockquote { margin-inline: var(--app-zero); padding-inline-start: var(--md-quote-padding); border-inline-start: var(--md-quote-line) solid var(--md-quote-color); }
+.markdown-content code { font-family: var(--md-code-font); font-size: var(--md-code-size); background: var(--md-code-bg); border-radius: var(--md-code-radius); padding: var(--md-code-inline-padding); }
+.markdown-content pre { overflow-x: auto; background: var(--md-code-bg); border-radius: var(--md-code-radius); padding: var(--md-code-padding); }
+.markdown-content pre code { background: transparent; padding: var(--app-zero); }
+.markdown-content table { border-collapse: collapse; }
+.markdown-content :is(th, td) { border: var(--md-table-border); padding: var(--md-table-padding); }
+.markdown-content th { background: var(--md-table-head-bg); }
+.markdown-content a { color: var(--md-link-color); }
