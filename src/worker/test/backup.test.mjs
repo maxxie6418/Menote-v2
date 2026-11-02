@@ -68,7 +68,7 @@ test("restore import merges backup entries by id (FR-BAK-9 工具侧)", async ()
       { kind: "item", data: { id: "ri1", user_id: "x", type: "note", topic_id: null, group_id: null, title: "恢复的笔记", content_markdown: "恢复正文", content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 3, meta_rev: 1, content_hash: "h1", pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000, deleted_at: null } },
     ];
     const response = await json(mf, cookie, "POST", "/api/restore", { entries, itemKeyWraps: [] });
-    assert.deepEqual(await response.json(), { ok: true, items: 1, topics: 1 });
+    assert.deepEqual(await response.json(), { ok: true, items: 1, topics: 1, memoComments: 0 });
     const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
     assert.equal(page.items.find((item) => item.id === "ri1").title, "恢复的笔记");
     assert.equal(page.topics.find((topic) => topic.id === "t1").name, "恢复主题");

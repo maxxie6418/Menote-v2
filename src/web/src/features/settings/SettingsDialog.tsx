@@ -8,8 +8,7 @@ import { getMeasurePreference, setMeasurePreference, type MeasurePreference } fr
 import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
 import { StyleSection } from "./StyleSection";
-import { localDb } from "../../db/localDb";
-import { updateAppearance } from "../../services/appearanceSettingsService";
+import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 
 export type SettingsSection = "appearance" | "style" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
 
@@ -76,9 +75,8 @@ function AppearanceSection({ userId }: { userId: string }) {
   const [font, setFont] = useState<FontPreference>(getFontPreference);
   const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
   useEffect(() => {
-    const refresh = () => { void localDb.settings.get([userId, "appearance"]).then((row) => {
-      if (row?.sensitivity !== "ordinary") return;
-      const value = row.value as { font?: FontPreference; measure?: MeasurePreference };
+    const refresh = () => { void readAppearance(userId).then((value) => {
+      if (!value) return;
       if (value.font) setFont(value.font);
       if (value.measure) setMeasure(value.measure);
     }); };

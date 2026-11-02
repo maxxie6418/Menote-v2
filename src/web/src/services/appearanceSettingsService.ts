@@ -80,3 +80,10 @@ export async function updateAppearance(userId: string, patch: Partial<Appearance
   await saveAppearance(userId, { ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle });
 }
 
+/** 读取账号已同步的外观偏好（UI 只经服务访问数据层）；无记录或非普通敏感度返回 null。 */
+export async function readAppearance(userId: string): Promise<AppearanceSettings | null> {
+  const current = await localDb.settings.get([userId, SETTING_KEY]);
+  if (current?.sensitivity !== "ordinary") return null;
+  return current.value as AppearanceSettings;
+}
+
