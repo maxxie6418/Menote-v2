@@ -351,3 +351,13 @@
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
 @keyframes mn-authloading-cloud { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--app-authload-shift))); } }
 @keyframes mn-authloading-book { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--app-authload-shift)); } }
+
+/* ---------- 阅读宽度档位（设置·外观，负责人 2026-11-02） ----------
+   默认（无 data-measure）= 窄：--app-doc-measure 42rem；wide 56rem；full 撑满文档栏。
+   首屏由 index.html 引导脚本按 localStorage 写入 data-measure，避免切换后闪一下窄版。 */
+:root[data-measure="wide"] {
+  --app-doc-measure: 56rem;
+}
+:root[data-measure="full"] {
+  --app-doc-measure: var(--app-full-size);
+}

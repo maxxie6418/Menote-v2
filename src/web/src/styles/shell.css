@@ -225,7 +225,7 @@
 /* 版心：正文最大行宽居中，宽屏不再拉成一行五六十个字；表格形态单独放宽一档 */
 .mn-docbody > * { width: var(--app-full-size); max-width: var(--app-doc-measure); margin-inline: auto; }
 .mn-docbody > * + * { margin-top: var(--app-space-sm); }
-.mn-doc[data-form="table"] .mn-docbody > * { max-width: var(--app-doc-measure-wide); }
+.mn-doc[data-form="table"] .mn-docbody > * { max-width: max(var(--app-doc-measure), var(--app-doc-measure-wide)); }
 .mn-doc-title { display: block; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-doc-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
 /* 标题与属性区之间留一口气，避免标题直接压在属性行上 */
 .mn-doc-title + * { margin-top: var(--app-space-18); }

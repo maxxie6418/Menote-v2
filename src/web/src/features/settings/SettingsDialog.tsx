@@ -4,6 +4,7 @@ import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
+import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../../lib/measurePreference";
 import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
 
@@ -65,9 +66,10 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
   );
 }
 
-/** 外观节：界面字体切换（内置 Noto Sans SC ↔ 系统字体），偏好经 lib/fontPreference 即时生效。 */
+/** 外观节：界面字体与阅读宽度（偏好分别经 lib/fontPreference、lib/measurePreference 即时生效）。 */
 function AppearanceSection() {
   const [font, setFont] = useState<FontPreference>(getFontPreference);
+  const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
   return (
     <div>
       <div className="mn-setrow">
@@ -87,6 +89,26 @@ function AppearanceSection() {
         >
           <option value="noto">Noto Sans SC（默认）</option>
           <option value="system">系统字体</option>
+        </select>
+      </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">阅读宽度</p>
+          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。窗口不够宽时三者会重合——文档栏本身只有那么宽，宽屏才看得出差别。表格形态不会窄于加宽档。</p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="阅读宽度"
+          value={measure}
+          onChange={(event) => {
+            const value = event.target.value as MeasurePreference;
+            setMeasurePreference(value);
+            setMeasure(value);
+          }}
+        >
+          <option value="narrow">窄（默认）</option>
+          <option value="wide">加宽</option>
+          <option value="full">撑满</option>
         </select>
       </div>
     </div>
