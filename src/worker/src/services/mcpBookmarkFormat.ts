@@ -58,6 +58,11 @@ function appendToTable(body: string, bookmark: McpBookmarkRequest): string {
       rows.push(parseTableRow(lines[end]!));
     }
   } else {
+    // A table item with a non-empty but unparseable table must never be
+    // silently rewritten as a second table: the client would then degrade it.
+    if (body.split(/\r?\n/).some((line) => line.trim().startsWith("|"))) {
+      throw new Error("bookmark_target_invalid");
+    }
     headers = [];
     rows = [];
   }
@@ -98,6 +103,9 @@ function addFieldDefinitions(yamlSource: string | null): string {
 
 export function appendBookmarkToTable(markdown: string, bookmark: McpBookmarkRequest): string {
   const { yaml, body } = splitFrontmatter(markdown);
+  if (body.trim() && !body.split(/\r?\n/).some((line) => line.trim().startsWith("|"))) {
+    throw new Error("bookmark_target_invalid");
+  }
   const nextYaml = addFieldDefinitions(yaml);
   const nextBody = appendToTable(body, bookmark);
   return `---\n${nextYaml}\n---\n\n${nextBody.trimStart()}`;
