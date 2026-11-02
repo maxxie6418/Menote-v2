@@ -12,6 +12,7 @@ import { enableItemEncryption } from "../../services/encryptionCommandService";
 import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
+import { DocTitle } from "./DocTitle";
 import { BlankFormChooser } from "./BlankFormChooser";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
@@ -247,11 +248,11 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         )}
       />
       <div className="mn-docbody">
-        <input
-          className="mn-doc-title" value={title ?? item.title ?? ""} aria-label="标题"
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={() => { if (title !== null) void flushTitle(title); }}
+        <DocTitle
           key={item.id}
+          value={title ?? item.title ?? ""}
+          onChange={setTitle}
+          onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
         {plain && (
           <PropertyPanel

@@ -10,6 +10,7 @@ import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../servi
 import { uploadAttachment } from "../../services/attachmentService";
 import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyringService";
 import { UnlockPanel } from "../encryption";
+import { DocTitle } from "./DocTitle";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -101,7 +102,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         </span>
       </div>
       <div className="mn-docbody">
-        <input className="mn-doc-title" value={item.title ?? ""} aria-label="标题" readOnly />
+        <DocTitle value={item.title ?? ""} readOnly />
         {!unlocked && <UnlockPanel onUnlock={onUnlock} error={unlockError} />}
         {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && mode === "edit" && item.type === "table" && (

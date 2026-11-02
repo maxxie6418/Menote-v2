@@ -227,6 +227,9 @@
 .mn-docbody > * + * { margin-top: var(--app-space-sm); }
 .mn-doc[data-form="table"] .mn-docbody > * { max-width: max(var(--app-doc-measure), var(--app-doc-measure-wide)); }
 .mn-doc-title { display: block; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-doc-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
+/* 标题由 textarea 承载（input 不能折行，长标题尾部会被推出可视区）：去掉原生缩放与滚动条，
+   高度由 DocTitle 组件按 scrollHeight 设定；未断词的长串（URL 式标题）也允许在版心内折行。 */
+textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere; }
 /* 标题与属性区之间留一口气，避免标题直接压在属性行上 */
 .mn-doc-title + * { margin-top: var(--app-space-18); }
 .mn-doc-title:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
