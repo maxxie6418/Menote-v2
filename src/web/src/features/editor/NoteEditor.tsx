@@ -116,7 +116,20 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (!adapter) return;
     const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
     const { start, end } = adapter.getSelection();
-    if (action.id === "image") { setSlash(null); fileInputRef.current?.click(); return; }
+    if (action.id === "image") {
+      if (kind === "wysiwyg" && slash && adapter instanceof MilkdownWysiwygAdapter) {
+        adapter.applyFormat("image", slash.query.length + 1);
+      }
+      setSlash(null);
+      fileInputRef.current?.click();
+      return;
+    }
+    if (kind === "wysiwyg" && adapter instanceof MilkdownWysiwygAdapter) {
+      const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], slash ? slash.query.length + 1 : 0);
+      setSlash(null);
+      if (applied) requestAnimationFrame(refreshSlash);
+      return;
+    }
     const context = slash ? slashContext(markdown, start) : null;
     const result = context
       ? applySlash(markdown, context, start, action.id as Parameters<typeof applySlash>[3])
