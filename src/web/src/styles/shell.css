@@ -482,7 +482,12 @@
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
 .mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
+.mn-cliptemplate-section { display: flex; flex-direction: column; gap: var(--app-space-sm); margin-block: var(--app-space-md); }
 .mn-cliptemplate-import { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr); gap: var(--app-space-xs); width: var(--app-full-size); }
+.mn-cliptemplate-card { display: flex; flex-direction: column; gap: var(--app-space-xs); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-cliptemplate-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); flex-wrap: wrap; }
+.mn-cliptemplate-actions { display: flex; align-items: center; gap: var(--app-space-xs); flex-wrap: wrap; }
+.mn-cliptemplate-edit { width: var(--app-full-size); }
 .mn-cliptemplate-preview { margin-top: var(--app-space-xs); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-cliptemplate-preview summary { cursor: pointer; color: var(--app-link); }
 .mn-cliptemplate-preview p { margin: var(--app-space-2) var(--app-zero); overflow-wrap: anywhere; }
