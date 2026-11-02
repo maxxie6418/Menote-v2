@@ -14,6 +14,9 @@ const VAR_PATTERN = /^--md-[a-z0-9-]+$/;
 
 /** 默认值 = tokens.css 当前取值，仅用于面板回显与「恢复默认」。 */
 export const DOC_STYLE_DEFAULTS: DocStyleVars = {
+  "--md-body-size": "0.875rem",
+  "--md-body-leading": "1.78",
+  "--md-body-weight": "400",
   "--md-h1-size": "2rem",
   "--md-h1-weight": "500",
   "--md-h1-color": "var(--app-fg)",
@@ -37,6 +40,7 @@ export const DOC_STYLE_DEFAULTS: DocStyleVars = {
   "--md-heading-rule-color": "var(--app-accent)",
   "--md-heading-rule-gap": "0.25rem",
   "--md-heading-rule-extra": "0.75rem",
+  "--md-heading-rule-opacity": "1",
 };
 
 /** 已写进根节点的变量，恢复默认时按这份清单逐个移除，避免残留。 */
@@ -52,7 +56,9 @@ export function getDocStyle(): DocStyleVars {
   if (!parsed || typeof parsed !== "object") return {};
   const result: DocStyleVars = {};
   for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (VAR_PATTERN.test(key) && typeof value === "string" && value.trim()) result[key] = value;
+    if (!VAR_PATTERN.test(key) || typeof value !== "string" || !value.trim()) continue;
+    // 兼容首版：装饰线当时用 border-style 开关，存的是 solid；现在驱动伪元素 display
+    result[key] = /^--md-h[123]-rule$/.test(key) && value === "solid" ? "block" : value;
   }
   return result;
 }

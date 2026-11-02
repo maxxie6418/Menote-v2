@@ -270,6 +270,7 @@
   /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
   --md-body-size: 0.875rem;
   --md-body-leading: 1.78;
+  --md-body-weight: 400;
   --md-body-color: var(--app-fg-muted);
   --md-h1-size: 2rem;
   --md-h1-color: var(--app-fg);
@@ -318,7 +319,7 @@
   --md-strong-weight: 600;
   --md-strong-color: var(--app-fg);
   --md-strong-rule: none;            /* none | underline：加粗文字是否带下划线 */
-  --md-h1-rule: none;                /* none | solid：标题装饰下划线开关 */
+  --md-h1-rule: none;                /* none | block：标题装饰线是否渲染（驱动伪元素 display） */
   --md-h2-rule: none;
   --md-h3-rule: none;
   --md-h1-rule-pad: var(--app-zero); /* 装饰线与文字的距离，关闭时为 0（不占布局） */
@@ -328,6 +329,7 @@
   --md-heading-rule-color: var(--app-accent);
   --md-heading-rule-gap: 0.25rem;
   --md-heading-rule-extra: 0.75rem;  /* 装饰线比文字多出的长度：做成"略长于文字"的分割线 */
+  --md-heading-rule-opacity: 1;      /* 装饰线透明度（伪元素上做，颜色本身仍是不透明值） */
   /* 设置·样式面板 */
   --app-style-label-width: 4.25rem;
   --app-style-num-width: 3.5rem;

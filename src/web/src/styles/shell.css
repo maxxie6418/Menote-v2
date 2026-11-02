@@ -555,18 +555,21 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-unlocktitle { font-family: var(--app-font-serif); font-size: var(--app-font-title); font-weight: var(--app-weight-serif); margin: var(--app-zero) var(--app-zero) var(--app-space-6); color: var(--app-fg); }
 
 /* ---------- WYSIWYG（Milkdown 接入） ---------- */
-.mn-editor-host .ProseMirror { outline: none; flex: 1; min-height: var(--app-editor-min); cursor: text; font-size: var(--md-body-size); line-height: var(--md-body-leading); color: var(--md-body-color); }
+.mn-editor-host .ProseMirror { outline: none; flex: 1; min-height: var(--app-editor-min); cursor: text; font-size: var(--md-body-size); font-weight: var(--md-body-weight); line-height: var(--md-body-leading); color: var(--md-body-color); }
 .mn-editor-host .ProseMirror h1 { font-family: var(--app-font-serif); font-size: var(--md-h1-size); font-weight: var(--md-h1-weight); line-height: var(--app-leading-doc-title); color: var(--md-h1-color); margin: 0 0 var(--app-space-18); }
 .mn-editor-host .ProseMirror h2 { color: var(--md-h2-color); font-size: var(--md-h2-size); font-weight: var(--md-h2-weight); }
 .mn-editor-host .ProseMirror h3 { color: var(--md-h3-color); font-size: var(--md-h3-size); font-weight: var(--md-h3-weight); }
 .mn-editor-host .ProseMirror h4, .mn-editor-host .ProseMirror h5, .mn-editor-host .ProseMirror h6 { color: var(--md-h2-color); font-weight: var(--md-h2-weight); }
 /* 加粗与标题装饰下划线（FR-STYLE-2，设置·样式可改；与 markdown.css 同一套 token） */
 .mn-editor-host .ProseMirror strong { color: var(--md-strong-color); font-size: var(--md-strong-size); font-weight: var(--md-strong-weight); text-decoration-line: var(--md-strong-rule); text-decoration-thickness: var(--md-heading-rule-width); text-decoration-color: var(--md-strong-color); text-underline-offset: var(--md-heading-rule-gap); }
-.mn-editor-host .ProseMirror :is(h1, h2, h3) { width: fit-content; max-width: var(--app-full-size); padding-inline-end: var(--md-heading-rule-extra); }
-.mn-editor-host .ProseMirror h1 { border-bottom-style: var(--md-h1-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h1-rule-pad); }
-.mn-editor-host .ProseMirror h2 { border-bottom-style: var(--md-h2-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h2-rule-pad); }
-.mn-editor-host .ProseMirror h3 { border-bottom-style: var(--md-h3-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h3-rule-pad); }
-.mn-editor-host .ProseMirror :is(h2, h3, h4, h5, h6) { margin: var(--app-space-md) 0 var(--app-space-6); }
+.mn-editor-host .ProseMirror :is(h1, h2, h3) { position: relative; width: fit-content; max-width: var(--app-full-size); }
+.mn-editor-host .ProseMirror :is(h1, h2, h3)::after { content: ""; position: absolute; left: var(--app-zero); bottom: var(--app-zero); width: calc(var(--app-full-size) + var(--md-heading-rule-extra)); height: var(--md-heading-rule-width); border-radius: var(--app-radius-pill); background: var(--md-heading-rule-color); opacity: var(--md-heading-rule-opacity); pointer-events: none; }
+.mn-editor-host .ProseMirror h1::after { display: var(--md-h1-rule); }
+.mn-editor-host .ProseMirror h2::after { display: var(--md-h2-rule); }
+.mn-editor-host .ProseMirror h3::after { display: var(--md-h3-rule); }
+.mn-editor-host .ProseMirror h1 { padding-bottom: var(--md-h1-rule-pad); }
+.mn-editor-host .ProseMirror h2 { padding-bottom: var(--md-h2-rule-pad); }
+.mn-editor-host .ProseMirror h3 { padding-bottom: var(--md-h3-rule-pad); }
 .mn-editor-host .ProseMirror a { color: var(--md-link-color); }
 .mn-editor-host .ProseMirror hr { border: var(--app-zero); border-top: var(--md-quote-line) solid var(--app-border); margin: var(--app-space-14) var(--app-zero); }
 .mn-editor-host .ProseMirror p { margin: 0 0 var(--app-space-14); }
@@ -603,7 +606,7 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 
 /* ---------- 设置·样式（FR-STYLE-2） ---------- */
 /* 每个元素一行：标题在最左，字号/字重/颜色/下划线依次向右，便于上下对比四行的差异 */
-.mn-stylerow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4) var(--app-space-6); padding: var(--app-space-4) var(--app-zero); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-stylerow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2) var(--app-space-6); padding: var(--app-space-2) var(--app-zero); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-styllabel { flex: 0 0 var(--app-style-label-width); font-size: var(--app-size-chip); color: var(--app-fg); }
 .mn-stylefield { display: flex; align-items: center; gap: var(--app-space-2); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-stylefield input[type="number"], .mn-stylefield select { height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); }
@@ -612,7 +615,11 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-stylecolor { width: var(--app-style-color-width); height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-2); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); }
 .mn-stylecheck { display: inline-flex; align-items: center; gap: var(--app-space-2); font-size: var(--app-size-kicker); color: var(--app-fg-muted); }
 .mn-stylecheck input { accent-color: var(--app-accent); }
-.mn-stylerule { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-6); padding-top: var(--app-space-6); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
-.mn-stylepreview { margin-top: var(--app-space-6); padding: var(--app-space-6) var(--app-space-10); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); }
+/* 「继承」这类就地复位的小按钮：跟字段标签同色，不抢注意力 */
+.mn-styleinherit { border: var(--app-zero); background: none; color: var(--app-accent-fg); font-family: var(--app-font); font-size: var(--app-size-kicker); padding: var(--app-zero); cursor: pointer; text-decoration: underline; text-underline-offset: var(--app-space-2); }
+.mn-stylerule { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2) var(--app-space-10); padding-top: var(--app-space-6); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
+.mn-stylepreview { margin-top: var(--app-space-4); padding: var(--app-space-4) var(--app-space-10); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); }
 .mn-stylepreview :is(h1, h2, h3) { margin-block: var(--app-space-2); }
+/* 二三级标题并排放，预览只占一行——面板本来就高，预览不该再多吃一屏 */
+.mn-stylepreview h2, .mn-stylepreview h3 { display: inline-block; margin-inline-end: var(--app-space-12); }
 .mn-stylepreview p { margin: var(--app-zero); }

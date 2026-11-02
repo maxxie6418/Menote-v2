@@ -20,18 +20,16 @@ interface ContextMenuProps {
 /** Body portal keeps the menu visible above sidebar/list scroll containers. */
 export function ContextMenu({ x, y, label, actions, onClose, returnFocus }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x, y });
   const [error, setError] = useState<string | null>(null);
 
+  // 位置必须按视口夹取，纯 CSS 算不出来；用命令式写 left/top（结构门禁禁止 JSX 内联 style）。
   useLayoutEffect(() => {
     const menu = menuRef.current;
     if (!menu) return;
     const bounds = menu.getBoundingClientRect();
     const gutter = 8;
-    setPosition({
-      x: Math.max(gutter, Math.min(x, window.innerWidth - bounds.width - gutter)),
-      y: Math.max(gutter, Math.min(y, window.innerHeight - bounds.height - gutter)),
-    });
+    menu.style.left = `${Math.max(gutter, Math.min(x, window.innerWidth - bounds.width - gutter))}px`;
+    menu.style.top = `${Math.max(gutter, Math.min(y, window.innerHeight - bounds.height - gutter))}px`;
   }, [x, y, actions.length, error]);
 
   useEffect(() => {
@@ -75,7 +73,6 @@ export function ContextMenu({ x, y, label, actions, onClose, returnFocus }: Cont
     <div
       ref={menuRef}
       className="mn-contextmenu"
-      style={{ left: position.x, top: position.y }}
     >
       {error && <p className="mn-contextmenu-error" role="alert">{error}</p>}
       <div role="menu" aria-label={label} onKeyDown={onMenuKeyDown}>

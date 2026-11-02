@@ -96,14 +96,19 @@
 **FR-STYLE-2 已落地（2026-11-02，设置·样式）**：面板只写这批 `--md-*` 变量，外壳的 `--app-*` 一个都不动，因此正文样式改动不会回流到界面配色。除上表外，可编辑项还有：
 
 ```css
+/* 正文 */
+--md-body-size: 14px;  --md-body-weight: 400;  --md-body-leading: 1.78;
 /* 加粗 */
 --md-strong-size: 1em;  --md-strong-weight: 600;  --md-strong-color: var(--app-fg);
 --md-strong-rule: none;                 /* none | underline */
-/* 标题装饰下划线：线比文字略长（末尾多出 extra），与标题同体 */
---md-h1-rule: none;     --md-h1-rule-pad: 0;      /* h2 / h3 同构 */
+/* 标题装饰线：伪元素画线，长度 = 文字宽度 + extra，与标题同体 */
+--md-h1-rule: none;     --md-h1-rule-pad: 0;      /* none | block；h2 / h3 同构 */
 --md-heading-rule-width: 2px;  --md-heading-rule-color: var(--app-accent);
 --md-heading-rule-gap: 4px;    --md-heading-rule-extra: 12px;
+--md-heading-rule-opacity: 1;           /* 半透明装饰线：颜色仍是不透明值，透明度在伪元素上做 */
 ```
+
+> 装饰线用 `::after` 而不是 `border-bottom`：`border` 没法单独控制透明度（只能靠颜色带 alpha），也不能在关闭时把占位彻底清零。`display` 由 `--md-hN-rule` 驱动，关闭即 `none`，不影响原有行距。
 
 > 偏好存在本机（`localStorage: menote.docStyle`，形如「变量名 → 值」的扁平表），`index.html` 引导脚本首屏直接 `setProperty`，因此刷新不会先闪一版默认样式。样式**不进 Markdown**，换设备需重新设置。
 
