@@ -149,7 +149,7 @@ async function setItemFormInner(userId: string, id: string, to: "note" | "table"
   const current = await requireItem(userId, id);
   if (current.type === "memo") throw new Error("Memo 不参与形态切换");
   if (current.type === to) return current;
-  const blankNow = isBlankDraft(current);
+  const blankNow = isConvertibleBlankDraft(current);
   const seededNow = isDefaultTableSeed(current);
   if ((!blankNow && !seededNow) || current.content.scope !== "plain") {
     throw new Error("已有内容的文档不可切换形态（FR-TBL-9）");
@@ -271,6 +271,12 @@ const BLANK_SWEEP_MAX_AGE_MS = 24 * 3_600_000;
 export function isBlankDraft(item: Item): boolean {
   if (item.type === "memo" || item.deletedAt !== null) return false;
   if (!BLANK_TITLE_PATTERN.test(item.title)) return false;
+  return isConvertibleBlankDraft(item);
+}
+
+/** 形态切换按正文是否已有内容判断；标题是元数据，改名不应锁住转换。 */
+export function isConvertibleBlankDraft(item: Item): boolean {
+  if (item.type === "memo" || item.deletedAt !== null) return false;
   if (item.content.scope !== "plain") return false;
   return !/\S/.test(item.content.markdown);
 }

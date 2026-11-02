@@ -7,7 +7,7 @@ import { PropertyPanel } from "../props";
 import { joinFrontmatter, splitFrontmatter } from "../../lib/frontmatter";
 import { TableDocument } from "../table";
 import { useItem } from "../../services/contentHooks";
-import { degradeTableToNote, isBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
+import { degradeTableToNote, isConvertibleBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
 import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
@@ -185,7 +185,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
 
   const plain = item.content;
   const isTableDoc = item.type === "table";
-  const showFormChooser = !isTableDoc && isBlankDraft(item);
+  const showFormChooser = !isTableDoc && isConvertibleBlankDraft(item);
 
   /** 形态选择（FR-TBL-9）：转换守卫在 setItemForm（仅空白期可切）。 */
   const pickTableForm = () => {
