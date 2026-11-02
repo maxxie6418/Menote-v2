@@ -30,17 +30,19 @@ export function ClipTemplateManager() {
   const [imported, setImported] = useState<ClipTemplateV1 | null>(null);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [listState, setListState] = useState<"loading" | "ready" | "error">("loading");
-  const [message, setMessage] = useState("剪藏规则与笔记读取权限相互独立；模板只保存选择器，不含网页内容。");
+  const [listError, setListError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
     setListState("loading");
     try {
       setTemplates(await listClipTemplates());
+      setListError("");
       setListState("ready");
     } catch (error) {
       setListState("error");
-      setMessage(error instanceof Error ? `读取规则失败（${error.message}）。请确认已登录且当前 Worker 已部署模板管理接口。` : "读取规则失败。请确认已登录且当前 Worker 已部署模板管理接口。");
+      setListError(error instanceof Error ? error.message : "unknown_error");
       throw error;
     }
   }
@@ -163,11 +165,9 @@ export function ClipTemplateManager() {
 
   return <section className="mn-setsection">
     <h4 className="mn-setlabel">剪藏模板</h4>
-    <p className="mn-sethint">规则存放在 Menote 账号中，扩展通过 MCP Token 同步。EdgeEver 转存规则是独立快照；不支持的动态逻辑不会自动执行。</p>
 
     <section className="mn-cliptemplate-section" aria-labelledby="mn-cliptemplate-new-heading">
       <h4 className="mn-setlabel" id="mn-cliptemplate-new-heading">新增规则</h4>
-      <p className="mn-sethint">导入转译器生成的模板 JSON（报告可选），或编辑下方 JSON 新建规则。所有新规则默认停用，保存后可在已有规则中管理。</p>
       <div className="mn-cliptemplate-import">
         <label className="mn-setlabel" htmlFor="mn-clip-template-import">导入模板 JSON</label>
         <input id="mn-clip-template-import" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "template"); event.currentTarget.value = ""; }} />
@@ -195,8 +195,7 @@ export function ClipTemplateManager() {
         <button type="button" className="mn-btn" disabled={busy || listState === "loading"} onClick={() => void refresh().catch(() => undefined)}>刷新列表</button>
       </div>
       {listState === "loading" && <p className="mn-sethint" role="status">正在读取账号规则…</p>}
-      {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败。请重新登录或稍后刷新；若持续失败，请检查 Worker 部署和数据库迁移。</p>}
-      {listState === "ready" && templates.length === 0 && <p className="mn-sethint">当前账号还没有已保存的剪藏规则。</p>}
+      {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败：{listError}</p>}
       {templates.map(({ template, version }) => <article className="mn-cliptemplate-card" key={template.id}>
         <div className="mn-cliptemplate-heading">
           <div><p className="mn-setlabel">{template.name}</p><p className="mn-sethint">{template.match.hosts.join("、")} · v{version} · {template.source?.kind ?? "manual"}</p></div>
@@ -218,6 +217,6 @@ export function ClipTemplateManager() {
         </div>}
       </article>)}
     </section>
-    <p className="mn-sethint" role="status">{message}</p>
+    {message && <p className="mn-sethint" role="status">{message}</p>}
   </section>;
 }
