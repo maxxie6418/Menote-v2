@@ -94,7 +94,7 @@ function AppearanceSection() {
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">阅读宽度</p>
-          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。窗口不够宽时三者会重合——文档栏本身只有那么宽，宽屏才看得出差别。表格形态不会窄于加宽档。</p>
+          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。窗口不够宽时后两档会与文档栏同宽、看不出差别。表格形态不会窄于加宽档。</p>
         </div>
         <select
           className="mn-propselect"
