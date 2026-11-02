@@ -58,8 +58,18 @@
 .mn-duo svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
 .mn-seclabel { display: flex; align-items: center; justify-content: space-between; padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-4); }
 .mn-seclabel-text { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); text-transform: uppercase; color: var(--app-fg-faint); }
-.mn-minibtn { width: var(--app-minibtn-size); height: var(--app-minibtn-size); display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); cursor: default; border-radius: var(--app-radius-sm); }
+/* .mn-minibtn 是图标槽（固定宽高，见 --app-minibtn-size），只能放图标或用 aria-label 的单个符号；
+   中文标签放进去会被逐字折行成竖排——带文字的轻量按钮一律用下面的 .mn-textbtn。
+   这里补 nowrap + overflow 兜底：万一再被误用，宁可截断也不竖排。 */
+.mn-minibtn { width: var(--app-minibtn-size); height: var(--app-minibtn-size); display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); cursor: default; border-radius: var(--app-radius-sm); white-space: nowrap; overflow: hidden; }
 .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 行内文字按钮：宽度随内容，永不折行（DESIGN §5 次级按钮的轻量形态，无边框、悬停出底） */
+.mn-textbtn { display: inline-flex; flex: none; align-items: center; justify-content: center; height: var(--app-textbtn-height); padding: var(--app-zero) var(--app-space-4); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-chip); line-height: var(--app-leading-nav); white-space: nowrap; cursor: pointer; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
+.mn-textbtn:hover { color: var(--app-fg); background: var(--app-hover); }
+.mn-textbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-textbtn:disabled, .mn-textbtn[aria-disabled="true"] { color: var(--app-fg-faint); background: none; cursor: default; }
+/* 其余带文字的按钮类统一不折行：中文在窄容器里折行会变成逐字竖排（同一类误显示） */
+.mn-statuslink, .mn-btn, .mn-auth-submit, .mn-auth-link, .app-button { white-space: nowrap; }
 .mn-tree { display: flex; flex-direction: column; gap: var(--app-line); margin-bottom: var(--app-space-14); }
 .mn-tree-empty { margin: var(--app-zero); padding: var(--app-space-2) var(--app-space-xs) var(--app-space-6); font-size: var(--app-size-label); color: var(--app-fg-faint); }
 .mn-treerow.priv { margin-top: var(--app-space-5); }
@@ -242,7 +252,8 @@
 /* ---------- E2 对话框 ---------- */
 .mn-dialog { position: fixed; top: var(--app-dialog-offset); left: var(--app-dialog-offset); transform: var(--app-dialog-center); z-index: 11; width: var(--app-auth-card-width); padding: var(--app-space-xl); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-xl); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); display: flex; flex-direction: column; gap: var(--app-space-sm); }
 .mn-dialog-title { margin: var(--app-zero); font-weight: var(--app-weight-medium); }
-.mn-dialog select { height: var(--app-btn-height); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button); }
+/* 仅作用于未用 .mn-propselect 的对话框下拉：避免把它的按钮字号/高度盖到属性下拉上 */
+.mn-dialog select:not(.mn-propselect) { height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button); }
 .mn-dialog-actions { display: flex; align-items: center; gap: var(--app-space-sm); margin-top: var(--app-space-sm); }
 .mn-dialog-actions .mn-auth-submit { margin-top: var(--app-zero); flex: 1; }
 
@@ -332,7 +343,9 @@
 .mn-propvalue { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; margin: var(--app-zero); }
 .mn-propinput { flex: 1; min-width: var(--app-zero); height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
 .mn-propinput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
-.mn-propselect { height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); flex: 1; }
+/* 全局 input/select 有四边的内边距（app.css），select 再定高就会把文字压到只剩十几像素、底部被裁掉；
+   这里显式给纵向 0、横向与 .mn-propinput 对齐的间距。 */
+.mn-propselect { height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); flex: 1; }
 .mn-propmulti { display: flex; flex-wrap: wrap; gap: var(--app-space-6); }
 .mn-propmulti-option { display: flex; align-items: center; gap: var(--app-space-2); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
 .mn-proprow-add { flex-wrap: wrap; gap: var(--app-space-6); }
@@ -440,7 +453,9 @@
 /* ---------- G9 备份面板 ---------- */
 .mn-backuplist { list-style: none; margin: var(--app-space-sm) var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-4); }
 .mn-backuprow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); font-size: var(--app-size-chip); }
-.mn-backupname { color: var(--app-fg); }
+/* 名称与元信息在先，按钮自成一组独占下一行——否则按钮会被拆散、挤进图标槽 */
+.mn-backupname { color: var(--app-fg); flex: 0 1 auto; min-width: var(--app-zero); }
+.mn-backupactions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2) var(--app-space-6); width: var(--app-full-size); }
 .mn-backupsecret { font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-muted); word-break: break-all; width: var(--app-full-size); }
 .mn-backupform { display: flex; flex-wrap: wrap; gap: var(--app-space-6); margin-top: var(--app-space-sm); align-items: center; }
 .mn-backupform .mn-propinput { flex: 1; min-width: var(--app-note-grid-min); }

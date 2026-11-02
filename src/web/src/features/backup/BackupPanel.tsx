@@ -104,20 +104,22 @@ export function BackupPanel({ userId }: BackupPanelProps) {
             <li key={target.id} className="mn-backuprow">
               <span className="mn-backupname">{target.name}（{target.kind} · {target.schedule === "manual" ? "手动推送" : `每${target.schedule === "daily" ? "日" : "周"}自动推送`} · {target.enabled ? "启用" : "停用"}）</span>
               <span className="mn-attachmeta">{target.endpoint}/{target.remotePath}/ · 保留 {target.retentionCount === 0 ? "不限" : `${target.retentionCount} 份`} · 最近推送 {target.lastPushedAt ? new Date(target.lastPushedAt).toLocaleString() : "从未"}{target.lastResult ? ` · ${target.lastResult}` : ""}</span>
-              <button type="button" className="mn-minibtn" onClick={() => void runOnce(target.id)}>推送一次</button>
-              <button type="button" className="mn-minibtn" disabled={testingTarget === target.id} onClick={() => void testExistingConnection(target)}>{testingTarget === target.id ? "测试中…" : "测试连接"}</button>
-              <button type="button" className="mn-minibtn" onClick={() => void toggleRemoteBackups(target)}>{expanded === target.id ? "收起远端备份" : "查看远端备份"}</button>
-              <button type="button" className="mn-minibtn" onClick={() => void toggleEnabled(target)}>{target.enabled ? "停用" : "启用"}</button>
-              <button type="button" className="mn-minibtn" onClick={() => void reveal(target.id)}>
-                {revealed[target.id] ? "隐藏凭据" : "查看凭据"}
-              </button>
-              <button type="button" className="mn-minibtn" onClick={() => void remove(target.id)}>删除</button>
+              <div className="mn-backupactions">
+                <button type="button" className="mn-textbtn" onClick={() => void runOnce(target.id)}>推送一次</button>
+                <button type="button" className="mn-textbtn" disabled={testingTarget === target.id} onClick={() => void testExistingConnection(target)}>{testingTarget === target.id ? "测试中…" : "测试连接"}</button>
+                <button type="button" className="mn-textbtn" onClick={() => void toggleRemoteBackups(target)}>{expanded === target.id ? "收起远端备份" : "查看远端备份"}</button>
+                <button type="button" className="mn-textbtn" onClick={() => void toggleEnabled(target)}>{target.enabled ? "停用" : "启用"}</button>
+                <button type="button" className="mn-textbtn" onClick={() => void reveal(target.id)}>
+                  {revealed[target.id] ? "隐藏凭据" : "查看凭据"}
+                </button>
+                <button type="button" className="mn-textbtn" onClick={() => void remove(target.id)}>删除</button>
+              </div>
               {revealed[target.id] && <code className="mn-backupsecret">{revealed[target.id]}</code>}
               {expanded === target.id && <div className="mn-backupsecret">
                 <strong>远端目录：{target.remotePath}/</strong>
                 {(remoteBackups[target.id] ?? []).length === 0 ? <p>目录为空或尚未推送。</p> : (remoteBackups[target.id] ?? []).map((backup) => <div key={backup.id} className="mn-backuprow">
                   <code>{target.remotePath}/{backup.id}/</code><span>{backup.complete ? "COMPLETE 标记存在" : "缺少 COMPLETE 标记"}{backup.lastModified ? ` · ${backup.lastModified}` : ""}</span>
-                  <button type="button" className="mn-minibtn" onClick={() => void removeRemoteBackup(target, backup.id)}>删除远端内容</button>
+                  <button type="button" className="mn-textbtn" onClick={() => void removeRemoteBackup(target, backup.id)}>删除远端内容</button>
                 </div>)}
               </div>}
             </li>
@@ -142,7 +144,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
           <option value="daily">每日</option>
           <option value="weekly">每周</option>
         </select>
-        <button type="button" className="mn-minibtn" disabled={testing} onClick={() => void testConnection()}>{testing ? "测试中…" : "测试连接"}</button>
+        <button type="button" className="mn-textbtn" disabled={testing} onClick={() => void testConnection()}>{testing ? "测试中…" : "测试连接"}</button>
         <button type="button" className="mn-auth-submit" onClick={() => void create()}>添加备份路径</button>
       </div>
     </section>

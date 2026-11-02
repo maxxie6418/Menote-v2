@@ -43,7 +43,7 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
               </a>
               <span className="mn-attachmeta">{attachment.mime} · {formatSize(attachment.size)} · 引用 {attachment.refCount}</span>
               {attachment.refCount === 0 && (
-                <button type="button" className="mn-minibtn" aria-label="删除未引用附件" onClick={() => void remove(attachment.sha256)}>
+                <button type="button" className="mn-textbtn" aria-label="删除未引用附件" onClick={() => void remove(attachment.sha256)}>
                   删除
                 </button>
               )}

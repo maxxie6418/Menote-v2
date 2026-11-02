@@ -157,7 +157,7 @@ function AddPropertyRow({ onAdd, onCancel }: { onAdd: (name: string, def: Proper
           onChange={(event) => setOptionsText(event.target.value)} />
       )}
       <div className="mn-proprow-actions">
-        <button type="button" className="mn-minibtn" onClick={() => {
+        <button type="button" className="mn-textbtn" onClick={() => {
           const clean = name.trim();
           if (!clean) return;
           const options = needsOptions
@@ -170,7 +170,7 @@ function AddPropertyRow({ onAdd, onCancel }: { onAdd: (name: string, def: Proper
             ...(options ? { options } : {}),
           });
         }}>保存定义</button>
-        <button type="button" className="mn-minibtn" onClick={onCancel}>取消</button>
+        <button type="button" className="mn-textbtn" onClick={onCancel}>取消</button>
       </div>
     </div>
   );

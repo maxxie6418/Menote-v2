@@ -49,8 +49,8 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
         }}
       />
       <div className="mn-composer-actions">
-        <button type="button" className="mn-minibtn" onClick={() => setExpanded(false)}>收起</button>
-        <button type="button" className="mn-minibtn" disabled={busy} aria-disabled={busy} onClick={() => void submit()}>
+        <button type="button" className="mn-textbtn" onClick={() => setExpanded(false)}>收起</button>
+        <button type="button" className="mn-textbtn" disabled={busy} aria-disabled={busy} onClick={() => void submit()}>
           保存
         </button>
       </div>

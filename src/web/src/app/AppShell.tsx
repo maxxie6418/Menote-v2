@@ -380,7 +380,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           emptyTitle="回收站是空的"
           emptyDetail="移入回收站的内容会出现在这里，可恢复或永久删除。"
           headerExtra={(
-            <button type="button" className="mn-minibtn" aria-label="清空回收站"
+            <button type="button" className="mn-textbtn" aria-label="清空回收站"
               onClick={async () => {
                 if (!items || items.length === 0 || !window.confirm(`清空回收站（${items.length} 项）？永久删除不可恢复。`)) return;
                 await purgeItemsPermanently(userId, items.map((row) => row.id));
