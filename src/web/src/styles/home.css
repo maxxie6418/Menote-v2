@@ -3,10 +3,11 @@
 .mn-home-heading { display: flex; min-width: 0; flex-direction: column; gap: var(--app-space-xs); }
 .mn-home-heading h1 { margin: var(--app-zero); color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-home-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); letter-spacing: var(--app-home-title-track); }
 .mn-home-sub { color: var(--app-fg-faint); font-family: var(--app-font-serif); font-size: var(--app-size-nav); line-height: var(--app-leading-summary); }
-.mn-home-search { display: inline-flex; flex: none; align-items: center; gap: var(--app-space-6); height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-sm); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-subtle); font: inherit; cursor: pointer; }
-.mn-home-search:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
-.mn-home-search:disabled { cursor: default; }
-.mn-home-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-faint); }
+.mn-home-search { display: inline-flex; flex: none; align-items: center; gap: var(--app-space-6); width: var(--app-home-search-width); max-width: var(--app-full-size); height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-sm); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg-subtle); font: inherit; cursor: text; }
+.mn-home-search:focus-within { border-color: var(--app-accent); color: var(--app-fg); }
+.mn-home-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; color: var(--app-fg-faint); }
+.mn-home-search input { min-width: var(--app-zero); flex: 1; border: var(--app-zero); outline: none; background: transparent; color: var(--app-fg); font: inherit; }
+.mn-home-search input::placeholder { color: var(--app-fg-faint); }
 .mn-home-search kbd, .mn-home-action kbd { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
 .mn-home-content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: var(--app-home-content-pad); }
 .mn-home-section + .mn-home-section { margin-top: var(--app-home-section-gap); }

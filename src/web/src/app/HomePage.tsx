@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Bolt, FilePlus2, LockKeyhole, Search, Tags } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import type { BrowseSection } from "../services/contentHooks";
-import { useHomeSnapshot, useRecentItems } from "../services/contentHooks";
+import { useHomeSnapshot, useLocalSearch, useRecentItems } from "../services/contentHooks";
 
 interface HomePageProps {
   userId: string;
@@ -43,6 +43,20 @@ function countTopicItems(topic: TopicNode, topics: TopicNode[], items: Item[]): 
 export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos, onOpenItem, onNavigate }: HomePageProps) {
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [allTopicsOpen, setAllTopicsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const hits = useLocalSearch(userId, query);
+  const searching = query.trim().length > 0;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !(event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]"))) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const snapshot = useHomeSnapshot(userId);
   const recent = useRecentItems(userId);
   const notes = snapshot.items.filter((item) => item.type !== "memo");
@@ -65,13 +79,29 @@ export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos
           <h1>{dateTitle}</h1>
           <span className="mn-home-sub">{weekday} · 本地有 {notes.length} 篇笔记</span>
         </div>
-        <button type="button" className="mn-home-search" disabled title="搜索功能尚未开放">
-          <Search aria-hidden="true" /><span>搜索一切</span><kbd>⌘K</kbd>
-        </button>
+        <label className="mn-home-search">
+          <Search aria-hidden="true" />
+          <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、正文、标签" aria-label="搜索标题、正文、标签" />
+          <kbd>⌘K</kbd>
+        </label>
       </header>
 
       <div className="mn-home-content">
-        <section className="mn-home-section" aria-labelledby="home-actions-title">
+        {searching ? (
+          <section className="mn-home-section" aria-labelledby="home-search-title">
+            <h2 id="home-search-title" className="mn-home-section-title">搜索结果</h2>
+            <div className="mn-home-recent">
+              {hits === undefined ? <p className="mn-home-empty">正在查找…</p>
+                : hits.length ? hits.map((hit) => (
+                  <button type="button" className="mn-home-recent-row" key={hit.item.id} onClick={() => onOpenItem(hit.item)}>
+                    <span className="mn-home-recent-copy"><strong>{hit.title}</strong><small>{hit.locked ? "已加密" : hit.snippet || "无正文"}</small></span>
+                    <time>{hit.item.type === "memo" ? "Memo" : hit.item.type === "table" ? "表格" : "笔记"}</time>
+                  </button>
+                )) : <p className="mn-home-empty">没有匹配的内容</p>}
+            </div>
+          </section>
+        ) : null}
+        {!searching && <><section className="mn-home-section" aria-labelledby="home-actions-title">
           <h2 id="home-actions-title" className="mn-home-section-title">行动</h2>
           <div className="mn-home-actions">
             <button type="button" className="mn-home-action" onClick={onOpenMemoComposer}>
@@ -84,9 +114,9 @@ export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos
               <span className="mn-home-action-copy"><strong>新建笔记</strong><small>正式文档，先写再分类</small></span>
               <kbd>⌘N</kbd>
             </button>
-            <button type="button" className="mn-home-action is-disabled" disabled title="搜索功能尚未开放">
+            <button type="button" className="mn-home-action" onClick={() => searchRef.current?.focus()}>
               <Search aria-hidden="true" />
-              <span className="mn-home-action-copy"><strong>搜索一切</strong><small>主题 / 笔记 / Memo / 标签</small></span>
+              <span className="mn-home-action-copy"><strong>搜索一切</strong><small>标题、正文、标签和主题</small></span>
               <kbd>⌘K</kbd>
             </button>
           </div>
@@ -149,6 +179,7 @@ export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos
           <button type="button" onClick={() => onNavigate({ kind: "memos" })}><Bolt aria-hidden="true" />回顾与随机漫步<ArrowUpRight aria-hidden="true" /></button>
           <button type="button" onClick={() => onNavigate({ kind: "memos" })}><span className="mn-home-link-mark" aria-hidden="true">M</span>全部 Memo<ArrowUpRight aria-hidden="true" /></button>
         </nav>
+</>}
       </div>
     </main>
   );

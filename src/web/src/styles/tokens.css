@@ -26,12 +26,12 @@
   --app-link: #0051c3;
   --app-success: #5f8b3f;
   --app-danger: #b3261e;
-  /* 字体栈（衬线仅品牌字与文档标题；等宽仅元数据）。
+  /* 字体栈（应用界面及品牌/标题统一跟随“界面字体”设置；等宽仅用于元数据与代码）。
      界面默认字体为自托管 Noto Sans SC（@fontsource，main.tsx 按需引入字重）；
      设置·外观可切回系统字体栈（data-font 由 lib/fontPreference 写入，缺省即 Noto）。 */
   --app-font-system: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
   --app-font: "Noto Sans SC", var(--app-font-system);
-  --app-font-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
+  --app-font-serif: var(--app-font);
   --app-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
   /* 字重与行高 */
   --app-weight-regular: 400;
@@ -68,6 +68,7 @@
   --app-home-lift: -0.125rem;
   --app-home-tag-menu-height: 12rem;
   --app-home-tag-menu-width: 10rem;
+  --app-home-search-width: 16rem;
   --app-icon-lg: 1.0625rem;
   --app-dot-size-lg: 0.5rem;
   /* 移动端专有尺寸（TP1 / wiki/Menote_V2_移动端设计_v0.1.md） */
@@ -141,7 +142,14 @@
   --app-nav-height: 1.8125rem;     /* 29px 侧栏导航项 */
   --app-duo-height: 2.125rem;      /* 34px 收件箱/草稿箱块 */
   --app-btn-height: 2rem;          /* 32px 主按钮 */
+  --app-formseg-height: 1.875rem;  /* 30px 侧栏视图切换（凹槽分段） */
   --app-doc-pad: var(--app-space-34);
+  /* 快速输入（FR-IA-5）：展开态与「新建笔记」共享区域。高度恒定，
+     展开时以负外边距盖住按钮且导航不位移；--app-composer-cover 由几何关系导出。 */
+  --app-composer-hint-height: 2.125rem;  /* 34px 收起态提示行 */
+  --app-composer-open-height: 5.5rem;    /* 88px 展开态 = 提示行 + 间距 + 新建笔记按钮区 */
+  --app-composer-action-height: 1.5rem;  /* 24px 展开态操作按钮 */
+  --app-composer-cover: calc(var(--app-composer-open-height) - var(--app-composer-hint-height) - var(--app-space-10));
   /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
   --app-doc-measure: 42rem;
   --app-doc-measure-wide: 56rem;
@@ -191,6 +199,9 @@
   --app-memo-heat-level-2: 45%;
   --app-memo-heat-level-3: 70%;
   --app-memo-gallery-default-ratio: 4 / 3;
+  /* Memo 版心：时间轴/图册的最大宽度，与编辑器同受 --app-doc-measure（阅读宽度档位）驱动；
+     calc 里带 100% 时（measure=full）max-width 超出容器，自然退化为撑满。 */
+  --app-memo-timeline-max: calc(var(--app-memo-timeline-pad-left) + var(--app-memo-meta-width) + var(--app-space-sm) + var(--app-doc-measure) + var(--app-memo-timeline-pad-right));
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
   --app-memo-card-pad-y: 0.8125rem;
   --app-memo-card-pad-x: 1rem;

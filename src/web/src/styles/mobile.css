@@ -9,6 +9,11 @@
 .m-grow, .m-chead-center, .m-topbar .grow { flex: 1; min-width: 0; }
 .m-page-title { font-size: var(--app-size-list-title); font-weight: var(--app-weight-medium); }
 .m-topbar { display: flex; height: var(--app-mobile-header-height); flex: none; align-items: center; gap: var(--app-space-10); padding: var(--app-zero) var(--app-space-xs) var(--app-zero) var(--app-space-md); border-bottom: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); }
+.m-search { display: flex; flex: none; align-items: center; gap: var(--app-space-6); height: var(--app-btn-height); margin: var(--app-space-sm) var(--app-space-md) var(--app-zero); padding: var(--app-zero) var(--app-space-sm); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg-faint); }
+.m-search:focus-within { border-color: var(--app-accent); color: var(--app-fg-subtle); }
+.m-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
+.m-search input { min-width: var(--app-zero); flex: 1; border: var(--app-zero); outline: none; background: transparent; color: var(--app-fg); font: inherit; }
+.m-search input::placeholder { color: var(--app-fg-faint); }
 .m-brand { display: inline-flex; align-items: center; gap: var(--app-space-6); font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); }
 .m-brand img { width: var(--app-logo-size); height: var(--app-logo-size); }
 .m-icon-btn { display: grid; width: var(--app-mobile-row-min-height); height: var(--app-mobile-row-min-height); flex: none; place-items: center; padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius); background: transparent; color: var(--app-fg-muted); cursor: pointer; }

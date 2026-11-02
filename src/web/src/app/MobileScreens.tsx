@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
-import { useHomeSnapshot, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
+import { useHomeSnapshot, useLocalSearch, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
+import { filterItems } from "../services/searchService";
 import { groupByDay, memoImages, statusLabel, MemoGallery } from "../features/memo";
 import { NoteDocument } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
@@ -32,6 +33,9 @@ function privateTopicIds(topics: TopicNode[]): Set<string> {
 export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   userId: string; onOpenItem: (item: Item) => void; onOpenSection: (section: NoteSection) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const hits = useLocalSearch(userId, query);
+  const searching = query.trim().length > 0;
   const { items, topics } = useHomeSnapshot(userId);
   const hidden = privateTopicIds(topics);
   const visible = items.filter((item) => !item.topicId || !hidden.has(item.topicId));
@@ -42,8 +46,13 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
 
   return (
     <div className="m-home">
-      <header className="m-topbar"><span className="m-brand"><img src="/icon.svg" alt="" />Menote</span><button className="m-icon-btn" type="button" disabled aria-label="搜索"><Search /></button></header>
-      {favorites.length > 0 && <>
+      <header className="m-topbar"><span className="m-brand"><img src="/icon.svg" alt="" />Menote</span></header>
+      <label className="m-search"><Search aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、正文、标签" aria-label="搜索标题、正文、标签" /></label>
+      {searching ? <div className="m-rlist">
+        {hits === undefined ? <p className="m-empty">正在查找…</p>
+          : hits.length ? hits.map((hit) => <MobileItemRow key={hit.item.id} item={hit.item} onOpen={() => onOpenItem(hit.item)} />)
+            : <p className="m-empty">没有匹配的内容</p>}
+      </div> : favorites.length > 0 && <>
         <div className="m-sechead"><b>收藏</b><button type="button" onClick={() => onOpenSection({ kind: "starred" })}>全部 <ChevronRight /></button></div>
         <div className="m-cardrail">
           {favorites.map((item) => <button type="button" className="m-ncard" key={item.id} onClick={() => onOpenItem(item)}>
@@ -51,6 +60,7 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
           </button>)}
         </div>
       </>}
+      {!searching && <>
       <div className="m-sechead"><b>最近</b><button type="button" onClick={() => onOpenSection({ kind: "recent" })}>全部 <ChevronRight /></button></div>
       <div className="m-rlist">
         {recent.length ? recent.map((item) => <MobileItemRow key={item.id} item={item} onOpen={() => onOpenItem(item)} />)
@@ -60,6 +70,7 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
         <button type="button" onClick={() => onOpenSection({ kind: "inbox" })}><Inbox />收件箱<em>{inbox}</em></button>
         <button type="button" onClick={() => onOpenSection({ kind: "drafts" })}><FileText />草稿箱<em>{drafts}</em></button>
       </div></div>
+      </>}
     </div>
   );
 }
@@ -134,10 +145,12 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
   userId: string; section: NoteSection; selectedId: string | null;
   onSelect: (item: Item | null) => void; onTopicSheet: () => void; onCreate: () => void; onLongPress: (item: Item) => void;
 }) {
+  const [query, setQuery] = useState("");
   const topics = useTopics(userId);
   const rows = useSectionItems(userId, section) ?? [];
   const hidden = privateTopicIds(topics);
-  const items = rows.filter((item) => !item.topicId || !hidden.has(item.topicId));
+  const visible = rows.filter((item) => !item.topicId || !hidden.has(item.topicId));
+  const items = filterItems(visible, query);
   const selected = items.find((item) => item.id === selectedId);
   const title = section.kind === "topic" ? topics.find((topic) => topic.id === section.id)?.name ?? "主题"
     : section.kind === "tag" ? `#${section.tag}` : ({ recent: "最近", inbox: "收件箱", drafts: "草稿箱", starred: "收藏", trash: "回收站" }[section.kind]);
@@ -148,9 +161,10 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
 
   return <div className="m-screen m-notes-screen">
     <header className="m-topbar m-notes-topbar"><button type="button" className="m-ptitle" onClick={onTopicSheet}><span>{title}</span><ChevronDown /></button><span className="grow" /><button type="button" className="m-icon-btn" aria-label="新建笔记" onClick={onCreate}><Plus /></button></header>
+    <label className="m-search"><Search aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索当前清单" aria-label="搜索当前清单" /></label>
     <div className="m-list">
       {items.length ? items.map((item) => <MobileItemRow key={item.id} item={item} current={item.id === selectedId} onOpen={() => onSelect(item)} onLongPress={onLongPress} />)
-        : <p className="m-empty">这个分区还没有笔记。</p>}
+        : <p className="m-empty">{query.trim() ? "没有匹配的内容" : "这个分区还没有笔记。"}</p>}
     </div>
   </div>;
 }

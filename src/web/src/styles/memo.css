@@ -2,11 +2,29 @@
    选择器比 shell.css 里的旧 Memo 规则多一层，避免两边同时改 shell.css。
    侧栏分段、返回入口的接线留到编辑器那侧收工后再动共享文件。 */
 
-.mn-formseg { display: flex; gap: var(--app-space-18); height: var(--app-space-22); margin: var(--app-zero) var(--app-space-xs) var(--app-space-14); flex: none; }
-.mn-formseg button { position: relative; display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-nav); cursor: pointer; padding: var(--app-zero); }
+/* 侧栏视图切换：凹槽分段（负责人 2026-11-02 反馈文字标签太弱、不显眼）。
+   与内容区分段控件同语言（sunken 槽 + 白底选中项），高度 30（--app-formseg-height）并带图标，保证可发现性。 */
+.mn-formseg {
+  display: flex; gap: var(--app-space-2);
+  height: var(--app-formseg-height);
+  margin: var(--app-zero) var(--app-space-xs) var(--app-space-14);
+  padding: var(--app-space-2);
+  background: var(--app-surface-sunken);
+  border-radius: var(--app-radius);
+  flex: none;
+}
+.mn-formseg button {
+  flex: 1; min-width: var(--app-zero);
+  display: flex; align-items: center; justify-content: center; gap: var(--app-space-4);
+  border: var(--app-zero); border-radius: var(--app-radius-sm);
+  background: none; color: var(--app-fg-subtle);
+  font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-regular);
+  cursor: pointer; padding: var(--app-zero); white-space: nowrap;
+}
 .mn-formseg button:hover { color: var(--app-fg); }
-.mn-formseg button[aria-pressed="true"] { color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-bottom); }
+.mn-formseg button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-shadow-seg); }
 .mn-formseg button:disabled { cursor: default; color: var(--app-fg-faint); }
+.mn-formseg button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
 
 .mn-memo-main { flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 /* shell.css 为 full/compact 布局把所有 .mn-main 设为笔记双列网格；
@@ -37,9 +55,12 @@
 .mn-memo-bar-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); font-variant-numeric: tabular-nums; }
 
 .mn-memo-scroll { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
+/* 版心约束（负责人 2026-11-02）：时间轴不再无限拉宽，与编辑器同受阅读宽度档位（data-measure）
+   控制并居中；左右 padding 仍为工作栏 / Todo 浮层让位，窄窗下浮层不压卡片。 */
 .mn-memo-main .mn-timeline {
   position: relative;
-  max-width: none;
+  max-width: var(--app-memo-timeline-max);
+  margin-inline: auto;
   padding: var(--app-space-6) var(--app-memo-timeline-pad-right) var(--app-space-18) var(--app-memo-timeline-pad-left);
 }
 .mn-memo-main .mn-timeline::before {
@@ -221,7 +242,14 @@
 .mn-memo-otd-empty { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-label); }
 
 .mn-memo-main.is-gallery .mn-timeline { display: none; }
-.mn-memo-main.is-gallery .mn-memo-gallery { column-count: 3; column-gap: var(--app-space-14); padding: var(--app-space-md) var(--app-space-lg) var(--app-space-lg) var(--app-memo-timeline-pad-left); }
+/* 图册与时间轴同宽同轴心：切换视图时内容列的左缘不跳，图册列宽同样吃阅读宽度档位。 */
+.mn-memo-main.is-gallery .mn-memo-gallery {
+  column-count: 3;
+  column-gap: var(--app-space-14);
+  max-width: var(--app-memo-timeline-max);
+  margin-inline: auto;
+  padding: var(--app-space-md) var(--app-memo-timeline-pad-right) var(--app-space-lg) var(--app-memo-timeline-pad-left);
+}
 .mn-memo-gal-item { display: block; width: var(--app-full-size); margin-bottom: var(--app-space-14); break-inside: avoid; border: var(--app-zero); background: none; padding: var(--app-zero); text-align: left; cursor: pointer; }
 .mn-memo-gal-thumb { display: block; width: var(--app-full-size); aspect-ratio: var(--mn-memo-gallery-ratio, var(--app-memo-gallery-default-ratio)); border-radius: var(--app-radius); overflow: hidden; background: var(--app-surface-sunken); border: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-gal-thumb[data-loaded="false"] { background: linear-gradient(90deg, var(--app-surface-sunken), var(--app-border-subtle), var(--app-surface-sunken)); }

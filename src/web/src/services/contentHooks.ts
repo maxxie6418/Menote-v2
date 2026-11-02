@@ -140,6 +140,7 @@ export function useSectionItems(userId: string, section: BrowseSection): Item[] 
 }
 
 import { subscribeLockState, getLockVersion } from "./keyringService";
+import { searchLocalItems, searchTokens, type SearchHit } from "./searchService";
 
 /** 锁定状态版本号（G7）：解锁/锁定时触发重渲染。 */
 export function useLockVersion(): number {
@@ -156,4 +157,34 @@ export function useEncryptedCount(userId: string): number {
     return localDb.items.where("userId").equals(userId)
       .filter((item) => item.content.scope !== "plain").count();
   }, [userId], Boolean(userId)) ?? 0;
+}
+
+
+function useDebounced(value: string, delay = 150): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+/** 首页与移动首页的全局本地检索。空查询不查库。 */
+export function useLocalSearch(userId: string, query: string): SearchHit[] | undefined {
+  const lockVersion = useLockVersion();
+  const debounced = useDebounced(query, 150);
+  const active = query.trim() ? debounced : "";
+  const pending = query.trim() !== debounced.trim();
+  const hits = useData(async () => {
+    if (!userId || !searchTokens(active).length) return [];
+    const { localDb } = await import("../db/localDb");
+    const { listTopics } = await import("../db/topicsRepo");
+    const [items, topics] = await Promise.all([
+      localDb.items.where("userId").equals(userId).filter((row) => row.deletedAt === null).toArray(),
+      listTopics(userId),
+    ]);
+    return searchLocalItems(items, topics, active);
+  }, [userId, active, lockVersion], Boolean(userId));
+  if (!query.trim()) return [];
+  return pending ? undefined : hits;
 }
