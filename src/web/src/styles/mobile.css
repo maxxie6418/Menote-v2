@@ -252,7 +252,7 @@
 [data-layout="mobile"] .mn-dialog-settings .status-panel { max-width: var(--app-full-size); }
 [data-layout="mobile"] .mn-dialog-settings .mn-setrow { align-items: stretch; gap: var(--app-space-sm); }
 [data-layout="mobile"] .mn-dialog-settings .mn-setrow .mn-propselect { width: var(--app-full-size); min-width: var(--app-zero); }
-[data-layout="mobile"] .mn-dialog-settings .mn-attachrow { align-items: flex-start; flex-direction: column; gap: var(--app-space-4); }
+[data-layout="mobile"] .mn-dialog-settings .mn-attachrow { align-items: flex-start; gap: var(--app-space-4); }
 [data-layout="mobile"] .mn-dialog-settings .mn-attachrow .mn-minibtn,
 [data-layout="mobile"] .mn-dialog-settings .mn-attachrow .mn-textbtn,
 [data-layout="mobile"] .mn-dialog-settings .mn-backuprow .mn-textbtn { min-height: var(--app-touch-target); padding: var(--app-zero) var(--app-space-10); }

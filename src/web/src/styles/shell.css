@@ -467,8 +467,14 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 /* ---------- G5 附件管理 ---------- */
 .mn-attachlist { list-style: none; margin: var(--app-space-sm) var(--app-zero) var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-2); }
 .mn-attachrow { display: flex; align-items: center; gap: var(--app-space-sm); font-size: var(--app-size-chip); }
-.mn-attachrow a { color: var(--app-link); font-family: var(--app-font-mono); }
-.mn-attachmeta { color: var(--app-fg-faint); margin-right: auto; }
+.mn-attachthumb { width: var(--app-attach-thumb-size); height: var(--app-attach-thumb-size); flex: 0 0 var(--app-attach-thumb-size); display: grid; place-items: center; overflow: hidden; border: var(--app-border-width) solid var(--app-border); border-radius: var(--app-radius-sm); }
+.mn-attachthumb img { width: var(--app-full-size); height: var(--app-full-size); object-fit: cover; }
+.mn-attachthumb-file { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-attachcontent { display: flex; min-width: var(--app-zero); flex: 1; flex-direction: column; gap: var(--app-space-1); }
+.mn-attachname, .mn-attachrefs a { color: var(--app-link); overflow-wrap: anywhere; }
+.mn-attachmeta, .mn-attachrefs { color: var(--app-fg-faint); }
+.mn-attachrefs { overflow-wrap: anywhere; }
+.mn-attach-clean { display: flex; justify-content: flex-end; margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-border-width) solid var(--app-border); }
 
 /* ---------- G6 同步状态指示 ---------- */
 .mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); white-space: nowrap; }

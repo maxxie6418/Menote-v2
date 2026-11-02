@@ -1,5 +1,7 @@
 import type { Attachment, Item } from "@menote/shared";
 import { zipSync, strToU8 } from "fflate";
+import { listUserItems } from "../db/itemsRepo";
+import { appRoutePath } from "../app/appRoutes";
 
 /** 附件与导出（G5）：上传走鉴权接口；渲染经 MarkdownView 将相对引用解析为鉴权 URL（FR-SYNC-7）。 */
 
@@ -15,6 +17,28 @@ export function extractAttachmentRefs(markdown: string): Array<{ sha256: string;
 
 export function attachmentUrl(sha256: string): string {
   return `/api/attachments/${sha256}`;
+}
+
+export interface AttachmentReference { id: string; title: string; href: string }
+export interface AttachmentDetails { name: string; references: AttachmentReference[] }
+export async function listAttachmentReferences(userId: string): Promise<Record<string, AttachmentDetails>> {
+  const items = await listUserItems(userId);
+  const references: Record<string, AttachmentDetails> = {};
+  for (const item of items) {
+    if (item.deletedAt !== null || item.content.scope !== "plain") continue;
+    const seen = new Set<string>();
+    for (const ref of extractAttachmentRefs(item.content.markdown)) {
+      if (seen.has(ref.sha256)) continue;
+      seen.add(ref.sha256);
+      const detail = (references[ref.sha256] ??= { name: ref.name, references: [] });
+      detail.references.push({
+        id: item.id,
+        title: item.type === "memo" ? `Memo · ${new Date(item.createdAt).toLocaleString()}` : item.title,
+        href: item.type === "memo" ? `/memos/${encodeURIComponent(item.id)}` : appRoutePath({ kind: "notes", section: { kind: "recent" }, itemId: item.id }),
+      });
+    }
+  }
+  return references;
 }
 
 /** 上传附件；`onProgress` 给出 0–100 的上传进度（fetch 没有上传进度，故走 XHR）。

@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Menote 剪藏 · 弹窗界面设计稿</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0b0c0f;
+    --surface: #17191e;
+    --surface-2: #1e2027;
+    --line: #282b33;
+    --line-soft: #21242a;
+    --text: #e8eaee;
+    --text-dim: #9aa1ad;
+    --text-faint: #6d7482;
+    --chip: rgba(255,255,255,.06);
+    --btn-2: rgba(255,255,255,.075);
+    --btn-2-hover: rgba(255,255,255,.12);
+    --brand: #ED7D21;
+    --gold: #F0B429;
+    --bookmark: #2F6BFF;
+    --green: #34C77B;
+    --red: #F87171;
+    --shadow: 0 26px 60px -26px rgba(0,0,0,.92), 0 0 0 1px rgba(255,255,255,.035);
+    --glow: rgba(237,125,33,.10);
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5f8;
+    --surface: #ffffff;
+    --surface-2: #f3f5f8;
+    --line: #e2e6ec;
+    --line-soft: #eceff4;
+    --text: #16181d;
+    --text-dim: #5b616c;
+    --text-faint: #8b929d;
+    --chip: rgba(16,24,40,.05);
+    --btn-2: rgba(16,24,40,.06);
+    --btn-2-hover: rgba(16,24,40,.1);
+    --brand: #E2720F;
+    --gold: #B47708;
+    --bookmark: #2563EB;
+    --green: #0F8A55;
+    --red: #D0342C;
+    --shadow: 0 20px 44px -26px rgba(16,24,40,.34), 0 0 0 1px rgba(16,24,40,.045);
+    --glow: rgba(237,125,33,.12);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: -20% 0 auto;
+    height: 520px;
+    background: radial-gradient(60% 100% at 50% 0%, var(--glow), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 32px 120px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .topbar-in { max-width: 1200px; margin: 0 auto; padding: 13px 32px; display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 650; letter-spacing: -.01em; }
+  .brand .mark { width: 20px; height: 20px; }
+  .brand em { font-style: normal; color: var(--text-faint); font-weight: 500; }
+  .topbar .spacer { flex: 1; }
+  .pill {
+    font: 500 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+    color: var(--text-dim); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 9px; background: var(--surface);
+  }
+  .theme-btn {
+    height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .theme-btn:hover { background: var(--btn-2); }
+  .theme-btn svg { width: 13px; height: 13px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 64px 0 44px; }
+  .hero .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 600 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--brand);
+    margin-bottom: 16px;
+  }
+  .hero .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--brand); }
+  .hero h1 { margin: 0 0 14px; font-size: 36px; line-height: 1.22; letter-spacing: -.025em; font-weight: 680; }
+  .hero p { margin: 0; max-width: 660px; color: var(--text-dim); font-size: 14.5px; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .tag {
+    font-size: 11.5px; color: var(--text-dim); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 9px;
+  }
+  .tag b { color: var(--text); font-weight: 600; }
+
+  /* ---------- section ---------- */
+  .sec { margin-top: 76px; }
+  .sec-head { display: flex; align-items: baseline; gap: 13px; margin-bottom: 10px; }
+  .sec-num { font: 600 11.5px ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--brand); letter-spacing: .09em; }
+  .sec-head h2 { margin: 0; font-size: 20px; letter-spacing: -.015em; font-weight: 650; }
+  .sec-lede { margin: 0 0 30px; max-width: 760px; color: var(--text-dim); font-size: 13.5px; }
+  .sec-lede code, .note code {
+    font: 500 12px ui-monospace, SFMono-Regular, Consolas, monospace;
+    background: var(--chip); border-radius: 5px; padding: 1px 5px;
+  }
+  .grid { display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; }
+  figure { margin: 0; }
+  .figcap { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 11.5px; color: var(--text-faint); }
+  .figcap b { font-size: 12.5px; font-weight: 650; color: var(--text); }
+  .figcap .kbd {
+    font: 500 10px ui-monospace, monospace; color: var(--text-faint);
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+  }
+
+  /* ---------- popup frame ---------- */
+  .frame {
+    width: 360px; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .popup-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
+  }
+  .popup-head .mark { width: 21px; height: 21px; flex: none; }
+  .ph-title { font-size: 13px; font-weight: 650; letter-spacing: -.01em; }
+  .ph-right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .conn { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text-dim); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent); }
+  .dot.off { background: var(--text-faint); box-shadow: 0 0 0 3px var(--chip); }
+  .icon-btn {
+    width: 26px; height: 26px; display: grid; place-items: center;
+    border: 0; border-radius: 7px; background: transparent; color: var(--text-faint); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--btn-2); color: var(--text); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .home-button {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 24px; padding: 0 8px;
+    border: 0; border-radius: 999px; cursor: pointer;
+    background: color-mix(in srgb, var(--brand) 22%, transparent);
+    color: var(--brand);
+    font: inherit; font-size: 10px; font-weight: 650;
+    max-width: 118px;
+  }
+  .home-button svg { width: 11px; height: 11px; flex: none; }
+  .home-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .popup-body { padding: 13px 14px; display: grid; gap: 11px; }
+
+  .page-card { background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px; padding: 9px 11px; }
+  .pc-site { font-size: 10.5px; color: var(--text-faint); letter-spacing: .01em; }
+  .pc-title { margin-top: 2px; font-size: 12.5px; font-weight: 600; letter-spacing: -.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .chips { display: flex; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; height: 23px; padding: 0 8px;
+    border-radius: 999px; font-size: 10.5px; font-weight: 500; white-space: nowrap;
+    background: var(--chip); color: var(--text-faint); border: 1px solid transparent;
+  }
+  .chip svg { width: 10px; height: 10px; flex: none; }
+  .chip-bookmark { color: var(--bookmark); background: color-mix(in srgb, var(--bookmark) 13%, transparent); border-color: color-mix(in srgb, var(--bookmark) 24%, transparent); }
+  .chip-green { color: var(--green); background: color-mix(in srgb, var(--green) 13%, transparent); border-color: color-mix(in srgb, var(--green) 22%, transparent); }
+  .chip-brand { color: var(--brand); background: color-mix(in srgb, var(--brand) 13%, transparent); border-color: color-mix(in srgb, var(--brand) 22%, transparent); }
+
+  /* 标签 / 备注 */
+  .extras { background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px; padding: 9px 11px; display: grid; gap: 7px; }
+  .extra-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .extra-k { font-size: 10.5px; color: var(--text-faint); width: 22px; flex: none; }
+  .tags { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 3px; height: 19px; padding: 0 6px;
+    border-radius: 5px; background: var(--btn-2); font-size: 10.5px; color: var(--text-dim); white-space: nowrap;
+  }
+  .tag-chip i { font-style: normal; color: var(--text-faint); font-size: 9px; }
+  .tag-add { font-size: 10.5px; color: var(--text-faint); white-space: nowrap; cursor: text; }
+  .note-field {
+    flex: 1; height: 21px; display: flex; align-items: center; min-width: 0;
+    border-bottom: 1px dashed var(--line); font-size: 10.5px; color: var(--text-faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .note-field.filled { color: var(--text-dim); border-bottom-style: solid; }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    border: 0; border-radius: 9px; cursor: pointer; color: var(--text);
+    font: inherit; font-size: 12.5px; font-weight: 600; letter-spacing: -.005em;
+  }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-2 { flex: 0 0 142px; background: var(--btn-2); }
+  .btn-2:hover { background: var(--btn-2-hover); }
+  .split { flex: 1; display: flex; border-radius: 9px; overflow: hidden; background: var(--brand); }
+  .split-eye {
+    width: 40px; flex: none; border: 0; cursor: pointer; display: grid; place-items: center;
+    background: color-mix(in srgb, #000 15%, var(--brand)); color: #fff;
+    border-right: 1px solid rgba(0,0,0,.18);
+  }
+  .split-eye:hover { background: color-mix(in srgb, #000 24%, var(--brand)); }
+  .split-eye svg { width: 14px; height: 14px; }
+  .split-main {
+    flex: 1; border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: transparent; color: #fff; font: inherit; font-size: 12.5px; font-weight: 650;
+  }
+  .split:hover .split-main { background: color-mix(in srgb, #000 6%, transparent); }
+  .split-main svg { width: 14px; height: 14px; }
+  .btn:disabled, .split-main:disabled { opacity: .45; cursor: default; }
+
+  /* rules */
+  .rules { background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+  .rules > summary {
+    list-style: none; cursor: pointer; padding: 9px 11px;
+    display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 650;
+  }
+  .rules > summary::-webkit-details-marker { display: none; }
+  .rules .rstate { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500; color: var(--text-faint); }
+  .rules .chev { width: 11px; height: 11px; color: var(--text-faint); transition: transform .18s ease; }
+  .rules[open] .chev { transform: rotate(180deg); }
+  .rules-body { border-top: 1px solid var(--line-soft); padding: 10px 11px 11px; display: grid; gap: 7px; }
+  .rules-note { font-size: 10.5px; line-height: 1.55; color: var(--text-faint); }
+  .rbtn {
+    height: 32px; border: 0; border-radius: 8px; cursor: pointer;
+    background: var(--btn-2); color: var(--text); font: inherit; font-size: 11.5px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .rbtn:hover { background: var(--btn-2-hover); }
+  .rbtn svg { width: 12px; height: 12px; }
+
+  /* tip bar */
+  .tipbar {
+    display: flex; align-items: center; gap: 7px; padding: 9px 14px;
+    border-top: 1px solid var(--line-soft); font-size: 11px; color: var(--text-dim);
+    background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  }
+  .tipbar svg { width: 12px; height: 12px; flex: none; }
+  .tipbar.ok { color: var(--green); background: color-mix(in srgb, var(--green) 9%, transparent); }
+  .tipbar.warn { color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, transparent); }
+  .tipbar.err { color: var(--red); background: color-mix(in srgb, var(--red) 9%, transparent); }
+  .tipbar .tlink { margin-left: auto; font-weight: 650; color: inherit; text-decoration: none; white-space: nowrap; }
+  .tipbar .tlink:hover { text-decoration: underline; }
+
+  /* settings */
+  .set-body { padding: 14px; display: grid; gap: 13px; }
+  .field label { display: block; margin-bottom: 5px; font-size: 10.5px; color: var(--text-dim); }
+  .input {
+    height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2);
+    font: 500 11.5px ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text);
+  }
+  .input .ph { color: var(--text-faint); }
+  .input .saved { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font: 500 10px -apple-system, sans-serif; color: var(--green); }
+  .input .saved svg { width: 9px; height: 9px; }
+  .sect-tag { display: flex; align-items: center; gap: 9px; font-size: 10px; letter-spacing: .09em; color: var(--text-faint); text-transform: uppercase; }
+  .sect-tag::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+  .test-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; padding: 3px 0; }
+  .test-row .ico { width: 13px; height: 13px; color: var(--text-faint); flex: none; }
+  .test-row .st { margin-left: auto; font-size: 10.5px; color: var(--text-faint); }
+  .test-row.ok .ico, .test-row.ok .st { color: var(--green); }
+  .test-row.bad .ico, .test-row.bad .st { color: var(--red); }
+  .set-actions { display: flex; gap: 8px; align-items: center; }
+  .set-actions .ghost { margin-left: auto; border: 0; background: transparent; color: var(--text-faint); font: inherit; font-size: 11px; cursor: pointer; }
+  .set-actions .ghost:hover { color: var(--red); }
+  .legal { padding: 9px 14px; border-top: 1px solid var(--line-soft); font-size: 10px; color: var(--text-faint); }
+
+  /* preview page */
+  .frame.wide { width: 900px; max-width: 100%; }
+  .pv-head { display: flex; align-items: center; gap: 11px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); }
+  .pv-head .mark { width: 24px; height: 24px; }
+  .pv-title { font-size: 13.5px; font-weight: 650; }
+  .pv-sub { font-size: 12.5px; color: var(--text-dim); margin-top: 1px; }
+  .pv-host { margin-left: auto; margin-right: 10px; font: 500 10.5px ui-monospace, monospace; color: var(--text-faint); }
+  .pv-meta { display: flex; align-items: center; gap: 8px; padding: 9px 18px; border-bottom: 1px solid var(--line-soft); font-size: 11px; color: var(--text-faint); }
+  .pv-meta .sep { opacity: .45; }
+  .pv-meta .act { margin-left: auto; }
+  .pv-main { display: flex; min-height: 356px; }
+  .pv-editor {
+    flex: 1; padding: 18px 20px; border-right: 1px solid var(--line-soft);
+    font: 500 12.5px/1.85 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text);
+    white-space: pre-wrap;
+  }
+  .pv-editor h3 { margin: 0 0 14px; font: 650 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: -.01em; }
+  .pv-editor .dim { color: var(--text-dim); }
+  .caret { display: inline-block; width: 1.5px; height: 13px; background: var(--brand); vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .pv-side { width: 228px; flex: none; padding: 16px 18px; display: grid; gap: 13px; align-content: start; background: color-mix(in srgb, var(--surface-2) 42%, transparent); }
+  .attr .k { font-size: 10px; color: var(--text-faint); margin-bottom: 1px; }
+  .attr .v { font-size: 11.5px; color: var(--text); word-break: break-all; }
+  .pv-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line-soft); background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+  .pv-foot .grow { flex: 1; }
+  .pv-foot .btn { height: 34px; font-size: 12px; padding: 0 14px; }
+  .pv-foot .btn-3 { background: var(--btn-2); }
+  .pv-foot .btn-brand { background: var(--brand); color: #fff; padding: 0 20px; }
+  .wc { font: 500 10.5px ui-monospace, monospace; color: var(--text-faint); }
+
+  /* ---------- icon states ---------- */
+  .icon-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .icon-tile {
+    width: 176px; padding: 18px 16px; display: grid; gap: 14px; justify-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 13px; box-shadow: var(--shadow);
+  }
+  .icon-tile .sizes { display: flex; align-items: flex-end; gap: 14px; }
+  .icon-tile .name { font-size: 11.5px; font-weight: 650; }
+  .icon-tile .desc { font-size: 10.5px; line-height: 1.5; color: var(--text-faint); text-align: center; }
+  .ticon { position: relative; width: var(--s); height: var(--s); flex: none; }
+  .ticon .mark { width: 100%; height: 100%; display: block; }
+  .badge {
+    position: absolute; right: calc(var(--s) * -.03); bottom: calc(var(--s) * -.03);
+    width: calc(var(--s) * .40); height: calc(var(--s) * .40);
+    display: grid; place-items: center;
+    box-shadow: 0 0 0 calc(var(--s) * .055) #fff, 0 1px 3px rgba(0,0,0,.35);
+  }
+  .badge svg { width: 62%; height: 62%; color: #fff; }
+  .badge-clip { background: #19A567; border-radius: 28%; }
+  .badge-star { background: #2F6BFF; border-radius: 50%; }
+  /* 16px 下图案无法辨认，退化为纯色角标 */
+  .ticon.tiny .badge svg { display: none; }
+  .toolbar-strip {
+    display: inline-flex; align-items: center; gap: 18px; padding: 10px 16px; margin-top: 26px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow);
+  }
+  .toolbar-strip .lbl { font-size: 10px; color: var(--text-faint); letter-spacing: .07em; text-transform: uppercase; padding-right: 4px; border-right: 1px solid var(--line); }
+  .current-icons { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+  .current-icons figure { display: grid; gap: 7px; justify-items: center; }
+  .current-icons img { width: 40px; height: 40px; image-rendering: -webkit-optimize-contrast; }
+  .current-icons figcaption { font-size: 10px; color: var(--text-faint); }
+
+  /* ---------- flow ---------- */
+  .flow { display: grid; gap: 0; margin-top: 6px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+  .flow-row { display: flex; gap: 14px; padding: 14px 18px; align-items: flex-start; }
+  .flow-row + .flow-row { border-top: 1px solid var(--line-soft); }
+  .flow-step { font: 600 11px ui-monospace, monospace; color: var(--brand); padding-top: 2px; width: 22px; flex: none; }
+  .flow-body { flex: 1; }
+  .flow-body strong { font-size: 12.5px; font-weight: 650; }
+  .flow-body p { margin: 2px 0 0; font-size: 12px; color: var(--text-dim); }
+  .flow-body code { font: 500 11px ui-monospace, monospace; background: var(--chip); border-radius: 4px; padding: 1px 5px; }
+
+  .note { margin-top: 26px; padding: 14px 16px; border-radius: 11px; font-size: 12.5px; line-height: 1.7; color: var(--text-dim); background: color-mix(in srgb, var(--brand) 7%, transparent); border: 1px solid color-mix(in srgb, var(--brand) 22%, transparent); }
+  .note b { color: var(--text); }
+  .note.bad { background: color-mix(in srgb, var(--red) 7%, transparent); border-color: color-mix(in srgb, var(--red) 22%, transparent); }
+
+  footer { margin-top: 80px; padding-top: 22px; border-top: 1px solid var(--line-soft); font-size: 11.5px; color: var(--text-faint); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+</style>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true">
+  <defs>
+    <linearGradient id="mn-cloud" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6821F" /><stop offset="100%" stop-color="#FBAD41" />
+    </linearGradient>
+    <linearGradient id="mn-paper-edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F15A24" /><stop offset="100%" stop-color="#F6821F" />
+    </linearGradient>
+    <linearGradient id="mn-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FDBA74" /><stop offset="100%" stop-color="#F6821F" />
+    </linearGradient>
+
+    <symbol id="i-menote" viewBox="0 0 512 512">
+      <path d="M108 307C76 304 54 279 54 248C54 216 79 190 110 188C121 141 163 110 213 110C257 110 295 134 313 169C328 160 346 155 365 155C414 155 454 195 454 244C454 290 420 327 375 333L128 333C120 333 114 323 108 307Z" fill="url(#mn-cloud)" />
+      <path d="M292 181C313 164 338 155 365 155C414 155 454 195 454 244C454 290 420 327 375 333L292 333C310 315 320 290 320 261C320 230 309 202 292 181Z" fill="#F15A24" opacity="0.35" />
+      <g transform="translate(0 40) rotate(-20 245 260)">
+        <path d="M157 177Q157 157 177 157L352 157Q373 157 373 178L373 383Q373 405 351 405L155 405Q133 405 133 383L133 199Q133 177 157 177Z" fill="url(#mn-paper-edge)" />
+        <path d="M145 158Q145 138 165 138L340 138Q361 138 361 159L361 361Q361 382 340 382L145 382Q124 382 124 361L124 180Q124 158 145 158Z" fill="#FFFFFF" />
+        <g fill="#F6821F">
+          <rect x="105" y="177" width="52" height="18" rx="9" />
+          <rect x="105" y="227" width="52" height="18" rx="9" />
+          <rect x="105" y="277" width="52" height="18" rx="9" />
+          <rect x="105" y="327" width="52" height="18" rx="9" />
+        </g>
+        <g fill="url(#mn-line)">
+          <rect x="184" y="205" width="126" height="13" rx="6.5" />
+          <rect x="184" y="247" width="126" height="13" rx="6.5" />
+          <rect x="184" y="289" width="92" height="13" rx="6.5" />
+        </g>
+      </g>
+    </symbol>
+
+    <symbol id="i-star" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.4l2.1 4.24 4.68.68-3.39 3.3.8 4.66L8 12.09l-4.19 2.19.8-4.66-3.39-3.3 4.68-.68z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3.2 8.4l3.2 3.2 6.4-7"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 16 16"><path fill="currentColor" d="M9.3 1L3.2 8.9h3.3L6.2 15l6.6-8.2H9.3z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M1.3 8S3.8 3.6 8 3.6 14.7 8 14.7 8s-2.5 4.4-6.7 4.4S1.3 8 1.3 8z"/><circle cx="8" cy="8" r="1.9"/></g></symbol>
+    <symbol id="i-clip" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2v6.6M8 8.8L5.4 6.2M8 8.8l2.6-2.6M2.8 10.8v2.2h10.4v-2.2"/></g></symbol>
+    <symbol id="i-gear" viewBox="0 0 16 16"><path fill="currentColor" d="M6.8 1.6h2.4l.35 1.6c.48.15.94.36 1.35.65l1.5-.62 1.2 2.08-1.22 1.05c.06.3.09.6.09.94s-.03.64-.09.94l1.22 1.05-1.2 2.08-1.5-.62c-.41.29-.87.5-1.35.65l-.35 1.6H6.8l-.35-1.6a4.7 4.7 0 01-1.35-.65l-1.5.62-1.2-2.08 1.22-1.05a3.9 3.9 0 010-1.88L2.4 5.31l1.2-2.08 1.5.62c.41-.29.87-.5 1.35-.65zM8 5.7a2.3 2.3 0 100 4.6 2.3 2.3 0 000-4.6z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.8l6 5.1V14H9.8v-4H6.2v4H2V6.9z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 8a5.2 5.2 0 11-1.7-3.85M13.2 2.4V5h-2.6"/></g></symbol>
+    <symbol id="i-pencil" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.6 13.4l.9-3.2 6.9-6.9 2.3 2.3-6.9 6.9z"/><path d="M9.6 2.4l2.3 2.3"/></g></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4.4 6.4L8 10l3.6-3.6"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 2.6h4v4M13.4 2.6L7.6 8.4"/><path d="M12 9.6v3.4H3V4h3.4"/></g></symbol>
+    <symbol id="i-warn" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.6l6.6 11.6H1.4zM7.2 6v3.6h1.6V6zm0 4.6v1.6h1.6v-1.6z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.2v4M8 4.9v.9" stroke-linecap="round"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.4v1.4M8 13.2v1.4M14.6 8h-1.4M2.8 8H1.4M12.7 3.3l-1 1M4.3 11.7l-1 1M12.7 12.7l-1-1M4.3 4.3l-1-1"/></g></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="5.6" y="5.6" width="8" height="8" rx="1.6"/><path d="M10.4 5.6V3.8c0-.9-.7-1.6-1.6-1.6H3.8c-.9 0-1.6.7-1.6 1.6v5c0 .9.7 1.6 1.6 1.6h1.8"/></g></symbol>
+    <symbol id="i-doc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M9.2 1.8H4.4c-.9 0-1.6.7-1.6 1.6v9.2c0 .9.7 1.6 1.6 1.6h7.2c.9 0 1.6-.7 1.6-1.6V5.8z"/><path d="M9 1.9v4h4M5.6 9h4.8M5.6 11.4h3.2"/></g></symbol>
+  </defs>
+</svg>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+      Menote 剪藏 <em>/ 弹窗界面设计稿</em>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill">v0.1.17 · 已实现</span>
+    <button class="theme-btn" id="themeBtn" type="button">
+      <svg viewBox="0 0 16 16"><use href="#i-sun" /></svg>
+      <span id="themeLabel">亮色</span>
+    </button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">Popup redesign · 2026-11-02</div>
+    <h1>弹窗重设计：一次点击完成剪藏</h1>
+    <p>把六个平级按钮收成两个平级操作，状态不再靠猜。主界面只回答三个问题：这是什么页面、我有没有存过、现在能做什么。预览拆成独立页，设置收进二级。</p>
+    <div class="hero-meta">
+      <span class="tag">尺寸 <b>360 × 560 固定</b></span>
+      <span class="tag">头部 <b>主页 / 主题 / 设置</b></span>
+      <span class="tag">主操作 <b>2 个平级</b></span>
+      <span class="tag">状态 chip <b>只显示最重动作</b></span>
+      <span class="tag">预览 <b>独立标签页</b></span>
+      <span class="tag">标签 / 备注 <b>一次填写</b></span>
+      <span class="tag">图标角标 <b>色 + 形双编码</b></span>
+    </div>
+  </div>
+
+  <!-- ================= 01 ================= -->
+  <section class="sec" id="s1">
+    <div class="sec-head"><span class="sec-num">01</span><h2>主界面</h2></div>
+    <p class="sec-lede">顶部是品牌与连接状态，中部一张页面卡说明「我在哪」，三枚 chip 回答「存没存过」，两个操作回答「做什么」。站点规则默认收起，不占视线。</p>
+
+    <div class="grid">
+
+      <!-- 默认态 -->
+      <figure>
+        <div class="figcap"><b>默认态</b><span>未保存过</span></div>
+        <div class="frame">
+          <div class="popup-head">
+            <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+            <div class="ph-title">Menote 剪藏</div>
+            <div class="ph-right">
+              <span class="conn"><i class="dot"></i>已连接</span>
+              <button class="home-button" type="button" title="打开项目主页"><svg viewBox="0 0 16 16"><use href="#i-home" /></svg><span class="home-text">note.861306.xyz</span></button>
+              <button class="icon-btn" type="button" aria-label="切换深浅色"><svg viewBox="0 0 16 16"><use href="#i-sun" /></svg></button>
+              <button class="icon-btn" type="button" aria-label="设置"><svg viewBox="0 0 16 16"><use href="#i-gear" /></svg></button>
+            </div>
+          </div>
+          <div class="popup-body">
+            <div class="page-card">
+              <div class="pc-site">sspai.com</div>
+              <div class="pc-title">为什么我们重新设计了阅读体验</div>
+            </div>
+            <div class="chips">
+              <span class="chip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>未保存</span>
+              <span class="chip chip-brand"><svg viewBox="0 0 16 16"><use href="#i-bolt" /></svg>命中模板</span>
+            </div>
+            <div class="extras">
+              <div class="extra-row">
+                <span class="extra-k">标签</span>
+                <div class="tags"><span class="tag-add">+ 添加标签</span></div>
+              </div>
+              <div class="extra-row">
+                <span class="extra-k">备注</span>
+                <div class="note-field">留个想法，会随收藏或剪藏一起带过去</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-2" type="button"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg>收藏网址</button>
+              <div class="split">
+                <button class="split-eye" type="button" title="预览并编辑"><svg viewBox="0 0 16 16"><use href="#i-eye" /></svg></button>
+                <button class="split-main" type="button"><svg viewBox="0 0 16 16"><use href="#i-clip" /></svg>剪藏此页</button>
+              </div>
+            </div>
+            <details class="rules">
+              <summary>
+                <span>网页规则</span>
+                <span class="rstate">命中「少数派」<svg class="chev" viewBox="0 0 16 16"><use href="#i-chev" /></svg></span>
+              </summary>
+              <div class="rules-body">
+                <div class="rules-note">sspai.com 走站点模板提取，未命中的站点回落到通用提取。</div>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-pencil" /></svg>制作当前网页规则</button>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>检查规则更新</button>
+                <div class="rules-note">上次检查 12 分钟前 · 本地 3 条启用规则</div>
+              </div>
+            </details>
+          </div>
+          <div class="tipbar"><svg viewBox="0 0 16 16"><use href="#i-info" /></svg>正文只在点击后发送，预览与状态都留在本地。</div>
+        </div>
+      </figure>
+
+      <!-- 已操作态 -->
+      <figure>
+        <div class="figcap"><b>已收藏 + 已剪藏</b><span>chip 带上次动作时间</span></div>
+        <div class="frame">
+          <div class="popup-head">
+            <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+            <div class="ph-title">Menote 剪藏</div>
+            <div class="ph-right">
+              <span class="conn"><i class="dot"></i>已连接</span>
+              <button class="home-button" type="button" title="打开项目主页"><svg viewBox="0 0 16 16"><use href="#i-home" /></svg><span class="home-text">note.861306.xyz</span></button>
+              <button class="icon-btn" type="button" aria-label="切换深浅色"><svg viewBox="0 0 16 16"><use href="#i-sun" /></svg></button>
+              <button class="icon-btn" type="button" aria-label="设置"><svg viewBox="0 0 16 16"><use href="#i-gear" /></svg></button>
+            </div>
+          </div>
+          <div class="popup-body">
+            <div class="page-card">
+              <div class="pc-site">sspai.com</div>
+              <div class="pc-title">为什么我们重新设计了阅读体验</div>
+            </div>
+            <div class="chips">
+              <span class="chip chip-green"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>已剪藏 · 2 小时前</span>
+              <span class="chip chip-brand"><svg viewBox="0 0 16 16"><use href="#i-bolt" /></svg>命中模板</span>
+            </div>
+            <div class="extras">
+              <div class="extra-row">
+                <span class="extra-k">标签</span>
+                <div class="tags">
+                  <span class="tag-chip">阅读<i>×</i></span>
+                  <span class="tag-chip">产品<i>×</i></span>
+                  <span class="tag-add">+ 添加标签</span>
+                </div>
+              </div>
+              <div class="extra-row">
+                <span class="extra-k">备注</span>
+                <div class="note-field filled">收件箱清理，周末统一处理</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-2" type="button"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg>收藏网址</button>
+              <div class="split">
+                <button class="split-eye" type="button" title="预览并编辑"><svg viewBox="0 0 16 16"><use href="#i-eye" /></svg></button>
+                <button class="split-main" type="button"><svg viewBox="0 0 16 16"><use href="#i-clip" /></svg>剪藏此页</button>
+              </div>
+            </div>
+            <details class="rules">
+              <summary>
+                <span>网页规则</span>
+                <span class="rstate">命中「少数派」<svg class="chev" viewBox="0 0 16 16"><use href="#i-chev" /></svg></span>
+              </summary>
+              <div class="rules-body">
+                <div class="rules-note">sspai.com 走站点模板提取，未命中的站点回落到通用提取。</div>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-pencil" /></svg>制作当前网页规则</button>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>检查规则更新</button>
+                <div class="rules-note">上次检查 12 分钟前 · 本地 3 条启用规则</div>
+              </div>
+            </details>
+          </div>
+          <div class="tipbar ok"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>已剪藏到收件箱 · 再点会新建一篇，不覆盖旧文档<a class="tlink" href="#">查看</a></div>
+        </div>
+      </figure>
+
+      <!-- 规则展开 -->
+      <figure>
+        <div class="figcap"><b>网页规则展开</b><span>就地撑开，不换页</span></div>
+        <div class="frame">
+          <div class="popup-head">
+            <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+            <div class="ph-title">Menote 剪藏</div>
+            <div class="ph-right">
+              <span class="conn"><i class="dot"></i>已连接</span>
+              <button class="home-button" type="button" title="打开项目主页"><svg viewBox="0 0 16 16"><use href="#i-home" /></svg><span class="home-text">note.861306.xyz</span></button>
+              <button class="icon-btn" type="button" aria-label="切换深浅色"><svg viewBox="0 0 16 16"><use href="#i-sun" /></svg></button>
+              <button class="icon-btn" type="button" aria-label="设置"><svg viewBox="0 0 16 16"><use href="#i-gear" /></svg></button>
+            </div>
+          </div>
+          <div class="popup-body">
+            <div class="page-card">
+              <div class="pc-site">sspai.com</div>
+              <div class="pc-title">为什么我们重新设计了阅读体验</div>
+            </div>
+            <div class="chips">
+              <span class="chip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>未保存</span>
+              <span class="chip chip-brand"><svg viewBox="0 0 16 16"><use href="#i-bolt" /></svg>命中模板</span>
+            </div>
+            <div class="extras">
+              <div class="extra-row">
+                <span class="extra-k">标签</span>
+                <div class="tags"><span class="tag-add">+ 添加标签</span></div>
+              </div>
+              <div class="extra-row">
+                <span class="extra-k">备注</span>
+                <div class="note-field">留个想法，会随收藏或剪藏一起带过去</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-2" type="button"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg>收藏网址</button>
+              <div class="split">
+                <button class="split-eye" type="button" title="预览并编辑"><svg viewBox="0 0 16 16"><use href="#i-eye" /></svg></button>
+                <button class="split-main" type="button"><svg viewBox="0 0 16 16"><use href="#i-clip" /></svg>剪藏此页</button>
+              </div>
+            </div>
+            <details class="rules" open>
+              <summary>
+                <span>网页规则</span>
+                <span class="rstate">命中「少数派」<svg class="chev" viewBox="0 0 16 16"><use href="#i-chev" /></svg></span>
+              </summary>
+              <div class="rules-body">
+                <div class="rules-note">站点 sspai.com · 提取时走站点模板，未命中则回落通用提取。</div>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-pencil" /></svg>制作当前网页规则</button>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>检查规则更新</button>
+                <div class="rules-note">上次检查 12 分钟前 · 本地 3 条启用规则</div>
+              </div>
+            </details>
+          </div>
+          <div class="tipbar"><svg viewBox="0 0 16 16"><use href="#i-info" /></svg>规则的增删改仍在 Menote 主应用完成。</div>
+        </div>
+      </figure>
+
+      <!-- 未连接 / 报错 -->
+      <figure>
+        <div class="figcap"><b>未连接 · 错误提示</b><span>内联提示条，不弹窗</span></div>
+        <div class="frame">
+          <div class="popup-head">
+            <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+            <div class="ph-title">Menote 剪藏</div>
+            <div class="ph-right">
+              <span class="conn"><i class="dot off"></i>未连接</span>
+              <button class="home-button" type="button" title="打开项目主页"><svg viewBox="0 0 16 16"><use href="#i-home" /></svg><span class="home-text">note.861306.xyz</span></button>
+              <button class="icon-btn" type="button" aria-label="切换深浅色"><svg viewBox="0 0 16 16"><use href="#i-sun" /></svg></button>
+              <button class="icon-btn" type="button" aria-label="设置"><svg viewBox="0 0 16 16"><use href="#i-gear" /></svg></button>
+            </div>
+          </div>
+          <div class="popup-body">
+            <div class="page-card">
+              <div class="pc-site">sspai.com</div>
+              <div class="pc-title">为什么我们重新设计了阅读体验</div>
+            </div>
+            <div class="chips">
+              <span class="chip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>未保存</span>
+              <span class="chip"><svg viewBox="0 0 16 16"><use href="#i-bolt" /></svg>通用提取</span>
+            </div>
+            <div class="extras">
+              <div class="extra-row">
+                <span class="extra-k">标签</span>
+                <div class="tags"><span class="tag-add">+ 添加标签</span></div>
+              </div>
+              <div class="extra-row">
+                <span class="extra-k">备注</span>
+                <div class="note-field">留个想法，会随收藏或剪藏一起带过去</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-2" type="button"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg>收藏网址</button>
+              <div class="split">
+                <button class="split-eye" type="button" title="预览并编辑"><svg viewBox="0 0 16 16"><use href="#i-eye" /></svg></button>
+                <button class="split-main" type="button"><svg viewBox="0 0 16 16"><use href="#i-clip" /></svg>剪藏此页</button>
+              </div>
+            </div>
+            <details class="rules">
+              <summary>
+                <span>网页规则</span>
+                <span class="rstate">通用提取<svg class="chev" viewBox="0 0 16 16"><use href="#i-chev" /></svg></span>
+              </summary>
+              <div class="rules-body">
+                <div class="rules-note">没有匹配到站点规则，将使用 Readability 通用提取。</div>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-pencil" /></svg>制作当前网页规则</button>
+                <button class="rbtn" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>检查规则更新</button>
+              </div>
+            </details>
+          </div>
+          <div class="tipbar err"><svg viewBox="0 0 16 16"><use href="#i-warn" /></svg>Token 已失效或已撤销，无法写入。<a class="tlink" href="#s2">前往设置</a></div>
+        </div>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================= 02 ================= -->
+  <section class="sec" id="s2">
+    <div class="sec-head"><span class="sec-num">02</span><h2>设置页</h2></div>
+    <p class="sec-lede">三项配置、四行能力测试。测试全程只读：查 MCP 工具清单判断剪藏、收藏、模板三项权限，收藏目标只做 ID 解析，不往后台写任何记录。</p>
+
+    <div class="grid">
+      <figure>
+        <div class="figcap"><b>连接设置</b><span>测试后逐项给出结论</span></div>
+        <div class="frame">
+          <div class="popup-head">
+            <button class="icon-btn" type="button" aria-label="返回" style="margin-right:-2px"><svg viewBox="0 0 16 16" style="transform:rotate(90deg)"><use href="#i-chev" /></svg></button>
+            <div class="ph-title">连接设置</div>
+            <div class="ph-right"><span class="conn">Menote 剪藏</span></div>
+          </div>
+          <div class="set-body">
+            <div class="field">
+              <label>Menote 域名</label>
+              <div class="input">note.861306.xyz</div>
+            </div>
+            <div class="field">
+              <label>访问 Token</label>
+              <div class="input">••••••••••••••••••<span class="saved"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg>已保存</span></div>
+            </div>
+            <div class="field">
+              <label>网址收藏目标（文档链接或 Item ID）</label>
+              <div class="input">https://note.861306.xyz/notes/AbC1…</div>
+            </div>
+
+            <div class="sect-tag">能力测试</div>
+            <div>
+              <div class="test-row ok">
+                <svg class="ico" viewBox="0 0 16 16"><use href="#i-check" /></svg>剪藏到收件箱<span class="st">可用</span>
+              </div>
+              <div class="test-row ok">
+                <svg class="ico" viewBox="0 0 16 16"><use href="#i-check" /></svg>追加网址收藏<span class="st">可用</span>
+              </div>
+              <div class="test-row bad">
+                <svg class="ico" viewBox="0 0 16 16"><use href="#i-warn" /></svg>读取剪藏模板<span class="st">无权限</span>
+              </div>
+              <div class="test-row">
+                <svg class="ico" viewBox="0 0 16 16"><use href="#i-info" /></svg>收藏目标 ID<span class="st">本地校验通过</span>
+              </div>
+            </div>
+
+            <div class="set-actions">
+              <button class="btn btn-2" style="flex:0 0 auto;padding:0 14px;height:34px;font-size:12px" type="button">保存并测试</button>
+              <button class="btn btn-2" style="flex:0 0 auto;padding:0 12px;height:34px;font-size:12px" type="button">仅保存</button>
+              <button class="ghost" type="button">清除连接</button>
+            </div>
+          </div>
+          <div class="legal">AGPL-3.0-only · 许可证 · 源代码</div>
+        </div>
+      </figure>
+
+      <figure style="flex:1;min-width:340px">
+        <div class="figcap"><b>说明</b><span>为什么测试不写数据</span></div>
+        <div class="note" style="margin-top:0">
+          <b>三项权限靠 MCP 工具清单判断。</b>连上 Worker 后调 <code>listTools</code>，看返回里有没有 <code>clip_page</code>、<code>append_bookmark</code>、<code>list_clip_templates</code>。有就可用，没有就是 Token 少开了对应权限，全程不产生任何写入。
+        </div>
+        <div class="note bad">
+          <b>第四项只能本地校验。</b>「收藏目标可写」在没有写入的前提下无法从服务端确认，所以这里降级为：能否从链接反解出 22 位 ID 或 UUID、域名是否与配置一致。真正的写入在第一次收藏时才会暴露问题，错误会以内联提示条返回主界面。
+        </div>
+        <div class="note">
+          <b>现状差异：</b>现在 <code>verifyMcpConnection()</code> 只判断 <code>clip_page</code> 或 <code>append_bookmark</code> 任一存在就通过，收藏权限缺失时测不出来。任务 T2 会拆成逐项返回。
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= 03 ================= -->
+  <section class="sec" id="s3">
+    <div class="sec-head"><span class="sec-num">03</span><h2>独立预览页</h2></div>
+    <p class="sec-lede">点复合按钮的眼睛区，在新标签页打开。左栏 Markdown 可直接编辑，提交的是编辑后的内容；右栏只列提取结果里真实存在的字段，不虚构封面与标签。</p>
+
+    <div class="grid">
+      <figure>
+        <div class="figcap"><b>preview.html</b><span>900px · 新标签页</span><span class="kbd">tabId + page</span></div>
+        <div class="frame wide">
+          <div class="pv-head">
+            <svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg>
+            <div>
+              <div class="pv-title">Menote 剪藏预览</div>
+              <div class="pv-sub">为什么我们重新设计了阅读体验</div>
+            </div>
+            <div class="pv-host">sspai.com</div>
+            <button class="icon-btn" type="button" aria-label="关闭"><svg viewBox="0 0 16 16" style="transform:rotate(45deg)"><use href="#i-ext" /></svg></button>
+          </div>
+          <div class="pv-meta">
+            <span>模板「少数派」</span><span class="sep">·</span>
+            <span>6,482 字</span><span class="sep">·</span>
+            <span>3 张图待上传</span><span class="sep">·</span>
+            <span>14:20 提取</span>
+            <span class="act"><button class="rbtn" style="height:26px;padding:0 10px;font-size:11px" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>重新提取</button></span>
+          </div>
+          <div class="pv-main">
+            <div class="pv-editor"><h3>为什么我们重新设计了阅读体验</h3><span class="dim">过去三年，我们的阅读列表越堆越长，而真正读完的不足三成。收藏动作的成本几乎为零，这让「存下来」和「读过」彻底脱钩。</span>
+
+<span class="dim">我们把阅读流拆成三段：捕获、清理、重读。捕获要快到无感，清理要能批量做减法，重读则必须被重新设计成一件有终点的事。</span><span class="caret"></span></div>
+            <div class="pv-side">
+              <div class="attr">
+                <div class="k">标签</div>
+                <div class="v" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                  <span class="tag-chip">阅读<i>×</i></span>
+                  <span class="tag-chip">产品<i>×</i></span>
+                  <span class="tag-add">+ 添加标签</span>
+                </div>
+              </div>
+              <div class="attr">
+                <div class="k">备注</div>
+                <div class="v" style="color:var(--text-dim)">收件箱清理，周末统一处理</div>
+              </div>
+              <div class="attr"><div class="k">站点</div><div class="v">sspai.com</div></div>
+              <div class="attr"><div class="k">作者</div><div class="v">张三</div></div>
+              <div class="attr"><div class="k">发布时间</div><div class="v">2026-10-30 09:12</div></div>
+              <div class="attr"><div class="k">摘要</div><div class="v">一段关于阅读体验的产品思考……</div></div>
+              <div class="attr"><div class="k">原文</div><div class="v" style="display:flex;align-items:center;gap:4px">canonical <svg style="width:10px;height:10px;color:var(--text-faint)" viewBox="0 0 16 16"><use href="#i-ext" /></svg></div></div>
+              <div class="attr"><div class="k">提取器</div><div class="v">template:sspai</div></div>
+            </div>
+          </div>
+          <div class="pv-foot">
+            <button class="btn btn-3" type="button"><svg viewBox="0 0 16 16"><use href="#i-copy" /></svg>复制 Markdown</button>
+            <button class="btn btn-3" type="button"><svg viewBox="0 0 16 16"><use href="#i-refresh" /></svg>重新提取</button>
+            <span class="grow"></span>
+            <span class="wc">6,482 字</span>
+            <button class="btn btn-brand" type="button"><svg viewBox="0 0 16 16"><use href="#i-clip" /></svg>剪藏到收件箱</button>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="note" style="max-width:900px">
+      <b>顺手修掉一个既有问题：</b>现在 <code>popup/index.html</code> 的 <code>#markdown</code> 带 <code>readonly</code>，而 <code>clipCurrentPage()</code> 提交的是 <code>currentCapture.markdown</code>。README 里写的「之后也可编辑 Markdown」实际上没有接通——预览页改为提交编辑后的文本。
+    </div>
+  </section>
+
+  <!-- ================= 04 ================= -->
+  <section class="sec" id="s4">
+    <div class="sec-head"><span class="sec-num">04</span><h2>工具栏图标角标</h2></div>
+    <p class="sec-lede">页面存在本地记录时，工具栏图标右下角出现状态角标。色与形双重编码：蓝色圆形星标 = 已收藏，绿色圆角方对勾 = 已剪藏；两者都有时只显示剪藏角标，不叠加。角标直径 40%，外圈白色描边保证在任何工具栏底色上都清晰。蓝色是为了和品牌橙拉开对比，刷新页面后由后台脚本按本地记录重打角标。</p>
+
+    <div class="icon-row">
+      <div class="icon-tile">
+        <div class="sizes">
+          <div class="ticon" style="--s:48px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg></div>
+          <div class="ticon" style="--s:28px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg></div>
+          <div class="ticon tiny" style="--s:16px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg></div>
+        </div>
+        <div class="name">默认</div>
+        <div class="desc">未收藏 · 未剪藏<br>保持原始品牌图标</div>
+      </div>
+
+      <div class="icon-tile">
+        <div class="sizes">
+          <div class="ticon" style="--s:48px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-star"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg></span></div>
+          <div class="ticon" style="--s:28px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-star"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg></span></div>
+          <div class="ticon tiny" style="--s:16px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-star"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg></span></div>
+        </div>
+        <div class="name">已收藏</div>
+        <div class="desc">蓝色圆形 + 五角星<br>收进收藏夹的语义</div>
+      </div>
+
+      <div class="icon-tile">
+        <div class="sizes">
+          <div class="ticon" style="--s:48px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-clip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg></span></div>
+          <div class="ticon" style="--s:28px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-clip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg></span></div>
+          <div class="ticon tiny" style="--s:16px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-clip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg></span></div>
+        </div>
+        <div class="name">已剪藏</div>
+        <div class="desc">绿色圆角方 + 对勾<br>已入库的语义</div>
+      </div>
+    </div>
+
+    <div class="toolbar-strip">
+      <span class="lbl">Toolbar</span>
+      <div class="ticon" style="--s:26px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg></div>
+      <div class="ticon" style="--s:26px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-star"><svg viewBox="0 0 16 16"><use href="#i-star" /></svg></span></div>
+      <div class="ticon" style="--s:26px"><svg class="mark" viewBox="0 0 512 512"><use href="#i-menote" /></svg><span class="badge badge-clip"><svg viewBox="0 0 16 16"><use href="#i-check" /></svg></span></div>
+    </div>
+
+    <div class="figcap" style="margin:34px 0 10px"><b>改造前（0.1.16 旧角标）</b><span>绿方块 = 已剪藏，绿圆点 = 已收藏</span></div>
+    <div class="current-icons">
+      <figure><img src="data:image/png;base64,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" alt="已剪藏" /><figcaption>已剪藏</figcaption></figure>
+      <figure><img src="data:image/png;base64,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" alt="已收藏" /><figcaption>已收藏</figcaption></figure>
+      <figure><img src="data:image/png;base64,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" alt="旧版两者叠加" /><figcaption>旧·两者叠加（已废弃）</figcaption></figure>
+      <figure><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAB00lEQVQ4jd3ST0gUURwH8AE7iCe7CF1cLLdxNW36c0gItIOUIB0UL0EdEgI7rIZQ0EFDF3WddR0TEbEOoQdbEjSIEMOLIEWBp4L+2WbhH9RVdtb3x3lvvjEjrM4eRK89+B3e4ft58H0/Rfn/DmJKFukprKfhsyGmq0FTP5139HCbL5v0+GdpRAWNFoH1BUAHL23xeeMWhk/lsPaA/1CA6f4g7S0CM0qwO3EX4sskwFOAFCDhSot0lIKEylZpRKvKeLniBImoM2yoHOLjM9jJVWQe/kYHCZ0H6dRAw9oa6pWsNEB71WvMKIb4NHIgkYL8Og2xMO5e5co37HSUgnZfAA1fhGmUn9sHnpYVkP6Axcduw97+CyR+wo7PAakNF5GJpT3zdRv4y0awWCNHcrkGQG4aIYNaBZ+8/0csxACLwf7xDvL7DGyWRPNUN26M3PNM3Ysmxwx6utgZuHxTJJYsSAv2Vhzy8xRE/IMbyHty1TNnuq47wAMPsN2Vf5KO3vltby4C3EzXcWRAURSFz+oN1vvnnh84FsDaVVWu/0rItUXwt1GwV483jwW4hbZeKTSbCgyzxVcJsVvtFOYEDo4WrXWA5kM3010yIBdAC4BHGfMQgO8f+b6pIjGTJb8AAAAASUVORK5CYII=" alt="16px 已剪藏" style="width:16px;height:16px" /><figcaption style="align-self:end">16px</figcaption></figure>
+    </div>
+
+    <div class="note bad" style="max-width:900px">
+      <b>为什么要改：</b>旧角标是纯色几何块，直径占 42%，48px 时直接压在笔记本主体上；方块和圆点在 16px 下几乎无法区分，也用不了语义。新方案保留「色 + 形」双通道，并给 16px 单独退化：图案省略，只留形状与颜色。<br><b>已落地：</b>构建脚本 <code>scripts/build.mjs</code> 的 <code>statusMarker()</code> 已按此规范重绘，<code>pnpm build</code> 会生成 16/32/48/128 × 三状态共 12 张新图标。
+    </div>
+  </section>
+
+  <!-- ================= 05 ================= -->
+  <section class="sec" id="s5">
+    <div class="sec-head"><span class="sec-num">05</span><h2>交互与状态</h2></div>
+    <p class="sec-lede">两个操作互不阻塞；所有失败都在原位给一句话原因和一个下一步，不弹 alert，不整页遮罩。</p>
+
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-step">01</div>
+        <div class="flow-body"><strong>点「剪藏此页」</strong><p>校验连接 → 注入提取（模板 → 站点适配 → Readability）→ 有图且已授权时上传附件 → <code>clip_page</code> 写入。</p></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">02</div>
+        <div class="flow-body"><strong>成功</strong><p>chip 变为「已剪藏 · 刚刚」，提示条给「已剪藏到收件箱」+ 查看入口。再点一次会新建一篇文档，不覆盖旧文档。</p></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">03</div>
+        <div class="flow-body"><strong>失败</strong><p>提示条一句话原因（Token 失效 / 无权限 / 超时 / 无正文）+ 重试或前往设置，页面其余部分保持可用。</p></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">04</div>
+        <div class="flow-body"><strong>点眼睛区</strong><p>新标签页打开预览，正文不进 URL 参数。预览页可编辑并提交编辑后的文本；提交成功后回写本地记录，主界面下次打开即显示已剪藏。</p></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">05</div>
+        <div class="flow-body"><strong>状态来源</strong><p>三枚 chip 全部来自本地 <code>menotePageActions</code>（上限 500 条，按 URL 去 hash）。清扩展数据、换设备或超出上限后状态即丢失，这是刻意的取舍。</p></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-step">06</div>
+        <div class="flow-body"><strong>标签与备注</strong><p>弹窗打开即可见，两个操作共用同一份内容，也可以留空直接提交。收藏走契约里现成的 <code>tags</code> / <code>note</code>；剪藏需要给 <code>McpClipRequest</code> 加可选字段并写进 YAML，正文 Markdown 保持干净。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Menote Browser Clipper · 界面设计稿</span>
+    <span>版本 0.1.17</span>
+    <span>任务包：todo/20261101-TP3-浏览器剪藏插件/20261102-TP3-弹窗界面重设计.md</span>
+    <span>静态稿，不含真实业务逻辑</span>
+  </footer>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const btn = document.getElementById("themeBtn");
+  const label = document.getElementById("themeLabel");
+  btn.addEventListener("click", () => {
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    label.textContent = next === "dark" ? "亮色" : "暗色";
+  });
+</script>
+</body>
+</html>

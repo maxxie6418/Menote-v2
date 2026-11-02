@@ -8,6 +8,10 @@ export async function getItem(userId: string, id: string): Promise<Item | undefi
   return row && row.userId === userId ? row : undefined;
 }
 
+export async function listUserItems(userId: string): Promise<Item[]> {
+  return localDb.items.where("userId").equals(userId).toArray();
+}
+
 export async function putItem(item: Item): Promise<void> {
   await localDb.items.put(item);
 }
