@@ -4,6 +4,8 @@ import { notifyLocalChange } from "../lib/broadcast";
 import { newId, sha256Hex } from "../lib/hash";
 import { enqueueWrite, outboxTopic, outboxUpsert, requireItem } from "./contentShared";
 import { archiveVersionBeforeSave } from "./versionService";
+import { FIELDS_KEY, splitFrontmatter, writeDef } from "../lib/frontmatter";
+import { findTables, renderTable } from "../lib/gfmTable";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { toOutboxRow } from "../db/outboxRepo";
@@ -116,23 +118,58 @@ export async function createMemo(userId: string, markdown: string, tags: string[
 
 /**
  * 形态切换（TP2 多维表格）：空白种子期 note↔table 互转；内容落下即锁定（负责人 2026-11-01 决策）。
- * 仅翻 type，不动内容；空白草稿三道闸对两种形态同等生效。
+ * 2026-11-02 补充：转入表格时落一个「名称」文本列作为种子（负责人反馈"转表格后应该直接能填"），
+ * 该种子视同空白——转回笔记时清空，不占用形态锁。
  */
 export function setItemForm(userId: string, id: string, to: "note" | "table"): Promise<Item> {
   return enqueueWrite(() => setItemFormInner(userId, id, to));
+}
+
+const DEFAULT_TABLE_COLUMN = "名称";
+
+/** 空白笔记转表格的初始正文：一个「名称」文本列 + 空表体。 */
+export function defaultTableSeed(): string {
+  return `${writeDef("", FIELDS_KEY, DEFAULT_TABLE_COLUMN, { type: "text" })}${renderTable([DEFAULT_TABLE_COLUMN], [])}`;
+}
+
+const compact = (value: string) => value.replace(/\s+/g, "");
+
+/** 是否仍是未动过的表格种子（只有「名称」列、没有数据行、正文只有这张表）。 */
+export function isDefaultTableSeed(item: Item): boolean {
+  if (item.type !== "table" || item.content.scope !== "plain") return false;
+  const { body } = splitFrontmatter(item.content.markdown);
+  const tables = findTables(body);
+  if (tables.length !== 1) return false;
+  const table = tables[0]!;
+  if (table.header.length !== 1 || table.header[0]!.trim() !== DEFAULT_TABLE_COLUMN || table.rows.length > 0) return false;
+  return compact(body) === compact(renderTable([DEFAULT_TABLE_COLUMN], []));
 }
 
 async function setItemFormInner(userId: string, id: string, to: "note" | "table"): Promise<Item> {
   const current = await requireItem(userId, id);
   if (current.type === "memo") throw new Error("Memo 不参与形态切换");
   if (current.type === to) return current;
-  if (!isBlankDraft(current) || current.content.scope !== "plain") {
+  const blankNow = isBlankDraft(current);
+  const seededNow = isDefaultTableSeed(current);
+  if ((!blankNow && !seededNow) || current.content.scope !== "plain") {
     throw new Error("已有内容的文档不可切换形态（FR-TBL-9）");
   }
-  const next = { ...current, type: to, metaRev: current.metaRev + 1, updatedAt: Date.now() } as Item;
+  // 空白笔记 → 表格：落「名称」列种子；表格种子 → 笔记：清掉种子回到空白
+  const seeding = to === "table" && blankNow;
+  const clearing = to === "note" && seededNow;
+  const markdown = seeding ? defaultTableSeed() : clearing ? "" : current.content.markdown;
+  const contentChanged = markdown !== current.content.markdown;
+  const contentHash = contentChanged ? await sha256Hex(markdown) : current.contentHash;
+  const next: Item = {
+    ...current,
+    type: to,
+    ...(contentChanged ? { rev: current.rev + 1, contentHash, content: { scope: "plain" as const, markdown } } : {}),
+    metaRev: current.metaRev + 1,
+    updatedAt: Date.now(),
+  };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentChanged ? contentHash : undefined));
   });
   notifyLocalChange();
   return next;

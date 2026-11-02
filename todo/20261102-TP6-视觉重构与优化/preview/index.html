@@ -37,6 +37,7 @@
     <button type="button" role="tab" data-scene="doc" aria-selected="true">① 编辑器页面</button>
     <button type="button" role="tab" data-scene="dialog" aria-selected="false">② 表格结构化编辑弹窗</button>
     <button type="button" role="tab" data-scene="table" aria-selected="false">③ 表格文档页</button>
+    <button type="button" role="tab" data-scene="settings" aria-selected="false">④ 设置对话框</button>
   </div>
 </header>
 
@@ -66,12 +67,16 @@
       after: "<b>修复</b>：宽档 864、三段式（标题固定 / 中段滚动 / 操作固定），六列完整可见，主按钮回到内容宽度。"
     },
     table: {
-      before: "<b>问题</b>：表格页没有字段/行计数与顶层操作；行号列 30 塞不下拖拽+序号+删除；表头 sticky 挂在不滚动的容器上，长表滚下去就丢表头；类型徽标几乎看不见。",
-      after: "<b>修复</b>：新增工具条（6 字段 · 7 行 + 添加字段 + 切换普通笔记）；网格限高自滚、表头吸顶生效；行号列 46；类型徽标改胶囊描边。"
+      before: "<b>问题</b>：表格页没有字段/行计数与顶层操作；表头尾部的「+」弹出加字段浮层，浮层被表格滚动容器裁掉（只看得到一截）；行号列 30 塞不下拖拽+序号+删除；表头 sticky 挂在不滚动的容器上，长表滚下去就丢表头。",
+      after: "<b>修复</b>：新增工具条（6 字段 · 7 行 + 添加字段 + 切换普通笔记）；加字段表单从表头浮层改为工具条下方整行，不再被表格滚动容器裁切；网格限高自滚、表头吸顶生效；行号列 46；类型徽标改胶囊描边。"
+    },
+    settings: {
+      before: "<b>问题</b>：设置对话框 648×530，扣掉左导航 158 后内容区只剩 442，备份表单被挤成两列，剪藏模板一类长内容要频繁滚动。",
+      after: "<b>修复</b>：放宽到 736×608，内容区约 530；同一份备份表单能稳定排两列，长内容交给中段滚动。"
     }
   };
 
-  const SCENE_H = { doc: 560, dialog: 480, table: 560 };
+  const SCENE_H = { doc: 560, dialog: 480, table: 560, settings: 620 };
   let sceneH = 560;
   const tabs = [...document.querySelectorAll('.tabs button')];
   const before = document.getElementById('frame-before');

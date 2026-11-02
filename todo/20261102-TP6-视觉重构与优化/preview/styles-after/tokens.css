@@ -242,9 +242,9 @@
   --app-dialog-head-gap: var(--app-space-6);
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
   --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
-  --app-settings-dialog: 40.5rem;  /* 设置对话框 648px */
+  --app-settings-dialog: 46rem;    /* 设置对话框 736px（2026-11-02 负责人要求放宽，原 648） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
-  --app-settings-height: 33.125rem; /* 设置对话框 530px */
+  --app-settings-height: 38rem;    /* 设置对话框 608px（配合放宽的宽度，原 530） */
   --app-dlg-head-height: 50px;      /* 设置对话框头 */
   --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
   --app-memo-time-col: 38px;        /* Memo 时间列 */

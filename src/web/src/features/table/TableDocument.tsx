@@ -234,29 +234,34 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
     <div className="mn-tabledoc" aria-label="多维表格">
       {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
       {header.length > 0 && (
-        <div className="mn-tabledoc-bar">
-          <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
-          <div className="mn-tabledoc-bar-actions">
-            <button type="button" className="mn-textbtn" aria-expanded={addingCol}
-              onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
-              <Plus aria-hidden="true" /> 添加字段
-            </button>
-            <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
+        <>
+          <div className="mn-tabledoc-bar">
+            <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
+            <div className="mn-tabledoc-bar-actions">
+              <button type="button" className="mn-textbtn" aria-expanded={addingCol}
+                onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
+                <Plus aria-hidden="true" /> 添加字段
+              </button>
+              <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
+            </div>
           </div>
-        </div>
+          {/* 加字段表单常驻在工具条下方，不再做成表头里的浮层——浮层会被表格滚动容器裁掉 */}
+          {addingCol && (
+            <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)}
+              taken={header.map((item) => item.trim())} />
+          )}
+        </>
       )}
       {header.length === 0 ? (
         <div className="mn-tabledoc-scaffold">
           <p>空白表格文档：从添加第一个字段开始（字段定义存 YAML `fields:`，内容为标准 Markdown 表格）。</p>
           <div className="mn-tabledoc-scaffold-actions">
-            <div className="mn-tabledoc-addanchor">
             <button type="button" className="mn-auth-submit" aria-expanded={addingCol} onClick={() => setAddingCol((open) => !open)}>
               <Plus size={14} aria-hidden="true" /> 添加字段
             </button>
-            {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)} taken={[]} />}
-            </div>
             <button type="button" className="mn-auth-link" onClick={onSwitchToNote}>切换为普通笔记</button>
           </div>
+          {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)} taken={[]} />}
         </div>
       ) : (
         <div className="mn-tabledoc-scroll">
@@ -300,14 +305,6 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                   </div>
                 );
               })}
-              <div className="mn-tabledoc-addcol" role="columnheader">
-                <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段" aria-expanded={addingCol}
-                  onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
-                  <Plus size={14} aria-hidden="true" />
-                </button>
-                {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)}
-                  taken={(table?.header ?? scaffoldHeader ?? []).map((item) => item.trim())} />}
-              </div>
             </div>
             {/* 数据行 */}
             {(table?.rows ?? []).map((cells, row) => (
@@ -330,14 +327,12 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                     />
                   </div>
                 ))}
-                <div className="mn-tabledoc-addspacer" role="presentation" />
               </div>
             ))}
             {/* 添加行 */}
             <div className="mn-tabledoc-row foot" role="row">
               <div className="mn-tabledoc-rownum" role="presentation" />
               {header.map((_, col) => <div className="mn-tabledoc-cell ghost" role="presentation" key={col} />)}
-              <div className="mn-tabledoc-addspacer" role="presentation" />
             </div>
           </div>
           <div className="mn-tabledoc-actions">

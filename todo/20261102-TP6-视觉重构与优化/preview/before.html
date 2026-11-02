@@ -13,6 +13,7 @@
   body { width: 1440px; font-family: system-ui, sans-serif; }
   .shot { position: relative; width: 1440px; height: 560px; overflow: hidden; border-bottom: 2px solid #333; }
   #dialog { height: 480px; }
+  #settings { height: 620px; }
   .shot-cap { position: absolute; right: 0; bottom: 0; z-index: 30; padding: 4px 10px; background: rgba(0,0,0,.65); color: #ffb37a; font-size: 12px; letter-spacing: .04em; }
   .page { display: flex; height: 560px; }
   .fake-side { width: var(--app-sidebar-width); flex: none; background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); padding: 16px 10px; }
@@ -112,7 +113,24 @@
                 <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="截止日期" /><button class="mn-tabledoc-hbadge">日期</button></div>
                 <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="标签" /><button class="mn-tabledoc-hbadge">多选</button></div>
                 <div class="mn-tabledoc-hcell"><input class="mn-tabledoc-hname" value="备注" /><button class="mn-tabledoc-hbadge">文本</button></div>
-                <div class="mn-tabledoc-addcol"><button class="mn-iconbtn">+</button></div>
+                <div class="mn-tabledoc-addcol"><button class="mn-iconbtn" aria-label="添加字段">+</button>
+                  <div class="mn-tabledoc-addform" role="form" aria-label="添加字段">
+                    <input class="mn-tabledoc-hname" value="状态" placeholder="字段名" />
+                    <div class="mn-ftmenu">
+                      <button class="mn-ftmenu-item on">文本</button>
+                      <button class="mn-ftmenu-item">数字</button>
+                      <button class="mn-ftmenu-item">日期</button>
+                      <button class="mn-ftmenu-item">单选</button>
+                      <button class="mn-ftmenu-item">多选</button>
+                      <button class="mn-ftmenu-item">复选框</button>
+                      <button class="mn-ftmenu-item">链接</button>
+                    </div>
+                    <div class="mn-tabledoc-addform-actions">
+                      <button class="mn-auth-submit">添加</button>
+                      <button class="mn-auth-link">取消</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -146,5 +164,53 @@
     gridDialog.appendChild(row);
   });
 </script>
+
+<!-- ④ 设置对话框 -->
+<div class="shot" id="settings">
+  <span class="shot-cap">④ 设置对话框 · 648×530，内容区偏窄</span>
+  <div class="mn-overlay mn-settings-overlay" style="position: absolute; inset: 0; padding: 0">
+    <div class="mn-dialog mn-dialog-settings" role="dialog" aria-label="设置" style="position: absolute; top: 50%; left: 50%">
+      <div class="mn-dlg-head"><h3>设置</h3><button type="button" class="mn-iconbtn" aria-label="关闭设置">×</button></div>
+      <div class="mn-dlg-body">
+        <nav class="mn-dlg-nav" aria-label="设置分类">
+          <a href="#">外观</a><a href="#" class="on">远程备份</a><a href="#">附件</a><a href="#">恢复码</a><a href="#">MCP 接入</a><a href="#">剪藏模板</a>
+        </nav>
+        <div class="mn-dlg-content">
+          <section class="status-panel">
+            <h2>远程备份（FR-BAK）</h2>
+            <p class="app-description">每条目标独立保存到自己的路径；每次推送生成带校验信息的完整快照文件夹，自动保留上限可按目标设置。</p>
+            <ul class="mn-backuplist">
+              <li class="mn-backuprow">
+                <span class="mn-backupname">Koofr（webdav · 手动推送 · 启用）</span>
+                <span class="mn-attachmeta">https://app.koofr.net/dav/koofr/menote/ · 保留 不限 · 最近推送 从未</span>
+                <div class="mn-backupactions">
+                  <button type="button" class="mn-textbtn">推送一次</button>
+                  <button type="button" class="mn-textbtn">测试连接</button>
+                  <button type="button" class="mn-textbtn">查看远端备份</button>
+                  <button type="button" class="mn-textbtn">停用</button>
+                  <button type="button" class="mn-textbtn">查看凭据</button>
+                  <button type="button" class="mn-textbtn">删除</button>
+                </div>
+              </li>
+            </ul>
+            <div class="mn-backupform">
+              <select class="mn-propselect" aria-label="存储类型"><option>WebDAV</option></select>
+              <input class="mn-propinput" placeholder="名称" />
+              <input class="mn-propinput" placeholder="端点（如 https://dav.example.com/dav）" />
+              <input class="mn-propinput" placeholder="Access Key / 用户名" />
+              <input class="mn-propinput" type="password" value="secret" />
+              <input class="mn-propinput" placeholder="远端目录（默认 menote）" value="menote" />
+              <input class="mn-propinput" type="number" value="0" />
+              <select class="mn-propselect" aria-label="调度"><option>仅手动</option></select>
+              <button type="button" class="mn-textbtn">测试连接</button>
+              <button type="button" class="mn-auth-submit">添加备份路径</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
