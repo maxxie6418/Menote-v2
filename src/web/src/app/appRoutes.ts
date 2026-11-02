@@ -47,12 +47,12 @@ export function appRoutePath(route: AppRoute): string {
   if (route.kind === "status") return "/status";
   if (route.kind === "settings") return `/settings/${encodeURIComponent(route.section)}`;
   if (route.kind === "memos") return route.itemId ? `/memos/${encodeItemId(route.itemId)}` : "/memos";
+  if (route.itemId) return `/n/${encodeItemId(route.itemId)}`;
 
-  const suffix = route.itemId ? `/${encodeItemId(route.itemId)}` : "";
-  if (route.section.kind === "recent") return `/notes${suffix}`;
-  if (route.section.kind === "topic") return `/topics/${encodeURIComponent(route.section.id)}/notes${suffix}`;
-  if (route.section.kind === "tag") return `/tags/${encodeURIComponent(route.section.tag)}/notes${suffix}`;
-  return `/${route.section.kind}${suffix}`;
+  if (route.section.kind === "recent") return "/notes";
+  if (route.section.kind === "topic") return `/topics/${encodeURIComponent(route.section.id)}/notes`;
+  if (route.section.kind === "tag") return `/tags/${encodeURIComponent(route.section.tag)}/notes`;
+  return `/${route.section.kind}`;
 }
 
 export function parseAppRoute(pathname: string): AppRoute {
@@ -66,6 +66,7 @@ export function parseAppRoute(pathname: string): AppRoute {
     const section = SETTINGS_SECTIONS.includes(second as SettingsSection) ? second as SettingsSection : "backup";
     return { kind: "settings", section };
   }
+  if (root === "n") return { kind: "notes", section: { kind: "recent" }, ...(second ? { itemId: decodeItemId(second) } : {}) };
   if (root === "memos") return { kind: "memos", ...(second ? { itemId: decodeItemId(second) } : {}) };
   if (root === "notes" || root === "inbox" || root === "drafts" || root === "starred" || root === "trash") {
     const section: RouteSection = root === "notes" ? { kind: "recent" }
@@ -86,7 +87,7 @@ export function parseAppRoute(pathname: string): AppRoute {
   return { kind: "home" };
 }
 
-/** Canonical shareable URL path for a Note or Table, accepted by the browser extension. */
+/** Canonical short URL path for a Note or Table, accepted by the browser extension. */
 export function itemRoutePath(itemId: string): string {
-  return appRoutePath({ kind: "notes", section: { kind: "recent" }, itemId });
+  return `/n/${encodeItemId(itemId)}`;
 }
