@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AuthUser } from "@menote/shared";
+import type { AuthUser, Item } from "@menote/shared";
 import { Sidebar } from "./Sidebar";
 import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "./SystemStatusPage";
 import { MemoWorkspace } from "../features/memo";
-import { NoteDocument, TrashItemPanel } from "../features/notes";
+import { NoteDocument, OrganizeDialog, TrashItemPanel } from "../features/notes";
 import { purgeItemsPermanently } from "../services/versionService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { useSectionItems, useTopics } from "../services/contentHooks";
-import { createNote, sweepBlankDrafts } from "../services/contentService";
+import { createNote, saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
 import { requestSync } from "../services/syncEngine";
 import { lockIfIdle } from "../services/keyringService";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
@@ -105,6 +105,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [section, setSection] = useState<BrowseSection>(() => routeSection(route));
   const [noteId, setNoteId] = useState<string | null>(() => route.kind === "notes" ? route.itemId ?? null : null);
+  const [organizingItem, setOrganizingItem] = useState<Item | null>(null);
   const [noteReturn, setNoteReturn] = useState<{ section: BrowseSection; noteId: string | null }>({ section: { kind: "recent" }, noteId: null });
   const noteReturnRef = useRef(noteReturn);
   noteReturnRef.current = noteReturn;
@@ -115,6 +116,17 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
   const userId = user.id;
   const settingsReturn = useRef<AppRoute>({ kind: "home" });
+  const moveNote = useCallback((item: Item) => setOrganizingItem(item), []);
+  const toggleNoteStar = useCallback((item: Item) =>
+    saveItemMeta(userId, item.id, { starred: !item.starred }), [userId]);
+  const trashNote = useCallback(async (item: Item) => {
+    if (!window.confirm(`将「${item.title}」移入回收站？之后可恢复。`)) return;
+    await softDeleteItem(userId, item.id);
+    if (noteId === item.id) {
+      setNoteId(null);
+      navigate(sectionRoute(section), true);
+    }
+  }, [userId, noteId, section, navigate]);
 
   useEffect(() => {
     const onPopState = () => setRoute(parseAppRoute(window.location.pathname));
@@ -430,6 +442,9 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         items={items}
         selectedNoteId={noteId}
         onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined)); }}
+        onMoveNote={moveNote}
+        onToggleStar={toggleNoteStar}
+        onTrashNote={trashNote}
         emptyTitle={emptyTitle}
         emptyDetail={emptyDetail}
         mobilePane={mobilePane}
@@ -460,6 +475,17 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           </article>
         )}
       />
+      {organizingItem && (
+        <OrganizeDialog
+          item={organizingItem}
+          topics={topics}
+          allowDelete={false}
+          onDone={() => setOrganizingItem(null)}
+          onMove={async (topicId, groupId) => {
+            await saveItemMeta(userId, organizingItem.id, { topicId, groupId });
+          }}
+        />
+      )}
       {settingsDialog}
     </div>
   );

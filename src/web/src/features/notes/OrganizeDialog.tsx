@@ -6,11 +6,12 @@ interface OrganizeDialogProps {
   topics: TopicNode[];
   onDone: () => void;
   onMove: (topicId: string, groupId: string | null) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete?: () => Promise<void>;
+  allowDelete?: boolean;
 }
 
 /** 收件箱/草稿箱整理（FR-IA-9）：指定主题/分组后自动移出；支持直接删除；不做 Note→Memo 转换。 */
-export function OrganizeDialog({ item, topics, onDone, onMove, onDelete }: OrganizeDialogProps) {
+export function OrganizeDialog({ item, topics, onDone, onMove, onDelete, allowDelete = true }: OrganizeDialogProps) {
   const [topicId, setTopicId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,7 +35,7 @@ export function OrganizeDialog({ item, topics, onDone, onMove, onDelete }: Organ
   };
 
   const remove = async () => {
-    if (busy) return;
+    if (busy || !onDelete) return;
     setBusy(true);
     try {
       await onDelete();
@@ -73,7 +74,7 @@ export function OrganizeDialog({ item, topics, onDone, onMove, onDelete }: Organ
           <button type="button" className="mn-auth-submit" disabled={busy || !topicId} aria-disabled={busy || !topicId} onClick={submit}>
             移入并整理
           </button>
-          <button type="button" className="mn-auth-link" disabled={busy} onClick={remove}>移入回收站</button>
+          {allowDelete && onDelete && <button type="button" className="mn-auth-link" disabled={busy} onClick={remove}>移入回收站</button>}
           <button type="button" className="mn-auth-link" onClick={onDone}>取消</button>
         </div>
       </div>

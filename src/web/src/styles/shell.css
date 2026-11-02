@@ -347,6 +347,13 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-menu-item { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; padding: var(--app-space-5); border-radius: var(--app-radius-sm); }
 .mn-menu-item:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-menu-item svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
+.mn-contextmenu { position: fixed; z-index: var(--app-context-menu-z); display: flex; flex-direction: column; min-width: var(--app-context-menu-min); max-width: var(--app-context-menu-max-width); max-height: var(--app-context-menu-max-height); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
+.mn-contextmenu-entry { display: contents; }
+.mn-contextmenu-separator { height: var(--app-line); margin: var(--app-space-4) var(--app-space-5); background: var(--app-border-subtle); }
+.mn-contextmenu-item { width: var(--app-full-size); min-height: var(--app-chip-height); border: var(--app-zero); border-radius: var(--app-radius-sm); padding: var(--app-space-5) var(--app-space-6); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; }
+.mn-contextmenu-item:hover, .mn-contextmenu-item:focus-visible { outline: none; background: var(--app-hover); color: var(--app-fg); }
+.mn-contextmenu-item.danger { color: var(--app-danger); }
+.mn-contextmenu-error { margin: var(--app-space-4) var(--app-space-5); color: var(--app-danger); font-size: var(--app-size-chip); }
 
 /* ---------- E3 属性区 ---------- */
 .mn-propbar { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); padding: var(--app-space-6) var(--app-space-10); }

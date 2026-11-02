@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Lock, Plus } from "lucide-react";
 import { useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
+import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 
 interface TopicTreeProps {
   userId: string;
@@ -75,7 +76,53 @@ interface TopicNodeViewProps {
 function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeViewProps) {
   const [addingGroup, setAddingGroup] = useState(false);
   const [name, setName] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: { id: string; name: string; depth: 0 | 1 }; trigger: HTMLElement } | null>(null);
   const isSelected = selected.kind === "topic" && selected.id === topic.id;
+
+  const closeContextMenu = () => setContextMenu(null);
+  const setMenuAt = (x: number, y: number, target: { id: string; name: string; depth: 0 | 1 }, trigger: HTMLElement) => {
+    setContextMenu({ x, y, target, trigger });
+  };
+  const openPointerMenu = (event: MouseEvent<HTMLElement>, target: { id: string; name: string; depth: 0 | 1 }) => {
+    event.preventDefault();
+    setMenuAt(event.clientX, event.clientY, target, event.target instanceof HTMLElement ? event.target : event.currentTarget);
+  };
+  const openKeyboardMenu = (event: KeyboardEvent<HTMLElement>, target: { id: string; name: string; depth: 0 | 1 }) => {
+    if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setMenuAt(bounds.left, bounds.bottom, target, event.target instanceof HTMLElement ? event.target : event.currentTarget);
+  };
+
+  const actions: ContextMenuAction[] = contextMenu ? [
+    {
+      label: "重命名",
+      onSelect: async () => {
+        const next = window.prompt(`重命名${contextMenu.target.depth === 0 ? "主题" : "分组"}`, contextMenu.target.name);
+        if (next?.trim()) await renameTopic(userId, contextMenu.target.id, next.trim());
+      },
+    },
+    ...(contextMenu.target.depth === 0 ? [{ label: "新建分组", onSelect: () => setAddingGroup(true) }] : []),
+    {
+      label: "删除",
+      destructive: true,
+      separatorBefore: true,
+      onSelect: async () => {
+        const isTopic = contextMenu.target.depth === 0;
+        const message = isTopic
+          ? `删除主题「${contextMenu.target.name}」？主题下笔记会保留；可从回收站恢复主题。`
+          : `删除分组「${contextMenu.target.name}」？其中笔记不会被删除。`;
+        if (!window.confirm(message)) return;
+        await softDeleteTopic(userId, contextMenu.target.id);
+        const currentSectionRemoved = selected.kind === "topic" && (
+          selected.id === contextMenu.target.id || (isTopic && groups.some((group) => group.id === selected.id))
+        );
+        if (currentSectionRemoved) {
+          onSelect(isTopic ? { kind: "recent" } : { kind: "topic", id: topic.id });
+        }
+      },
+    },
+  ] : [];
 
   const submitGroup = async () => {
     const clean = name.trim();
@@ -87,8 +134,12 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeV
 
   return (
     <li>
-      <div className={isSelected ? "mn-treerow on" : "mn-treerow"}>
-        <button type="button" className="mn-tree-label" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
+      <div
+        className={isSelected ? "mn-treerow on" : "mn-treerow"}
+        onContextMenu={(event) => openPointerMenu(event, topic)}
+        onKeyDown={(event) => openKeyboardMenu(event, topic)}
+      >
+        <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
           {topic.name}
         </button>
         <button type="button" className="mn-minibtn" aria-label={`在「${topic.name}」下新建分组`} title="新建分组"
@@ -112,29 +163,17 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeV
             <button
               type="button"
               className={selected.kind === "topic" && selected.id === group.id ? "mn-treerow on" : "mn-treerow"}
+              aria-haspopup="menu"
               onClick={() => onSelect({ kind: "topic", id: group.id })}
+              onContextMenu={(event) => openPointerMenu(event, group)}
+              onKeyDown={(event) => openKeyboardMenu(event, group)}
             >
               {group.name}
             </button>
           </li>
         ))}
       </ul>
-      {isSelected && (
-        <span className="mn-tree-actions">
-          <button type="button" className="mn-minibtn" aria-label="重命名" title="重命名"
-            onClick={async () => {
-              const next = window.prompt("重命名主题", topic.name);
-              if (next && next.trim()) await renameTopic(userId, topic.id, next.trim());
-            }}>改名</button>
-          <button type="button" className="mn-minibtn" aria-label="删除主题" title="删除（移入回收站）"
-            onClick={async () => {
-              if (window.confirm(`删除主题「${topic.name}」？其下条目保留，可从回收站恢复。`)) {
-                await softDeleteTopic(userId, topic.id);
-                onSelect({ kind: "recent" });
-              }
-            }}>删除</button>
-        </span>
-      )}
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} label={`${contextMenu.target.name}菜单`} actions={actions} onClose={closeContextMenu} returnFocus={contextMenu.trigger} />}
     </li>
   );
 }

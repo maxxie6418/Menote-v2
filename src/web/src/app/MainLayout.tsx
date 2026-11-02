@@ -12,6 +12,9 @@ interface MainLayoutProps {
   items: Item[] | undefined;
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
+  onMoveNote?: (item: Item) => void | Promise<unknown>;
+  onToggleStar?: (item: Item) => void | Promise<unknown>;
+  onTrashNote?: (item: Item) => void | Promise<unknown>;
   emptyTitle: string;
   emptyDetail: string;
   document: ReactNode;
@@ -22,7 +25,7 @@ interface MainLayoutProps {
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const singlePane = layout === "tablet" || layout === "mobile";
   const showList = !singlePane || mobilePane === "list";
   const showDoc = !singlePane || mobilePane === "doc";
@@ -51,7 +54,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
             </span>
           </div>
           {viewMode === "list"
-            ? <NoteList items={items} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={emptyTitle} emptyDetail={emptyDetail} />
+            ? <NoteList items={items} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={emptyTitle} emptyDetail={emptyDetail} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} />
             : <NoteGrid items={items} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={emptyTitle} emptyDetail={emptyDetail} />}
         </section>
       )}
