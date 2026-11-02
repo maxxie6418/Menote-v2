@@ -13,6 +13,7 @@ function errorText(error: unknown): string {
   if (error.message === "unsupported_repository") return "仅支持 EdgeEver（tianma-if/edgeever）。";
   if (error.message === "github_default_branch_missing" || error.message === "github_commit_invalid") return "无法读取 EdgeEver 当前版本。";
   if (error.message === "edgeever_adapters_not_found") return "该版本没有可识别的网页适配列表。";
+  if (error.message === "edgeever_revision_unavailable") return "无法读取 EdgeEver 当前版本，请稍后重试。";
   if (error.message.startsWith("github_http_")) return `GitHub 请求失败（${error.message.replace("github_http_", "HTTP ")}）。`;
   return "读取适配列表失败，请稍后重试。";
 }

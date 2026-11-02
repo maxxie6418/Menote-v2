@@ -40,12 +40,6 @@ function normalizeRepository(value: string): string {
   throw new Error("unsupported_repository");
 }
 
-async function readResponse<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
-  if (!response.ok) throw new Error(`github_http_${response.status}`);
-  return await response.json() as T;
-}
-
 async function readSourceFile(url: string): Promise<string> {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`github_http_${response.status}`);
@@ -245,13 +239,12 @@ function convertAdapter(tsApi: typeof ts, menu: MenuEntry, reader: ts.SourceFile
 
 export async function discoverEdgeEverAdapters(repositoryInput: string): Promise<EdgeEverAdapterCatalog> {
   const repository = normalizeRepository(repositoryInput);
-  const repoUrl = `https://api.github.com/repos/${repository}`;
-  const metadata = await readResponse<{ default_branch?: string }>(repoUrl);
-  if (!metadata.default_branch) throw new Error("github_default_branch_missing");
-  const branch = metadata.default_branch;
-  const commitInfo = await readResponse<{ sha?: string }>(`${repoUrl}/commits/${encodeURIComponent(branch)}`);
-  const commit = commitInfo.sha;
-  if (!commit || !/^[a-f0-9]{40}$/i.test(commit)) throw new Error("github_commit_invalid");
+  const revisionResponse = await fetch("/api/edgeever/revision", { cache: "no-store" });
+  const revision = await revisionResponse.json().catch(() => ({})) as { repository?: string; branch?: string; commit?: string };
+  if (!revisionResponse.ok) throw new Error("edgeever_revision_unavailable");
+  const branch = revision.branch;
+  const commit = revision.commit;
+  if (revision.repository !== repository || !branch || !commit || !/^[a-f0-9]{40}$/i.test(commit)) throw new Error("github_commit_invalid");
 
   const rawBase = `https://raw.githubusercontent.com/${repository}/${commit}`;
   const [platformText, readerText] = await Promise.all([

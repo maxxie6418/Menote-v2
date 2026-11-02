@@ -145,7 +145,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
 - MCP 模块（services/mcp/）：registry（工具注册）、token auth（每次请求读取最新权限）、permissions/scope（内容读取开关、创建/编辑/回收站/附件权限、用户范围与私人空间/单篇加密谓词）、attachments（受权限约束的上传/读取映射）、audit——独立子目录，不与其他服务交叉引用。MCP 协议发现、鉴权和范围解析可执行必需的内部读取；内容读取关闭时不得暴露既有条目。
-- 剪藏模板模块：shared 定义 `ClipTemplateV1` 与纯数据校验；Worker `routes/clipTemplates.ts` → `services/clipTemplateService.ts` → `db/clipTemplates.ts` 管理按 userId 隔离的规则；Web `services/edgeeverImportService.ts` 只访问固定允许的 EdgeEver GitHub 仓库，解析默认分支 SHA 后静态分析固定源文件，拒绝执行上游代码；MCP 模板工具只接触模板数据并使用独立权限；浏览器扩展是 MCP 客户端，不被 Worker/UI 反向依赖。
+- 剪藏模板模块：shared 定义 `ClipTemplateV1` 与纯数据校验；Worker `routes/clipTemplates.ts` → `services/clipTemplateService.ts` → `db/clipTemplates.ts` 管理按 userId 隔离的规则；EdgeEver 转存由 Worker `routes/edgeever.ts` → `services/edgeeverService.ts` 从固定仓库 Atom feed 解析默认分支 SHA，Web `services/edgeeverImportService.ts` 再静态分析该 SHA 下的固定源文件，拒绝执行上游代码；MCP 模板工具只接触模板数据并使用独立权限；浏览器扩展是 MCP 客户端，不被 Worker/UI 反向依赖。
 - MCP 网址收藏：`routes/mcp.ts` 在 `bookmark:write` 已授权时注册 `append_bookmark`；`services/mcpBookmarkService.ts` 只读取用户指定且在 Token 范围内的明文 Note/Table，`services/mcpBookmarkFormat.ts` 负责追加收藏行/记录；`db/mcpBookmarks.ts` 执行用户归属、加密与范围过滤。仅返回目标 ID 和操作回执，不依赖内容读取权限；写入经同步服务维护 rev、日志和幂等。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
 - 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
