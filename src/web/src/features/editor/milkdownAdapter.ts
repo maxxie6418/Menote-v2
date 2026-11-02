@@ -148,6 +148,28 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     });
   }
 
+  /** 当前选区（含空选区的 storedMarks）生效的行内格式，供格式栏显示按下态。
+   *  只看 markdown 偏移推断不出空选区的 storedMarks，按下 B 时按钮不会亮，看着像没生效。 */
+  activeMarks(): InlineAction[] {
+    if (!this.editor) return [];
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { from, to, empty } = view.state.selection;
+      const pairs: Array<[InlineAction, string]> = [
+        ["bold", "strong"], ["italic", "emphasis"], ["strike", "strike_through"], ["code", "inlineCode"], ["link", "link"],
+      ];
+      return pairs
+        .filter(([, name]) => {
+          const mark = view.state.schema.marks[name];
+          if (!mark) return false;
+          if (!empty) return view.state.doc.rangeHasMark(from, to, mark);
+          const marks = view.state.storedMarks ?? view.state.selection.$from.marks();
+          return marks.some((item) => item.type === mark);
+        })
+        .map(([action]) => action);
+    });
+  }
+
   getSelection(): { start: number; end: number } {
     if (!this.editor) return { start: 0, end: 0 };
     return this.editor.action((ctx) => {
@@ -165,19 +187,25 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     this.editor.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const serializer = ctx.get(serializerCtx);
+      /** markdown 偏移 → ProseMirror 位置：定位到第一个覆盖该偏移的文本块，再按块内字符数近似取位。
+       *  旧实现把匹配块一路覆盖到最后一个文本块，选区永远落在文末，setSelection 后页面直接滚到页尾。 */
+      const doc = view.state.doc;
       const posFor = (offset: number) => {
-        let found = 1;
-        view.state.doc.descendants((node, nodePos) => {
+        let found: number | null = null;
+        doc.descendants((node, nodePos) => {
+          if (found !== null) return false;
           if (!node.isTextblock) return true;
-          if (serializer(view.state.doc.cut(0, nodePos + node.nodeSize)).length >= offset) {
-            found = nodePos + 1;
-            return false;
+          const prefix = serializer(doc.cut(0, nodePos)).length;
+          const upto = serializer(doc.cut(0, nodePos + node.nodeSize)).length;
+          if (offset <= upto) {
+            const within = Math.max(0, Math.min(node.content.size, offset - prefix));
+            found = nodePos + 1 + within;
           }
           return false;
         });
-        return Math.min(found, view.state.doc.content.size);
+        return Math.min(found ?? 1, doc.content.size);
       };
-      const selection = TextSelection.create(view.state.doc, posFor(start), posFor(end));
+      const selection = TextSelection.create(doc, posFor(start), posFor(end));
       view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
       view.focus();
     });

@@ -43,6 +43,17 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     onInputRef.current(fromEditorMarkdown(markdown, namesRef.current));
   };
 
+  /** 外部写回（属性区增删、他端变更）会整篇 replaceAll，选区落到文末会把页面滚到底；
+   *  这里在重载前后锁住文档滚动位置，避免「加个属性页面直接跳页尾」。 */
+  const keepScroll = (apply: () => void) => {
+    const scroller = hostRef.current?.closest<HTMLElement>(".mn-docbody") ?? null;
+    const top = scroller?.scrollTop ?? 0;
+    apply();
+    if (!scroller) return;
+    scroller.scrollTop = top;
+    requestAnimationFrame(() => { scroller.scrollTop = top; });
+  };
+
   useEffect(() => {
     if (mode !== "edit" || !hostRef.current) return;
     let cancelled = false;
@@ -56,10 +67,10 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       });
       adapterRef.current = adapter;
       registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
-      registerApplyExternal((markdown) => {
+      registerApplyExternal((markdown) => keepScroll(() => {
         dirtyRef.current = false;
         adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
-      });
+      }));
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
       // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
@@ -70,10 +81,10 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         if (cancelled) { void adapter.destroy(); return; }
         adapterRef.current = adapter;
         registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
-        registerApplyExternal((markdown) => {
+        registerApplyExternal((markdown) => keepScroll(() => {
           dirtyRef.current = false;
           adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
-        });
+        }));
       }).catch((cause) => {
         console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
         const fallback = new TextareaSourceAdapter(host, {
@@ -161,7 +172,8 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (!adapter || kind !== "wysiwyg") { setSlash(null); return; }
     const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
     const { start, end } = adapter.getSelection();
-    setActive(activeInline(markdown, start, end));
+    // WYSIWYG 直接读选区状态：空选区的 storedMarks（按下 B 还没输入）只有编辑器自己知道
+    setActive(adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : activeInline(markdown, start, end));
     if (start !== end) { setSlash(null); return; }
     const context = slashContext(markdown, start);
     if (!context) { setSlash(null); return; }

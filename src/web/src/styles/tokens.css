@@ -158,7 +158,7 @@
   --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
   --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
   --app-prop-height: 2rem;         /* 32px 属性行 */
-  --app-prop-key-width: 1.875rem;  /* 30px 属性键名列 */
+  --app-prop-key-width: 7.5rem;    /* 120px 属性键名列：外部剪藏的键是 parent_url / clipped_at 这类长键，30px 会被切成 pa… */
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
   --app-kicker-line-height: 0.09375rem; /* 1.5px */
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */

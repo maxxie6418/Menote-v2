@@ -239,7 +239,7 @@
 .mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
 .mn-editor-wrap[data-dragging] { outline: var(--app-line) dashed var(--app-accent); outline-offset: calc(var(--app-line) * -1); }
 /* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器） */
-.mn-formatbar { position: sticky; top: var(--app-zero); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
 .mn-formatbtn { display: grid; place-items: center; width: var(--app-formatbtn-size); height: var(--app-formatbtn-size); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); cursor: pointer; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
 .mn-formatbtn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
@@ -485,9 +485,9 @@
 .mn-backupform .mn-propinput { flex: 1; min-width: var(--app-note-grid-min); }
 .mn-backupform .mn-auth-submit { margin-top: var(--app-zero); }
 
-/* ---------- 设计核对修正（DESIGN §4：属性两列、doc-foot、memo 列表、todo 圆点、锁定卡、设置对话框） ---------- */
-.mn-proplist { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--app-doc-pad); }
-.mn-proprow { border-bottom: var(--app-line) solid var(--app-border-subtle); height: var(--app-prop-height); }
+/* ---------- 设计核对修正（DESIGN §4：属性单列、doc-foot、memo 列表、todo 圆点、锁定卡、设置对话框） ---------- */
+/* 属性行改单列：两列时键名 30 像素 + 值输入框，长键被截断成 pa…、值只露半截；单列后键 120 像素、值吃满剩余宽度 */
+.mn-proprow { border-bottom: var(--app-line) solid var(--app-border-subtle); min-height: var(--app-prop-height); padding-block: var(--app-space-2); }
 .mn-propkey { width: var(--app-prop-key-width); flex: none; }
 .mn-doc-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-10); flex: none; padding: var(--app-space-10) var(--app-doc-pad) var(--app-space-14); border-top: var(--app-line) solid var(--app-border-subtle); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-unlockpanel { width: var(--app-lock-card); text-align: center; margin: 0 auto; display: flex; flex-direction: column; gap: var(--app-space-6); }
