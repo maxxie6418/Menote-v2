@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
@@ -6,9 +7,19 @@ import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
 import { FormatBar } from "./FormatBar";
 import { SlashMenu } from "./SlashMenu";
 import { filterActions, type FormatAction } from "./formatActions";
-import { activeInline, applyBlock, applySlash, insertAttachment, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
+import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
 
 export type EditorKind = "wysiwyg" | "source";
+
+/** 上传态：只用于底部的进度条与错误提示，不进文档内容。 */
+interface UploadTask { id: string; name: string; percent: number; error?: string }
+
+const UPLOAD_ERRORS: Record<string, string> = {
+  invalid_attachment: "文件为空或超过 20MB",
+  unauthorized: "登录状态已失效，请重新登录后重试",
+  network: "网络中断",
+  aborted: "已取消",
+};
 
 interface NoteEditorProps {
   mode: "edit" | "preview";
@@ -22,7 +33,7 @@ interface NoteEditorProps {
   /** 属性区/表格等结构化写回合并进编辑器（FR-PROP-3 统一链路）：强制刷新并清除脏标记。 */
   registerApplyExternal: (apply: ((markdown: string) => void) | null) => void;
   /** 上传一个文件并返回内容寻址结果；失败时返回错误文案，由底栏显示。 */
-  uploadFile?: (file: File) => Promise<{ sha256: string; name: string } | { error: string }>;
+  uploadFile?: (file: File, onProgress?: (percent: number) => void) => Promise<{ sha256: string; name: string } | { error: string }>;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
@@ -34,6 +45,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const [active, setActive] = useState<InlineAction[]>([]);
   const [slash, setSlash] = useState<{ query: string; index: number; top: number; left: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [uploads, setUploads] = useState<UploadTask[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
@@ -151,18 +163,33 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     setSlash(null);
   };
 
+  /** 逐个上传再插入：先出进度条，成功才写进正文（失败留一行红字，正文不受影响）。 */
   const placeFiles = async (files: File[], cursor: number) => {
     const adapter = adapterRef.current;
     if (!adapter || !uploadFile) return;
     let markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
     let caret = cursor;
-    for (const file of files) {
-      const uploaded = await uploadFile(file);
-      if ("error" in uploaded) { onInputRef.current(markdown); return; }
-      namesRef.current.set(uploaded.sha256, uploaded.name);
-      const placed = insertAttachment(markdown, caret, uploaded, file.type.startsWith("image/"));
+    const tasks: UploadTask[] = files.map((file, index) => ({
+      id: `${Date.now()}-${index}`, name: file.name, percent: 0,
+    }));
+    setUploads((previous) => [...previous, ...tasks]);
+    for (const [index, file] of files.entries()) {
+      const task = tasks[index]!;
+      const patch = (next: Partial<UploadTask>) => setUploads((previous) =>
+        previous.map((item) => (item.id === task.id ? { ...item, ...next } : item)));
+      const uploaded = await uploadFile(file, (percent) => patch({ percent }));
+      if ("error" in uploaded) {
+        patch({ error: uploaded.error });
+        onInputRef.current(markdown);
+        return;
+      }
+      // 名字净化后再入库：往返映射与正文引用必须用同一个名字
+      const name = safeAttachmentName(uploaded.name);
+      namesRef.current.set(uploaded.sha256, name);
+      const placed = insertAttachment(markdown, caret, { sha256: uploaded.sha256, name }, file.type.startsWith("image/"));
       markdown = placed.markdown;
       caret = placed.selectionStart;
+      setUploads((previous) => previous.filter((item) => item.id !== task.id));
     }
     commit(markdown, caret, caret);
   };
@@ -227,6 +254,29 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           void placeFiles(files, adapterRef.current?.getSelection().start ?? 0);
         }}
       />
+      {uploads.length > 0 && (
+        <div className="mn-uploadstack" role="status" aria-live="polite" aria-label="附件上传">
+          {uploads.map((task) => (
+            <div key={task.id} className="mn-uploadrow" data-error={task.error ? "true" : undefined}>
+              <span className="mn-uploadname" title={task.name}>{task.name}</span>
+              {task.error ? (
+                <>
+                  <span className="mn-uploaderror">上传失败：{UPLOAD_ERRORS[task.error] ?? task.error}</span>
+                  <button type="button" className="mn-iconbtn" aria-label="忽略这条上传失败"
+                    onClick={() => setUploads((previous) => previous.filter((item) => item.id !== task.id))}>
+                    <X aria-hidden="true" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="mn-uploadpct">{task.percent}%</span>
+                  <progress className="mn-uploadbar" value={task.percent} max={100} aria-label={`${task.name} 上传进度`} />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {slash && (
         <SlashMenu
           query={slash.query} activeIndex={slash.index} position={{ top: slash.top, left: slash.left }} onHover={(index) => setSlash({ ...slash, index })}

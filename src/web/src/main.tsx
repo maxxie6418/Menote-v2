@@ -16,5 +16,9 @@ import "./styles/home.css";
 import "./styles/mobile.css";
 // 滚动条：全局接管所有原生滚动容器（DESIGN §4.4），须在 tokens.css 之后引入以取到令牌。
 import "./styles/scrollbar.css";
+import { applyDocStyle } from "./lib/docStyle";
+
+// 文档样式偏好（FR-STYLE-2）：index.html 已按存储值写过一次，这里兜底重放（热更新/早期异常时两者不会打架）。
+applyDocStyle();
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

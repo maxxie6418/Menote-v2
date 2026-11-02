@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyBlock, applySlash, insertAttachment, slashContext, toggleInline } from "../src/features/editor/markdownEdit.ts";
+import { applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline } from "../src/features/editor/markdownEdit.ts";
 
 test("行内加粗：无选区插入空标记，光标在中间", () => {
   const result = toggleInline("你好", 2, 2, "bold");
@@ -33,6 +33,16 @@ test("附件插在光标处，不追加到文末", () => {
   assert.ok(result.markdown.startsWith("甲"));
   assert.ok(result.markdown.includes(`![a.png](attachments/${"f".repeat(64)}--a.png)`));
   assert.ok(result.markdown.endsWith("丙"));
+});
+
+test("附件名里的空格与括号不会截断 Markdown 链接目标", () => {
+  const sha = "a".repeat(64);
+  const result = insertAttachment("正文", 2, { name: "截图 2026-11-02 13.39.07(1).png", sha256: sha }, true);
+  const destination = `attachments/${sha}--截图-2026-11-02-13.39.07-1-.png`;
+  assert.ok(result.markdown.includes(`![${safeAttachmentName("截图 2026-11-02 13.39.07(1).png")}](${destination})`));
+  // 链接目标里不能出现空白或括号，否则 markdown 会把它切成两段
+  const target = result.markdown.slice(result.markdown.indexOf("](") + 2, result.markdown.lastIndexOf(")"));
+  assert.equal(/[\s()]/.test(target), false);
 });
 
 test("标题再点一次去掉前缀", () => {

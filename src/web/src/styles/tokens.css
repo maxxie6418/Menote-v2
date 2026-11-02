@@ -309,6 +309,26 @@
   --md-table-size: 0.75rem;          /* 12px，design.html .prose table */
   --md-table-gap: 0.75rem;           /* 12px，design.html .prose table 下边距 */
   --md-table-cell-pad: 0.3125rem 0.5rem 0.3125rem 0; /* 5px 8px 5px 0 */
+  /* 加粗与标题装饰（FR-STYLE-2：设置·样式可改，默认值即设计稿取值） */
+  --md-strong-size: 1em;
+  --md-strong-weight: 600;
+  --md-strong-color: var(--app-fg);
+  --md-strong-rule: none;            /* none | underline：加粗文字是否带下划线 */
+  --md-h1-rule: none;                /* none | solid：标题装饰下划线开关 */
+  --md-h2-rule: none;
+  --md-h3-rule: none;
+  --md-h1-rule-pad: var(--app-zero); /* 装饰线与文字的距离，关闭时为 0（不占布局） */
+  --md-h2-rule-pad: var(--app-zero);
+  --md-h3-rule-pad: var(--app-zero);
+  --md-heading-rule-width: 2px;
+  --md-heading-rule-color: var(--app-accent);
+  --md-heading-rule-gap: 0.25rem;
+  --md-heading-rule-extra: 0.75rem;  /* 装饰线比文字多出的长度：做成"略长于文字"的分割线 */
+  /* 设置·样式面板 */
+  --app-style-label-width: 4.25rem;
+  --app-style-num-width: 3.5rem;
+  --app-style-select-width: 6.5rem;
+  --app-style-color-width: 2.75rem;
   --md-table-col-1: 14%;            /* DESIGN §3.3 固定列宽，防止长英文截断 */
   --md-table-col-2: 38%;
   --md-table-col-3: 16%;

@@ -7,6 +7,9 @@ import { Miniflare } from "miniflare";
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL("../src/jobs/scheduled.ts", import.meta.url))],
   bundle: true, write: false, format: "esm", platform: "neutral",
+  // 打包目标其实是 workerd/浏览器：不补条件时 @modelcontextprotocol/server 会解析到 node shim（node:process），
+  // 整个 worker 入口打不出来，这批集成测试会集体失败。
+  conditions: ["worker", "browser"],
 });
 const scheduler = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 const cleanup = await import(`data:text/javascript;base64,${Buffer.from(

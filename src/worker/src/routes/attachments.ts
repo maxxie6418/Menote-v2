@@ -13,7 +13,11 @@ export const attachmentRoutes = new Hono<AppEnv>();
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
+/** 会话解析必须覆盖子路径：`.use("/api/attachments")` 只匹配这一个精确路径，
+ *  而读取/删除都在 `/api/attachments/:sha256`——漏挂后 requireSession 拿不到 authUser，
+ *  图片一律 401 裂图（上传是精确路径 POST，所以只有"看图"坏）。 */
 attachmentRoutes.use("/api/attachments", resolveSession);
+attachmentRoutes.use("/api/attachments/*", resolveSession);
 
 attachmentRoutes.get("/api/attachments", requireSession, async (c) => {
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);

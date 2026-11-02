@@ -125,10 +125,19 @@ function insertAtLine(markdown: string, cursor: number, block: string, offsetInB
   return { markdown: next, selectionStart: caret, selectionEnd: caret };
 }
 
+/** 附件名进 Markdown 前做最小净化。Markdown 的链接目标不能含空格与括号，
+ *  像「截图 2026-11-02 13.39.07.png」这种名字会把 `![x](attachments/…)` 截断，
+ *  图片因此永远解析不出来（裂图或退化成纯文本）。往返映射用的是同一个名字，
+ *  所以净化动作必须在入库前统一做一次。 */
+export function safeAttachmentName(name: string): string {
+  return name.replace(/[\s()[\]<>|]+/g, "-");
+}
+
 /** 附件引用插到光标处。图片用图片语法，其他文件用纯链接。 */
 export function insertAttachment(markdown: string, cursor: number, file: { name: string; sha256: string }, asImage: boolean): EditResult {
-  const ref = `attachments/${file.sha256}--${file.name}`;
-  const snippet = asImage ? `![${file.name}](${ref})` : `[${file.name}](${ref})`;
+  const name = safeAttachmentName(file.name);
+  const ref = `attachments/${file.sha256}--${name}`;
+  const snippet = asImage ? `![${name}](${ref})` : `[${name}](${ref})`;
   const needsBreak = cursor > 0 && markdown[cursor - 1] !== "\n";
   const inserted = `${needsBreak ? "\n\n" : ""}${snippet}\n`;
   const next = markdown.slice(0, cursor) + inserted + markdown.slice(cursor);

@@ -17,19 +17,36 @@ export function attachmentUrl(sha256: string): string {
   return `/api/attachments/${sha256}`;
 }
 
-export async function uploadAttachment(file: File): Promise<{ sha256: string; name: string } | { error: string }> {
-  try {
-    const response = await fetch("/api/attachments", {
-      method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file, cache: "no-store",
-    });
-    const body: unknown = await response.json().catch(() => null);
-    const sha256 = (body as { sha256?: unknown } | null)?.sha256;
-    if (response.ok && typeof sha256 === "string") return { sha256, name: file.name };
-    const code = (body as { error?: unknown } | null)?.error;
-    return { error: typeof code === "string" ? code : `http_${response.status}` };
-  } catch {
-    return { error: "network" };
-  }
+/** 上传附件；`onProgress` 给出 0–100 的上传进度（fetch 没有上传进度，故走 XHR）。
+ *  只有请求体发完才会有进度事件，因此成功/失败都在 load 之后收尾。 */
+export function uploadAttachment(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ sha256: string; name: string } | { error: string }> {
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "/api/attachments");
+    request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    request.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || event.total === 0) return;
+      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+    request.onload = () => {
+      let body: unknown = null;
+      try { body = JSON.parse(request.responseText); } catch { body = null; }
+      const sha256 = (body as { sha256?: unknown } | null)?.sha256;
+      if (request.status >= 200 && request.status < 300 && typeof sha256 === "string") {
+        onProgress?.(100);
+        resolve({ sha256, name: file.name });
+        return;
+      }
+      const code = (body as { error?: unknown } | null)?.error;
+      resolve({ error: typeof code === "string" ? code : `http_${request.status}` });
+    };
+    request.onerror = () => resolve({ error: "network" });
+    request.onabort = () => resolve({ error: "aborted" });
+    request.send(file);
+  });
 }
 
 export async function listAttachments(userId: string): Promise<Attachment[]> {

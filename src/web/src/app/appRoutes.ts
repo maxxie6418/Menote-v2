@@ -13,7 +13,7 @@ export type AppRoute =
   | { kind: "memos"; itemId?: string }
   | { kind: "settings"; section: SettingsSection };
 
-const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "backup", "attachments", "recovery", "mcp", "clipTemplates"];
+const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "style", "backup", "attachments", "recovery", "mcp", "clipTemplates"];
 
 function decodeSegment(segment: string | undefined): string | null {
   if (!segment) return null;

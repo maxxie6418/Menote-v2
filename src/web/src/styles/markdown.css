@@ -20,3 +20,13 @@
 .markdown-content :is(th, td) { border: var(--md-table-border); padding: var(--md-table-padding); }
 .markdown-content th { background: var(--md-table-head-bg); }
 .markdown-content a { color: var(--md-link-color); }
+
+/* 加粗（FR-STYLE-2）：字号、字重、颜色、下划线全部走 token，设置·样式可改 */
+.markdown-content strong { color: var(--md-strong-color); font-size: var(--md-strong-size); font-weight: var(--md-strong-weight); text-decoration-line: var(--md-strong-rule); text-decoration-thickness: var(--md-heading-rule-width); text-decoration-color: var(--md-strong-color); text-underline-offset: var(--md-heading-rule-gap); }
+
+/* 标题装饰下划线：线比文字略长（末尾多出 --md-heading-rule-extra），与标题同体；
+   关闭时 border-style: none 让边框宽度归零、pad 也为 0，不影响原有排版节奏 */
+.markdown-content :is(h1, h2, h3) { width: fit-content; max-width: var(--app-full-size); padding-inline-end: var(--md-heading-rule-extra); }
+.markdown-content h1 { border-bottom-style: var(--md-h1-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h1-rule-pad); }
+.markdown-content h2 { border-bottom-style: var(--md-h2-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h2-rule-pad); }
+.markdown-content h3 { border-bottom-style: var(--md-h3-rule); border-bottom-width: var(--md-heading-rule-width); border-bottom-color: var(--md-heading-rule-color); padding-bottom: var(--md-h3-rule-pad); }

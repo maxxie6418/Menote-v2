@@ -93,6 +93,20 @@
 
 > 预览稿 `wiki/design.html` 为单文件方便，正文直接引用了 `--app-*`。实现时按本节改为 `--md-*`，取值不变。
 
+**FR-STYLE-2 已落地（2026-11-02，设置·样式）**：面板只写这批 `--md-*` 变量，外壳的 `--app-*` 一个都不动，因此正文样式改动不会回流到界面配色。除上表外，可编辑项还有：
+
+```css
+/* 加粗 */
+--md-strong-size: 1em;  --md-strong-weight: 600;  --md-strong-color: var(--app-fg);
+--md-strong-rule: none;                 /* none | underline */
+/* 标题装饰下划线：线比文字略长（末尾多出 extra），与标题同体 */
+--md-h1-rule: none;     --md-h1-rule-pad: 0;      /* h2 / h3 同构 */
+--md-heading-rule-width: 2px;  --md-heading-rule-color: var(--app-accent);
+--md-heading-rule-gap: 4px;    --md-heading-rule-extra: 12px;
+```
+
+> 偏好存在本机（`localStorage: menote.docStyle`，形如「变量名 → 值」的扁平表），`index.html` 引导脚本首屏直接 `setProperty`，因此刷新不会先闪一版默认样式。样式**不进 Markdown**，换设备需重新设置。
+
 ### 2.3 CSS 声明
 
 ```css
@@ -189,9 +203,10 @@
 ### 3.3 换行与截断
 
 - 清单标题、摘要、侧栏项：单行 `text-overflow: ellipsis`。清单用于定位，长标题截断是可接受的取舍。
-- 文档标题：允许两行，`line-height 1.32`，不截断。
+- 文档标题：不限行数，超长在版心内折行（`textarea` 自动增高），不截断。
 - 网格卡片摘要：3 行 clamp。
 - 表格：`table-layout: fixed` + 显式列宽（14% / 38% / 16% / 32%）。列宽不写死会出现 `BaseColor / Rough…`。
+- 表格网格：**每个单元格四边都要发丝线**（`--md-table-border`），表头单独底色，选中的单元格叠 `--app-accent-subtle`。编辑器里只画底边线时列边界看不出来，新插入的表格连"格子在哪"都要猜。
 
 ### 3.4 字体资产
 
@@ -512,7 +527,7 @@
 2. **FR-IA-4 的侧栏顺序**：回看类入口位于待整理类之前，并包含 Memo 时间线与标签入口；需求说明书已同步。
 3. **字体资产**：目前不引入 web 字体，跨平台字形不一致是已知代价。
 4. **四级灰阶只差半档**：达标前提下已到极限，若日后要求更弱的辅助色，必须同时调整字号或字重。
-5. **`--md-*` 与 `--app-*` 首版同源**：`--md-*` 的值目前等于外壳值，FR-STYLE-2 上线后它们会分叉，届时正文配色改动不得回流到外壳。
+5. **`--md-*` 与 `--app-*` 首版同源**：默认值仍等于外壳值；FR-STYLE-2（设置·样式）已可在运行时覆盖 `--md-*`，但这批覆盖只作用于正文渲染，**不得回流到外壳**。
 
 ---
 

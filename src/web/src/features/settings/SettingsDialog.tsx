@@ -7,11 +7,13 @@ import { getFontPreference, setFontPreference, type FontPreference } from "../..
 import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../../lib/measurePreference";
 import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
+import { StyleSection } from "./StyleSection";
 
-export type SettingsSection = "appearance" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
+export type SettingsSection = "appearance" | "style" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
+  { id: "style", label: "样式" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
@@ -54,6 +56,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
           </nav>
           <div className="mn-dlg-content">
             {section === "appearance" && <AppearanceSection />}
+            {section === "style" && <StyleSection />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
