@@ -1,6 +1,7 @@
-import type { Item, TopicNode } from "@menote/shared";
+import type { Item, MemoComment, TopicNode } from "@menote/shared";
 import { putItemWraps } from "../db/keyWraps";
 import { appendSyncLog, rowToItem, upsertItemRow, upsertTopicRow } from "../db/sync";
+import { readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoComment } from "../db/memoComments";
 
 /**
  * 恢复导入服务（FR-BAK-9 工具侧）：接受备份分片条目与包装块，按 id 合并（rev 高者胜）。
@@ -15,10 +16,12 @@ export interface ImportContext { db: D1Database; userId: string }
 /** 导入备份分片：条目逐条按 kind 解析（无法识别的条目跳过），包装块按条目覆盖写入。 */
 export async function importBackupEntries(
   ctx: ImportContext, entries: unknown[], itemKeyWraps: unknown[] | null, now: number,
-): Promise<{ items: number; topics: number }> {
+): Promise<{ items: number; topics: number; memoComments: number }> {
   let items = 0;
   let topics = 0;
-  for (const entry of entries.slice(0, MAX_IMPORT_ENTRIES)) {
+  let memoComments = 0;
+  const limited = entries.slice(0, MAX_IMPORT_ENTRIES);
+  for (const entry of limited) {
     const record = (entry as { kind?: unknown; data?: unknown });
     if (record?.kind === "item" && typeof record.data === "object" && record.data !== null) {
       const item = rowToItem(record.data as Record<string, unknown>) as Item;
@@ -32,6 +35,19 @@ export async function importBackupEntries(
       topics += 1;
     }
   }
+  for (const entry of limited) {
+    const record = entry as { kind?: unknown; data?: unknown };
+    if (record?.kind !== "memo_comment" || typeof record.data !== "object" || record.data === null) continue;
+    const comment = rowToMemoComment(record.data as Record<string, unknown>, ctx.userId) as MemoComment;
+    const owner = await readMemoOwnerState(ctx.db, ctx.userId, comment.memoId);
+    if (!owner || owner.type !== "memo") continue;
+    const current = await readMemoCommentState(ctx.db, ctx.userId, comment.id);
+    if (!current || comment.rev > current.rev) {
+      await upsertMemoComment(ctx.db, comment);
+      await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, comment.deletedAt === null ? "upsert" : "delete", comment.rev, 0, now);
+      memoComments += 1;
+    }
+  }
   if (itemKeyWraps) {
     for (const raw of itemKeyWraps as Array<Record<string, unknown>>) {
       const itemId = String(raw.item_id ?? "");
@@ -42,7 +58,7 @@ export async function importBackupEntries(
       }], now);
     }
   }
-  return { items, topics };
+  return { items, topics, memoComments };
 }
 
 /** 备份中的 topic 行（snake_case）→ 主题节点；归属一律取会话用户。 */

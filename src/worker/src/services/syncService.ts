@@ -1,12 +1,14 @@
 import type { Item, TopicNode } from "@menote/shared";
+import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
+import { readMemoCommentState, readMemoOwnerState, upsertMemoComment } from "../db/memoComments";
 import { putItemWraps, putTopicWraps, readItemWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
   appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
-  readTopics, recordSyncOperation, toTombstone, upsertItemRow, upsertTopicRow,
+  readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, toTombstone, upsertItemRow, upsertTopicRow,
 } from "../db/sync";
 
 /**
@@ -110,6 +112,36 @@ async function applyTopic(ctx: ApplyContext, operation: OutboxOperation): Promis
   return { operationId: operation.operationId, result: "applied", rev: 0, metaRev: 0 };
 }
 
+async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
+  const incoming = (operation.payload as { comment?: MemoComment } | null)?.comment;
+  if (!incoming || incoming.id !== operation.entityId || !incoming.memoId || typeof incoming.content !== "string") {
+    throw new SyncRejected("invalid_payload");
+  }
+  const owner = await readMemoOwnerState(ctx.db, ctx.userId, incoming.memoId);
+  if (!owner || owner.type !== "memo" || owner.deleted_at !== null) throw new SyncRejected("memo_unavailable");
+  const current = await readMemoCommentState(ctx.db, ctx.userId, incoming.id);
+  if (operation.action === "delete") {
+    if (!current) throw new SyncRejected("entity_missing");
+    if (current.deleted_at !== null) return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: 0, contentHash: null };
+    if (current.rev !== operation.baseRev) {
+      return { operationId: operation.operationId, result: "conflict", detail: { rev: current.rev, metaRev: 0, contentHash: null } };
+    }
+    const deletedAt = incoming.deletedAt ?? ctx.now;
+    await upsertMemoComment(ctx.db, { ...incoming, userId: ctx.userId, rev: current.rev + 1, updatedAt: deletedAt, deletedAt });
+    await appendSyncLog(ctx.db, ctx.userId, "memo_comment", incoming.id, "delete", current.rev + 1, 0, ctx.now);
+    await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", incoming.id, "applied", current.rev + 1, 0, null, ctx.now);
+    return { operationId: operation.operationId, result: "applied", rev: current.rev + 1, metaRev: 0 };
+  }
+  if (current && (current.rev > incoming.rev || (current.rev === incoming.rev && current.updated_at >= incoming.updatedAt))) {
+    return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: 0, contentHash: null };
+  }
+  const comment = { ...incoming, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
+  await upsertMemoComment(ctx.db, comment);
+  await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, "upsert", comment.rev, 0, ctx.now);
+  await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", comment.id, "applied", comment.rev, 0, null, ctx.now);
+  return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };
+}
+
 /** 逐操作应用入口；单操作任何确定失败不影响其余操作（G2 §3）。 */
 export async function applyOperation(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const previous = await readSyncOperation(ctx.db, ctx.userId, operation.operationId);
@@ -126,6 +158,7 @@ export async function applyOperation(ctx: ApplyContext, operation: OutboxOperati
     if (operation.entity === "topic") {
       return await applyTopic(ctx, operation);
     }
+    if (operation.entity === "memo_comment") return await applyMemoComment(ctx, operation);
     return { operationId: operation.operationId, result: "rejected", code: "unsupported_entity" };
   } catch (error) {
     if (error instanceof SyncRejected) {
@@ -171,20 +204,24 @@ export async function buildSyncPage(db: D1Database, userId: string, cursor: numb
     const wraps = await readItemWrapGroups(db, userId, encryptedIds);
     return {
       items, topics, tombstones: [], wraps, settings: await readSettings(db, userId),
+      memoComments: await readAllMemoComments(db, userId),
       nextCursor: String(oldestSeq - 1), hasMore: items.length === PULL_PAGE_LIMIT, fullResync: true,
     };
   }
 
-  const itemIds = page.entries.filter((entry) => entry.entity === "item" && entry.op === "upsert").map((entry) => entry.entityId);
+  // Soft-delete rows stay in the Trash; a hard purge has no row and is removed by its tombstone.
+  const itemIds = page.entries.filter((entry) => entry.entity === "item").map((entry) => entry.entityId);
   const topicIds = page.entries.filter((entry) => entry.entity === "topic").map((entry) => entry.entityId);
+  const memoCommentIds = page.entries.filter((entry) => entry.entity === "memo_comment" && entry.op === "upsert").map((entry) => entry.entityId);
   const items = await readItems(db, userId, itemIds);
   const topics = await readTopics(db, userId, topicIds);
+  const memoComments = await readMemoComments(db, userId, memoCommentIds);
   const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
   const wraps = await readItemWrapGroups(db, userId, encryptedIds);
   const tombstones = page.entries.filter((entry) => entry.op === "delete")
     .map((entry) => toTombstone(entry, userId, now));
   return {
-    items, topics, tombstones, wraps, settings: await readSettings(db, userId),
+    items, topics, memoComments, tombstones, wraps, settings: await readSettings(db, userId),
     nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(cursor),
     hasMore: page.hasMore, fullResync: false,
   };

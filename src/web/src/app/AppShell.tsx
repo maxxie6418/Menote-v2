@@ -441,7 +441,17 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         title={title}
         items={items}
         selectedNoteId={noteId}
-        onSelectNote={(id) => { setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined)); }}
+        onSelectNote={(id) => {
+          const selected = items?.find((item) => item.id === id);
+          if (selected?.type === "memo") {
+            setNoteReturn({ section, noteId: null });
+            setSection({ kind: "memos" });
+            setNoteId(null);
+            navigate({ kind: "memos", itemId: id });
+            return;
+          }
+          setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined));
+        }}
         onMoveNote={moveNote}
         onToggleStar={toggleNoteStar}
         onTrashNote={trashNote}

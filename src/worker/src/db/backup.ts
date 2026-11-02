@@ -111,6 +111,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   items: Record<string, unknown>[];
   topics: Record<string, unknown>[];
   itemKeyWraps: Record<string, unknown>[];
+  memoComments: Record<string, unknown>[];
   topicKeyWraps: Record<string, unknown>[];
   settings: Record<string, unknown>[];
   attachmentHashes: string[];
@@ -118,6 +119,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   const items = await db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const topics = await db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const itemKeyWraps = await db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
+  const memoComments = await db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const topicKeyWraps = await db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const settings = await db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const hashes = new Set<string>();
@@ -127,7 +129,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
     } catch { /* 忽略坏行。 */ }
   }
   return {
-    items: items.results, topics: topics.results, itemKeyWraps: itemKeyWraps.results,
+    items: items.results, topics: topics.results, memoComments: memoComments.results, itemKeyWraps: itemKeyWraps.results,
     topicKeyWraps: topicKeyWraps.results, settings: settings.results, attachmentHashes: [...hashes],
   };
 }

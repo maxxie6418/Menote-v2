@@ -1,4 +1,4 @@
-import type { Item } from "../types/item";
+import type { Item, MemoComment } from "../types/item";
 import type { TopicNode } from "../types/identity";
 import type { UserSetting } from "../types/settings";
 
@@ -18,12 +18,13 @@ export interface KeyWrap {
 export interface SyncTombstone {
   id: string;
   userId: string;
-  entity: "item" | "topic";
+  entity: "item" | "topic" | "memo_comment";
   deletedAt: number;
 }
 
 export interface SyncPage {
   items: Item[];
+  memoComments: MemoComment[];
   topics: TopicNode[];
   tombstones: SyncTombstone[];
   settings: UserSetting[];
@@ -34,7 +35,7 @@ export interface SyncPage {
   fullResync: boolean;
 }
 
-export type SyncEntity = "item" | "topic" | "setting";
+export type SyncEntity = "item" | "topic" | "setting" | "memo_comment";
 
 /** 客户端单次写操作；正文操作必带 contentHash 与 attachmentRefs（缺省 = 不动引用表）。 */
 export interface OutboxOperation {

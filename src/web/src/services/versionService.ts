@@ -109,9 +109,11 @@ export async function restoreFromTrash(userId: string, id: string): Promise<void
 
 /** 永久删除：本地行+包装块+版本一并清除；服务端硬删除走专用端点（墓碑已在软删时传播）。 */
 export async function purgeItemsPermanently(userId: string, ids: string[]): Promise<void> {
-  await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.wraps, localDb.versions, async () => {
+  await localDb.transaction("rw", localDb.items, localDb.memoComments, localDb.outbox, localDb.wraps, localDb.versions, async () => {
     for (const id of ids) {
       await localDb.items.delete(id);
+      const comments = await localDb.memoComments.where("memoId").equals(id).toArray();
+      await localDb.memoComments.bulkDelete(comments.map((comment) => comment.id));
       await localDb.wraps.delete(id);
       const versions = await localDb.versions.where("itemId").equals(id).toArray();
       await localDb.versions.bulkDelete(versions.map((row) => row.id!).filter(Boolean));

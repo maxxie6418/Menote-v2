@@ -38,7 +38,7 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
 
 /** 收集当前完整状态为备份 JSON（按月分片数据 + manifest 输入）。加密条目保持密文。 */
 export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer }> }> {
-  const { items, topics, itemKeyWraps, topicKeyWraps, settings, attachmentHashes } = await collectBackupRows(db, userId);
+  const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
   const monthOf = (timestamp: unknown): string => {
     const date = new Date(typeof timestamp === "number" ? timestamp : Number(timestamp ?? 0));
@@ -46,6 +46,9 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   };
   for (const item of items) {
     (months[monthOf(item.created_at)] ??= []).push({ kind: "item", data: item });
+  }
+  for (const comment of memoComments) {
+    (months[monthOf(comment.created_at)] ??= []).push({ kind: "memo_comment", data: comment });
   }
   for (const topic of topics) {
     (months[monthOf(topic.created_at ?? 0)] ??= []).push({ kind: "topic", data: topic });
@@ -60,7 +63,7 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
     version: 1,
     generatedAt: new Date().toISOString(),
     shards: Object.keys(months).sort().map((month) => ({ month, entities: months[month]!.length })),
-    counts: { items: items.length, topics: topics.length, attachments: attachments.length },
+    counts: { items: items.length, topics: topics.length, memoComments: memoComments.length, attachments: attachments.length },
     note: "加密条目为密文 + item_key_wraps 包装元数据；恢复需用户凭据（FR-BAK-5）",
   };
   return {

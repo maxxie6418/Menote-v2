@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Item, KeyWrap, TopicNode, UserSetting } from "@menote/shared";
+import type { Item, KeyWrap, MemoComment, TopicNode, UserSetting } from "@menote/shared";
 import type { SyncEntity } from "@menote/shared";
 
 /** 本地运行时权威副本（主文档 6.1：IndexedDB 权威 + D1 同步权威）。
@@ -52,6 +52,7 @@ export interface VersionRow {
 class MenoteLocalDb extends Dexie {
   topics!: Table<TopicNode, string>;
   items!: Table<Item, string>;
+  memoComments!: Table<MemoComment, string>;
   settings!: Table<UserSetting, [string, string]>;
   outbox!: Table<OutboxRow, number>;
   wraps!: Table<WrapRow, string>;
@@ -63,6 +64,16 @@ class MenoteLocalDb extends Dexie {
     this.version(1).stores({
       topics: "id, userId, parentId, [userId+deletedAt]",
       items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
+      settings: "[userId+key], userId",
+      outbox: "++seq, entityId, nextRetryAt",
+      wraps: "itemId",
+      versions: "++id, itemId, createdAt, userId",
+      meta: "key",
+    });
+    this.version(2).stores({
+      topics: "id, userId, parentId, [userId+deletedAt]",
+      items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
+      memoComments: "id, userId, memoId, [userId+memoId+createdAt], [userId+deletedAt]",
       settings: "[userId+key], userId",
       outbox: "++seq, entityId, nextRetryAt",
       wraps: "itemId",

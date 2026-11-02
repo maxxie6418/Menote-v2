@@ -1,7 +1,8 @@
-import type { Item, SyncOperationResult, TopicNode } from "@menote/shared";
+import type { Item, MemoComment, SyncOperationResult, TopicNode } from "@menote/shared";
 import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
+import { bulkPutMemoComments, deleteMemoComments } from "../db/memoCommentsRepo";
 import { deleteOutboxRows, listPendingOutbox, markOutboxError } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
@@ -134,9 +135,10 @@ async function drainOutbox(deviceId: string): Promise<void> {
   }
 }
 
-async function applyTombstone(entry: { entityId: string; entity: "item" | "topic" }): Promise<void> {
+async function applyTombstone(entry: { entityId: string; entity: "item" | "topic" | "memo_comment" }): Promise<void> {
   if (entry.entity === "item") await localDb.items.delete(entry.entityId);
-  else await localDb.topics.delete(entry.entityId);
+  else if (entry.entity === "topic") await localDb.topics.delete(entry.entityId);
+  else await deleteMemoComments([entry.entityId]);
 }
 
 /** 本地未上传（outbox 有行）的条目在全量重同步时保留（G2 §4）。 */
@@ -152,8 +154,8 @@ async function pullUpdates(userId: string): Promise<void> {
     if (!response.ok) throw new Error(`pull_${response.status}`);
     const body: unknown = await response.json();
     if (typeof body !== "object" || body === null) throw new Error("pull_shape");
-    const { items, topics, tombstones, nextCursor, hasMore, fullResync } = body as {
-      items?: Item[]; topics?: TopicNode[]; tombstones?: { id: string; entity: "item" | "topic" }[];
+    const { items, topics, memoComments, tombstones, nextCursor, hasMore, fullResync } = body as {
+      items?: Item[]; topics?: TopicNode[]; memoComments?: MemoComment[]; tombstones?: { id: string; entity: "item" | "topic" | "memo_comment" }[];
       nextCursor?: unknown; hasMore?: boolean; fullResync?: boolean;
     };
     // 包装块随页落库（G7：加密条目他端解锁的依据）。
@@ -166,12 +168,15 @@ async function pullUpdates(userId: string): Promise<void> {
       await localDb.items.bulkDelete(allItems.filter((row) => !keep.has(row.id)).map((row) => row.id));
       const allTopics = await localDb.topics.toArray();
       await localDb.topics.bulkDelete(allTopics.filter((row) => !keep.has(row.id)).map((row) => row.id));
+      const allComments = await localDb.memoComments.toArray();
+      await deleteMemoComments(allComments.filter((row) => !keep.has(row.id)).map((row) => row.id));
     }
     // 落库顺序：先墓碑、再条目/主题（G2 §4）。
     for (const tombstone of tombstones ?? []) {
       await applyTombstone({ entityId: tombstone.id, entity: tombstone.entity });
     }
     if (items && items.length > 0) await bulkPutItems(items);
+    if (memoComments && memoComments.length > 0) await bulkPutMemoComments(memoComments);
     for (const topic of topics ?? []) {
       await localDb.topics.put(topic);
     }

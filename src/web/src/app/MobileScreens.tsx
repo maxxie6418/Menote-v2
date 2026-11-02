@@ -35,7 +35,7 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   const { items, topics } = useHomeSnapshot(userId);
   const hidden = privateTopicIds(topics);
   const visible = items.filter((item) => !item.topicId || !hidden.has(item.topicId));
-  const favorites = visible.filter((item) => item.starred && item.type !== "memo").sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
+  const favorites = visible.filter((item) => item.starred).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
   const recent = [...visible].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12);
   const inbox = visible.filter((item) => item.type !== "memo" && item.topicId === null && item.source !== "manual").length;
   const drafts = visible.filter((item) => item.type !== "memo" && item.topicId === null && item.source === "manual").length;

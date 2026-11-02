@@ -89,7 +89,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `editor` | 编辑器宿主与适配器（见 3.2） | FR-EDT |
 | `props` | 内联属性区与类型控件 | FR-PROP |
 | `table` | 表格结构化编辑与字段类型 | FR-TBL |
-| `memo` | 时间线、快速输入、todo 侧板 | FR-MEMO |
+| `memo` | 时间线、快速输入、互动卡片/讨论窗口、引述撰写、todo 侧板 | FR-MEMO |
 | `encryption` | 解锁/锁定/恢复码/加密门面 | FR-ENC |
 | `sync` | 同步引擎与状态指示 | FR-SYNC |
 | `versions` | 版本历史、回收站 | FR-VER |
@@ -126,7 +126,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
 **table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑；字段创建浮层锚定添加入口，TP2）。
-**memo/**：`Timeline`、`MemoCard`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。
+**memo/**：`Timeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoDetailDialog`（评论列表与编辑）、`MemoQuoteDialog`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：`SearchPalette`（本地检索）。
@@ -156,7 +156,8 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 | --- | --- | --- |
 | User | id、username、role(owner/member)、createdAt | FR-USR |
 | TopicNode | id、userId、parentId、name、depth(0 主题/1 分组)、isEncSpace | FR-IA |
-| Item | id、userId、type(note/table/memo)、topicId、groupId?、title、content(md)、tags[]、status?、source、rev、metaRev、contentHash、pinned、starred、encSelf、inEncSpace、createdAt/updatedAt/deletedAt | 5.1/5.2 |
+| Item | id、userId、type(note/table/memo)、topicId、groupId?、title、content(md)、tags[]、status?、source、memoQuote?(sourceMemoId + frozenSnapshot)、rev、metaRev、contentHash、pinned、starred、encSelf、inEncSpace、createdAt/updatedAt/deletedAt | 5.1/5.2、FR-MEMO-8 |
+| MemoComment | id、userId、memoId、content(md)、rev、createdAt、updatedAt、deletedAt | FR-MEMO-7；只直接归属 Memo，不含 parentId；Memo 回收站时保留并隐藏，Memo 永久清除时级联清理 |
 | Attachment | sha256、userId、size、mime、refCount | FR-SYNC-7/8 |
 | ItemVersion | itemId、snapshot、codec、reason、createdAt | FR-VER |
 | McpToken | id、userId、tokenPrefix、perms（含可选内容读取/创建/编辑/回收站/附件权限）、scope、includeMemos、allowUrl、ratePerMin、expiresAt、revokedAt、lastUsedAt、**tokenEnc（可逆存储）** | FR-MCP-2/10 |

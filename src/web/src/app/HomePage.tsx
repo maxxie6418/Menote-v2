@@ -48,7 +48,7 @@ export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos
   const notes = snapshot.items.filter((item) => item.type !== "memo");
   const inboxCount = notes.filter((item) => item.topicId === null && item.source !== "manual").length;
   const draftCount = notes.filter((item) => item.topicId === null && item.source === "manual").length;
-  const starredCount = notes.filter((item) => item.starred).length;
+  const starredCount = snapshot.items.filter((item) => item.starred).length;
   const todoCount = snapshot.items.filter((item) => item.type === "memo" && (item.status === "todo" || item.status === "doing")).length;
   const topics = snapshot.topics.filter((topic) => !topic.isEncSpace && topic.parentId === null);
   const privateRootIds = new Set(snapshot.topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));

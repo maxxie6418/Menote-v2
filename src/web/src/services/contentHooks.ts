@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import type { Item, TopicNode } from "@menote/shared";
+import type { Item, MemoComment, TopicNode } from "@menote/shared";
 import { listItemsInSubtree, listMemos, listRecentItems, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
+import { listMemoComments } from "../db/memoCommentsRepo";
 import { listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { countPendingOutbox } from "../db/outboxRepo";
@@ -68,6 +69,10 @@ export function useMemos(userId: string): Item[] {
   return useData(() => (userId ? listMemos(userId) : undefined), [userId], Boolean(userId)) ?? [];
 }
 
+export function useMemoComments(userId: string, memoId: string): MemoComment[] {
+  return useData(() => (userId && memoId ? listMemoComments(userId, memoId) : undefined), [userId, memoId], Boolean(userId && memoId)) ?? [];
+}
+
 export function useItem(userId: string, id: string | null): Item | undefined {
   return useData(() => (userId && id ? getItem(userId, id) : undefined), [userId, id], Boolean(userId && id));
 }
@@ -109,7 +114,7 @@ export function useStarredItems(userId: string): Item[] {
     if (!userId) return [];
     const { localDb } = await import("../db/localDb");
     const rows = await localDb.items.where("userId").equals(userId)
-      .filter((row) => row.deletedAt === null && row.type !== "memo" && row.starred).toArray();
+      .filter((row) => row.deletedAt === null && row.starred).toArray();
     rows.sort((a, b) => b.updatedAt - a.updatedAt);
     return rows;
   }, [userId], Boolean(userId)) ?? [];

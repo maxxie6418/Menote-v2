@@ -23,11 +23,30 @@ interface ItemFields {
   deletedAt: number | null;
 }
 
+/** Immutable source snapshot attached to a quote Memo (FR-MEMO-8). */
+export interface MemoQuote {
+  sourceMemoId: string;
+  sourceCreatedAt: number;
+  snapshot: string;
+}
+
 /** Memos cannot be encrypted or live in the private space (FR-ENC-1). */
 export type Item = ItemFields & (
-  | { type: "memo"; title: string | null; content: Extract<StoredContent, { scope: "plain" }> }
+  | { type: "memo"; title: string | null; content: Extract<StoredContent, { scope: "plain" }>; memoQuote?: MemoQuote }
   | { type: "note" | "table"; title: string; content: StoredContent }
 );
+
+/** Flat, directly attached follow-up post under a Memo; replies are intentionally unsupported. */
+export interface MemoComment {
+  id: string;
+  userId: string;
+  memoId: string;
+  content: string;
+  rev: number;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null;
+}
 
 export interface Attachment {
   userId: string;

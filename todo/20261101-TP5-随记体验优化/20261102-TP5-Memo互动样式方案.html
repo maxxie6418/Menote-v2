@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote V2 · Memo 评论 / 收藏 / 引述 · 样式方案</title>
+<style>
+
+  /* ============================================================
+     Menote V2 · Memo 互动样式方案
+     依据：todo/20261101-TP5-随记体验优化/20261102-TP5-Memo评论收藏与引述需求设计.md
+     令牌与视觉语言与 design.html 完全一致（DESIGN §2.4）。
+     ============================================================ */
+  :root{
+    --canvas:#F7F7F5;
+    --app-surface:#FFFFFF;
+    --app-surface-sunken:#F4F4F2;
+    --app-border:#E6E6E3;
+    --app-border-subtle:#F0F0ED;
+    --app-fg:#1A1A18;
+    --app-fg-muted:#4E504D;
+    --app-fg-subtle:#6C6F6B;
+    --app-fg-faint:#74776F;
+    --app-accent:#F6821F;
+    --app-accent-fg:#B4530F;
+    --app-accent-subtle:#FEF2E7;
+    --app-link:#0051C3;
+    --app-font-serif:ui-serif,Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+    --app-font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",Roboto,sans-serif;
+    --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+    --app-radius-sm:10px;--app-radius:14px;--app-radius-lg:16px;--app-radius-xl:20px;
+    --sh-1:0 1px 2px rgba(26,26,24,.05);
+    --sh-2:0 4px 16px rgba(26,26,24,.07);
+    --sh-3:0 18px 44px rgba(26,26,24,.12);
+    --dur:160ms;--ease:cubic-bezier(.2,.6,.3,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font-ui);line-height:1.62;-webkit-font-smoothing:antialiased;letter-spacing:0}
+  h1{margin:0;font-weight:500}
+  svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- 设计稿页面（仅用于展示） ---------- */
+  .board{max-width:1312px;margin:0 auto;padding:0 34px 110px}
+  .board-head{padding:64px 0 34px;max-width:1312px;margin:0 auto}
+  .board-head .kicker{
+    display:flex;align-items:center;gap:10px;margin-bottom:18px;
+    font-family:var(--app-font-mono);font-size:11px;letter-spacing:.06em;color:var(--app-fg-faint);
+  }
+  .board-head .kicker::before{content:"";width:18px;height:2px;border-radius:2px;background:var(--app-accent)}
+  .board-head h1{font-family:var(--app-font-serif);font-size:42px;line-height:1.2;margin:0 0 14px;letter-spacing:.01em}
+  .board-head p{font-size:14px;color:var(--app-fg-muted);margin:0 0 10px;max-width:780px;line-height:1.85}
+  .board-head a{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
+  .board-head a:hover{border-bottom-color:var(--app-link)}
+
+  .screen{margin-top:58px;scroll-margin-top:24px}
+  .screen-head{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+  .screen-head .n{
+    font-family:var(--app-font-mono);font-size:11px;color:var(--app-accent-fg);
+    background:var(--app-accent-subtle);border-radius:7px;padding:3px 8px;flex:none;
+  }
+  .screen-head h2{font-family:var(--app-font-serif);font-weight:500;font-size:23px;margin:0;letter-spacing:.01em}
+  .screen-head .desc{font-size:12.5px;color:var(--app-fg-faint)}
+
+  .frame{
+    border:1px solid var(--app-border);border-radius:var(--app-radius-lg);overflow:hidden;
+    margin-left:42px;background:var(--app-surface);box-shadow:var(--sh-2);
+  }
+  @media(max-width:680px){.frame{margin-left:0}}
+
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:12px 32px;margin:16px 0 0 42px;font-size:12.5px;line-height:1.8;color:var(--app-fg-subtle)}
+  .notes b{color:var(--app-fg);font-weight:600}
+  .notes b::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--app-accent);margin-right:7px;vertical-align:middle;opacity:.75}
+  @media(max-width:680px){.notes{grid-template-columns:1fr;margin-left:0}}
+
+  .tbl{margin:22px 0 0 42px}
+  @media(max-width:680px){.tbl{margin-left:0}}
+  table.cmp{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.cmp th,table.cmp td{text-align:left;padding:10px 16px 10px 0;border-bottom:1px solid var(--app-border-subtle);vertical-align:top;line-height:1.68}
+  table.cmp thead th{font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--app-fg-faint);font-weight:400;border-bottom:1px solid var(--app-border)}
+  table.cmp tbody tr:hover{background:rgba(246,130,31,.03)}
+  table.cmp tbody td:first-child{color:var(--app-accent-fg);font-family:var(--app-font-mono);font-size:11px;width:16%}
+  table.cmp tbody td:nth-child(2){width:26%;color:var(--app-fg);font-weight:500}
+  table.cmp tbody td:last-child{color:var(--app-fg-muted)}
+  td .mono{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-subtle)}
+
+  .callout{
+    margin:22px 0 0 42px;padding:15px 18px;background:var(--app-accent-subtle);border-radius:var(--app-radius);
+    font-size:13px;line-height:1.82;color:var(--app-fg-muted);
+  }
+  .callout b{color:var(--app-accent-fg)}
+  @media(max-width:680px){.callout{margin-left:0}}
+
+  /* ============================================================
+     01 单条记录卡片（组件规格画布）
+     ============================================================ */
+  .spec-canvas{padding:26px 28px;background:var(--app-surface-sunken);display:flex;flex-direction:column;gap:18px}
+  .spec-row{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .spec-cell{flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:9px}
+  .spec-cap{font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--app-fg-faint)}
+  .spec-cap b{color:var(--app-accent-fg);font-weight:400}
+
+  /* ---------- Memo 卡片（时间轴块）· 紧凑密度 ---------- */
+  .tl-b{
+    padding:13px 16px 11px;border:1px solid var(--app-border-subtle);border-radius:var(--app-radius);
+    background:var(--app-surface);
+    transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+  }
+  .tl-b p{margin:0;font-size:14px;line-height:1.7;color:var(--app-fg-muted)}
+  .tl-b p b{color:var(--app-fg);font-weight:600}
+  .tl-b code{font-family:var(--app-font-mono);font-size:12px;background:var(--app-surface-sunken);border-radius:5px;padding:2px 5px;color:var(--app-fg-muted)}
+  .tl-b:hover{border-color:var(--app-border);box-shadow:var(--sh-1)}
+  .m-tagrow{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .m-tag{display:inline-flex;align-items:center;height:20px;padding:0 9px;border-radius:999px;background:var(--app-surface-sunken);color:var(--app-fg-subtle);font-size:11px}
+  .st{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 9px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);font-size:11px;margin-top:8px}
+  .st i{width:5px;height:5px;border-radius:50%;background:var(--app-accent)}
+  .m-meta{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint);margin-bottom:8px}
+
+  /* ---------- 互动栏：评论 / 收藏 / 引述 ---------- */
+  .m-act{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .a{
+    display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;margin:0 -8px;
+    border:0;background:none;border-radius:8px;cursor:pointer;
+    color:var(--app-fg-faint);font-family:var(--app-font-mono);font-size:11px;
+    transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  }
+  .a svg{width:14px;height:14px;flex:none}
+  .a:hover{background:var(--app-hover);color:var(--app-fg-muted)}
+  .a.on{color:var(--app-accent-fg)}
+  .a.on svg{fill:var(--app-accent);stroke:var(--app-accent)}
+  .a.on:hover{background:var(--app-accent-subtle);color:var(--app-accent-fg)}
+  .a .cnt{font-variant-numeric:tabular-nums}
+
+  /* ---------- Memo 评论列表 ---------- */
+  .m-thread{margin-top:10px;padding-left:14px;border-left:1.5px solid var(--app-border-subtle)}
+  .cmt{position:relative;padding:5px 0}
+  .cmt + .cmt{border-top:1px solid transparent}
+  .cmt-hd{display:flex;align-items:baseline;gap:8px}
+  .cmt-t{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .cmt-x{margin-top:1px;font-size:12.5px;line-height:1.65;color:var(--app-fg-muted)}
+  .cmt-act{
+    margin-top:1px;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 6px;margin-left:-6px;
+    border:0;background:none;border-radius:7px;cursor:pointer;
+    color:var(--app-fg-faint);font-family:var(--app-font-mono);font-size:10.5px;
+    transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  }
+  .cmt-act svg{width:12px;height:12px}
+  .cmt-act:hover{background:var(--app-hover);color:var(--app-fg-muted)}
+  .cmt-act:hover svg,.cmt-act:hover span{color:var(--app-fg-muted)}
+  .cmt-re{margin-left:16px;padding-left:12px;border-left:1.5px solid var(--app-border-subtle)}
+  .cmt-gone .cmt-x{color:var(--app-fg-faint);font-style:italic}
+
+  .m-more{
+    display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px;margin:6px 0 0 -8px;
+    border:0;background:none;border-radius:8px;cursor:pointer;
+    color:var(--app-accent-fg);font-family:var(--app-font-mono);font-size:11px;
+    transition:background var(--dur) var(--ease);
+  }
+  .m-more svg{width:12px;height:12px}
+  .m-more:hover{background:var(--app-accent-subtle)}
+
+  /* ---------- 评论撰写输入行 ---------- */
+  .cmt-in{display:flex;align-items:center;gap:9px;margin-top:10px;padding:8px 9px 8px 12px;background:var(--app-surface-sunken);border-radius:12px}
+  .cmt-in .ph{flex:1;color:var(--app-fg-faint);font-size:12.5px}
+  .cmt-in .txt{flex:1;color:var(--app-fg);font-size:12.5px}
+  .send{
+    width:26px;height:26px;border-radius:999px;border:0;flex:none;cursor:pointer;
+    display:grid;place-items:center;background:var(--app-border);color:var(--app-fg-faint);
+    transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  }
+  .send svg{width:12px;height:12px}
+  .send.ready{background:var(--app-accent);color:#241505}
+
+  /* ---------- 引述快照盒 ---------- */
+  .qt-box{margin-top:9px;padding:9px 12px 10px;background:var(--app-surface-sunken);border-radius:12px}
+  .qt-hd{display:flex;align-items:center;gap:8px;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .qt-hd svg{width:12px;height:12px;flex:none}
+  .qt-hd .go{margin-left:auto;display:inline-flex;align-items:center;gap:4px;color:var(--app-link);opacity:0;transition:opacity var(--dur) var(--ease)}
+  .qt-hd .go svg{width:11px;height:11px}
+  .tl-b:hover .qt-hd .go,.qt-box:hover .qt-hd .go{opacity:1}
+  .qt-x{margin-top:5px;font-size:12.5px;line-height:1.7;color:var(--app-fg-subtle)}
+  .qt-x.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .qt-gone .qt-x{color:var(--app-fg-faint);font-style:italic}
+
+  /* ============================================================
+     02/03 单独记录窗口（对话框）
+     ============================================================ */
+  .scrim{
+    position:relative;padding:56px 24px;display:flex;justify-content:center;align-items:flex-start;
+    background:rgba(26,26,24,.30);
+  }
+  .win{
+    width:680px;max-width:100%;background:var(--app-surface);border-radius:var(--app-radius-xl);
+    box-shadow:var(--sh-3);overflow:hidden;
+  }
+  .win-hd{
+    height:52px;display:flex;align-items:center;gap:12px;padding:0 22px;
+    border-bottom:1px solid var(--app-border-subtle);flex:none;
+  }
+  .win-hd .t{font-family:var(--app-font-mono);font-size:11px;letter-spacing:.05em;color:var(--app-fg-muted)}
+  .win-hd .x{
+    margin-left:auto;width:28px;height:28px;border:0;background:none;border-radius:8px;cursor:pointer;
+    display:grid;place-items:center;color:var(--app-fg-faint);
+    transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  }
+  .win-hd .x svg{width:13px;height:13px}
+  .win-hd .x:hover{background:var(--app-hover);color:var(--app-fg)}
+  .win-bd{padding:20px 22px 18px;max-height:560px;overflow-y:auto}
+  .win-bd .tl-b{border:0;padding:0;border-radius:0}
+  .win-bd .tl-b:hover{box-shadow:none}
+  .win-sub{
+    display:flex;align-items:center;gap:8px;margin:18px 0 4px;
+    font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--app-fg-faint);
+  }
+  .win-sub::after{content:"";flex:1;height:1px;background:var(--app-border-subtle)}
+  .win-ft{padding:12px 22px 18px;border-top:1px solid var(--app-border-subtle);background:var(--app-surface)}
+  .win-ft .cmt-in{margin-top:0}
+
+  .q-compose{padding:4px 0 0}
+  .q-compose .inp-x{
+    width:100%;min-height:76px;border:0;outline:none;resize:none;background:none;
+    font-family:var(--app-font-ui);font-size:14px;line-height:1.75;color:var(--app-fg);
+  }
+  .q-compose .inp-x::placeholder{color:var(--app-fg-faint)}
+  .q-ft{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .q-ft .hint{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .q-ft .btn-p{
+    margin-left:auto;height:32px;padding:0 17px;border:0;border-radius:var(--app-radius-sm);cursor:pointer;
+    background:var(--app-accent);color:#241505;font-family:var(--app-font-ui);font-size:12.5px;font-weight:600;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.26);
+    transition:background var(--dur) var(--ease);
+  }
+  .q-ft .btn-p:hover{background:#E5760F}
+
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:1180px){.duo{grid-template-columns:1fr}}
+  .duo .frame{margin-left:0;display:flex;flex-direction:column}
+  .duo .frame > .scrim,.duo .frame > .spec-canvas{flex:1}
+  .duo-cap{
+    display:flex;align-items:baseline;gap:9px;margin:0 0 10px 42px;
+    font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--app-fg-faint);
+  }
+  .duo-cap b{color:var(--app-accent-fg);font-weight:400}
+  @media(max-width:680px){.duo-cap{margin-left:0}}
+
+  /* ============================================================
+     04 整个 Memo 页面组合（应用壳）
+     ============================================================ */
+  .shell{min-width:1120px}
+  .app{
+    display:grid;grid-template-columns:248px minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr);
+    height:792px;background:var(--app-surface);color:var(--app-fg);
+    font-family:var(--app-font-ui);font-size:13px;overflow:hidden;position:relative;
+    --app-surface:#FFFFFF;--app-bg-side:#F1F1EE;--app-surface-sunken:#F4F4F2;--app-selected:#FEF6EE;--app-hover:#F6F6F4;
+  }
+
+  /* 侧栏（与 design.html A 区一致） */
+  .sb{display:flex;flex-direction:column;padding:14px 12px 12px;background:var(--app-bg-side);border-right:1px solid var(--app-border);min-width:0}
+  .sb-top{display:flex;align-items:center;justify-content:space-between;padding:0 10px;margin-bottom:10px}
+  .brand{font-family:var(--app-font-serif);font-size:19px;font-weight:500;line-height:1.2;letter-spacing:.01em}
+  .sb-top .ic{
+    border:0;background:none;color:var(--app-fg-subtle);cursor:pointer;padding:5px;display:grid;place-items:center;
+    border-radius:8px;
+  }
+  .sb-top .ic svg{width:15px;height:15px}
+  .search-row{
+    display:flex;align-items:center;gap:9px;height:33px;padding:0 10px;margin-bottom:8px;
+    border-radius:var(--app-radius-sm);color:var(--app-fg-subtle);font-size:13px;cursor:pointer;
+  }
+  .search-row:hover{background:var(--app-hover);color:var(--app-fg)}
+  .search-row svg{width:14px;height:14px;color:var(--app-fg-faint);flex:none}
+  .search-row .kbd{margin-left:auto;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .formseg{display:flex;gap:22px;height:30px;flex:none;margin:2px 10px 12px;padding:0}
+  .formseg a{
+    position:relative;display:grid;place-items:center;height:30px;
+    font-size:13px;color:var(--app-fg-subtle);text-decoration:none;white-space:nowrap;
+  }
+  .formseg a:hover{color:var(--app-fg)}
+  .formseg a.on{color:var(--app-fg);font-weight:600}
+  .formseg a.on::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2.5px;border-radius:3px;background:var(--app-accent)}
+  .memo{
+    display:flex;align-items:center;gap:9px;padding:8px 10px;margin:0 0 10px;
+    border:1px dashed var(--app-border);border-radius:var(--app-radius-sm);
+    color:var(--app-fg-faint);font-size:13px;cursor:pointer;
+  }
+  .memo .dot-mark{width:6px;height:6px;border-radius:50%;background:var(--app-accent);flex:none}
+  .memo .kbd{margin-left:auto;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint);flex:none}
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;height:34px;margin-bottom:12px;
+    border:0;border-radius:var(--app-radius-sm);background:var(--app-accent);color:#241505;
+    font-family:var(--app-font-ui);font-size:13px;font-weight:600;cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.26);
+  }
+  .btn svg{width:14px;height:14px}
+  .nav{display:flex;flex-direction:column;gap:1px;margin-bottom:4px}
+  .nav a,.queue a{
+    display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:9px;
+    color:var(--app-fg-muted);font-size:13px;text-decoration:none;
+  }
+  .nav a:hover,.queue a:hover{background:var(--app-hover);color:var(--app-fg)}
+  .nav a svg,.queue a svg{width:14px;height:14px;color:var(--app-fg-faint);flex:none}
+  .nav .cnt{margin-left:auto;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .sec-label{display:flex;align-items:center;gap:6px;margin:12px 0 5px;padding:0 10px}
+  .sec-label .lb{font-family:var(--app-font-mono);font-size:10px;letter-spacing:.08em;color:var(--app-fg-faint);text-transform:uppercase}
+  .sec-label .mini{margin-left:auto;border:0;background:none;color:var(--app-fg-faint);cursor:pointer;padding:3px;display:grid;place-items:center;border-radius:6px}
+  .sec-label .mini svg{width:12px;height:12px}
+  .queue{display:flex;flex-direction:column;gap:1px}
+  .queue .q{margin-left:auto;font-family:var(--app-font-mono);font-size:10px;height:16px;min-width:16px;padding:0 5px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);display:grid;place-items:center}
+  .queue .q.quiet{background:var(--app-surface-sunken);color:var(--app-fg-faint)}
+  .tree{display:flex;flex-direction:column;gap:1px}
+  .tree a{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:9px;color:var(--app-fg-muted);font-size:13px;text-decoration:none}
+  .tree a:hover{background:var(--app-hover);color:var(--app-fg)}
+  .tree a svg{width:13px;height:13px;color:var(--app-fg-faint);flex:none}
+  .tree a.l2{padding-left:27px}
+  .tree a.on{background:var(--app-selected);color:var(--app-fg);font-weight:600}
+  .tree .lock{margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;padding:0 8px}
+  .tag-chip{
+    display:inline-flex;align-items:center;gap:4px;height:23px;padding:0 9px;border-radius:999px;
+    background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:11.5px;text-decoration:none;
+  }
+  .tag-chip .hash{color:var(--app-fg-faint)}
+  .tag-chip .n{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .tag-chip.more{background:none;color:var(--app-fg-faint)}
+  .sb-foot{margin-top:auto;display:flex;align-items:center;gap:8px;padding:10px 10px 0;border-top:1px solid var(--app-border-subtle);font-size:12px;color:var(--app-fg-subtle)}
+  .sb-foot .ava{width:22px;height:22px;border-radius:999px;background:var(--app-accent-subtle);color:var(--app-accent-fg);display:grid;place-items:center;font-family:var(--app-font-mono);font-size:10.5px;font-weight:600}
+  .sb-foot .ver{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .sb-foot .sync{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .sb-foot .sync .ok{width:5px;height:5px;border-radius:50%;background:#5B8C5A}
+
+  /* 工作栏（D1） */
+  .mside{
+    position:absolute;left:268px;top:60px;bottom:16px;width:220px;z-index:2;
+    display:flex;flex-direction:column;
+    padding:14px 10px 8px;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);
+    background:var(--app-surface);box-shadow:var(--sh-2);
+    overflow-y:auto;
+  }
+  .subblk{display:flex;flex-direction:column;gap:8px;padding-bottom:16px}
+  .subblk + .subblk{padding-top:16px;border-top:1px solid var(--app-border-subtle)}
+  .subblk-t{display:flex;align-items:center;gap:5px;margin:0 0 6px;padding:0 8px;color:var(--app-fg-subtle);font-size:11.5px;font-weight:500}
+  .stat3{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    overflow:hidden;border:1px solid var(--app-border);border-radius:12px;background:var(--app-surface);
+  }
+  .stat3-c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:10px 6px}
+  .stat3-c + .stat3-c{border-left:1px solid var(--app-border)}
+  .stat3-n{color:var(--app-fg);font-size:17px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+  .stat3-l{max-width:100%;overflow:hidden;color:var(--app-fg-subtle);font-size:11px;white-space:nowrap;text-overflow:ellipsis}
+  .heat-sum{margin:0 0 8px;padding:0 8px;color:var(--app-fg-subtle);font-size:11.5px}
+  .heat{
+    display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);
+    grid-template-columns:repeat(12,1fr);gap:2.5px;aspect-ratio:12/6;padding:0 8px;
+  }
+  .hm{border-radius:3px;background:var(--app-border)}
+  .hm-1{background:color-mix(in srgb,var(--app-accent) 22%,var(--app-surface))}
+  .hm-2{background:color-mix(in srgb,var(--app-accent) 45%,var(--app-surface))}
+  .hm-3{background:color-mix(in srgb,var(--app-accent) 70%,var(--app-surface))}
+  .hm-4{background:var(--app-accent)}
+  .heat-lg{display:flex;align-items:center;gap:5px;margin-top:8px;padding:0 8px;font-size:10.5px;color:var(--app-fg-faint)}
+  .heat-lg i{width:10px;height:10px;border-radius:3px;display:block}
+  .subact{
+    display:flex;align-items:center;gap:9px;width:100%;padding:12px 11px;
+    border:1px solid var(--app-border);border-radius:12px;background:var(--app-surface);
+    color:var(--app-fg);font-size:13.5px;font-weight:600;cursor:pointer;
+  }
+  .subact svg{width:14px;height:14px;color:var(--app-fg-subtle);flex:none}
+  .subact .go{margin-left:auto;color:var(--app-accent-fg)}
+  .otd{
+    display:flex;flex-direction:column;gap:5px;width:100%;padding:10px;
+    border:1px solid var(--app-border);border-radius:12px;background:var(--app-surface);text-align:left;cursor:pointer;
+  }
+  .otd-hd{display:flex;align-items:baseline;gap:8px}
+  .otd-d{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .otd-n{margin-left:auto;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .otd-x{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;line-height:1.6;color:var(--app-fg-muted)}
+  .seg-full{display:flex;padding:2.5px;gap:2px;background:var(--app-surface-sunken);border-radius:10px;height:28px}
+  .seg-full span{flex:1;display:grid;place-items:center;font-size:11px;color:var(--app-fg-subtle);border-radius:7px;white-space:nowrap}
+  .seg-full span[aria-selected="true"]{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:var(--sh-1)}
+  .sublist{display:flex;flex-direction:column;gap:1px}
+  .subitem{
+    position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;
+    border:0;border-radius:10px;background:none;color:var(--app-fg-muted);font-size:13px;text-align:left;cursor:pointer;
+  }
+  .subitem:hover{background:var(--app-hover);color:var(--app-fg)}
+  .subitem[aria-pressed="true"]{background:var(--app-accent-subtle);color:var(--app-accent-fg);font-weight:600}
+  .subitem[aria-pressed="true"]::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--app-accent)}
+  .subitem .n{margin-left:auto;color:var(--app-fg-faint);font-size:11px;font-variant-numeric:tabular-nums}
+
+  /* Memo 主区 */
+  .memo-main{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--app-border)}
+  .memo-bar{height:56px;display:flex;align-items:center;justify-content:flex-start;gap:14px;padding:0 28px;border-bottom:1px solid var(--app-border);flex:none}
+  .bar-l{display:flex;align-items:center;gap:10px;min-width:0}
+  .back{
+    display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;margin-left:-10px;
+    border:0;background:none;border-radius:8px;color:var(--app-fg-muted);font-family:var(--app-font-ui);font-size:12.5px;cursor:pointer;text-decoration:none;
+  }
+  .back:hover{background:var(--app-hover);color:var(--app-fg)}
+  .back svg{width:13px;height:13px;color:var(--app-fg-faint);flex:none}
+  .vdiv{width:1px;height:16px;background:var(--app-border);flex:none}
+  .memo-bar .t{font-family:var(--app-font-mono);font-size:12px;color:var(--app-fg-muted);letter-spacing:.05em}
+  .memo-bar .r{display:flex;align-items:center;gap:10px;margin-left:auto;font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-faint)}
+  .view-seg{display:flex;padding:2.5px;gap:2px;background:var(--app-surface-sunken);border-radius:9px;height:30px;flex:none}
+  .view-seg span{display:grid;place-items:center;padding:0 13px;border-radius:7px;font-size:12px;color:var(--app-fg-subtle);white-space:nowrap}
+  .view-seg span[aria-selected="true"]{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:var(--sh-1)}
+  .memo-list{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding-bottom:10px}
+  .mgroup{font-size:11.5px;color:var(--app-fg-faint);padding:24px 28px 12px 0;display:flex;align-items:center;gap:10px}
+  .mgroup::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--app-border);flex:none}
+
+  /* 时间轴 · 加重轴线与节点 */
+  .tl{position:relative;padding:10px 232px 22px 262px}
+  .tl::before{
+    content:"";position:absolute;left:307px;top:16px;bottom:24px;width:2.5px;border-radius:2px;
+    background:linear-gradient(180deg,transparent 0,var(--app-fg-subtle) 26px,var(--app-fg-subtle) calc(100% - 26px),transparent 100%);
+    opacity:.5;
+  }
+  .tl-item{position:relative;display:grid;grid-template-columns:56px minmax(0,1fr);gap:14px;align-items:start}
+  .tl-item::before{
+    content:"";position:absolute;left:42px;top:21px;width:8px;height:8px;border-radius:50%;
+    background:var(--app-fg-subtle);box-shadow:0 0 0 3px var(--app-surface);
+  }
+  .tl-item.now::before{background:var(--app-accent);box-shadow:0 0 0 3px var(--app-surface),0 0 0 4.5px var(--app-accent-subtle)}
+  .tl-t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-faint);text-align:right;padding:15px 18px 0 0}
+  .tl-b{margin-bottom:12px}
+
+  /* Todo 浮层 */
+  .todo-float{
+    position:absolute;right:16px;top:60px;width:200px;
+    display:flex;flex-direction:column;padding:14px 10px 8px;
+    background:var(--app-surface);border:1px solid var(--app-border);border-radius:var(--app-radius-lg);
+    box-shadow:var(--sh-2);
+  }
+  .tf-head{display:flex;align-items:center;gap:7px;padding:0 8px 10px;margin-bottom:8px;border-bottom:1px solid var(--app-border-subtle)}
+  .tf-head .lb{font-size:11.5px;font-weight:500;color:var(--app-fg-subtle)}
+  .tf-head .n{margin-left:auto;font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .tf-head .fold{color:var(--app-fg-faint);display:flex}
+  .tf-head .fold svg{width:13px;height:13px}
+  .tf-group + .tf-group{margin-top:10px}
+  .tf-group .gh{display:flex;align-items:center;gap:7px;padding:0 8px 5px;font-size:11.5px;color:var(--app-fg-subtle)}
+  .tf-group .gh .n{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-faint)}
+  .tf-item{
+    display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:9px;font-size:12.5px;line-height:1.55;color:var(--app-fg-muted);
+  }
+  .tf-item:hover{background:var(--app-hover)}
+  .tf-item .ds{width:6px;height:6px;border-radius:50%;flex:none;margin-top:6px;background:var(--app-border)}
+  .tf-item.doing .ds{background:var(--app-accent)}
+  .tf-item.done{color:var(--app-fg-faint)}
+  .tf-item.done .ds{background:var(--app-border-subtle)}
+  .tf-item.done span.t{text-decoration:line-through;text-decoration-color:var(--app-border)}
+
+</style>
+</head>
+<body>
+
+<div class="board">
+  <header class="board-head">
+    <div class="kicker">TP5 · MEMO 互动 · 样式方案 · 2026-11-02</div>
+    <h1>Menote V2 · Memo 评论 / 收藏 / 引述</h1>
+    <p>依据 <a href="20261102-TP5-Memo评论收藏与引述需求设计.md">20261102-TP5-Memo评论收藏与引述需求设计</a>，为 Memo 时间线补出轻量互动的界面样式：评论、收藏、引述的入口放在发言气泡底部；评论只直接挂在 Memo 下，不产生子评论；引述带原文快照形成新发言。本页只定样式与交互形态，不改数据契约；令牌与组件语言与 <a href="../../wiki/design.html">design.html</a> 完全一致。</p>
+    <p>范围：①单独记录（气泡卡片 · 互动栏 · 详情与平铺评论 · 引述撰写）②整个 Memo 页面组合。收藏沿用现有 <span class="mono" style="font-family:var(--app-font-mono);font-size:11.5px">Item.starred</span> 与侧栏「收藏」入口，不新增可见结构。</p>
+    <div class="callout" style="margin-left:0">
+      <b>已确认（需求记录 §2）</b>：评论是后续发言、不改写原文；评论只直接挂在 Memo 下，不支持子评论；引述引用原文内容；评论 / 收藏 / 引述入口放在气泡框底部（参考 Twitter）；收藏支持历史回顾。<br>
+      <b>已确认（2026-11-02 补充）</b>：①评论与 Memo 原文均可编辑、删除；②引述快照发布即冻结、永久保留；③来源 Memo 删除后快照保留并标「来源已删除」；④收藏复用 <span class="mono" style="font-family:var(--app-font-mono);font-size:11.5px">Item.starred</span> 且收藏列表含 Memo；⑤时间线评论默认折叠、单独记录窗口内默认展开；⑥回收站内评论随 Memo 隐藏、恢复后恢复，永久删除 Memo 时清除评论；⑦评论与引述进搜索与备份恢复，MCP 默认不扩。
+    </div>
+  </header>
+
+  <!-- ================= 01 单条记录卡片 ================= -->
+  <section class="screen" id="s1">
+    <div class="screen-head"><span class="n">01</span><h2>单条记录卡片 · 互动栏</h2><span class="desc">气泡底部三个入口：评论 / 收藏 / 引述 · 计数为 0 不显示数字</span></div>
+    <div class="frame"><div class="spec-canvas">
+
+      <div class="spec-row">
+        <div class="spec-cell">
+          <div class="spec-cap"><b>默认</b> · 计数齐 · 悬停只动按钮</div>
+          <div class="tl-b">
+            <p><b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。</p>
+            <div class="m-tagrow"><span class="m-tag"># 材质</span><span class="m-tag"># UE5</span></div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">3</span></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg><span class="cnt">1</span></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">2</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec-cell">
+          <div class="spec-cap"><b>已收藏</b> · 星标实心 · 唯一成色的按钮</div>
+          <div class="tl-b">
+            <p>灯光的 <b>Lumen 分界</b>：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。</p>
+            <div class="m-tagrow"><span class="m-tag"># 光照</span></div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+              <button class="a on"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-cell">
+          <div class="spec-cap"><b>互动栏悬停</b> · 浅灰胶囊底 · 图标与计数加深一档</div>
+          <div class="tl-b">
+            <p>明天把采样对照表补完，先跑 16 和 8 两组。</p>
+            <div class="m-act">
+              <button class="a" style="background:var(--app-hover);color:var(--app-fg-muted)"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec-cell">
+          <div class="spec-cap"><b>有讨论 · 折叠态</b> · 计数下挂展开行（已确认：默认折叠）</div>
+          <div class="tl-b">
+            <p>后处理栈改成 Bloom → 色调映射，高光溢出形态对了。</p>
+            <div class="m-tagrow"><span class="m-tag"># 工作流</span><span class="st"><i></i>进行中</span></div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">3</span></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">1</span></button>
+            </div>
+            <button class="m-more"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>展开 3 条评论</button>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>项</th><th>值</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>card</td><td>内距 13 / 16 / 11</td><td>紧凑密度：正文 14 / 1.7，段落、标签、互动栏的纵向节奏整体收紧（2026-11-02 要求）</td></tr>
+          <tr><td>act-bar</td><td>行高 26 · 项间距 12</td><td>无分隔线，直接接在正文 / 标签 / 状态行之后，间距 8px（线少一半）</td></tr>
+          <tr><td>icon</td><td>14px · stroke 1.5</td><td>评论 / 收藏 / 引述三个入口，顺序固定；不放「更多」，避免与条目操作重叠</td></tr>
+          <tr><td>count</td><td class="mono">mono 11px</td><td>计数为 0 时省略数字，只留图标；已收藏计数用 accent-fg</td></tr>
+          <tr><td>hover</td><td class="mono">--app-hover · r8</td><td>只动按钮自身，卡片边框仍按时间线悬停规则加深一档</td></tr>
+          <tr><td>active</td><td class="mono">star 实心 · accent</td><td>收藏是唯一成色的互动按钮；评论 / 引述不引入第二色，沿用灰阶</td></tr>
+          <tr><td>入口语义</td><td>评论＝展开讨论 · 引述＝打开撰写窗口</td><td>点评论或计数进「单独记录窗口」；点收藏即时切换，无需确认</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="notes">
+      <div><b>紧凑密度（2026-11-02）</b>：内距 13 / 16 / 11、正文 14 / 1.7、互动栏 26 高；标签灰底胶囊、状态胶囊、悬停只加深边框这些规则不动，只是纵向节奏收紧一档。</div>
+      <div><b>收藏不加第二处标记</b>：星标只出现在互动栏；卡片右上角不再挂徽标，避免与时间轴节点抢视觉落点。</div>
+    </div>
+  </section>
+
+  <!-- ================= 02 单独记录窗口 ================= -->
+  <section class="screen" id="s2">
+    <div class="screen-head"><span class="n">02</span><h2>单独记录窗口 · 详情与评论</h2><span class="desc">680px 对话框 · 评论平铺按时间排序 · 底部评论输入常驻</span></div>
+    <div class="frame"><div class="scrim">
+      <div class="win">
+        <div class="win-hd">
+          <span class="t">MEMO · 2026-11-02 14:02</span>
+          <button class="x" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="win-bd">
+
+          <div class="tl-b">
+            <p><b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。</p>
+            <div class="m-tagrow"><span class="m-tag"># 材质</span><span class="m-tag"># UE5</span></div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">3</span></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">2</span></button>
+            </div>
+          </div>
+
+          <div class="win-sub">3 条评论 · 按时间升序</div>
+
+          <div class="m-thread">
+            <div class="cmt">
+              <div class="cmt-hd"><span class="cmt-t">2026-11-01 09:12</span></div>
+              <div class="cmt-x">补充一句：混合层的边缘过渡只在近景启用，远景直接跳过，不然远景噪点吃不消。</div>
+            </div>
+
+            <div class="cmt">
+              <div class="cmt-hd"><span class="cmt-t">2026-11-02 15:30</span></div>
+              <div class="cmt-x">这条要同步进规范文档，别只留在 Memo 里。</div>
+            </div>
+
+            <div class="cmt cmt-gone">
+              <div class="cmt-hd"><span class="cmt-t">2026-11-02 16:05</span></div>
+              <div class="cmt-x">（原评论已删除）</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="win-ft">
+          <div class="cmt-in">
+            <span class="ph">写下你的评论…</span>
+            <button class="send ready" aria-label="发送"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="notes">
+      <div><b>入口</b>：点评论图标、评论计数或卡片正文均可打开；<span class="mono" style="font-family:var(--app-font-mono);font-size:11px">Esc</span> 关闭回到时间线原位（与既有浮层一致，不承担返回）。</div>
+      <div><b>评论列表</b>：所有评论平铺在原 Memo 下并按时间升序展示。评论不能再次回复，因此没有层级缩进或评论间引用。</div>
+      <div><b>评论是后续发言</b>：不改写、不覆盖原 Memo 正文；窗口里原文完整展示，不截断。</div>
+      <div><b>已确认 · 可编辑可删除</b>：评论与 Memo 原文均可编辑、删除，编辑后标注更新时间；原文编辑沿用现有原位源文本编辑。</div>
+    </div>
+  </section>
+
+  <!-- ================= 03 引述 ================= -->
+  <section class="screen" id="s3">
+    <div class="screen-head"><span class="n">03</span><h2>引述 · 撰写窗口与引述卡片</h2><span class="desc">新发言带原文快照 · 来源保持可回溯 · 发布即冻结、永久保留（已确认）</span></div>
+
+    <div class="duo-cap"><b>左</b>引述撰写窗口<span>·</span><b>右</b>发布后在时间线中的引述卡片</div>
+    <div class="duo" style="margin-left:42px">
+      <div class="frame">
+        <div class="scrim" style="padding:32px 20px">
+          <div class="win" style="width:100%">
+            <div class="win-hd">
+              <span class="t">引述 · 新发言</span>
+              <button class="x" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            </div>
+            <div class="win-bd">
+              <div class="q-compose">
+                <textarea class="inp-x" placeholder="写下你的引述…" rows="3">补充个例外——过场动画如果走动态光照，仍按 Lumen 处理；烘焙只覆盖可交互场景。</textarea>
+              </div>
+              <div class="qt-box">
+                <div class="qt-hd">
+                  <svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg>
+                  引自 2026-11-02 09:40 · 原文快照
+                </div>
+                <div class="qt-x">灯光的 Lumen 分界：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。</div>
+              </div>
+            </div>
+            <div class="win-ft">
+              <div class="q-ft">
+                <span class="hint">发布即冻结 · 永久保留 · 原文后续编辑不影响本条</span>
+                <button class="btn-p">发布</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="spec-canvas" style="padding:32px 28px">
+          <div class="tl-b">
+            <div class="m-meta">引述发言 · 2026-11-02 16:22</div>
+            <p>补充个例外——过场动画如果走动态光照，仍按 Lumen 处理；烘焙只覆盖可交互场景。</p>
+            <div class="qt-box">
+              <div class="qt-hd">
+                <svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg>
+                引自 2026-11-02 09:40
+                <span class="go">查看来源 <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+              </div>
+              <div class="qt-x clamp">灯光的 Lumen 分界：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。</div>
+            </div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">2</span></button>
+            </div>
+          </div>
+
+          <div class="tl-b">
+            <div class="m-meta">来源已删除 · 快照永久保留（已确认）</div>
+            <p>这条引用当时应该一并写进规范。</p>
+            <div class="qt-box qt-gone">
+              <div class="qt-hd">
+                <svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg>
+                引自 2026-10-28 21:15 · 来源已删除
+              </div>
+              <div class="qt-x">后处理栈改成 Bloom → 色调映射，高光溢出形态对了。</div>
+            </div>
+            <div class="m-act">
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+              <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div><b>引述是一条新发言</b>：自己的文字在上，原文快照盒在下；快照盒灰底圆角、不与正文同级，时间线内最多留 3 行，撰写窗口里完整显示。</div>
+      <div><b>来源可回溯</b>：快照头行标来源时间，悬停出现「查看来源」，点击滚回来源 Memo；引述与来源的关联不产生第二份状态。</div>
+      <div><b>已确认 · 快照冻结</b>：发布即冻结、永久保留，原 Memo 后续编辑不回写旧引述；引用原文内容的规则不变。</div>
+      <div><b>已确认 · 来源删除</b>：来源 Memo 删除后快照保留，头行标「来源已删除」，「查看来源」消失，历史引用不丢失。</div>
+    </div>
+  </section>
+
+  <!-- ================= 04 整个 Memo 页面组合 ================= -->
+  <section class="screen" id="s4">
+    <div class="screen-head"><span class="n">04</span><h2>整个 Memo 页面组合</h2><span class="desc">顶栏 / 工作栏 / 时间轴 / Todo 浮层不变 · 互动挂进卡片与评论列表</span></div>
+    <div class="frame"><div class="shell">
+      <div class="app">
+
+        <!-- 侧栏 -->
+        <aside class="sb">
+          <div class="sb-top"><span class="brand">Menote</span>
+            <button class="ic" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button></div>
+          <div class="search-row"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/></svg><span>搜索</span><span class="kbd">⌘K</span></div>
+          <div class="formseg" role="group" aria-label="视图切换">
+            <a href="#">首页</a><a href="#">笔记</a><a href="#" class="on">Memo</a>
+          </div>
+          <div class="memo"><span class="dot-mark"></span><span>记一条 Memo…</span><span class="kbd">⌘↵</span></div>
+          <button class="btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建笔记</button>
+          <nav class="nav">
+            <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>最近编辑</a>
+            <a href="#"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>收藏<span class="cnt">6</span></a>
+          </nav>
+          <div class="sec-label"><span class="lb">待整理</span></div>
+          <div class="queue">
+            <a href="#"><svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>收件箱<span class="q">3</span></a>
+            <a href="#"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h6M8 17h4"/></svg>草稿箱<span class="q quiet">2</span></a>
+          </div>
+          <div class="sec-label"><span class="lb">主题</span>
+            <button class="mini" aria-label="新建主题"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+          <div class="tree">
+            <a href="#" class="l1"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>游戏美术</a>
+            <a href="#" class="l2 on">UE5</a>
+            <a href="#" class="l2">Houdini</a>
+            <a href="#" class="l1"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>产品设计</a>
+            <a href="#" class="l1"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>阅读清单</a>
+            <a href="#" class="l1"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>灵感收集</a>
+            <a href="#" class="priv l1"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>私人空间<span class="lock">锁定</span></a>
+          </div>
+          <div class="sec-label"><span class="lb">标签</span>
+            <button class="mini" aria-label="管理标签"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button></div>
+          <div class="tags">
+            <a class="tag-chip" href="#"><span class="hash">#</span>材质<span class="n">8</span></a>
+            <a class="tag-chip" href="#"><span class="hash">#</span>光照<span class="n">5</span></a>
+            <a class="tag-chip" href="#"><span class="hash">#</span>工作流<span class="n">3</span></a>
+            <a class="tag-chip more" href="#">全部标签 ›</a>
+          </div>
+          <div class="sb-foot"><span class="ava">M</span><span>maxxie</span><span class="ver">v0.0.26</span>
+            <span class="sync"><span class="ok"></span>已同步</span></div>
+        </aside>
+
+        <!-- 工作栏 -->
+        <aside class="mside">
+          <div class="subblk">
+            <div class="subblk-t">概述</div>
+            <div class="stat3">
+              <div class="stat3-c"><b class="stat3-n">1,076</b><span class="stat3-l">总条数</span></div>
+              <div class="stat3-c"><b class="stat3-n">86</b><span class="stat3-l">本月新增</span></div>
+              <div class="stat3-c"><b class="stat3-n">144</b><span class="stat3-l">记录天数</span></div>
+            </div>
+          </div>
+          <div class="subblk">
+            <div class="subblk-t">热力图</div>
+            <p class="heat-sum">近 12 周 · 428 条</p>
+            <div class="heat">
+              <i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm"></i>
+              <i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-3"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i>
+              <i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm hm-4"></i>
+              <i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i>
+              <i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i>
+              <i class="hm"></i><i class="hm hm-3"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i>
+              <i class="hm hm-2"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-4"></i><i class="hm"></i>
+              <i class="hm"></i><i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i>
+              <i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-3"></i><i class="hm"></i><i class="hm"></i>
+              <i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-2"></i>
+              <i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-2"></i><i class="hm"></i><i class="hm"></i>
+              <i class="hm"></i><i class="hm"></i><i class="hm hm-3"></i><i class="hm"></i><i class="hm"></i><i class="hm hm-1"></i><i class="hm"></i>
+            </div>
+            <div class="heat-lg"><span>少</span><i class="hm hm-1"></i><i class="hm hm-2"></i><i class="hm hm-3"></i><i class="hm hm-4"></i><span>多</span></div>
+          </div>
+          <div class="subblk">
+            <button class="subact"><svg viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>
+              随机漫步<svg class="go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <div class="subblk">
+            <div class="subblk-t">那年今日</div>
+            <button class="otd">
+              <span class="otd-hd"><span class="otd-d">2025年3月14日</span><span class="otd-n">3 条</span></span>
+              <span class="otd-x">材质分层再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩。</span>
+            </button>
+          </div>
+          <div class="subblk">
+            <div class="subblk-t">日期</div>
+            <div class="seg-full"><span aria-selected="true">全部</span><span>今天</span><span>近 7 天</span><span>近 30 天</span></div>
+          </div>
+          <div class="subblk">
+            <div class="subblk-t">标签</div>
+            <nav class="sublist">
+              <button class="subitem" aria-pressed="true">全部<span class="n">1,076</span></button>
+              <button class="subitem"># 材质<span class="n">128</span></button>
+              <button class="subitem"># 光照<span class="n">96</span></button>
+            </nav>
+          </div>
+        </aside>
+
+        <!-- 主区 -->
+        <div class="memo-main">
+          <div class="memo-bar">
+            <div class="bar-l"><a class="back" href="#"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>笔记</a><span class="vdiv"></span>
+              <span class="t">Memo</span></div>
+            <span class="r">全部 · 1,076 条</span>
+            <div class="view-seg"><span aria-selected="true">时间轴</span><span>图册</span></div>
+          </div>
+
+          <div class="memo-list"><div class="tl">
+
+            <div class="mgroup">今天</div>
+
+            <!-- 当前条：有讨论（展开态） -->
+            <div class="tl-item now">
+              <div class="tl-t">14:02</div>
+              <div class="tl-b">
+                <p><b>材质分层</b>再确认一遍：基础层只放底色和粗糙度，细节层用平铺遮罩——<code>Mask_A</code> 别混进 BaseColor。</p>
+                <div class="m-tagrow"><span class="m-tag"># 材质</span><span class="m-tag"># UE5</span></div>
+                <div class="m-act">
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">3</span></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">2</span></button>
+                </div>
+                <div class="m-thread">
+                  <div class="cmt">
+                    <div class="cmt-hd"><span class="cmt-t">11-01 09:12</span></div>
+                    <div class="cmt-x">补充一句：混合层的边缘过渡只在近景启用，远景直接跳过。</div>
+                  </div>
+                  <div class="cmt">
+                    <div class="cmt-hd"><span class="cmt-t">11-02 15:30</span></div>
+                    <div class="cmt-x">这条要同步进规范文档。</div>
+                  </div>
+                </div>
+                <button class="m-more"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>打开单独记录窗口 · 3 条评论</button>
+              </div>
+            </div>
+
+            <!-- 折叠讨论 -->
+            <div class="tl-item">
+              <div class="tl-t">11:26</div>
+              <div class="tl-b">
+                <p>明天把采样对照表补完，先跑 16 和 8 两组。</p>
+                <div class="m-act">
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">2</span></button>
+                  <button class="a on"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+                </div>
+                <button class="m-more"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>展开 2 条评论</button>
+              </div>
+            </div>
+
+            <!-- 引述卡片 -->
+            <div class="tl-item">
+              <div class="tl-t">09:55</div>
+              <div class="tl-b">
+                <p>补充个例外——过场动画如果走动态光照，仍按 Lumen 处理；烘焙只覆盖可交互场景。</p>
+                <div class="qt-box">
+                  <div class="qt-hd">
+                    <svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg>
+                    引自 09:40
+                    <span class="go">查看来源 <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                  </div>
+                  <div class="qt-x clamp">灯光的 Lumen 分界：需要动态时间的场景走 Lumen，其余全部烘焙。这条要写进规范。</div>
+                </div>
+                <div class="m-act">
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg><span class="cnt">2</span></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mgroup">昨天</div>
+
+            <!-- 普通条 + 状态 -->
+            <div class="tl-item">
+              <div class="tl-t">21:15</div>
+              <div class="tl-b">
+                <p>后处理栈改成 Bloom → 色调映射，高光溢出形态对了。</p>
+                <div class="m-tagrow"><span class="m-tag"># 工作流</span><span class="st"><i></i>进行中</span></div>
+                <div class="m-act">
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><span class="cnt">1</span></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 无互动的普通条 -->
+            <div class="tl-item">
+              <div class="tl-t">17:02</div>
+              <div class="tl-b">
+                <p>Houdini 出的资产在引擎里参数化成本太高，先只保留三个可调项。</p>
+                <div class="m-tagrow"><span class="m-tag"># 工作流</span></div>
+                <div class="m-act">
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg></button>
+                  <button class="a"><svg viewBox="0 0 24 24"><path d="M7 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/><path d="M14 7h3.2v3.2c0 2-1.2 3.3-3 3.8"/></svg></button>
+                </div>
+              </div>
+            </div>
+
+          </div></div>
+        </div>
+
+        <!-- Todo 浮层 -->
+        <aside class="todo-float">
+          <div class="tf-head"><span class="lb">Todo</span><span class="n">10</span>
+            <span class="fold"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></div>
+          <div class="tf-group"><div class="gh">进行中 <span class="n">2</span></div>
+            <div class="tf-item doing"><span class="ds"></span><span class="t">整理材质命名与分组</span></div>
+            <div class="tf-item doing"><span class="ds"></span><span class="t">补齐采样对照表</span></div>
+          </div>
+          <div class="tf-group"><div class="gh">待办 <span class="n">3</span></div>
+            <div class="tf-item"><span class="ds"></span><span class="t">后处理栈顺序定稿</span></div>
+            <div class="tf-item"><span class="ds"></span><span class="t">地形四层混合验证</span></div>
+            <div class="tf-item"><span class="ds"></span><span class="t">LOD 分级规则</span></div>
+          </div>
+        </aside>
+
+      </div>
+    </div></div>
+
+    <div class="notes">
+      <div><b>时间轴加重（2026-11-02）</b>：轴线 2.5px 深灰渐隐（两端淡出）、节点 8px，当前条节点加强调晕环——比 v1 的 1.5px 发丝线醒目一档；顶栏、工作栏、Todo 浮层、分组与胶囊不动。</div>
+      <div><b>已确认 · 折叠</b>：时间线默认只挂「展开 N 条评论」行；展开后评论平铺接在卡片下，完整版进单独记录窗口（02 屏），窗口内默认展开。</div>
+      <div><b>引述混排</b>：引述是一条普通时间线发言，带灰底快照盒，不另开列表或分组；「查看来源」悬停出现，点击滚到来源条目。</div>
+      <div><b>已确认 · 收藏</b>：复用 <span class="mono" style="font-family:var(--app-font-mono);font-size:11px">Item.starred</span>，收藏列表含 Memo；侧栏「收藏」沿用回看导航（计数含 Memo），点收藏即时生效，时间线内只体现为星标实心。</div>
+    </div>
+  </section>
+
+  <!-- ================= 05 已确认项 ================= -->
+  <section class="screen" id="s5">
+    <div class="screen-head"><span class="n">05</span><h2>已确认项 · 2026-11-02</h2><span class="desc">原 §6 待明确项的确认口径；实现设计据此展开，细则回写需求说明书与开发计划</span></div>
+    <div class="tbl">
+      <table class="cmp">
+        <thead><tr><th>原 §6 待明确</th><th>已确认口径</th><th>影响</th></tr></thead>
+        <tbody>
+          <tr><td>评论编辑 / 删除</td><td>评论与 Memo 原文均可编辑、删除</td><td>编辑标注更新时间；原文编辑沿用现有原位源文本编辑；评论不支持子评论</td></tr>
+          <tr><td>引述快照是否永久保留</td><td>发布即冻结，永久保留</td><td>旧引述不随原 Memo 编辑变化（03 屏撰写窗口已示意）</td></tr>
+          <tr><td>来源 Memo 删除后如何显示</td><td>快照保留，标「来源已删除」</td><td>「查看来源」消失，历史引用不丢（03 屏已示意）</td></tr>
+          <tr><td>收藏是否复用 starred</td><td>复用 <span class="mono">Item.starred</span>，收藏列表含 Memo</td><td>不新增字段；收藏列表入口沿用侧栏「收藏」，实现时核对当前导航计数口径</td></tr>
+          <tr><td>评论列表默认折叠 / 展开</td><td>时间线默认折叠，窗口内默认展开</td><td>时间线密度不被评论列表冲垮；展开态与窗口态见 02、04 屏</td></tr>
+          <tr><td>评论与引述的搜索 / 备份 / MCP</td><td>进搜索与备份恢复；MCP 默认不扩</td><td>沿 FR-ENC-1 与既有可见性边界，不扩大 MCP 对 Memo 的默认访问范围</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>实现提醒（需求记录 §4）</b>：评论需独立记录（稳定 ID、所属 Memo、正文、创建/更新时间和删除状态），评论与 Memo 是一对多关系，不含父评论字段；引述保存来源关系 + 原文快照。本地 IndexedDB、共享类型、Worker API、同步增量与冲突处理、导出 / 备份 / 恢复 / 删除语义都要覆盖。本页不定义数据契约。
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

@@ -87,13 +87,30 @@
 
 .mn-memo-card-body {
   margin-bottom: var(--app-space-sm);
-  padding: var(--app-space-14) var(--app-space-md);
+  padding: var(--app-memo-card-pad-y) var(--app-memo-card-pad-x) var(--app-space-10);
   border: var(--app-line) solid var(--app-border-subtle);
   border-radius: var(--app-radius-xl);
   background: var(--app-surface);
   min-width: 0;
 }
 .mn-memo-main .mn-memo-card:hover .mn-memo-card-body { border-color: var(--app-border); }
+
+/* Memo 互动操作栏（TP5 / 20261102-Memo 互动样式方案）。 */
+.mn-memo-interactions { display: flex; align-items: center; gap: var(--app-memo-action-gap); margin-top: var(--app-space-10); }
+.mn-memo-interactions button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--app-space-5);
+  min-width: var(--app-memo-action-size); height: var(--app-memo-action-size);
+  margin: var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-zero) var(--app-space-10);
+  border: var(--app-zero); border-radius: var(--app-memo-action-radius); background: none;
+  color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer;
+  transition: background var(--app-duration-fast) var(--app-ease), color var(--app-duration-fast) var(--app-ease);
+}
+.mn-memo-interactions button:hover { background: var(--app-hover); color: var(--app-fg-muted); }
+.mn-memo-interactions button:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
+.mn-memo-interactions svg { width: var(--app-icon-md); height: var(--app-icon-md); stroke-width: var(--app-icon-stroke); }
+.mn-memo-interactions button[aria-pressed="true"] { color: var(--app-accent-fg); }
+.mn-memo-interactions button[aria-pressed="true"] svg { fill: var(--app-accent); stroke: var(--app-accent); }
+.mn-memo-interactions button[aria-pressed="true"]:hover { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 
 .mn-memo-body { margin-top: var(--app-zero); font-size: var(--app-size-list-title); line-height: var(--app-leading-meta); color: var(--app-fg-muted); }
 .mn-memo-body :is(p, ul, ol, blockquote, pre) { margin: var(--app-zero) var(--app-zero) var(--app-space-6); }
@@ -211,3 +228,54 @@
 .mn-memo-gal-thumb img { display: block; width: var(--app-full-size); height: auto; }
 .mn-memo-gal-cap { display: flex; align-items: center; gap: var(--app-space-xs); margin-top: var(--app-space-6); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-memo-gal-cap span { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-label); }
+
+/* 评论与引述（FR-MEMO-7/8）：对话框、平铺评论、不可变来源快照。 */
+.mn-memo-interactions button:disabled { cursor: default; opacity: var(--app-mobile-disabled-opacity); }
+.mn-memo-modal-scrim { position: fixed; inset: var(--app-zero); z-index: var(--app-memo-modal-z); display: grid; place-items: center; padding: var(--app-space-34); background: var(--app-memo-scrim); }
+.mn-memo-modal { width: min(var(--app-memo-dialog-width), calc(var(--app-full-size) - var(--app-memo-modal-space))); max-height: min(var(--app-memo-modal-max-height), calc(var(--app-full-size) - var(--app-memo-modal-space))); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--app-memo-dialog-radius); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
+.mn-memo-modal-head { height: var(--app-memo-modal-head-height); display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-zero) var(--app-space-lg); border-bottom: var(--app-line) solid var(--app-border-subtle); flex: none; font-family: var(--app-font-mono); font-size: var(--app-size-label); color: var(--app-fg-muted); }
+.mn-memo-modal-head button { margin-left: auto; width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-modal-head button:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-memo-modal-head svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
+.mn-memo-modal-body { min-height: var(--app-zero); overflow-y: auto; padding: var(--app-memo-modal-body-pad); }
+.mn-memo-dialog-source { padding-bottom: var(--app-space-sm); border-bottom: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-muted); font-size: var(--app-size-button); line-height: var(--app-leading-summary); }
+.mn-memo-comments-title { display: flex; align-items: center; gap: var(--app-space-10); margin-top: var(--app-space-lg); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); }
+.mn-memo-comments-title::after { content: ""; flex: 1; height: var(--app-line); background: var(--app-border-subtle); }
+.mn-memo-comment-list { margin-top: var(--app-space-10); padding-left: var(--app-memo-thread-indent); border-left: var(--app-memo-comment-indent-line) solid var(--app-border-subtle); }
+.mn-memo-comment { padding: var(--app-space-6) var(--app-zero); }
+.mn-memo-comment + .mn-memo-comment { border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-memo-comment-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-memo-comment-time-size); }
+.mn-memo-comment-actions { margin-left: auto; display: inline-flex; gap: var(--app-space-2); }
+.mn-memo-comment-actions button { width: var(--app-space-18); height: var(--app-space-18); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-comment-actions button:hover { background: var(--app-hover); color: var(--app-fg-muted); }
+.mn-memo-comment-actions svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-comment-content { margin-top: var(--app-space-2); color: var(--app-fg-muted); font-size: var(--app-memo-comment-content-size); line-height: var(--app-leading-summary); }
+.mn-memo-comment-content :is(p, ul, ol, blockquote, pre) { margin: var(--app-zero) var(--app-zero) var(--app-space-4); }
+.mn-memo-comment-content :last-child { margin-bottom: var(--app-zero); }
+.mn-memo-comments-empty { margin: var(--app-zero); padding: var(--app-space-sm) var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-button); }
+.mn-memo-comment-compose { display: flex; align-items: end; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-memo-modal-body-pad); border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-memo-comment-compose textarea { flex: 1; min-height: var(--app-space-34); max-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: var(--app-surface-sunken); border-radius: var(--app-radius-lg); padding: var(--app-space-10); color: var(--app-fg); font: inherit; }
+.mn-memo-comment-compose button { width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
+.mn-memo-comment-compose button:disabled { background: var(--app-border); color: var(--app-fg-faint); cursor: default; }
+.mn-memo-comment-compose svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-quote-modal { max-height: min(var(--app-memo-modal-max-height), calc(var(--app-full-size) - var(--app-memo-modal-space))); }
+.mn-memo-quote-input { width: var(--app-full-size); min-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: none; color: var(--app-fg); font: inherit; line-height: var(--app-leading-summary); }
+.mn-memo-quote-snapshot { margin-top: var(--app-space-10); padding: var(--app-space-10) var(--app-space-14); border-radius: var(--app-memo-quote-radius); background: var(--app-surface-sunken); }
+.mn-memo-quote-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); }
+.mn-memo-quote-head > span { display: inline-flex; align-items: center; gap: var(--app-space-5); }
+.mn-memo-quote-head svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-quote-head button { margin-left: auto; border: var(--app-zero); background: none; color: var(--app-link); font: inherit; cursor: pointer; }
+.mn-memo-quote-content { margin-top: var(--app-space-6); color: var(--app-fg-subtle); font-size: var(--app-memo-quote-text-size); line-height: var(--app-leading-summary); }
+.mn-memo-quote-content :is(p, ul, ol, blockquote, pre) { margin: var(--app-zero) var(--app-zero) var(--app-space-4); }
+.mn-memo-quote-content :last-child { margin-bottom: var(--app-zero); }
+.mn-memo-card-body > .mn-memo-quote-snapshot .mn-memo-quote-content { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mn-memo-quote-snapshot.is-source-deleted .mn-memo-quote-head > span:last-child { margin-left: auto; }
+.mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-memo-modal-body-pad) var(--app-memo-modal-body-pad); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
+.mn-memo-quote-footer button { margin-left: auto; height: var(--app-space-22); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
+.mn-memo-quote-footer button:disabled { opacity: var(--app-mobile-disabled-opacity); cursor: default; }
+.mn-memo-comments-toggle { display: inline-flex; align-items: center; gap: var(--app-space-5); margin: var(--app-space-6) var(--app-zero) var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-space-4) var(--app-space-10); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer; }
+.mn-memo-comments-toggle:hover { background: var(--app-accent-subtle); }
+.mn-memo-comments-toggle svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-inline-comments { margin-top: var(--app-space-2); padding-left: var(--app-memo-thread-indent); border-left: var(--app-memo-comment-indent-line) solid var(--app-border-subtle); }
+.mn-memo-inline-comments button { display: flex; gap: var(--app-space-10); width: var(--app-full-size); padding: var(--app-space-4) var(--app-zero); overflow: hidden; border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.mn-memo-inline-comments time { flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }

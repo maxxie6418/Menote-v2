@@ -5,6 +5,7 @@ import { useMemos } from "../../services/contentHooks";
 import { MemoBar, type MemoView } from "./MemoBar";
 import { MemoGallery } from "./MemoGallery";
 import { MemoTimeline } from "./MemoTimeline";
+import { MemoDetailDialog, MemoQuoteDialog } from "./MemoInteractionDialogs";
 import { MemoWorkbar } from "./MemoWorkbar";
 import { TodoSidePanel } from "./TodoSidePanel";
 import { filterMemos, memoImages, pickRandomMemo, type MemoRange } from "./memoView";
@@ -27,6 +28,8 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
   const [range, setRange] = useState<MemoRange>("all");
   const [tag, setTag] = useState<string | null>(null);
   const [view, setView] = useState<MemoView>("timeline");
+  const [detailMemoId, setDetailMemoId] = useState<string | null>(null);
+  const [quoteSource, setQuoteSource] = useState<Item | null>(null);
   const visible = filterMemos(memos, range, tag);
   const images = memoImages(visible);
   const singlePane = layout === "tablet" || layout === "mobile";
@@ -42,6 +45,11 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
   const openMemo = (id: string) => {
     setView("timeline");
     onSelectMemo(id);
+  };
+  const openSource = (id: string) => {
+    setRange("all");
+    setTag(null);
+    openMemo(id);
   };
 
   return (
@@ -72,12 +80,25 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
               <MemoTimeline
                 userId={userId}
                 memos={visible}
+                allMemos={memos}
+                onOpenMemo={setDetailMemoId}
+                onQuote={setQuoteSource}
+                onOpenSource={openSource}
                 onDragItem={(event, id) => event.dataTransfer.setData("text/menote-item", id)}
               />
             )}
         </section>
         {view === "timeline" && <TodoSidePanel userId={userId} memos={memos} open={todoOpen} onToggle={onToggleTodo} />}
       </div>
+      {detailMemoId && memos.find((item) => item.id === detailMemoId) && (
+        <MemoDetailDialog userId={userId} memo={memos.find((item) => item.id === detailMemoId)!} onClose={() => setDetailMemoId(null)} />
+      )}
+      {quoteSource && <MemoQuoteDialog
+        userId={userId}
+        memo={quoteSource}
+        onClose={() => setQuoteSource(null)}
+        onCreated={(item) => { setRange("all"); setTag(null); openMemo(item.id); }}
+      />}
     </main>
   );
 }

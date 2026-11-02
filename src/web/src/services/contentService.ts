@@ -1,4 +1,4 @@
-import type { Item, TopicNode } from "@menote/shared";
+import type { Item, MemoQuote, TopicNode } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId, sha256Hex } from "../lib/hash";
@@ -99,14 +99,14 @@ async function nextUntitledTitle(userId: string): Promise<string> {
   return `无标题 ${suffix}`;
 }
 
-export async function createMemo(userId: string, markdown: string, tags: string[] = []): Promise<Item> {
+export async function createMemo(userId: string, markdown: string, tags: string[] = [], memoQuote?: MemoQuote): Promise<Item> {
   const now = Date.now();
   const item: Item = {
     id: newId(), userId, type: "memo", topicId: null, groupId: null,
     title: null, tags, status: null, attachmentHashes: [], source: "manual",
     rev: 1, metaRev: 1, contentHash: await sha256Hex(markdown),
     pinned: false, starred: false, createdAt: now, updatedAt: now, deletedAt: null,
-    content: { scope: "plain", markdown },
+    content: { scope: "plain", markdown }, ...(memoQuote ? { memoQuote } : {}),
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(item);

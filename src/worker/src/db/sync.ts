@@ -1,11 +1,12 @@
 import type { Item, TopicNode, UserSetting } from "@menote/shared";
 import type { SyncTombstone } from "@menote/shared";
+import { readAllMemoComments, readMemoComments } from "./memoComments";
 
 /** 拉取（G2 §4）：游标 = sync_log.seq；先墓碑后条目由客户端落库顺序保证。 */
 
 export interface LogEntry {
   seq: number;
-  entity: "item" | "topic";
+  entity: "item" | "topic" | "memo_comment";
   entityId: string;
   op: "upsert" | "delete";
 }
@@ -19,7 +20,7 @@ export async function readLogPage(db: D1Database, userId: string, cursor: number
   const oldest = await db.prepare("SELECT MIN(seq) AS s FROM sync_log WHERE user_id = ?").bind(userId).first<{ s: number | null }>();
   return {
     entries: page.map((row) => ({
-      seq: row.seq, entity: row.entity === "topic" ? "topic" : "item",
+      seq: row.seq, entity: row.entity === "topic" ? "topic" : row.entity === "memo_comment" ? "memo_comment" : "item",
       entityId: row.entity_id, op: row.op === "delete" ? "delete" : "upsert",
     })),
     hasMore,
@@ -44,7 +45,16 @@ export function rowToItem(row: Record<string, unknown>): Item {
   };
   const title = row.title === null || row.title === undefined ? null : String(row.title);
   if (base.type === "memo") {
-    return { ...base, type: "memo", title, content: { scope: "plain", markdown: String(row.content_markdown ?? "") } };
+    const quoteSourceId = row.memo_quote_source_id === null || row.memo_quote_source_id === undefined
+      ? null : String(row.memo_quote_source_id);
+    const quoteSnapshot = row.memo_quote_snapshot === null || row.memo_quote_snapshot === undefined
+      ? null : String(row.memo_quote_snapshot);
+    return {
+      ...base, type: "memo", title, content: { scope: "plain", markdown: String(row.content_markdown ?? "") },
+      ...(quoteSourceId !== null && quoteSnapshot !== null ? { memoQuote: {
+        sourceMemoId: quoteSourceId, sourceCreatedAt: Number(row.memo_quote_source_created_at ?? 0), snapshot: quoteSnapshot,
+      } } : {}),
+    };
   }
   if (scope === "plain") {
     return { ...base, type: base.type as "note" | "table", title: title ?? "", content: { scope: "plain", markdown: String(row.content_markdown ?? "") } };
@@ -81,6 +91,8 @@ export async function readTopics(db: D1Database, userId: string, ids: string[]):
     deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
   }));
 }
+
+export { readAllMemoComments, readMemoComments };
 
 export function toTombstone(entry: LogEntry, userId: string, deletedAt: number): SyncTombstone {
   return { id: entry.entityId, userId, entity: entry.entity, deletedAt };
@@ -136,7 +148,7 @@ export async function readTopicDeletedAt(db: D1Database, userId: string, id: str
 }
 
 export async function appendSyncLog(
-  db: D1Database, userId: string, entity: "item" | "topic", entityId: string,
+  db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
   op: "upsert" | "delete", rev: number, metaRev: number, now: number,
 ): Promise<void> {
   await db.prepare(
@@ -172,15 +184,18 @@ export async function upsertItemRow(
   await db.prepare(
     `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
-       enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device,
+       memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
        tags_json = excluded.tags_json, attachment_hashes_json = excluded.attachment_hashes_json, status = excluded.status,
        source = excluded.source, rev = MAX(rev, excluded.rev), meta_rev = MAX(meta_rev, excluded.meta_rev),
        content_hash = excluded.content_hash, pinned = excluded.pinned, starred = excluded.starred,
-       updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device`,
+       updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device,
+       memo_quote_source_id = excluded.memo_quote_source_id,
+       memo_quote_source_created_at = excluded.memo_quote_source_created_at, memo_quote_snapshot = excluded.memo_quote_snapshot`,
   ).bind(
     item.id, userId, item.type, item.topicId, item.groupId, item.title,
     item.content.scope === "plain" ? item.content.markdown : null,
@@ -189,6 +204,9 @@ export async function upsertItemRow(
     rev, metaRev, item.contentHash, item.pinned ? 1 : 0, item.starred ? 1 : 0,
     item.content.scope === "self" ? 1 : 0, item.content.scope === "private_space" ? 1 : 0,
     item.createdAt, item.updatedAt, item.deletedAt, deviceId,
+    item.type === "memo" ? item.memoQuote?.sourceMemoId ?? null : null,
+    item.type === "memo" ? item.memoQuote?.sourceCreatedAt ?? null : null,
+    item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
   ).run();
 }
 
