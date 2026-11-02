@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isClipTemplateV1, type ClipTemplateV1, type StoredClipTemplate } from "@menote/shared";
 import { emptyClipTemplateDraft, listClipTemplates, removeClipTemplate, saveClipTemplate } from "../../services/clipTemplateService";
+import { EdgeEverImporter } from "./EdgeEverImporter";
 
 interface ImportReport {
   unsupported?: unknown[];
@@ -168,6 +169,7 @@ export function ClipTemplateManager() {
 
     <section className="mn-cliptemplate-section" aria-labelledby="mn-cliptemplate-new-heading">
       <h4 className="mn-setlabel" id="mn-cliptemplate-new-heading">新增规则</h4>
+      <EdgeEverImporter templates={templates} onImported={refresh} />
       <div className="mn-cliptemplate-import">
         <label className="mn-setlabel" htmlFor="mn-clip-template-import">导入模板 JSON</label>
         <input id="mn-clip-template-import" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "template"); event.currentTarget.value = ""; }} />

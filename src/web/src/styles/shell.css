@@ -512,6 +512,19 @@
 .mn-cliptemplate-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); flex-wrap: wrap; }
 .mn-cliptemplate-actions { display: flex; align-items: center; gap: var(--app-space-xs); flex-wrap: wrap; }
 .mn-cliptemplate-edit { width: var(--app-full-size); }
+.mn-edgeever-importer { display: flex; flex-direction: column; gap: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-edgeever-source { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr) auto; gap: var(--app-space-xs); align-items: center; }
+.mn-edgeever-source .mn-setlabel { grid-column: 1 / -1; }
+.mn-edgeever-repository { min-width: var(--app-zero); width: var(--app-full-size); box-sizing: border-box; padding: var(--app-space-6) var(--app-space-xs); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font: inherit; }
+.mn-edgeever-adapter-list { display: grid; gap: var(--app-space-xs); }
+.mn-edgeever-adapter { display: grid; grid-template-columns: auto minmax(var(--app-zero), 1fr); gap: var(--app-space-xs); align-items: start; padding: var(--app-space-xs); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-edgeever-adapter-title { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); }
+.mn-edgeever-state-ready { color: var(--app-success); }
+.mn-edgeever-state-existing { color: var(--app-fg-muted); }
+.mn-edgeever-state-unsupported { color: var(--app-danger); }
+.mn-edgeever-limitations { margin-top: var(--app-space-2); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-edgeever-limitations summary { cursor: pointer; color: var(--app-link); }
+.mn-edgeever-limitations ul { margin: var(--app-space-xs) var(--app-zero); padding-inline-start: var(--app-space-lg); }
 .mn-cliptemplate-preview { margin-top: var(--app-space-xs); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-cliptemplate-preview summary { cursor: pointer; color: var(--app-link); }
 .mn-cliptemplate-preview p { margin: var(--app-space-2) var(--app-zero); overflow-wrap: anywhere; }
