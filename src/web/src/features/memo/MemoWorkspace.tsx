@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
+import type { Item } from "@menote/shared";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos } from "../../services/contentHooks";
 import { MemoBar, type MemoView } from "./MemoBar";

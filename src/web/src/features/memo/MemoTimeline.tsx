@@ -108,7 +108,7 @@ function MemoCard({ userId, memo, allMemos, onDragItem, onOpenMemo, onOpenSource
           <p className="mn-memo-tags">{memo.tags.map((tag) => <span key={tag} className="mn-memo-tag">#{tag}</span>)}</p>
         )}
         {status && <span className={`mn-memo-status ${memo.status}`}><i />{status}</span>}
-        {plain && memo.memoQuote && (
+        {memo.type === "memo" && plain && memo.memoQuote && (
           <aside className={`mn-memo-quote-snapshot ${allMemos.some((item) => item.id === memo.memoQuote?.sourceMemoId && item.deletedAt === null) ? "" : "is-source-deleted"}`}>
             <div className="mn-memo-quote-head"><span><Repeat2 /> 引自 {new Date(memo.memoQuote.sourceCreatedAt).toLocaleString()}</span>
               {allMemos.some((item) => item.id === memo.memoQuote?.sourceMemoId && item.deletedAt === null)
