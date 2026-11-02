@@ -147,6 +147,8 @@
 | Workers AI 免费档 | 10k Neurons/日 | ⑥ M4 前核 |
 | Workers Logs 免费档 | 按日事件额度与保留期 | ① |
 | Analytics Engine 免费档 | 写入数据点额度、SQL API 调用额度、数据保留期 | ⑤ 方案 A PoC 前核 |
+
+> **核验回填（2026-11-03）**：⑤ Analytics Engine **免费计划可用**——写入 100,000 data points/日、SQL API 查询 10,000 次/日（每次 POST 计 1 次）；数据保留 3 个月；单次调用 ≤250 个数据点，1 index（≤96B）+20 blobs（单点共 ≤16KB）+20 doubles；高流量写入侧自动抽样（查询须按 `_sample_interval` 加权）。写入为 fire-and-forget（不需 await/waitUntil，不占 D1/subrequest）；读取需 `Account Analytics Read` Token（与增强模式 G12 同权限，可复用）。完整代价评估见开发记录 2026-11-03 条目。
 | Queues 免费计划 | 可用性 | ④ |
 
 > **核验回填（2026-11-03）**：④ Queues **免费计划可用**（官方 pricing 页：Workers Free 含 10,000 operations/日、消息保留 24h，典型投递 ≈ 3 operations）——已按负责人指示引入真实 Queues；⑥ Workers AI 免费档 10k Neurons/日、双候选模型目录 ID 核验为 `@cf/zai-org/glm-4.7-flash` 与 `@cf/qwen/qwen3-30b-a3b-fp8`（均当期在目录），Neurons 实际定价与消耗待部署实测。
