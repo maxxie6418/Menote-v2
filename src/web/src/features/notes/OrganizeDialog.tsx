@@ -47,26 +47,28 @@ export function OrganizeDialog({ item, topics, onDone, onMove, onDelete }: Organ
   return (
     <div className="mn-overlay" role="presentation">
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="整理笔记">
-        <p className="mn-dialog-title">整理「{item.title}」</p>
-        <label className="mn-auth-field">
-          <span>主题</span>
-          <select value={topicId} onChange={(event) => { setTopicId(event.target.value); setGroupId(""); }}>
-            <option value="">（选择主题）</option>
-            {active.filter((row) => row.depth === 0).map((row) => (
-              <option key={row.id} value={row.id}>{row.name}</option>
-            ))}
-          </select>
-        </label>
-        {chosen && (
+        <div className="mn-dialog-head"><p className="mn-dialog-title">整理「{item.title}」</p></div>
+        <div className="mn-dialog-body">
           <label className="mn-auth-field">
-            <span>分组（可选）</span>
-            <select value={groupId} onChange={(event) => setGroupId(event.target.value)}>
-              <option value="">（不选分组）</option>
-              {groups.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+            <span>主题</span>
+            <select value={topicId} onChange={(event) => { setTopicId(event.target.value); setGroupId(""); }}>
+              <option value="">（选择主题）</option>
+              {active.filter((row) => row.depth === 0).map((row) => (
+                <option key={row.id} value={row.id}>{row.name}</option>
+              ))}
             </select>
           </label>
-        )}
-        {error && <p className="mn-auth-error" role="alert">{error}</p>}
+          {chosen && (
+            <label className="mn-auth-field">
+              <span>分组（可选）</span>
+              <select value={groupId} onChange={(event) => setGroupId(event.target.value)}>
+                <option value="">（不选分组）</option>
+                {groups.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+              </select>
+            </label>
+          )}
+          {error && <p className="mn-auth-error" role="alert">{error}</p>}
+        </div>
         <div className="mn-dialog-actions">
           <button type="button" className="mn-auth-submit" disabled={busy || !topicId} aria-disabled={busy || !topicId} onClick={submit}>
             移入并整理

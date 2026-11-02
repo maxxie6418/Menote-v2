@@ -103,7 +103,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       <div className="mn-docbody">
         <input className="mn-doc-title" value={item.title ?? ""} aria-label="标题" readOnly />
         {!unlocked && <UnlockPanel onUnlock={onUnlock} error={unlockError} />}
-        {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body mn-doc-preview" />}
+        {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && mode === "edit" && item.type === "table" && (
           <TableDocument
             markdown={plain}

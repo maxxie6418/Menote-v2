@@ -88,7 +88,8 @@
 [data-sidebar="collapsed"] .mn-sb-foot { flex-direction: column; }
 
 /* ---------- 抽屉（tablet / mobile） ---------- */
-.mn-overlay { position: fixed; inset: var(--app-zero); background: var(--app-overlay-bg); z-index: 10; }
+/* 遮罩同时承担居中与滚动兜底：弹窗再高也只在遮罩内滚动，不会被视口上下切掉 */
+.mn-overlay { position: fixed; inset: var(--app-zero); background: var(--app-overlay-bg); z-index: 20; display: grid; place-items: center; padding: var(--app-space-lg); overflow-y: auto; overscroll-behavior: contain; }
 [data-layout="tablet"] .mn-sidebar, [data-layout="mobile"] .mn-sidebar { position: fixed; top: var(--app-zero); bottom: var(--app-zero); left: var(--app-zero); z-index: 11; transform: var(--app-drawer-hidden); transition: transform var(--app-motion-fast) var(--app-ease); box-shadow: none; }
 [data-layout="tablet"] .mn-sidebar[data-open="true"], [data-layout="mobile"] .mn-sidebar[data-open="true"] { transform: var(--app-drawer-shown); }
 
@@ -219,8 +220,15 @@
 .mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-xs); }
 .mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4); }
 .mn-savestate.err { color: var(--app-danger); cursor: pointer; }
-.mn-docbody { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: var(--app-space-sm); padding: var(--app-doc-pad); }
-.mn-doc-title { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--md-h1-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
+/* 单滚动容器：标题、属性、工具条与正文一起滚动；编辑器不再自己滚一层（否则工具条无法吸顶、滚轮还会「滚不动」标题区） */
+.mn-docbody { flex: 1; overflow-y: auto; min-height: var(--app-zero); padding: var(--app-doc-pad); }
+/* 版心：正文最大行宽居中，宽屏不再拉成一行五六十个字；表格形态单独放宽一档 */
+.mn-docbody > * { width: var(--app-full-size); max-width: var(--app-doc-measure); margin-inline: auto; }
+.mn-docbody > * + * { margin-top: var(--app-space-sm); }
+.mn-doc[data-form="table"] .mn-docbody > * { max-width: var(--app-doc-measure-wide); }
+.mn-doc-title { display: block; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-doc-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
+/* 标题与属性区之间留一口气，避免标题直接压在属性行上 */
+.mn-doc-title + * { margin-top: var(--app-space-18); }
 .mn-doc-title:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 .mn-doc-tags { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-6); }
 .mn-doc-tags-icon { width: var(--app-icon-xs); height: var(--app-icon-xs); color: var(--app-fg-faint); flex: none; }
@@ -230,11 +238,14 @@
 .mn-taginput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 .mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
 .mn-editor-wrap[data-dragging] { outline: var(--app-line) dashed var(--app-accent); outline-offset: calc(var(--app-line) * -1); }
-.mn-formatbar { display: flex; flex-wrap: wrap; gap: var(--app-space-4); padding-bottom: var(--app-space-6); }
-.mn-formatbar-gap { width: var(--app-line); background: var(--app-border); margin: var(--app-zero) var(--app-space-4); }
-.mn-formatbtn { border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); border-radius: var(--app-radius-sm); cursor: pointer; }
-.mn-formatbtn[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); box-shadow: var(--app-shadow-card); }
-.mn-formatbtn:hover { color: var(--app-fg); }
+/* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器） */
+.mn-formatbar { position: sticky; top: var(--app-zero); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
+.mn-formatbtn { display: grid; place-items: center; width: var(--app-formatbtn-size); height: var(--app-formatbtn-size); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); cursor: pointer; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
+.mn-formatbtn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
+.mn-formatbtn[aria-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); box-shadow: var(--app-hairline-inset); }
+.mn-formatbtn:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-formatbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 .mn-slashmenu { position: absolute; top: var(--mn-slashmenu-top); left: var(--mn-slashmenu-left); z-index: 5; display: flex; flex-direction: column; max-height: var(--app-auth-card-width); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
 .mn-slashmenu button { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-4) var(--app-space-10); border-radius: var(--app-radius-sm); cursor: pointer; }
 .mn-slashmenu button.on { background: var(--app-surface-sunken); }
@@ -243,19 +254,24 @@
 .mn-docmore-menu button { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-4) var(--app-space-10); border-radius: var(--app-radius-sm); cursor: pointer; }
 .mn-docmore-menu button:hover { background: var(--app-surface-sunken); }
 .mn-docmore-menu svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-editor-host { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.mn-editor-host { display: flex; flex-direction: column; min-height: var(--app-editor-min); }
 .mn-editor-host .milkdown { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.mn-editor-source { flex: 1; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
+.mn-editor-source { min-height: var(--app-editor-min); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
 .mn-editor-source:focus-visible { outline: none; }
 .mn-doc-preview { flex: 1; }
 
-/* ---------- E2 对话框 ---------- */
-.mn-dialog { position: fixed; top: var(--app-dialog-offset); left: var(--app-dialog-offset); transform: var(--app-dialog-center); z-index: 11; width: var(--app-auth-card-width); padding: var(--app-space-xl); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-xl); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); display: flex; flex-direction: column; gap: var(--app-space-sm); }
+/* ---------- E2 对话框 ----------
+   三段式：头（.mn-dialog-head）与底部操作固定，中段 .mn-dialog-body 自己滚动。
+   尺寸由 --app-dialog-width-* 决定，内容再长也不会被视口切掉。 */
+.mn-dialog { position: relative; z-index: 11; display: flex; flex-direction: column; gap: var(--app-zero); width: var(--app-dialog-width-md); max-width: var(--app-full-size); max-height: var(--app-dialog-max-height); overflow: hidden; padding: var(--app-zero); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-xl); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
+.mn-dialog-head { flex: none; padding: var(--app-space-lg) var(--app-space-xl) var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-dialog-title { margin: var(--app-zero); font-weight: var(--app-weight-medium); }
+.mn-dialog-body { flex: 1 1 auto; min-height: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-sm); overflow-y: auto; padding: var(--app-space-md) var(--app-space-xl); }
+.mn-dialog-body > .mn-sethint:first-child { margin: var(--app-zero); }
 /* 仅作用于未用 .mn-propselect 的对话框下拉：避免把它的按钮字号/高度盖到属性下拉上 */
 .mn-dialog select:not(.mn-propselect) { height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button); }
-.mn-dialog-actions { display: flex; align-items: center; gap: var(--app-space-sm); margin-top: var(--app-space-sm); }
-.mn-dialog-actions .mn-auth-submit { margin-top: var(--app-zero); flex: 1; }
+.mn-dialog-actions { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-sm); margin: var(--app-zero); padding: var(--app-space-6) var(--app-space-xl) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-dialog-actions .mn-auth-submit { margin-top: var(--app-zero); flex: 0 1 auto; }
 
 /* ---------- E2 主题树扩展 ---------- */
 .mn-minibtn { cursor: pointer; }
@@ -337,7 +353,7 @@
 .mn-propbar-add { display: flex; align-items: center; gap: var(--app-space-2); border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-zero); }
 .mn-propbar-add:hover { color: var(--app-fg); }
 .mn-propbar-add svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-proplist { margin: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-2); }
+.mn-proplist { display: flex; flex-direction: column; gap: var(--app-space-2); }
 .mn-proprow { display: flex; align-items: center; gap: var(--app-space-sm); }
 .mn-propkey { width: var(--app-prop-key-width); color: var(--app-fg-subtle); font-size: var(--app-size-chip); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-propvalue { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; margin: var(--app-zero); }
@@ -352,12 +368,12 @@
 .mn-proprow-actions { display: flex; gap: var(--app-space-6); }
 
 /* ---------- E3 表格结构化编辑 ---------- */
-.mn-dialog-wide { width: var(--app-dialog-wide); }
+.mn-dialog-wide { width: var(--app-dialog-width-xl); }
 .mn-tablegrid { overflow-x: auto; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
 .mn-tablegrid-row { display: flex; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-tablegrid-row:last-child { border-bottom: var(--app-zero); }
 .mn-tablegrid-row.head { background: var(--app-surface-sunken); }
-.mn-tablegrid-row > [role="gridcell"] { flex: 1; min-width: var(--app-note-grid-min); }
+.mn-tablegrid-row > [role="gridcell"] { flex: 1; min-width: var(--app-table-cell-min); }
 .mn-tablegrid-input { width: var(--app-full-size); height: var(--app-prop-height); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
 .mn-tablegrid-input:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 
@@ -371,7 +387,14 @@
 
 .mn-tabledoc { display: flex; flex-direction: column; gap: var(--app-space-4); }
 .mn-tabledoc-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-chip); }
-.mn-tabledoc-scroll { overflow: auto; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); }
+/* 表格页工具条：字段/行计数在左，主要操作在右；与顶部 docbar 分层，不再把动作塞进表头 */
+.mn-tabledoc-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2) var(--app-space-6); padding-bottom: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-tabledoc-bar-meta { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); font-variant-numeric: tabular-nums; }
+.mn-tabledoc-bar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2); margin-left: auto; }
+.mn-tabledoc-bar .mn-textbtn { display: inline-flex; align-items: center; gap: var(--app-space-2); }
+.mn-tabledoc-bar .mn-textbtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 表格页：网格区自带滚动，表头 sticky 才真正生效（外层 .mn-docbody 已不再是这个方向的滚动容器） */
+.mn-tabledoc-scroll { max-height: var(--app-tabledoc-max-height); overflow: auto; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); }
 .mn-tabledoc-grid { min-width: var(--app-full-size); }
 .mn-tabledoc-row { display: flex; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-tabledoc-row:last-child { border-bottom: var(--app-zero); }
@@ -379,22 +402,23 @@
 .mn-tabledoc-row > *:last-child { border-right: var(--app-zero); }
 .mn-tabledoc-row.head { position: sticky; top: var(--app-zero); z-index: 2; background: var(--app-surface-sunken); }
 .mn-tabledoc-row.foot { border-bottom: var(--app-zero); }
-.mn-tabledoc-rownum { flex: none; width: var(--app-prop-key-width); display: flex; align-items: center; justify-content: center; gap: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-micro); min-height: var(--app-prop-height); }
+.mn-tabledoc-rownum { flex: none; width: var(--app-tabledoc-rownum-width); display: flex; align-items: center; justify-content: center; gap: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-micro); min-height: var(--app-prop-height); }
 .mn-tabledoc-drag { color: var(--app-fg-faint); cursor: grab; user-select: none; }
 .mn-tabledoc-drag:active { cursor: grabbing; }
 .mn-tabledoc-row.dragging { background: var(--app-selected); }
-.mn-tabledoc-addspacer { flex: none; width: var(--app-prop-key-width); }
-.mn-tabledoc-rowdel { border: var(--app-zero); background: none; color: var(--app-fg-faint); cursor: pointer; font-size: var(--app-size-nav); line-height: 1; padding: var(--app-zero); visibility: hidden; }
+.mn-tabledoc-addspacer { flex: none; width: var(--app-tabledoc-rownum-width); }
+.mn-tabledoc-rowdel { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); cursor: pointer; padding: var(--app-zero); visibility: hidden; }
+.mn-tabledoc-rowdel svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-tabledoc-row:hover .mn-tabledoc-rowdel { visibility: visible; }
 .mn-tabledoc-rowdel:hover { color: var(--app-danger); }
-.mn-tabledoc-cell { flex: 1; min-width: var(--app-note-grid-min); min-height: var(--app-prop-height); display: flex; align-items: center; padding: var(--app-space-2); }
+.mn-tabledoc-cell { flex: 1; min-width: var(--app-table-cell-min); min-height: var(--app-prop-height); display: flex; align-items: center; padding: var(--app-space-2); }
 .mn-tabledoc-cell.ghost { background: transparent; }
-.mn-tabledoc-hcell { flex: 1; min-width: var(--app-note-grid-min); position: relative; display: flex; align-items: center; gap: var(--app-space-2); min-height: var(--app-prop-height); padding: var(--app-space-2); }
+.mn-tabledoc-hcell { flex: 1; min-width: var(--app-table-cell-min); position: relative; display: flex; align-items: center; gap: var(--app-space-2); min-height: var(--app-prop-height); padding: var(--app-space-2); }
 .mn-tabledoc-hname { flex: 1; min-width: var(--app-zero); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-weight: var(--app-weight-medium); font-size: var(--app-size-chip); padding: var(--app-zero); }
 .mn-tabledoc-hname:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
-.mn-tabledoc-hbadge { flex: none; border: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-kicker); padding: 0 var(--app-space-4); height: var(--app-space-lg); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-tabledoc-hbadge { flex: none; border: var(--app-line) solid var(--app-border); background: var(--app-surface-sunken); color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-kicker); padding: 0 var(--app-space-6); height: var(--app-space-lg); border-radius: var(--app-radius-pill); cursor: pointer; }
 .mn-tabledoc-hbadge:hover { color: var(--app-fg); border-color: var(--app-accent); }
-.mn-tabledoc-addcol { flex: none; width: var(--app-prop-key-width); display: grid; place-items: center; position: relative; }
+.mn-tabledoc-addcol { flex: none; width: var(--app-tabledoc-rownum-width); display: grid; place-items: center; position: relative; }
 .mn-tabledoc-addanchor { position: relative; }
 .mn-tabledoc-hmenu { position: absolute; top: calc(var(--app-full-size) + var(--app-space-4)); left: var(--app-zero); z-index: 12; display: flex; flex-direction: column; gap: var(--app-space-4); min-width: var(--app-account-menu-min); padding: var(--app-space-5); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
 .mn-tabledoc-optedit { display: flex; flex-direction: column; gap: var(--app-space-2); font-size: var(--app-size-kicker); color: var(--app-fg-muted); }
@@ -469,7 +493,7 @@
 .mn-unlockpanel { width: var(--app-lock-card); text-align: center; margin: 0 auto; display: flex; flex-direction: column; gap: var(--app-space-6); }
 .mn-unlockmark { width: var(--app-lockmark-size); height: var(--app-lockmark-size); border-radius: var(--app-radius-pill); background: var(--app-surface-sunken); display: grid; place-items: center; margin: var(--app-zero) auto var(--app-space-md); color: var(--app-fg-subtle); }
 .mn-unlockinput { text-align: center; letter-spacing: var(--app-space-2); }
-.mn-dialog-settings { width: var(--app-settings-dialog); height: var(--app-settings-height); padding: var(--app-zero); gap: var(--app-zero); }
+.mn-dialog-settings { width: min(var(--app-settings-dialog), var(--app-full-size)); height: min(var(--app-settings-height), var(--app-dialog-max-height)); padding: var(--app-zero); gap: var(--app-zero); }
 .mn-dlg-head { height: var(--app-dlg-head-height); display: flex; align-items: center; justify-content: space-between; padding: var(--app-zero) var(--app-space-18) var(--app-zero) var(--app-space-lg); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-dlg-head h3 { font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); margin: var(--app-zero); }
 .mn-dlg-body { flex: 1; display: grid; grid-template-columns: var(--app-dlg-nav-width) minmax(0, 1fr); min-height: var(--app-zero); }

@@ -35,25 +35,27 @@ export function HistoryPanel({ userId, itemId, currentMarkdown, onClose }: Histo
   return (
     <div className="mn-overlay" role="presentation">
       <div className="mn-dialog mn-dialog-wide" role="dialog" aria-modal="true" aria-label="版本历史">
-        <p className="mn-dialog-title">版本历史</p>
-        {versions.length === 0 && <p className="mn-auth-hint">暂无历史版本。编辑内容会按节流自动封存。</p>}
-        {versions.length > 0 && (
-          <>
-            <ul className="mn-versionlist" aria-label="版本列表">
-              {versions.map((version) => (
-                <li key={version.id}>
-                  <button type="button" className={selected?.id === version.id ? "mn-versionrow on" : "mn-versionrow"}
-                    onClick={() => setSelected(version)}>
-                    <span>{new Date(version.createdAt).toLocaleString()}</span>
-                    <span className="mn-versionmeta">rev {version.rev} · {version.reason === "restore" ? "恢复前封存" : "自动封存"}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {selected && <VersionDiff base={currentMarkdown} target={selected.scope === "plain" ? selected.content : "（密文，解锁后恢复）"} />}
-          </>
-        )}
-        {error && <p className="mn-auth-error" role="alert">{error}</p>}
+        <div className="mn-dialog-head"><p className="mn-dialog-title">版本历史</p></div>
+        <div className="mn-dialog-body">
+          {versions.length === 0 && <p className="mn-auth-hint">暂无历史版本。编辑内容会按节流自动封存。</p>}
+          {versions.length > 0 && (
+            <>
+              <ul className="mn-versionlist" aria-label="版本列表">
+                {versions.map((version) => (
+                  <li key={version.id}>
+                    <button type="button" className={selected?.id === version.id ? "mn-versionrow on" : "mn-versionrow"}
+                      onClick={() => setSelected(version)}>
+                      <span>{new Date(version.createdAt).toLocaleString()}</span>
+                      <span className="mn-versionmeta">rev {version.rev} · {version.reason === "restore" ? "恢复前封存" : "自动封存"}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {selected && <VersionDiff base={currentMarkdown} target={selected.scope === "plain" ? selected.content : "（密文，解锁后恢复）"} />}
+            </>
+          )}
+          {error && <p className="mn-auth-error" role="alert">{error}</p>}
+        </div>
         <div className="mn-dialog-actions">
           <button type="button" className="mn-auth-submit" disabled={!selected} aria-disabled={!selected} onClick={() => void restore()}>
             恢复此版本

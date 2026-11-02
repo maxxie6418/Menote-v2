@@ -34,8 +34,10 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
     return (
       <div className="mn-overlay" role="presentation">
         <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="表格结构化编辑">
-          <p className="mn-dialog-title">表格结构化编辑</p>
-          <p className="mn-auth-hint">本文档没有可解析的 GFM 表格。表格需要表头行、`---` 分隔行与行首管道符。</p>
+          <div className="mn-dialog-head"><p className="mn-dialog-title">表格结构化编辑</p></div>
+          <div className="mn-dialog-body">
+            <p className="mn-auth-hint">本文档没有可解析的 GFM 表格。表格需要表头行、`---` 分隔行与行首管道符。</p>
+          </div>
           <div className="mn-dialog-actions">
             <button type="button" className="mn-auth-link" onClick={onClose}>关闭</button>
           </div>
@@ -68,38 +70,40 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
   return (
     <div className="mn-overlay" role="presentation">
       <div className="mn-dialog mn-dialog-wide" role="dialog" aria-modal="true" aria-label="表格结构化编辑">
-        <p className="mn-dialog-title">表格结构化编辑（{tables.length > 1 ? `第 ${tableIndex + 1} 个，` : ""}字段类型来自 YAML `fields:`）</p>
-        {tables.length > 1 && (
-          <select className="mn-propselect" value={tableIndex} aria-label="选择表格"
-            onChange={(event) => { setTableIndex(Number(event.target.value)); setGrid(null); }}>
-            {tables.map((_, index) => <option key={index} value={index}>表格 {index + 1}</option>)}
-          </select>
-        )}
-        <div className="mn-tablegrid" role="grid">
-          {current.map((cells, rowIndex) => (
-            <div key={rowIndex} className={rowIndex === 0 ? "mn-tablegrid-row head" : "mn-tablegrid-row"} role="row">
-              {cells.map((cell, columnIndex) => (
-                <div key={columnIndex} role="gridcell">
-                  {rowIndex === 0 ? (
-                    <input
-                      className="mn-tablegrid-input" type="text"
-                      value={cell} aria-label="表头单元格"
-                      onChange={(event) => setCell(rowIndex, columnIndex, event.target.value)}
-                    />
-                  ) : (
-                    <TableCellEditor
-                      value={cell} type={columnType(columnIndex)}
-                      def={fieldDefs[table!.header[columnIndex]?.trim() ?? ""]}
-                      onChange={(value) => setCell(rowIndex, columnIndex, value)}
-                    />
-                  )}
-                </div>
-              ))}
-              {rowIndex > 0 && (
-                <button type="button" className="mn-minibtn" aria-label="删除此行" onClick={() => removeRow(rowIndex)}>×</button>
-              )}
-            </div>
-          ))}
+        <div className="mn-dialog-head"><p className="mn-dialog-title">表格结构化编辑（{tables.length > 1 ? `第 ${tableIndex + 1} 个，` : ""}字段类型来自 YAML `fields:`）</p></div>
+        <div className="mn-dialog-body">
+          {tables.length > 1 && (
+            <select className="mn-propselect" value={tableIndex} aria-label="选择表格"
+              onChange={(event) => { setTableIndex(Number(event.target.value)); setGrid(null); }}>
+              {tables.map((_, index) => <option key={index} value={index}>表格 {index + 1}</option>)}
+            </select>
+          )}
+          <div className="mn-tablegrid" role="grid">
+            {current.map((cells, rowIndex) => (
+              <div key={rowIndex} className={rowIndex === 0 ? "mn-tablegrid-row head" : "mn-tablegrid-row"} role="row">
+                {cells.map((cell, columnIndex) => (
+                  <div key={columnIndex} role="gridcell">
+                    {rowIndex === 0 ? (
+                      <input
+                        className="mn-tablegrid-input" type="text"
+                        value={cell} aria-label="表头单元格"
+                        onChange={(event) => setCell(rowIndex, columnIndex, event.target.value)}
+                      />
+                    ) : (
+                      <TableCellEditor
+                        value={cell} type={columnType(columnIndex)}
+                        def={fieldDefs[table!.header[columnIndex]?.trim() ?? ""]}
+                        onChange={(value) => setCell(rowIndex, columnIndex, value)}
+                      />
+                    )}
+                  </div>
+                ))}
+                {rowIndex > 0 && (
+                  <button type="button" className="mn-minibtn" aria-label="删除此行" onClick={() => removeRow(rowIndex)}>×</button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="mn-dialog-actions">
           <button type="button" className="mn-auth-submit" onClick={apply}>写回正文</button>

@@ -198,7 +198,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   };
 
   return (
-    <article className="mn-doc" aria-label="文档区">
+    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"}>
       <DocBar
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
@@ -280,7 +280,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         </div>
         {showFormChooser && <BlankFormChooser onPickTable={pickTableForm} />}
         {plain && mode === "preview" && (
-          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body mn-doc-preview" />
+          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
         )}
         {plain && mode === "edit" && isTableDoc && (
           <TableDocument
@@ -334,13 +334,15 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
       {exporting && item && (
         <div className="mn-overlay" role="presentation">
           <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="导出">
-            <p className="mn-dialog-title">导出「{item.title}」</p>
-            {hasAttachmentRefs(item) && (
-              <p className="mn-auth-hint">纯 Markdown 导出时附件引用会断链；zip 导出会随行附件目录。</p>
-            )}
-            {item.content.scope !== "plain" && (
-              <p className="mn-auth-hint">已加密内容导出须先解锁（C-1：锁定态只能取得密文）。</p>
-            )}
+            <div className="mn-dialog-head"><p className="mn-dialog-title">导出「{item.title}」</p></div>
+            <div className="mn-dialog-body">
+              {hasAttachmentRefs(item) && (
+                <p className="mn-auth-hint">纯 Markdown 导出时附件引用会断链；zip 导出会随行附件目录。</p>
+              )}
+              {item.content.scope !== "plain" && (
+                <p className="mn-auth-hint">已加密内容导出须先解锁（C-1：锁定态只能取得密文）。</p>
+              )}
+            </div>
             <div className="mn-dialog-actions">
               <button type="button" className="mn-auth-submit" onClick={() => { void exportNoteZip(userId, item); setExporting(false); }}>
                 导出 zip（含附件）

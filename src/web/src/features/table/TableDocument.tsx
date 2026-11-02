@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   FIELDS_KEY, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
   type PropertyDef, type PropertyType,
@@ -233,6 +233,18 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
   return (
     <div className="mn-tabledoc" aria-label="多维表格">
       {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
+      {header.length > 0 && (
+        <div className="mn-tabledoc-bar">
+          <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
+          <div className="mn-tabledoc-bar-actions">
+            <button type="button" className="mn-textbtn" aria-expanded={addingCol}
+              onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
+              <Plus aria-hidden="true" /> 添加字段
+            </button>
+            <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
+          </div>
+        </div>
+      )}
       {header.length === 0 ? (
         <div className="mn-tabledoc-scaffold">
           <p>空白表格文档：从添加第一个字段开始（字段定义存 YAML `fields:`，内容为标准 Markdown 表格）。</p>
@@ -308,7 +320,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                     onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(row)); setDraggingRow(row); }}
                     onClick={(event) => event.stopPropagation()}>⠿</span>
                   <span>{row + 1}</span>
-                  <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}>×</button>
+                  <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}><Trash2 aria-hidden="true" /></button>
                 </div>
                 {header.map((name, col) => (
                   <div className="mn-tabledoc-cell" role="gridcell" key={col}>

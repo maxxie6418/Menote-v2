@@ -142,6 +142,10 @@
   --app-duo-height: 2.125rem;      /* 34px 收件箱/草稿箱块 */
   --app-btn-height: 2rem;          /* 32px 主按钮 */
   --app-doc-pad: var(--app-space-34);
+  /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
+  --app-doc-measure: 42rem;
+  --app-doc-measure-wide: 56rem;
+  --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
   --app-icon-2xs: 0.5rem;          /* 8px */
   --app-icon-xs: 0.75rem;          /* 12px */
   --app-icon-sm: 0.8125rem;        /* 13px */
@@ -230,6 +234,12 @@
   --app-main-top: 12vh;
   --app-button-height: 2.5rem;
   --app-auth-card-width: min(22rem, 100%); /* G1 认证卡片 */
+  /* 对话框宽度档位（DESIGN §5：内容决定档位，不再统一沿用登录卡宽度） */
+  --app-dialog-width-md: min(30rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-width-lg: min(40rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-width-xl: min(54rem, calc(100vw - var(--app-space-2xl)));
+  --app-dialog-max-height: calc(100dvh - var(--app-space-2xl)); /* 让位遮罩内边距，保证不贴边 */
+  --app-dialog-head-gap: var(--app-space-6);
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
   --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
   --app-settings-dialog: 40.5rem;  /* 设置对话框 648px */
@@ -241,6 +251,10 @@
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
+  --app-formatbtn-size: 1.5rem;     /* 格式栏图标按钮 24px 见方 */
+  --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
+  --app-tabledoc-rownum-width: 2.875rem; /* 46px：拖拽手柄 + 行号 + 删除按钮并排的最小宽 */
+  --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
   --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
   --app-motion-loop: 1.4s;          /* 登录加载动画循环周期 */
   --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */

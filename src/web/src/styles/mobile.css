@@ -102,7 +102,12 @@
 .m-mobile-document .mn-docbar { height: var(--app-mobile-header-height); padding: var(--app-zero) var(--app-space-xs); }
 .m-mobile-document .mn-docbar-right { gap: var(--app-space-2); }
 .m-mobile-document .mn-docbar .mn-iconbtn { min-width: var(--app-mobile-row-min-height); min-height: var(--app-mobile-row-min-height); }
-.m-mobile-document .mn-docbody { gap: var(--app-space-xs); padding: var(--app-mobile-content-pad); }
+.m-mobile-document .mn-docbody { padding: var(--app-mobile-content-pad); }
+.m-mobile-document .mn-docbody > * + * { margin-top: var(--app-space-xs); }
+.m-mobile-document .mn-docbody > * { max-width: var(--app-full-size); }
+/* 移动端格式栏：单行横向滚动，按钮保持 44 像素触控目标 */
+[data-layout="mobile"] .mn-formatbar { flex-wrap: nowrap; overflow-x: auto; }
+[data-layout="mobile"] .mn-formatbar .mn-formatbtn { flex: none; width: var(--app-touch-target); height: var(--app-touch-target); }
 .m-mobile-document .mn-doc-title { font-size: var(--app-mobile-title-size); line-height: var(--app-leading-doc-title); }
 .m-mobile-document .mn-propbar { padding: var(--app-space-4) var(--app-space-6); }
 .m-mobile-document .mn-proplist { grid-template-columns: minmax(0, 1fr); }

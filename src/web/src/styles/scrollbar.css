@@ -82,7 +82,9 @@ html::-webkit-scrollbar {
 .mn-memo-work,
 .mn-memo-todo,
 .mn-statuspage,
-.mn-dlg-content {
+.mn-dlg-content,
+.mn-dialog-body,
+.mn-tabledoc-scroll {
   scrollbar-gutter: stable;
 }
 
