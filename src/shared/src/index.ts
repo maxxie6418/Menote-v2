@@ -7,6 +7,13 @@ export type { HealthResponse } from "./contracts/health";
 export type { AuthStatus, AuthUser, CredentialsInput } from "./contracts/auth";
 export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./contracts/auth";
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
+export {
+  AI_SETTING_KEY, AI_MODEL_OPTIONS, DEFAULT_AI_MODEL, AI_FREE_NEURONS_DAILY,
+  DEFAULT_AI_SETTINGS, normalizeAiSettings, AI_MAX_CONTENT_CHARS, AI_MAX_TITLE_CHARS,
+} from "./contracts/ai";
+export type {
+  AiModelOption, AiSettings, AiTaskKind, AiTaskStatus, AiTaskResult, AiTaskView, AiUsageSummary,
+} from "./contracts/ai";
 export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonitorSetup, CloudflareMonitorConnection, CloudflareMonitorMetrics } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment, MemoComment, MemoQuote } from "./types/item";
 export type {

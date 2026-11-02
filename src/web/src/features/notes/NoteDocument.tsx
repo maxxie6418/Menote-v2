@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Tag, Trash2, FolderInput } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Tag, Trash2, FolderInput } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
 import { joinFrontmatter, splitFrontmatter } from "../../lib/frontmatter";
 import { TableDocument } from "../table";
+import { AiAssistDialog } from "../ai";
 import { useItem } from "../../services/contentHooks";
 import { degradeTableToNote, isConvertibleBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
@@ -49,6 +50,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [aiAssist, setAiAssist] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
@@ -233,6 +235,11 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
                   <button type="button" role="menuitem" onClick={() => { setHistory(true); setMoreOpen(false); }}>
                     <Clock />版本历史
                   </button>
+                  {!isTableDoc && (
+                    <button type="button" role="menuitem" onClick={() => { setAiAssist(true); setMoreOpen(false); }}>
+                      <Sparkles />AI 助手
+                    </button>
+                  )}
                   <button type="button" role="menuitem" onClick={() => { setEncrypting(true); setMoreOpen(false); }}>
                     <Shield />启用单篇加密
                   </button>
@@ -318,6 +325,21 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
       </div>
       {history && item && (
         <HistoryPanel userId={userId} itemId={item.id} currentMarkdown={draft ?? item.content.markdown} onClose={() => setHistory(false)} />
+      )}
+      {aiAssist && (
+        <AiAssistDialog
+          userId={userId}
+          itemId={item.id}
+          title={item.title ?? ""}
+          tags={item.tags}
+          markdown={draft ?? item.content.markdown}
+          onApplySummary={(next) => { void saveFullMarkdown(next); }}
+          onApplyTags={async (recommended) => {
+            const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
+            await saveItemMeta(userId, item.id, { tags: merged });
+          }}
+          onClose={() => setAiAssist(false)}
+        />
       )}
       {encrypting && item && (
         <EncryptSetupDialog

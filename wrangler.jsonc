@@ -15,6 +15,24 @@
       "binding": "DB"
     }
   ],
+  "ai": {
+    "binding": "AI"
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "AI_TASKS_QUEUE",
+        "queue": "ai-tasks"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "ai-tasks",
+        "max_batch_size": 5,
+        "max_retries": 3
+      }
+    ]
+  },
   "r2_buckets": [
     {
       "binding": "BUCKET"

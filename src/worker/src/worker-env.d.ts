@@ -4,6 +4,10 @@ interface __BaseEnv_Env {
 	BUCKET: R2Bucket;
 	DB: D1Database;
 	ASSETS: Fetcher;
+	/* TP8：AI 推理与任务队列绑定（wrangler.jsonc 已声明）。标记为可选——本地/测试环境缺绑定时运行时 fail-closed，
+	   重新生成此文件（wrangler types）会把它们变回必选，测试夹具需同步提供桩。 */
+	AI?: Ai;
+	AI_TASKS_QUEUE?: Queue;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

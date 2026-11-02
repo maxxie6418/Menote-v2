@@ -133,6 +133,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
 **settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「MCP 接入」与「剪藏模板」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
+**ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
 ## 4. Worker 架构
@@ -148,6 +149,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - 剪藏模板模块：shared 定义 `ClipTemplateV1` 与纯数据校验；Worker `routes/clipTemplates.ts` → `services/clipTemplateService.ts` → `db/clipTemplates.ts` 管理按 userId 隔离的规则；设置页只处理 Menote 声明式模板 JSON；EdgeEver 源码转换是 Menote-clients 的独立离线 CLI，不进入 Worker/Web 运行时；MCP 模板工具只接触模板数据并使用独立权限；浏览器扩展是 MCP 客户端，不被 Worker/UI 反向依赖。
 - MCP 网址收藏：`routes/mcp.ts` 在 `bookmark:write` 已授权时注册 `append_bookmark`；`services/mcpBookmarkService.ts` 只读取用户指定且在 Token 范围内的明文 Note/Table，`services/mcpBookmarkFormat.ts` 负责追加收藏行/记录；`db/mcpBookmarks.ts` 执行用户归属、加密与范围过滤。仅返回目标 ID 和操作回执，不依赖内容读取权限；写入经同步服务维护 rev、日志和幂等。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
+- AI 模块（FR-AI-2，TP8）：shared `contracts/ai.ts` 契约单源；Worker `routes/ai.ts` → `services/aiService.ts` → `db/ai.ts`（`ai_tasks`/`ai_usage_daily` 独立表，不与业务表耦合）；推理经 Workers AI 原生绑定 `AI`，任务队列 `ai-tasks`（生产者/消费者同 Worker，`index.ts` queue 入口 → `dispatchAiQueue` 逐条 ack/retry）；提交链路固定为 开关 → 加密排除（SQL 侧谓词）→ 复用/去重 → 每日预算 → 入队；AI 设置随 `user_settings` 同步（`ai` 键），不经 REST。
 - 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
 ## 5. 数据契约摘要（M1 细化为 `src/shared` 类型与迁移 SQL）

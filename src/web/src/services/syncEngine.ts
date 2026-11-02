@@ -7,6 +7,7 @@ import { deleteOutboxRows, listPendingOutbox, markOutboxError } from "../db/outb
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
+import { applyPulledAiSettings } from "./aiSettingsService";
 
 /**
  * 同步引擎（G6，按 G2 定稿 §3/§4/§8）：单轮 = 推送排水 + 拉取推进；
@@ -183,6 +184,7 @@ async function pullUpdates(userId: string): Promise<void> {
       await localDb.topics.put(topic);
     }
     await applyPulledSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
+    await applyPulledAiSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await setMeta(SYNC_CURSOR_KEY, Number(nextCursor ?? cursor) || cursor);
     if (!hasMore) return;
   }

@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { DEFAULT_MONITOR_PREFERENCES, type CloudflareMonitorConnection, type CloudflareMonitorMetrics, type CloudflareMonitorSetup, type MonitorPreferences, type MonitorSummary } from "@menote/shared";
+import { DEFAULT_MONITOR_PREFERENCES, type AiUsageSummary, type CloudflareMonitorConnection, type CloudflareMonitorMetrics, type CloudflareMonitorSetup, type MonitorPreferences, type MonitorSummary } from "@menote/shared";
 import { RefreshCw } from "lucide-react";
 import { deleteCloudflareConnection, getCloudflareConnection, getCloudflareMetrics, getMonitorSummary, getSavedCloudflareToken, saveCloudflareConnection } from "../../services/monitorService";
 import { loadMonitorPreferences, saveMonitorPreferences, validPreferences } from "../../services/monitorPreferencesService";
+import { readAiUsage } from "../../services/aiService";
 
 const EMPTY_SETUP: CloudflareMonitorSetup = { accountId: "", apiToken: "", scriptName: "menote-v2", d1DatabaseId: "", r2BucketName: "" };
 
@@ -11,6 +12,7 @@ export default function MonitorPanel({ refresh = 0 }: { refresh?: number }) {
   const [local, setLocal] = useState<MonitorSummary | null>(null);
   const [metrics, setMetrics] = useState<CloudflareMonitorMetrics | null>(null);
   const [connection, setConnection] = useState<CloudflareMonitorConnection | null>(null);
+  const [aiUsage, setAiUsage] = useState<AiUsageSummary | null>(null);
   const [preferences, setPreferences] = useState<MonitorPreferences>({ ...DEFAULT_MONITOR_PREFERENCES });
   const [draftPreferences, setDraftPreferences] = useState<MonitorPreferences>({ ...DEFAULT_MONITOR_PREFERENCES });
   const [setup, setSetup] = useState<CloudflareMonitorSetup>({ ...EMPTY_SETUP });
@@ -36,11 +38,12 @@ export default function MonitorPanel({ refresh = 0 }: { refresh?: number }) {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError("");
-    void Promise.allSettled([getMonitorSummary(period, controller.signal, tick > 0), getCloudflareMetrics(period, controller.signal)]).then(([localResult, cloudResult]) => {
+    void Promise.allSettled([getMonitorSummary(period, controller.signal, tick > 0), getCloudflareMetrics(period, controller.signal), readAiUsage(controller.signal).catch(() => null)]).then(([localResult, cloudResult, aiResult]) => {
       if (controller.signal.aborted) return;
       setLocal(localResult.status === "fulfilled" ? localResult.value : null);
       if (cloudResult.status === "fulfilled") setMetrics(cloudResult.value);
       else { setMetrics(null); setError(cloudResult.reason instanceof Error ? cloudResult.reason.message : "Cloudflare Analytics API 暂不可用。"); }
+      setAiUsage(aiResult.status === "fulfilled" ? aiResult.value : null);
       setLoading(false);
     });
     return () => controller.abort();
@@ -125,7 +128,10 @@ export default function MonitorPanel({ refresh = 0 }: { refresh?: number }) {
             <tr><td>Worker</td><td>{connection?.scriptName ?? "未配置"}</td><td>{metrics.worker.requests.toLocaleString()} 次请求</td></tr>
             <tr><td>D1</td><td>{connection?.d1DatabaseId ?? "未启用"}</td><td>{metrics.d1 ? `${formatBytes(metrics.d1.sizeBytes)} · ${metrics.d1.rowsRead.toLocaleString()} 读行` : "—"}</td></tr>
             <tr><td>R2</td><td>{connection?.r2BucketName ?? "未启用"}</td><td>{metrics.r2 ? `${formatBytes(metrics.r2.payloadBytes)} · ${metrics.r2.objectCount.toLocaleString()} 对象` : "—"}</td></tr>
-            <tr className="mn-monitor-unavailable"><td>Workers AI / Queues</td><td>未启用</td><td>—</td></tr>
+            {aiUsage && aiUsage.calls > 0
+              ? <tr><td>Workers AI</td><td>本应用计数（非官方）</td><td>{aiUsage.calls} 次推理 · 输入 {aiUsage.inputTokens.toLocaleString()} / 输出 {aiUsage.outputTokens.toLocaleString()} tokens</td></tr>
+              : <tr className="mn-monitor-unavailable"><td>Workers AI</td><td>未启用或当日无调用</td><td>—</td></tr>}
+            <tr className="mn-monitor-unavailable"><td>Queues</td><td>ai-tasks（AI 任务队列）</td><td>操作量以 Cloudflare 官方仪表盘为准</td></tr>
           </tbody></table>
           <p className="mn-monitor-caption">当前接入按目标标识显示项目数据。账户总量/占比暂不显示，避免将项目值冒充账户汇总。</p>
         </section>

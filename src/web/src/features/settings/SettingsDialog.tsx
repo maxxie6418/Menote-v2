@@ -8,13 +8,15 @@ import { getMeasurePreference, setMeasurePreference, type MeasurePreference } fr
 import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
 import { StyleSection } from "./StyleSection";
+import { AiSection } from "./AiSection";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 
-export type SettingsSection = "appearance" | "style" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
+export type SettingsSection = "appearance" | "style" | "ai" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
   { id: "style", label: "样式" },
+  { id: "ai", label: "AI 助手" },
   { id: "backup", label: "远程备份" },
   { id: "attachments", label: "附件" },
   { id: "recovery", label: "恢复码" },
@@ -58,6 +60,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
           <div className="mn-dlg-content">
             {section === "appearance" && <AppearanceSection userId={userId} />}
             {section === "style" && <StyleSection userId={userId} />}
+            {section === "ai" && <AiSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}

@@ -39,6 +39,7 @@ export const scheduledJobs: ScheduledJob[] = [
         purgeSyncLogBefore, purgeSyncOperationsBefore, purgeJobRunsBefore,
       } = await import("../db/cleanup");
       const { listExpiredOrphans, deleteAttachmentRow } = await import("../db/attachments");
+      const { failStaleAiTasks, deleteStaleAiTasks } = await import("../db/ai");
       const now = Date.now();
       const DAY = 86_400_000;
       // 孤儿附件：归零观察 30 天后真删 R2 对象与元数据行（FR-SYNC-8）。
@@ -54,6 +55,9 @@ export const scheduledJobs: ScheduledJob[] = [
         await purgeSyncOperationsBefore(env.DB, user.id, now - 90 * DAY);
       }
       await purgeJobRunsBefore(env.DB, now - 90 * DAY);
+      // TP8：AI 任务超时兜底（1 小时）与完成留痕 30 天清理。
+      await failStaleAiTasks(env.DB, now - 3_600_000, now);
+      await deleteStaleAiTasks(env.DB, now - 30 * DAY);
     },
   },
 ];
