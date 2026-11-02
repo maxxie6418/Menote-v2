@@ -21,6 +21,7 @@ interface GateState {
 }
 
 const INITIAL: GateState = { phase: "loading", user: null, registrationOpen: false };
+const AUTH_STATUS_TIMEOUT_MS = 10_000;
 
 /** 应用级认证门：探测阶段 → 引导 / 登录 / 放行主界面；会话失效回到登录。 */
 export function AuthGate({ children }: { children: (user: AuthUser, onLogout: () => void) => ReactNode }) {
@@ -40,11 +41,27 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     });
   }, []);
 
-  useEffect(() => {
+  const startRefresh = useCallback(() => {
     const controller = new AbortController();
-    void refresh(controller.signal);
-    return () => controller.abort();
+    const timeout = window.setTimeout(() => {
+      if (controller.signal.aborted) return;
+      setState({ phase: "unavailable", user: null, registrationOpen: false });
+      controller.abort();
+    }, AUTH_STATUS_TIMEOUT_MS);
+    void refresh(controller.signal)
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ phase: "unavailable", user: null, registrationOpen: false });
+      })
+      .finally(() => window.clearTimeout(timeout));
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [refresh]);
+
+  useEffect(() => {
+    return startRefresh();
+  }, [startRefresh]);
 
   const onLogout = useCallback(() => {
     void logout().finally(() => setState({ phase: "login", user: null, registrationOpen: false }));
@@ -58,18 +75,13 @@ export function AuthGate({ children }: { children: (user: AuthUser, onLogout: ()
     return <>{children(state.user, onLogout)}</>;
   }
 
-  const refreshStatus = () => {
-    const controller = new AbortController();
-    void refresh(controller.signal);
-  };
-
   if (state.phase === "unavailable") {
     return (
       <section className="mn-auth" aria-labelledby="mn-auth-title">
         <div className="mn-auth-card">
           <h1 id="mn-auth-title" className="mn-auth-title">服务暂不可用</h1>
           <p className="mn-auth-hint">无法确认登录状态。若为刚部署，请稍候片刻后重试。</p>
-          <button type="button" className="mn-auth-submit" onClick={refreshStatus}>重试</button>
+          <button type="button" className="mn-auth-submit" onClick={startRefresh}>重试</button>
         </div>
       </section>
     );
