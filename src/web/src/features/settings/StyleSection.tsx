@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { updateAppearance } from "../../services/appearanceSettingsService";
 import { DOC_STYLE_DEFAULTS, effectiveDocStyle, resetDocStyle, updateDocStyle, type DocStyleVars } from "../../lib/docStyle";
 
 /**
@@ -96,8 +97,13 @@ function themeDefaultColor(): string {
   return document.documentElement.dataset.theme === "dark" ? "#e9ebed" : "#1a1a18";
 }
 
-export function StyleSection() {
+export function StyleSection({ userId }: { userId: string }) {
   const [vars, setVars] = useState<DocStyleVars>(effectiveDocStyle);
+  useEffect(() => {
+    const refresh = () => setVars(effectiveDocStyle());
+    window.addEventListener("menote:appearance", refresh);
+    return () => window.removeEventListener("menote:appearance", refresh);
+  }, []);
   /** 正在键入、还没收敛成合法值的文本；键是控件标识。 */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const read = (key: string) => vars[key] ?? DOC_STYLE_DEFAULTS[key] ?? "";
@@ -105,6 +111,7 @@ export function StyleSection() {
   const update = (patch: DocStyleVars) => {
     setVars((previous) => ({ ...previous, ...patch }));
     updateDocStyle(patch);
+    void updateAppearance(userId, { docStyle: { ...effectiveDocStyle(), ...patch } });
   };
 
   const setDraft = (key: string, value: string) => setDrafts((previous) => ({ ...previous, [key]: value }));
@@ -149,6 +156,7 @@ export function StyleSection() {
 
   const reset = () => {
     resetDocStyle();
+    void updateAppearance(userId, { docStyle: {} });
     setVars({ ...DOC_STYLE_DEFAULTS });
     setDrafts({});
   };

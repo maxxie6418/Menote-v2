@@ -8,6 +8,8 @@ import { getMeasurePreference, setMeasurePreference, type MeasurePreference } fr
 import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
 import { StyleSection } from "./StyleSection";
+import { localDb } from "../../db/localDb";
+import { updateAppearance } from "../../services/appearanceSettingsService";
 
 export type SettingsSection = "appearance" | "style" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
 
@@ -55,8 +57,8 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
             ))}
           </nav>
           <div className="mn-dlg-content">
-            {section === "appearance" && <AppearanceSection />}
-            {section === "style" && <StyleSection />}
+            {section === "appearance" && <AppearanceSection userId={userId} />}
+            {section === "style" && <StyleSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <AttachmentListPanel userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
@@ -70,9 +72,20 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
 }
 
 /** 外观节：界面字体与阅读宽度（偏好分别经 lib/fontPreference、lib/measurePreference 即时生效）。 */
-function AppearanceSection() {
+function AppearanceSection({ userId }: { userId: string }) {
   const [font, setFont] = useState<FontPreference>(getFontPreference);
   const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
+  useEffect(() => {
+    const refresh = () => { void localDb.settings.get([userId, "appearance"]).then((row) => {
+      if (row?.sensitivity !== "ordinary") return;
+      const value = row.value as { font?: FontPreference; measure?: MeasurePreference };
+      if (value.font) setFont(value.font);
+      if (value.measure) setMeasure(value.measure);
+    }); };
+    refresh();
+    window.addEventListener("menote:appearance", refresh);
+    return () => window.removeEventListener("menote:appearance", refresh);
+  }, [userId]);
   return (
     <div>
       <div className="mn-setrow">
@@ -88,6 +101,7 @@ function AppearanceSection() {
             const value = event.target.value as FontPreference;
             setFontPreference(value);
             setFont(value);
+            void updateAppearance(userId, { font: value });
           }}
         >
           <option value="noto">Noto Sans SC（默认）</option>
@@ -107,6 +121,7 @@ function AppearanceSection() {
             const value = event.target.value as MeasurePreference;
             setMeasurePreference(value);
             setMeasure(value);
+            void updateAppearance(userId, { measure: value });
           }}
         >
           <option value="narrow">窄（默认）</option>

@@ -14,13 +14,13 @@ export async function readMemoComments(db: D1Database, userId: string, ids: stri
   const rows = await db.prepare(
     `SELECT * FROM memo_comments WHERE user_id = ? AND id IN (${ids.map(() => "?").join(",")}) AND deleted_at IS NULL`,
   ).bind(userId, ...ids).all<Record<string, unknown>>();
-  return rows.results.map(rowToMemoComment);
+  return rows.results.map((row) => rowToMemoComment(row));
 }
 
 export async function readAllMemoComments(db: D1Database, userId: string): Promise<MemoComment[]> {
   const rows = await db.prepare("SELECT * FROM memo_comments WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at, id")
     .bind(userId).all<Record<string, unknown>>();
-  return rows.results.map(rowToMemoComment);
+  return rows.results.map((row) => rowToMemoComment(row));
 }
 
 export async function readMemoCommentState(db: D1Database, userId: string, id: string) {

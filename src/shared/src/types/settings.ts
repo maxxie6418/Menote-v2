@@ -1,5 +1,5 @@
 /** User ownership is mandatory; secret settings require separately reviewed encryption. */
-export type UserSetting = { userId: string; key: string } & (
+export type UserSetting = { userId: string; key: string; rev: number; updatedAt: number } & (
   | { sensitivity: "ordinary"; value: unknown }
   | { sensitivity: "secret"; ciphertext: string }
 );

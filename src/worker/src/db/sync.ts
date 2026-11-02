@@ -114,14 +114,49 @@ export async function readAllTopics(db: D1Database, userId: string): Promise<Top
 export async function readSettings(db: D1Database, userId: string): Promise<UserSetting[]> {
   const rows = await db.prepare(
     "SELECT user_id, key, is_secret, value_json, value_ciphertext, rev FROM user_settings WHERE user_id = ?",
-  ).bind(userId).all<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number }>();
+  ).bind(userId).all<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number; updated_at: number | null }>();
   return rows.results.map((row) => ({
     userId: row.user_id,
     key: row.key,
+    rev: row.rev,
+    updatedAt: Number(row.updated_at ?? 0),
     ...(row.is_secret === 1
       ? { sensitivity: "secret" as const, ciphertext: row.value_ciphertext instanceof Uint8Array ? new TextDecoder().decode(row.value_ciphertext) : String(row.value_ciphertext ?? "") }
       : { sensitivity: "ordinary" as const, value: row.value_json === null ? null : JSON.parse(row.value_json) }),
   }));
+}
+
+export async function readSettingState(db: D1Database, userId: string, key: string): Promise<UserSetting | null> {
+  const row = await db.prepare(
+    "SELECT user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at FROM user_settings WHERE user_id = ? AND key = ?",
+  ).bind(userId, key).first<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number; updated_at: number | null }>();
+  if (!row) return null;
+  return {
+    userId: row.user_id, key: row.key, rev: row.rev, updatedAt: Number(row.updated_at ?? 0),
+    ...(row.is_secret === 1
+      ? { sensitivity: "secret" as const, ciphertext: row.value_ciphertext instanceof Uint8Array ? new TextDecoder().decode(row.value_ciphertext) : String(row.value_ciphertext ?? "") }
+      : { sensitivity: "ordinary" as const, value: row.value_json === null ? null : JSON.parse(row.value_json) }),
+  };
+}
+
+export async function writeSetting(db: D1Database, setting: UserSetting, baseRev: number, operationId: string, now: number): Promise<number> {
+  const isSecret = setting.sensitivity === "secret";
+  const write = db.prepare(
+    `INSERT INTO user_settings (user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, key) DO UPDATE SET is_secret = excluded.is_secret,
+       value_json = excluded.value_json, value_ciphertext = excluded.value_ciphertext,
+       rev = excluded.rev, updated_at = excluded.updated_at
+     WHERE user_settings.rev = ?`,
+  ).bind(setting.userId, setting.key, isSecret ? 1 : 0,
+    isSecret ? null : JSON.stringify(setting.value), isSecret ? setting.ciphertext : null,
+    setting.rev, now, baseRev);
+  const operation = db.prepare(
+    `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
+     SELECT ?, ?, 'setting', ?, 'applied', ?, 0, NULL, ? WHERE changes() = 1`,
+  ).bind(setting.userId, operationId, setting.key, setting.rev, now);
+  const [result] = await db.batch([write, operation]);
+  return result?.meta.changes ?? 0;
 }
 
 /* ---------- 写侧（服务层编排用；SQL 只在 db 层） ---------- */

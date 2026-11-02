@@ -85,6 +85,16 @@ export function updateDocStyle(patch: DocStyleVars): DocStyleVars {
   return next;
 }
 
+/** Replace stored styles exactly when applying an account snapshot. */
+export function setDocStyle(vars: DocStyleVars): void {
+  const sanitized: DocStyleVars = {};
+  for (const [key, value] of Object.entries(vars)) {
+    if (VAR_PATTERN.test(key) && typeof value === "string" && value.trim()) sanitized[key] = value;
+  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized)); } catch { /* session still updates */ }
+  applyDocStyle(sanitized);
+}
+
 /** 恢复默认：清空偏好并摘掉根节点上的覆盖。 */
 export function resetDocStyle(): void {
   try {

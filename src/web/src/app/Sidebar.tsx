@@ -125,7 +125,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         </>
       )}
       <div className="mn-sb-foot">
-        <AccountMenu username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} onOpenStatus={onOpenStatus} />
+        <AccountMenu userId={userId} username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} onOpenStatus={onOpenStatus} />
       </div>
     </aside>
   );

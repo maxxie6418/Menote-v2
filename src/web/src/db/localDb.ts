@@ -7,6 +7,7 @@ import type { SyncEntity } from "@menote/shared";
 
 export interface OutboxRow {
   seq?: number;
+  userId: string;
   operationId: string;
   entityId: string;
   entity: SyncEntity;
@@ -80,6 +81,19 @@ class MenoteLocalDb extends Dexie {
       versions: "++id, itemId, createdAt, userId",
       meta: "key",
     });
+    this.version(3).stores({
+      topics: "id, userId, parentId, [userId+deletedAt]",
+      items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
+      memoComments: "id, userId, memoId, [userId+memoId+createdAt], [userId+deletedAt]",
+      settings: "[userId+key], userId",
+      outbox: "++seq, userId, entityId, nextRetryAt",
+      wraps: "itemId",
+      versions: "++id, itemId, createdAt, userId",
+      meta: "key",
+    }).upgrade((transaction) => transaction.table("outbox").toCollection().modify((row: OutboxRow) => {
+      const payload = row.payload as { item?: Item; topic?: TopicNode; comment?: MemoComment; setting?: UserSetting } | null;
+      row.userId = payload?.item?.userId ?? payload?.topic?.userId ?? payload?.comment?.userId ?? payload?.setting?.userId ?? "";
+    }));
   }
 }
 

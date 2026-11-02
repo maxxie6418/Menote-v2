@@ -1,4 +1,4 @@
-import type { Item, TopicNode } from "@menote/shared";
+import type { Item, TopicNode, UserSetting } from "@menote/shared";
 import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
@@ -9,6 +9,7 @@ import {
   appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
   readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, toTombstone, upsertItemRow, upsertTopicRow,
+  readSettingState, writeSetting,
 } from "../db/sync";
 
 /**
@@ -142,6 +143,28 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };
 }
 
+async function applySetting(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
+  const incoming = (operation.payload as { setting?: UserSetting } | null)?.setting;
+  if (!incoming || incoming.key !== operation.entityId || incoming.key !== "appearance" || incoming.sensitivity !== "ordinary" ||
+      !Number.isSafeInteger(operation.baseRev) || operation.baseRev < 0) throw new SyncRejected("invalid_payload");
+  const current = await readSettingState(ctx.db, ctx.userId, incoming.key);
+  if ((current?.rev ?? 0) !== operation.baseRev) {
+    const rev = current?.rev ?? 0;
+    await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "setting", incoming.key, "conflict", rev, 0, null, ctx.now);
+    return { operationId: operation.operationId, result: "conflict", detail: { rev, metaRev: 0, contentHash: null } };
+  }
+  const next: UserSetting = { userId: ctx.userId, key: incoming.key, sensitivity: "ordinary", value: incoming.value,
+    rev: operation.baseRev + 1, updatedAt: ctx.now };
+  const changed = await writeSetting(ctx.db, next, operation.baseRev, operation.operationId, ctx.now);
+  if (changed !== 1) {
+    const latest = await readSettingState(ctx.db, ctx.userId, incoming.key);
+    const rev = latest?.rev ?? 0;
+    await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "setting", incoming.key, "conflict", rev, 0, null, ctx.now);
+    return { operationId: operation.operationId, result: "conflict", detail: { rev, metaRev: 0, contentHash: null } };
+  }
+  return { operationId: operation.operationId, result: "applied", rev: next.rev, metaRev: 0 };
+}
+
 /** 逐操作应用入口；单操作任何确定失败不影响其余操作（G2 §3）。 */
 export async function applyOperation(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const previous = await readSyncOperation(ctx.db, ctx.userId, operation.operationId);
@@ -159,6 +182,7 @@ export async function applyOperation(ctx: ApplyContext, operation: OutboxOperati
       return await applyTopic(ctx, operation);
     }
     if (operation.entity === "memo_comment") return await applyMemoComment(ctx, operation);
+    if (operation.entity === "setting") return await applySetting(ctx, operation);
     return { operationId: operation.operationId, result: "rejected", code: "unsupported_entity" };
   } catch (error) {
     if (error instanceof SyncRejected) {

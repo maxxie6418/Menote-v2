@@ -5,6 +5,7 @@ import { localDb, type OutboxRow } from "./localDb";
 
 export function toOutboxRow(operation: OutboxOperation, now: number): OutboxRow {
   return {
+    userId: operation.userId,
     operationId: operation.operationId,
     entityId: operation.entityId,
     entity: operation.entity,
@@ -26,10 +27,10 @@ export async function enqueueOutbox(rows: OutboxRow[]): Promise<void> {
 }
 
 /** 队首可推送操作：nextRetryAt 已到期或为空，按 seq 稳定排序，单轮上限由调用方裁剪。 */
-export async function listPendingOutbox(limit = 20): Promise<OutboxRow[]> {
+export async function listPendingOutbox(userId: string, limit = 20): Promise<OutboxRow[]> {
   const now = Date.now();
   const rows = await localDb.outbox.orderBy("seq").toArray();
-  return rows.filter((row) => row.nextRetryAt === null || row.nextRetryAt <= now).slice(0, limit);
+  return rows.filter((row) => row.userId === userId && (row.nextRetryAt === null || row.nextRetryAt <= now)).slice(0, limit);
 }
 
 export async function countPendingOutbox(): Promise<number> {

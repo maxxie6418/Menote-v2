@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Activity, LogOut, SlidersHorizontal } from "lucide-react";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
+import { updateAppearance } from "../services/appearanceSettingsService";
 
 const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
   { mode: "system", label: "跟随系统" },
@@ -10,6 +11,7 @@ const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
 ];
 
 interface AccountMenuProps {
+  userId: string;
   username: string;
   role: "owner" | "member";
   collapsed: boolean;
@@ -19,7 +21,7 @@ interface AccountMenuProps {
 }
 
 /** 侧栏脚部账户菜单：主题、系统状态、设置与退出登录。菜单用 fixed 定位逃出侧栏 overflow 裁剪。 */
-export function AccountMenu({ username, role, collapsed, onLogout, onOpenSettings, onOpenStatus }: AccountMenuProps) {
+export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpenSettings, onOpenStatus }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ThemeMode>(getThemeMode);
   const [position, setPosition] = useState({ left: 0, bottom: 0 });
@@ -80,7 +82,7 @@ export function AccountMenu({ username, role, collapsed, onLogout, onOpenSetting
             {THEME_OPTIONS.map((option) => (
               <button key={option.mode} type="button" role="radio" aria-checked={mode === option.mode}
                 className={mode === option.mode ? "on" : ""}
-                onClick={() => setThemeMode(option.mode)}>
+                onClick={() => { setThemeMode(option.mode); void updateAppearance(userId, { theme: option.mode }); }}>
                 {option.label}
               </button>
             ))}
