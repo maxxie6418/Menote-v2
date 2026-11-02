@@ -209,16 +209,21 @@ export async function buildSyncPage(db: D1Database, userId: string, cursor: numb
     };
   }
 
-  // Soft-delete rows stay in the Trash; a hard purge has no row and is removed by its tombstone.
-  const itemIds = page.entries.filter((entry) => entry.entity === "item").map((entry) => entry.entityId);
-  const topicIds = page.entries.filter((entry) => entry.entity === "topic").map((entry) => entry.entityId);
+  // Retained soft-delete rows return as items; only physically removed rows
+  // need tombstones. Never send both for the same item/topic in one page.
+  const itemIds = [...new Set(page.entries.filter((entry) => entry.entity === "item").map((entry) => entry.entityId))];
+  const topicIds = [...new Set(page.entries.filter((entry) => entry.entity === "topic").map((entry) => entry.entityId))];
   const memoCommentIds = page.entries.filter((entry) => entry.entity === "memo_comment" && entry.op === "upsert").map((entry) => entry.entityId);
   const items = await readItems(db, userId, itemIds);
   const topics = await readTopics(db, userId, topicIds);
+  const existingItemIds = new Set(items.map((item) => item.id));
+  const existingTopicIds = new Set(topics.map((topic) => topic.id));
   const memoComments = await readMemoComments(db, userId, memoCommentIds);
   const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
   const wraps = await readItemWrapGroups(db, userId, encryptedIds);
-  const tombstones = page.entries.filter((entry) => entry.op === "delete")
+  const tombstones = page.entries.filter((entry) => entry.op === "delete"
+      && (entry.entity === "item" ? !existingItemIds.has(entry.entityId)
+        : entry.entity === "topic" ? !existingTopicIds.has(entry.entityId) : true))
     .map((entry) => toTombstone(entry, userId, now));
   return {
     items, topics, memoComments, tombstones, wraps, settings: await readSettings(db, userId),
