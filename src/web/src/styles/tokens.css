@@ -51,8 +51,10 @@
   --app-size-kicker: 0.59375rem;   /* 9.5px 角标 */
   --app-size-micro: 0.625rem;      /* 10px 日期元信息 */
   --app-size-label: 0.65625rem;    /* 10.5px 分组标题 */
+  --app-size-sechead: 0.6875rem;   /* 11px 侧栏段标题（主题 / 标签） */
   --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
   --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-tree-l1: 0.8125rem;   /* 13px 主题树一级 */
   --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
   --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
   --app-size-brand: 1.0625rem;     /* 17px 品牌字 */
@@ -142,9 +144,17 @@
   --app-bar-height: 3rem;          /* 48px 工具条 */
   --app-row-height: 3.75rem;       /* 60px 清单行 */
   --app-nav-height: 1.8125rem;     /* 29px 侧栏导航项 */
+  --app-tree-row-height: 1.875rem; /* 30px 侧栏行（回看三格 / 主题树 / 加密空间） */
   --app-duo-height: 2.125rem;      /* 34px 收件箱/草稿箱块 */
   --app-btn-height: 2rem;          /* 32px 主按钮 */
-  --app-formseg-height: 1.875rem;  /* 30px 侧栏视图切换（凹槽分段） */
+  --app-cta-height: 2.125rem;      /* 34px 侧栏「新建笔记」 */
+  --app-input-height: 2.125rem;    /* 34px 侧栏 Memo 快速输入（收起态） */
+  --app-sechead-height: 1.25rem;   /* 20px 段标题行 */
+  --app-count-width: 1rem;         /* 16px 计数列（等宽数字右对齐） */
+  --app-tree-guide-x: 0.8125rem;   /* 13px 树连接线 x（父级箭头中心） */
+  --app-tree-guide-stub: 0.9375rem;/* 15px 树连接线肘线长 */
+  --app-tree-guide-opacity: 0.42;  /* 连接线透明度（与时间轴轴线同源） */
+  --app-formseg-height: 2rem;      /* 32px 侧栏视图切换（凹槽分段） */
   --app-doc-pad: var(--app-space-34);
   /* 快速输入（FR-IA-5）：展开态与「新建笔记」共享区域。高度恒定，
      展开时以负外边距盖住按钮且导航不位移；--app-composer-cover 由几何关系导出。 */
@@ -158,6 +168,7 @@
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
   --app-icon-2xs: 0.5rem;          /* 8px */
   --app-icon-xs: 0.75rem;          /* 12px */
+  --app-icon-xxs: 0.625rem;        /* 10px 树箭头 */
   --app-icon-sm: 0.8125rem;        /* 13px */
   --app-icon-md: 0.875rem;         /* 14px */
   --app-minibtn-size: 1.125rem;    /* 18px 侧栏分组小按钮（图标槽，不可放文字） */
@@ -234,7 +245,12 @@
   --app-shadow-dialog: 0 1.125rem 2.75rem rgba(26, 26, 24, 0.12);
   --app-shadow-card: 0 0.125rem 0.5rem rgba(26, 26, 24, 0.06);
   --app-shadow-seg: 0 1px 1px rgba(26, 26, 24, 0.08);
+  --app-shadow-seg-lift: 0 1px 2px rgba(26, 26, 24, 0.12);
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(120, 60, 0, 0.16);
+  --app-btn-kbd-bg: rgba(36, 21, 5, 0.09);
+  --app-btn-kbd-line: rgba(36, 21, 5, 0.18);
+  --app-btn-kbd-fg: rgba(36, 21, 5, 0.66);
+  --app-kbd-height: 1.0625rem;    /* 17px 快捷键胶囊 */
   --app-selected-bar-side: inset 0.125rem 0 0 var(--app-accent);
   --app-selected-bar-list: inset 0.1875rem 0 0 var(--app-accent);
   --app-selected-bar-top: inset 0 0.125rem 0 var(--app-accent);
@@ -410,6 +426,8 @@
   --app-link: #7fa8ff;
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
+  /* 分段选中项的抬升阴影：深色下槽底与纸面差小，靠阴影把选中项托起来 */
+  --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, 0.42);
   /* 滚动条深色：常态 1.88:1 保持克制，悬停 3.46:1 保证可发现 */
   --app-scrollbar-thumb: #45494d;
   --app-scrollbar-thumb-hover: #6b7176;

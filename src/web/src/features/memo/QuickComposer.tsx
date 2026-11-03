@@ -66,7 +66,6 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
   if (!expanded) {
     return (
       <button type="button" className="mn-memo-hint" onClick={() => setExpanded(true)}>
-        <span className="mn-dot" aria-hidden="true" />
         <span>记一条 Memo…</span>
         <span className="mn-kbd">⌘↵</span>
       </button>

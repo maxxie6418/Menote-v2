@@ -3,28 +3,31 @@
    侧栏分段、返回入口的接线留到编辑器那侧收工后再动共享文件。 */
 
 /* 侧栏视图切换：凹槽分段（负责人 2026-11-02 反馈文字标签太弱、不显眼）。
-   与内容区分段控件同语言（sunken 槽 + 白底选中项），高度 30（--app-formseg-height）并带图标，保证可发现性。 */
+   2026-11-03 定稿：高度 32、三等分 1fr、去掉选中项描边——一个边界只留一种分隔手段（阴影），
+   材质另算（槽是底色，不是框）。图标与文字作为整体居中，不留非对称内距。 */
 .mn-formseg {
-  display: flex; gap: var(--app-space-2);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: var(--app-space-2);
   height: var(--app-formseg-height);
-  margin: var(--app-zero) var(--app-space-xs) var(--app-space-14);
+  margin: var(--app-zero) var(--app-zero) var(--app-space-xs);
   padding: var(--app-space-2);
   background: var(--app-surface-sunken);
   border-radius: var(--app-radius);
   flex: none;
 }
 .mn-formseg button {
-  flex: 1; min-width: var(--app-zero);
-  display: flex; align-items: center; justify-content: center; gap: var(--app-space-4);
+  min-width: var(--app-zero); height: var(--app-full-size);
+  display: flex; align-items: center; justify-content: center; gap: var(--app-space-5);
   border: var(--app-zero); border-radius: var(--app-radius-sm);
   background: none; color: var(--app-fg-subtle);
-  font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-regular);
-  cursor: pointer; padding: var(--app-zero); white-space: nowrap;
+  font-family: var(--app-font); font-size: var(--app-size-nav); font-weight: var(--app-weight-regular);
+  line-height: var(--app-leading-nav); cursor: pointer; padding: var(--app-zero); white-space: nowrap;
 }
 .mn-formseg button:hover { color: var(--app-fg); }
-.mn-formseg button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-shadow-seg); }
+.mn-formseg button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-shadow-seg-lift); }
+.mn-formseg button[aria-pressed="true"] svg { color: var(--app-accent-fg); }
 .mn-formseg button:disabled { cursor: default; color: var(--app-fg-faint); }
-.mn-formseg button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
+.mn-formseg button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; color: var(--app-fg-faint); }
 
 .mn-memo-main { flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 /* shell.css 为 full/compact 布局把所有 .mn-main 设为笔记双列网格；

@@ -6,6 +6,7 @@ import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { AccountMenu } from "./AccountMenu";
+import { SectionHead } from "../components/ui/SectionHead";
 
 interface SidebarProps {
   userId: string;
@@ -28,12 +29,12 @@ interface SidebarProps {
 const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean =>
   section.kind === kind;
 
-/* 侧栏（负责人 2026-11-01 定序：搜索 / 视图切换 / 快速输入 / 新建笔记 / 最近编辑 / 收件箱草稿箱 / 主题树 / 标签）。
-   视图切换按 DESIGN §5.5 为「首页 | 笔记 | Memo」，置顶在快速输入之上——形态是目的地，应先于输入被看见。
-   视图切换 2026-11-02 起为凹槽分段 + 图标（负责人反馈文字标签太弱、不显眼），同步 DESIGN §5.5。
-   搜索入口为轻量命令行形式（无边框、无底色），与快速输入的输入框形态明显区分；搜索功能尚未实现，入口先禁用。
-   首页整屏由 app/HomePage 接入。私人空间入口可设置密码或解锁（FR-ENC-1）。
-   版本号在脚部靠右，与用户名分开（悬停显构建 id）。 */
+/* 侧栏（2026-11-03 定稿，DESIGN §4.1 / §5.5 同步）：
+   顶部次序不变（品牌 / 视图切换 / 快速输入 / 新建笔记）；一个橙色只出现一次，材质靠 1px 上下内阴影。
+   回看三项改为并排三格（无填充，悬停浮底）；收件箱、草稿箱并排两格（凹槽底，收件箱上强调浅底），
+   计数右对齐等宽。工作区与内容区之间一条发丝线。
+   加密空间独立成行放在主题段之上；「新建主题」收进段标题行。
+   树连接线是侧栏唯一的层级线（fg-faint 42%，同时间轴轴线做法）。 */
 export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onOpenPrivate, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
@@ -73,9 +74,9 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
       {!collapsed && <QuickComposer userId={userId} openSignal={memoComposerSignal} />}
       <button type="button" className="mn-btn" onClick={onCreateNote}>
         <Plus />
-        {!collapsed && "新建笔记"}
+        {!collapsed && <>新建笔记<span className="mn-kbd mn-btn-kbd" aria-hidden="true">⌘N</span></>}
       </button>
-      <nav className="mn-nav" aria-label="回看">
+      <nav className="mn-quick" aria-label="回看">
         <a href="#" className={isSection(section, "recent") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "recent" }); }}>
           <Clock />
@@ -92,38 +93,44 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
           {!collapsed && "回收站"}
         </a>
       </nav>
-      <div className="mn-duo" role="group" aria-label="收集入口">
-        <a href="#" className={isSection(section, "inbox") ? "on" : ""}
+      <div className="mn-queue" role="group" aria-label="收集入口">
+        <a href="#" className={isSection(section, "inbox") ? "on hot" : "hot"}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "inbox" }); }}>
           <Inbox />
-          {!collapsed && <span>收件箱{inbox.length > 0 ? ` · ${inbox.length}` : ""}</span>}
+          {!collapsed && <span>收件箱</span>}
+          {!collapsed && inbox.length > 0 && <span className="mn-count">{inbox.length}</span>}
         </a>
         <a href="#" className={isSection(section, "drafts") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "drafts" }); }}>
           <FileText />
-          {!collapsed && <span>草稿箱{drafts.length > 0 ? ` · ${drafts.length}` : ""}</span>}
+          {!collapsed && <span>草稿箱</span>}
+          {!collapsed && drafts.length > 0 && <span className="mn-count">{drafts.length}</span>}
         </a>
       </div>
+      {!collapsed && <div className="mn-zone" aria-hidden="true" />}
       {!collapsed && (
-        <>
-          <div className="mn-seclabel"><span className="mn-seclabel-text">主题</span></div>
-          <TopicTree userId={userId} selected={section} onSelect={onSelectSection} onOpenPrivate={onOpenPrivate} />
-          <div className="mn-seclabel">
-            <span className="mn-seclabel-text">标签</span>
-            <button type="button" className="mn-minibtn" aria-disabled="true" title="标签管理将在后续版本开放" aria-label="管理标签（未开放）">
-              <MoreHorizontal />
-            </button>
-          </div>
-          <div className="mn-tags">
-            {tags.length === 0 && <p className="mn-tree-empty">暂无标签</p>}
-            {tags.map((tag) => (
-              <a key={tag} href="#" className={section.kind === "tag" && section.tag === tag ? "mn-taglink on" : "mn-taglink"}
-                onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "tag", tag }); }}>
-                #{tag}
-              </a>
-            ))}
-          </div>
-        </>
+        <TopicTree userId={userId} selected={section} onSelect={onSelectSection} onOpenPrivate={onOpenPrivate} />
+      )}
+      {!collapsed && (
+        <SectionHead
+          label="标签"
+          action={{
+            label: "标签管理将在后续版本开放",
+            icon: <MoreHorizontal aria-hidden="true" />,
+            disabled: true,
+          }}
+        />
+      )}
+      {!collapsed && (
+        <div className="mn-tags">
+          {tags.length === 0 && <p className="mn-tree-empty">暂无标签</p>}
+          {tags.map((tag) => (
+            <a key={tag} href="#" className={section.kind === "tag" && section.tag === tag ? "mn-taglink on" : "mn-taglink"}
+              onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "tag", tag }); }}>
+              #{tag}
+            </a>
+          ))}
+        </div>
       )}
       <div className="mn-sb-foot">
         <AccountMenu userId={userId} username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} onOpenStatus={onOpenStatus} />

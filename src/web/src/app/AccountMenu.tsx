@@ -24,11 +24,24 @@ interface AccountMenuProps {
 export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpenSettings, onOpenStatus }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ThemeMode>(getThemeMode);
+  const [online, setOnline] = useState(() => navigator.onLine);
   const [position, setPosition] = useState({ left: 0, bottom: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => subscribeTheme(() => setMode(getThemeMode())), []);
+
+  // 连接状态点：跟随浏览器在线状态（真实状态，不伪造同步进度）
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -72,6 +85,7 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
         onClick={() => setOpen((value) => !value)}>
         <span className="mn-ava" aria-hidden="true">{username.slice(0, 1).toUpperCase()}</span>
         {!collapsed && <span className="mn-foot-user-name">{username}</span>}
+        {!collapsed && <span className="mn-sync" role="img" aria-label={online ? "已连接" : "离线"} title={online ? "已连接" : "离线"} />}
         {!collapsed && <span className="mn-foot-version" title={APP_BUILD_LABEL}>{APP_VERSION_LABEL}</span>}
       </button>
       {open && (

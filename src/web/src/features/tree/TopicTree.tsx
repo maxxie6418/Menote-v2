@@ -1,10 +1,11 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Lock, Plus } from "lucide-react";
+import { ChevronDown, Lock, Plus } from "lucide-react";
 import { useLockVersion, useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
 import { isTopicUnlocked } from "../../services/keyringService";
 import { lockPrivateSpace } from "../../services/privateSpaceService";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
+import { SectionHead } from "../../components/ui/SectionHead";
 
 interface TopicTreeProps {
   userId: string;
@@ -13,7 +14,9 @@ interface TopicTreeProps {
   onOpenPrivate: () => void;
 }
 
-/** 目录树（FR-IA-1/3：只显示主题与分组；分组最多一层；私人空间固定入口，G7 提供解锁）。 */
+/** 主题树（FR-IA-1/3：主题与分组，分组最多一层）。
+    2026-11-03 定稿：加密空间是「空间」不是「分类」，独立成行放在主题段之上；
+    「新建主题」收进段标题行，内联输入贴在标题正下方，列表底部不再常驻创建入口。 */
 export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTreeProps) {
   useLockVersion();
   const topics = useTopics(userId);
@@ -33,18 +36,34 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTr
   };
 
   return (
-    <div className="mn-tree" aria-label="主题与分组">
-      <ul className="mn-tree-list">
-        {roots.map((topic) => (
+    <>
+      {space && spaceOpen ? (
+        <ul className="mn-tree-list mn-tree-space" aria-label="加密空间">
           <TopicNodeView
-            key={topic.id} userId={userId} topic={topic}
-            groups={active.filter((row) => row.depth === 1 && row.parentId === topic.id)}
+            userId={userId} topic={space} fixed
+            groups={active.filter((row) => row.depth === 1 && row.parentId === space.id)}
             selected={selected} onSelect={onSelect}
+            onLock={() => { void lockPrivateSpace(userId); onSelect({ kind: "recent" }); }}
           />
-        ))}
-        {roots.length === 0 && !creating && <li className="mn-tree-empty">暂无主题</li>}
-      </ul>
-      {creating ? (
+        </ul>
+      ) : (
+        <button type="button" className="mn-space" onClick={onOpenPrivate} aria-label={`加密空间，${space ? "已锁定" : "未设置"}`}>
+          <Lock aria-hidden="true" />
+          <span>加密空间</span>
+          <span className="mn-space-state">{space ? "已锁" : "未设置"}</span>
+        </button>
+      )}
+
+      <SectionHead
+        label="主题"
+        count={roots.length}
+        action={{
+          label: "新建主题",
+          icon: <Plus aria-hidden="true" />,
+          onClick: () => setCreating(true),
+        }}
+      />
+      {creating && (
         <input
           className="mn-tree-new" autoFocus placeholder="主题名称，回车确认" aria-label="新建主题"
           value={name}
@@ -55,26 +74,20 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTr
             if (event.key === "Escape") { setName(""); setCreating(false); }
           }}
         />
-      ) : (
-        <button type="button" className="mn-minibtn mn-tree-add" aria-label="新建主题" title="新建主题" onClick={() => setCreating(true)}>
-          <Plus /> 新建主题
-        </button>
       )}
-      {space && spaceOpen ? (
+      <div className="mn-tree">
         <ul className="mn-tree-list">
-          <TopicNodeView
-            userId={userId} topic={space} fixed
-            groups={active.filter((row) => row.depth === 1 && row.parentId === space.id)}
-            selected={selected} onSelect={onSelect}
-            onLock={() => { void lockPrivateSpace(userId); onSelect({ kind: "recent" }); }}
-          />
+          {roots.map((topic) => (
+            <TopicNodeView
+              key={topic.id} userId={userId} topic={topic}
+              groups={active.filter((row) => row.depth === 1 && row.parentId === topic.id)}
+              selected={selected} onSelect={onSelect}
+            />
+          ))}
+          {roots.length === 0 && !creating && <li className="mn-tree-empty">暂无主题</li>}
         </ul>
-      ) : (
-        <button type="button" className="mn-treerow priv" onClick={onOpenPrivate}>
-          <Lock /> <span>私人空间</span> <span className="mn-locklabel">{space ? "锁定" : "未设置"}</span>
-        </button>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -90,9 +103,11 @@ interface TopicNodeViewProps {
 
 function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = false, onLock }: TopicNodeViewProps) {
   const [addingGroup, setAddingGroup] = useState(false);
+  const [open, setOpen] = useState(true);
   const [name, setName] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: { id: string; name: string; depth: 0 | 1 }; trigger: HTMLElement } | null>(null);
   const isSelected = selected.kind === "topic" && selected.id === topic.id;
+  const hasGroups = groups.length > 0;
 
   const closeContextMenu = () => setContextMenu(null);
   const setMenuAt = (x: number, y: number, target: { id: string; name: string; depth: 0 | 1 }, trigger: HTMLElement) => {
@@ -155,11 +170,22 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = fals
         onContextMenu={(event) => openPointerMenu(event, topic)}
         onKeyDown={(event) => openKeyboardMenu(event, topic)}
       >
+        {hasGroups ? (
+          <button
+            type="button" className="mn-tree-chevbtn" aria-expanded={open}
+            aria-label={open ? `收起「${topic.name}」` : `展开「${topic.name}」`}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <ChevronDown className="mn-tree-chev" data-open={open} aria-hidden="true" />
+          </button>
+        ) : (
+          <span className="mn-tree-slot" aria-hidden="true" />
+        )}
         <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
           {fixed && <Lock />}{topic.name}
         </button>
         {fixed && onLock && (
-          <button type="button" className="mn-minibtn" aria-label="锁定私人空间" title="锁定" onClick={onLock}><Lock /></button>
+          <button type="button" className="mn-minibtn" aria-label="锁定加密空间" title="锁定" onClick={onLock}><Lock /></button>
         )}
         <button type="button" className="mn-minibtn" aria-label={`在「${topic.name}」下新建分组`} title="新建分组"
           onClick={() => setAddingGroup((value) => !value)}><Plus /></button>
@@ -176,22 +202,24 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = fals
           }}
         />
       )}
-      <ul className="mn-tree-sublist">
-        {groups.map((group) => (
-          <li key={group.id}>
-            <button
-              type="button"
-              className={selected.kind === "topic" && selected.id === group.id ? "mn-treerow on" : "mn-treerow"}
-              aria-haspopup="menu"
-              onClick={() => onSelect({ kind: "topic", id: group.id })}
-              onContextMenu={(event) => openPointerMenu(event, group)}
-              onKeyDown={(event) => openKeyboardMenu(event, group)}
-            >
-              {group.name}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {hasGroups && open && (
+        <ul className="mn-tree-sublist">
+          {groups.map((group) => (
+            <li key={group.id}>
+              <button
+                type="button"
+                className={selected.kind === "topic" && selected.id === group.id ? "mn-treerow on" : "mn-treerow"}
+                aria-haspopup="menu"
+                onClick={() => onSelect({ kind: "topic", id: group.id })}
+                onContextMenu={(event) => openPointerMenu(event, group)}
+                onKeyDown={(event) => openKeyboardMenu(event, group)}
+              >
+                {group.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} label={`${contextMenu.target.name}菜单`} actions={actions} onClose={closeContextMenu} returnFocus={contextMenu.trigger} />}
     </li>
   );
