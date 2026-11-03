@@ -6,33 +6,69 @@
 <title>Menote V2 · 原子设计清单</title>
 <style>
 
-
   :root{
     --canvas:#FCFCFB;
+    /* 应用外壳令牌：浅色取值，取自 src/web/src/styles/tokens.css（深色由 data-theme 覆盖同一批名字） */
     --app-surface:#FFFFFF;
+    --app-bg-side:#F1F1EE;
     --app-surface-sunken:#F4F4F2;
+    --app-raised-on-side:#FFFFFF;
+    --app-seg-active:#FFFFFF;
+    --app-selected:#FEF6EE;
+    --app-hover:#F6F6F4;
     --app-border:#E6E6E3;
     --app-border-subtle:#F0F0ED;
     --app-fg:#1A1A18;
     --app-fg-muted:#4E504D;
     --app-fg-subtle:#6C6F6B;
-    --app-fg-faint:#93968F;
+    --app-fg-faint:#74776F;
     --app-accent:#F6821F;
+    --app-accent-hover:#E5760F;
+    --app-accent-text:#241505;
     --app-accent-fg:#B4530F;
     --app-accent-subtle:#FEF2E7;
     --app-link:#0051C3;
-    --app-font-serif:ui-serif,Georgia,“Songti SC”,“Source Han Serif SC”,“SimSun”,serif;
-    --app-font-ui:system-ui,-apple-system,“Segoe UI”,“PingFang SC”,“Microsoft YaHei”,“Noto Sans SC”,Roboto,sans-serif;
-    --app-font-mono:ui-monospace,“SF Mono”,Menlo,Consolas,“Cascadia Mono”,monospace;
+    --app-success:#5F8B3F;
+    --app-danger:#B3261E;
+    --app-scrollbar-thumb:#C4C4C0;
+    --app-scrollbar-thumb-hover:#8E8E8A;
+    --app-scrollbar-track:transparent;
+    /* 文档渲染令牌：首版与外壳同源，运行时可被设置·样式覆盖，且不得回流外壳 */
+    --md-body-size:14px;--md-body-leading:1.78;--md-body-weight:400;--md-body-color:var(--app-fg-muted);
+    --md-h1-size:32px;--md-h1-weight:500;--md-h1-color:var(--app-fg);
+    --md-h2-size:14px;--md-h2-weight:600;--md-h2-color:var(--app-fg);
+    --md-strong-weight:600;--md-strong-rule:none;
+    --md-heading-rule-width:2px;--md-heading-rule-color:var(--app-accent);--md-heading-rule-gap:4px;--md-heading-rule-extra:12px;--md-heading-rule-opacity:1;
+    --md-code-size:11px;--md-code-bg:var(--app-surface-sunken);
+    --md-quote-line:2px;--md-quote-color:var(--app-accent);
+    --md-table-head-bg:var(--app-surface-sunken);--md-table-head-size:9.5px;
+    --md-kicker-size:9.5px;--md-kicker-color:var(--app-fg-faint);
+    /* 字体栈：应用内为自托管 Noto Sans SC；本页不引外部资源，预览回落到系统栈 */
+    --app-font-system:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;
+    --app-font:"Noto Sans SC",var(--app-font-system);
+    --app-font-serif:var(--app-font);
+    --app-font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+    /* 间距 / 圆角 / 线 */
+    --app-line:1px;
+    --app-space-2:2px;--app-space-4:4px;--app-space-5:5px;--app-space-6:6px;--app-space-10:10px;--app-space-14:14px;
+    --app-space-18:18px;--app-space-22:22px;--app-space-34:34px;
+    --app-space-xs:8px;--app-space-sm:12px;--app-space-md:16px;--app-space-lg:24px;--app-space-xl:32px;--app-space-2xl:48px;
+    --app-radius-sm:4px;--app-radius-md:5px;--app-radius:6px;--app-radius-lg:8px;--app-radius-xl:10px;--app-radius-pill:999px;
+    /* 阴影与材质：全站只有对话框、网格卡片悬停、主按钮三处 */
+    --app-shadow-dialog:0 18px 44px rgba(26,26,24,.12);
+    --app-shadow-card:0 2px 8px rgba(26,26,24,.06);
+    --app-shadow-seg:0 1px 1px rgba(26,26,24,.08);
+    --app-shadow-seg-lift:0 1px 2px rgba(26,26,24,.12);
+    --app-btn-sheen:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(120,60,0,.16);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font-ui);line-height:1.62;-webkit-font-smoothing:antialiased;letter-spacing:0}
+  body{margin:0;background:var(--canvas);color:var(--app-fg);font-family:var(--app-font);line-height:1.62;-webkit-font-smoothing:antialiased;letter-spacing:0}
   .wrap{max-width:1252px;margin:0 auto;padding:0 32px 104px}
 
   header.masthead{padding:58px 0 30px;border-bottom:1px solid var(--app-border)}
   .eyebrow{font-family:var(--app-font-mono);font-size:10.5px;text-transform:uppercase;color:var(--app-fg-faint);display:flex;align-items:center;gap:9px;margin-bottom:16px}
-  .eyebrow::before{content:“”;width:16px;height:1.5px;background:var(--app-accent);flex:none}
+  .eyebrow::before{content:"";width:16px;height:1.5px;background:var(--app-accent);flex:none}
   h1{font-family:var(--app-font-serif);font-weight:500;font-size:37px;line-height:1.26;margin:0 0 8px;max-width:940px}
   h1 em{font-style:normal;color:var(--app-accent-fg)}
   .intro{font-size:14.5px;color:var(--app-fg-muted);max-width:790px;margin:14px 0 0;line-height:1.8}
@@ -52,7 +88,6 @@
 
   .frame{border:1px solid var(--app-border);border-radius:7px;overflow:hidden;margin-left:38px;background:var(--app-surface)}
   @media(max-width:680px){.frame{margin-left:0}}
-  .frame.dark{border-color:#2B2F33;background:#191B1D}
 
   .tokens{display:flex;flex-wrap:wrap;gap:7px 18px;margin:12px 0 0 38px;font-size:10.5px;color:var(--app-fg-subtle)}
   @media(max-width:680px){.tokens{margin-left:0}}
@@ -82,386 +117,9 @@
   @media(max-width:680px){.callout{margin-left:0}}
 
   /* ============================================================
-     应用
+     组件预览（全部用令牌渲染；本页不引入外部资源与脚本）
      ============================================================ */
-  .shell{min-width:1120px}
-  .app{
-    display:grid;grid-template-columns:248px 340px minmax(0,1fr);
-    height:792px;background:var(--app-surface);color:var(--app-fg);
-    font-family:var(--app-font-ui);font-size:12.5px;overflow:hidden;
-  }
   svg{stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
-
-  /* ---------- 区域一：侧栏 ---------- */
-  .sb{display:flex;flex-direction:column;padding:12px 10px 10px;background:var(--app-bg-side);border-right:1px solid var(--app-border);min-width:0}
-  .sb-top{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:8px}
-  .brand{font-family:var(--app-font-serif);font-size:17px;font-weight:500;line-height:1.2}
-  .sb-top .ic{border:0;background:none;color:var(--app-fg-subtle);cursor:pointer;padding:2px;display:grid;place-items:center;border-radius:4px}
-  .sb-top .ic:hover{color:var(--app-fg);background:var(--app-hover)}
-  .sb-top .ic svg{width:14px;height:14px}
-
-  /* 1 工具：搜索 —— 无边框的一行入口，形态与 Memo 输入面不同 */
-  .search-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:5px;color:var(--app-fg-subtle);font-size:12px;cursor:pointer}
-  .search-row:hover{background:var(--app-hover);color:var(--app-fg)}
-  .search-row svg{width:13px;height:13px;color:var(--app-fg-faint);flex:none}
-  .search-row .kbd{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
-  .hr{height:1px;background:var(--app-border);margin:13px 8px 15px;flex:none}
-
-  /* 2 记录：Memo 输入 → 新建 → 回看 */
-  .memo{
-    display:flex;align-items:flex-start;gap:8px;padding:8px 9px;margin-bottom:7px;
-    border:1px dashed var(--app-border);border-radius:6px;color:var(--app-fg-subtle);font-size:11.5px;background:var(--app-surface);
-  }
-  .memo .dot-mark{width:5px;height:5px;border-radius:50%;background:var(--app-accent);flex:none;margin-top:5px}
-  .memo .kbd{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint);flex:none}
-
-  .btn{
-    display:flex;align-items:center;justify-content:center;gap:6px;height:32px;margin:0 0 12px;
-    border:0;border-radius:6px;background:var(--app-accent);color:#241505;
-    font-family:var(--app-font-ui);font-size:12.5px;font-weight:600;cursor:pointer;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(120,60,0,.16);
-    transition:background 130ms cubic-bezier(.2,.6,.3,1);
-  }
-  .btn:hover{background:#E5760F}
-  .btn svg{width:13px;height:13px;stroke-width:2.2}
-
-  .nav{display:flex;flex-direction:column;gap:1px;margin-bottom:14px}
-  .nav a, .tree a{
-    display:flex;align-items:center;gap:8px;height:29px;padding:0 8px;border-radius:5px;
-    color:var(--app-fg-muted);text-decoration:none;font-size:12px;
-  }
-  .nav a:hover, .tree a:hover{background:var(--app-hover);color:var(--app-fg)}
-  .nav a svg, .tree a svg{width:13px;height:13px;color:var(--app-fg-subtle);flex:none}
-  .nav a:hover svg, .tree a:hover svg{color:var(--app-fg-muted)}
-
-  .cnt{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-accent-fg);
-    background:var(--app-accent-subtle);border-radius:999px;padding:0 5px;line-height:15px}
-  .cnt.plain{color:var(--app-fg-faint);background:none;padding:0}
-
-  /* 3 待整理：收件箱 / 草稿箱 并排，白色小块与灰底分离 */
-  .duo{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px}
-  .duo a{
-    display:flex;align-items:center;gap:6px;height:34px;padding:0 8px;border-radius:6px;
-    background:var(--app-surface);color:var(--app-fg-muted);text-decoration:none;font-size:11.5px;
-    transition:box-shadow 110ms;
-  }
-  .duo a:hover{box-shadow:inset 0 0 0 1px var(--app-border);color:var(--app-fg)}
-  .duo svg{width:13px;height:13px;color:var(--app-fg-subtle);flex:none}
-
-  /* 4 结构：主题组标题 + 树 + 私人空间 */
-  .sec-label{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:3px}
-  .sec-label .lb{font-family:var(--app-font-mono);font-size:9px;text-transform:uppercase;color:var(--app-fg-faint)}
-  .sec-label .mini{width:18px;height:18px;display:grid;place-items:center;border:0;background:none;color:var(--app-fg-faint);cursor:pointer;border-radius:4px}
-  .sec-label .mini:hover{background:var(--app-hover);color:var(--app-fg)}
-  .sec-label .mini svg{width:12px;height:12px}
-
-  .tree{display:flex;flex-direction:column;gap:1px;margin-bottom:14px}
-  .tree a.l2{padding-left:26px}
-  .tree a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
-  .tree .lock{margin-left:auto;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint);display:flex;align-items:center;gap:3px}
-  .tree .lock svg{width:8px;height:8px}
-  .tree a.priv{margin-top:5px}
-
-  /* 5 标签 */
-  .tags{display:flex;flex-wrap:wrap;gap:5px;padding:0 8px 2px}
-  .tag-chip{
-    display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:999px;
-    background:var(--app-surface);color:var(--app-fg-muted);font-size:11.5px;text-decoration:none;
-    transition:box-shadow 130ms cubic-bezier(.2,.6,.3,1),color 130ms;
-  }
-  .tag-chip .hash{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
-  .tag-chip .n{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums}
-  .tag-chip:hover{box-shadow:inset 0 0 0 1px var(--app-border);color:var(--app-fg)}
-  .tag-chip.more{background:none;color:var(--app-fg-faint);padding:0 2px;font-size:11px}
-  .tag-chip.more:hover{box-shadow:none;color:var(--app-accent-fg)}
-
-  .sb-foot{
-    margin-top:auto;display:flex;align-items:center;gap:7px;padding:9px 8px 2px;
-    border-top:1px solid var(--app-border);font-size:11px;color:var(--app-fg-subtle);
-  }
-  .sb-foot .sync{margin-left:auto;display:flex;align-items:center;gap:5px;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
-  .sb-foot .sync .ok{width:5px;height:5px;border-radius:50%;background:#5F8B3F;flex:none}
-  .ava{width:19px;height:19px;border-radius:999px;background:var(--app-fg);color:var(--app-surface);display:grid;place-items:center;font-family:var(--app-font-mono);font-size:9px;flex:none}
-
-  /* ---------- 区域二：笔记清单 ---------- */
-  .list-col{display:flex;flex-direction:column;border-right:1px solid var(--app-border);min-width:0;background:var(--app-surface)}
-  .list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 12px;border-bottom:1px solid var(--app-border)}
-  .list-head .t{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-muted);text-transform:uppercase;display:flex;align-items:center;gap:7px}
-  .list-head .t .n{color:var(--app-fg-faint);font-weight:400}
-  .list-tools{display:flex;align-items:center;gap:6px}
-  .vt{display:flex;gap:2px;background:var(--app-surface-sunken);border-radius:5px;padding:1.5px}
-  .vt span{width:20px;height:18px;display:grid;place-items:center;border-radius:4px;color:var(--app-fg-faint)}
-  .vt span.on{background:var(--app-surface);color:var(--app-fg);box-shadow:0 1px 1px rgba(26,26,24,.08)}
-  .vt svg{width:11px;height:11px}
-
-  .rows{display:flex;flex-direction:column;padding:4px 0 8px;min-height:0;overflow:hidden}
-  .grp{
-    font-size:10.5px;color:var(--app-fg-subtle);
-    padding:14px 16px 6px;display:flex;align-items:center;gap:9px;
-  }
-  .grp::after{content:“”;flex:1;height:1px;background:var(--app-border-subtle)}
-
-  .nrow{
-    position:relative;display:grid;grid-template-columns:16px 1fr auto;gap:2px 10px;
-    align-items:baseline;padding:9px 14px;cursor:pointer;
-    transition:background 130ms cubic-bezier(.2,.6,.3,1);
-  }
-  .nrow:not(:last-child)::after{content:“”;position:absolute;left:40px;right:14px;bottom:0;height:1px;background:var(--app-border-subtle)}
-  .nrow:hover{background:var(--app-hover)}
-  .nrow:hover::after,.nrow.on::after{opacity:0}
-  .nrow.on{background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent)}
-  .nc-ic{grid-row:1/3;align-self:start;display:flex;align-items:flex-start;padding-top:2px;color:var(--app-fg-faint)}
-  .nc-ic svg{width:13px;height:13px}
-  .nrow.on .nc-ic{color:var(--app-accent-fg)}
-  .nr-t{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--app-fg);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .nr-m{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);line-height:1.6;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .nr-d{grid-column:2/-1;font-size:12px;color:var(--app-fg-subtle);line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .nrow.on .nr-d{color:var(--app-fg-muted)}
-
-  /* ---------- 区域三：文档 ---------- */
-  .doc{display:flex;flex-direction:column;min-width:0}
-  .doc-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 34px;border-bottom:1px solid var(--app-border);flex:none}
-  .crumb{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-r{display:flex;align-items:center;gap:12px;flex:none}
-  .modes{display:flex;background:var(--app-surface-sunken);border-radius:5px;padding:1.5px}
-  .modes span{font-size:11px;padding:2px 9px;border-radius:4px;color:var(--app-fg-subtle);line-height:15px}
-  .modes span.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.08)}
-  .icon-b{border:0;background:none;color:var(--app-fg-subtle);cursor:pointer;padding:0;display:grid;place-items:center}
-  .icon-b:hover{color:var(--app-fg)}
-  .icon-b svg{width:13px;height:13px}
-
-  .doc-in{padding:24px 34px 0;overflow:hidden;flex:1;min-height:0}
-  .kicker{display:flex;align-items:center;gap:7px;margin-bottom:12px}
-  .kicker::before{content:"";width:14px;height:1.5px;background:var(--app-accent);flex:none}
-  .kicker span{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);text-transform:uppercase}
-  .doc-title{font-family:var(--app-font-serif);font-size:32px;font-weight:500;line-height:1.32;margin:0 0 18px;color:var(--app-fg)}
-
-  .props{display:grid;grid-template-columns:1fr 1fr;column-gap:34px;margin-bottom:24px}
-  .prop{display:flex;align-items:baseline;gap:12px;height:32px;font-size:12.5px;min-width:0;border-bottom:1px solid var(--app-border-subtle)}
-  .prop .k{width:30px;flex:none;color:var(--app-fg-subtle);font-size:11.5px}
-  .prop .v{color:var(--app-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
-  .pill-b{
-    display:inline-flex;align-items:center;gap:5px;background:var(--app-accent-subtle);color:var(--app-accent-fg);
-    border-radius:999px;padding:0 8px;font-size:11px;line-height:18px;font-weight:600;
-  }
-  .pill-b::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--app-accent);flex:none}
-  .prop .v .tc{
-    display:inline-flex;align-items:center;height:19px;padding:0 8px;border-radius:999px;
-    background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:10.5px;margin-right:4px;
-  }
-  .prop .v .lnk{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
-  .prop .v .lnk:hover{border-bottom-color:var(--app-link)}
-
-  .prose{font-size:14px;line-height:1.78;color:var(--app-fg-muted)}
-  .prose h2{font-size:14px;font-weight:600;color:var(--app-fg);margin:0 0 6px;line-height:1.5}
-  .prose p{margin:0 0 14px}
-  .prose ul{margin:0 0 11px;padding-left:17px}
-  .prose li{margin-bottom:1px}
-  .prose li::marker{color:var(--app-fg-faint)}
-  .prose code{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px}
-  .prose blockquote{margin:0 0 11px;padding:2px 0 2px 11px;border-left:2px solid var(--app-accent);color:var(--app-fg-muted)}
-  .prose pre{
-    margin:0 0 11px;padding:10px 12px;background:var(--app-surface-sunken);border-radius:6px;
-    font-family:var(--app-font-mono);font-size:11px;line-height:1.72;color:var(--app-fg-muted);overflow:hidden;
-  }
-  .prose table{width:100%;border-collapse:collapse;margin:0 0 12px;font-size:12px;table-layout:fixed}
-  .prose th:nth-child(1),.prose td:nth-child(1){width:14%}
-  .prose th:nth-child(2),.prose td:nth-child(2){width:38%}
-  .prose th:nth-child(3),.prose td:nth-child(3){width:16%}
-  .prose th:nth-child(4),.prose td:nth-child(4){width:32%}
-  .prose th{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-subtle);font-weight:400;text-align:left;padding:0 8px 5px 0;border-bottom:1px solid var(--app-border)}
-  .prose td{padding:5px 8px 5px 0;border-bottom:1px solid var(--app-border-subtle);color:var(--app-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .prose td:first-child{color:var(--app-fg)}
-  .tasks{display:flex;flex-direction:column;gap:5px;font-size:13.5px;color:var(--app-fg-muted)}
-  .task{display:flex;align-items:center;gap:8px}
-  .box{width:13px;height:13px;border:1px solid var(--app-fg-faint);border-radius:3px;flex:none;display:grid;place-items:center;color:transparent}
-  .box.done{background:var(--app-accent);border-color:var(--app-accent);color:#fff}
-  .box svg{width:8px;height:8px;stroke-width:3}
-  .task.done span{color:var(--app-fg-faint);text-decoration:line-through}
-
-  .doc-foot{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
-    padding:9px 34px 10px;border-top:1px solid var(--app-border-subtle);
-    font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);
-  }
-
-  /* ---------- themes ---------- */
-  .s-light{
-    --app-surface:#FFFFFF;--app-bg-side:#F1F1EE;--app-surface-sunken:#F4F4F2;--app-selected:#FEF6EE;--app-hover:#F6F6F4;
-    --app-border:#E6E6E3;--app-border-subtle:#F0F0ED;
-    --app-fg:#1A1A18;--app-fg-muted:#4E504D;--app-fg-subtle:#6C6F6B;--app-fg-faint:#74776F;
-    --app-accent:#F6821F;--app-accent-fg:#B4530F;--app-accent-subtle:#FEF2E7;--app-link:#0051C3;
-  }
-  .s-dark{
-    --app-surface:#1A1C1E;--app-bg-side:#131518;--app-surface-sunken:#232629;--app-selected:#2B2118;--app-hover:#222528;
-    --app-border:#2C3033;--app-border-subtle:#24282B;
-    --app-fg:#E9EBED;--app-fg-muted:#A7ADB2;--app-fg-subtle:#8A9095;--app-fg-faint:#7E848B;
-    --app-accent:#F6821F;--app-accent-fg:#FBAD41;--app-accent-subtle:#3A2716;--app-link:#7FA8FF;
-  }
-  .s-dark .btn{background:#F6821F;color:#1A1208}
-  .s-dark .btn:hover{background:#FF9A3C}
-  .s-dark .vt span.on,.s-dark .modes span.on{background:#33383C;box-shadow:none}
-  .s-dark .box.done{color:#1A1208}
-  .s-dark .memo{background:#1D2023;border-color:#2E3235}
-  .s-dark .duo a{background:#1F2225}
-
-  footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--app-border);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--app-fg-subtle)}
-  footer .k{font-family:var(--app-font-serif);font-style:italic;font-size:13px;color:var(--app-fg-muted)}
-  footer b{color:var(--app-fg);font-weight:600}
-
-
-  /* ============================================================
-     设计稿页面（仅用于展示，不进入产品代码）
-     ============================================================ */
-  body{background:#F7F7F5}
-  .board{max-width:1290px;margin:0 auto;padding:0 30px 96px}
-  .board-head{padding:52px 0 26px;border-bottom:1px solid var(--app-border);max-width:1290px;margin:0 auto}
-  .board-head .kicker{font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:0;color:var(--app-fg-faint);text-transform:uppercase;display:flex;align-items:center;gap:9px;margin-bottom:14px}
-  .board-head .kicker::before{content:"";width:16px;height:1.5px;background:var(--app-accent)}
-  .board-head h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:1.26;margin:0 0 10px}
-  .board-head p{font-size:13.5px;color:var(--app-fg-muted);margin:0;max-width:760px;line-height:1.75}
-  .board-head a{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
-
-  .screen{margin-top:44px;scroll-margin-top:20px}
-  .screen-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
-  .screen-head .n{font-family:var(--app-font-mono);font-size:11px;color:var(--app-accent-fg);width:24px;flex:none}
-  .screen-head h2{font-family:var(--app-font-serif);font-weight:500;font-size:19px;margin:0}
-  .screen-head .desc{font-size:12px;color:var(--app-fg-faint)}
-  .frame{box-shadow:0 1px 3px rgba(26,26,24,.05)}
-
-  .nav a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
-  .nav a.on svg{color:var(--app-accent-fg)}
-
-  /* ---------- Memo 视图 ---------- */
-  .memo-app{grid-template-columns:248px minmax(0,1fr) 232px}
-  .memo-main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--app-border)}
-  .memo-bar{height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
-  .memo-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
-  .memo-bar .r{display:flex;align-items:center;gap:10px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
-  .memo-list{flex:1;min-height:0;overflow:hidden;padding-bottom:8px}
-  .mgroup{font-size:10.5px;color:var(--app-fg-subtle);padding:14px 24px 6px;display:flex;align-items:center;gap:9px}
-  .mgroup::after{content:"";flex:1;height:1px;background:var(--app-border-subtle)}
-  .m-item{display:grid;grid-template-columns:38px 1fr;gap:12px;padding:9px 24px;transition:background 130ms cubic-bezier(.2,.6,.3,1)}
-  .m-item:hover{background:var(--app-hover)}
-  .m-time{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);padding-top:4px;font-variant-numeric:tabular-nums}
-  .m-text{font-size:13.5px;line-height:1.7;color:var(--app-fg-muted)}
-  .m-text b{color:var(--app-fg);font-weight:600}
-  .m-text code{font-family:var(--app-font-mono);font-size:11.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
-  .m-tagrow{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
-  .m-tag{font-size:10.5px;color:var(--app-fg-subtle);background:var(--app-surface-sunken);border-radius:999px;padding:1px 8px}
-
-  .todo-panel{display:flex;flex-direction:column;background:var(--app-bg-side);padding:13px 9px}
-  .todo-head{display:flex;align-items:center;justify-content:space-between;padding:0 7px;margin-bottom:8px}
-  .todo-head .lb{font-family:var(--app-font-mono);font-size:9px;text-transform:uppercase;color:var(--app-fg-faint)}
-  .todo-group{margin-bottom:10px}
-  .todo-group .gh{font-size:10.5px;color:var(--app-fg-faint);padding:0 7px 5px;display:flex;align-items:center;gap:6px}
-  .todo-group .gh .n{font-family:var(--app-font-mono);font-size:9px}
-  .todo-item{display:flex;align-items:flex-start;gap:7px;padding:6px 7px;border-radius:5px;font-size:12px;color:var(--app-fg-muted);line-height:1.5}
-  .todo-item:hover{background:var(--app-hover)}
-  .todo-item .ds{width:5px;height:5px;border-radius:50%;flex:none;margin-top:6px}
-  .todo-item.doing .ds{background:var(--app-accent)}
-  .todo-item.todo .ds{background:var(--app-fg-faint)}
-  .todo-item.done .ds{background:#5F8B3F}
-  .todo-item.done{color:var(--app-fg-faint);text-decoration:line-through}
-
-  /* ---------- 网格视图 ---------- */
-  .grid-app{grid-template-columns:248px minmax(0,1fr)}
-  .grid-main{display:flex;flex-direction:column;min-width:0}
-  .grid-bar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--app-border);flex:none}
-  .grid-bar .t{font-family:var(--app-font-mono);font-size:11px;color:var(--app-fg-muted);text-transform:uppercase}
-  .gcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px 24px;overflow:hidden}
-  .gcard{border:1px solid var(--app-border);border-radius:8px;padding:13px 14px 11px;display:flex;flex-direction:column;min-height:0;background:var(--app-surface);transition:border-color 130ms,box-shadow 130ms;cursor:pointer}
-  .gcard:hover{border-color:var(--app-fg-faint);box-shadow:0 2px 8px rgba(26,26,24,.06)}
-  .gcard.on{border-color:var(--app-accent);box-shadow:inset 0 0 0 1px var(--app-accent)}
-  .gc-t{font-size:13px;font-weight:600;color:var(--app-fg);display:flex;align-items:center;gap:5px;line-height:1.45}
-  .gc-t svg{width:11px;height:11px;color:var(--app-fg-faint)}
-  .gc-d{font-size:11.5px;color:var(--app-fg-subtle);line-height:1.6;margin-top:5px;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-  .gc-m{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);margin-top:9px;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
-
-  /* ---------- 私人空间锁定 ---------- */
-  .lock-app{grid-template-columns:248px minmax(0,1fr)}
-  .lock-main{display:grid;place-items:center;min-width:0}
-  .lock-card{width:346px;text-align:center}
-  .lock-mark{width:46px;height:46px;border-radius:999px;background:var(--app-surface-sunken);display:grid;place-items:center;margin:0 auto 16px;color:var(--app-fg-subtle)}
-  .lock-mark svg{width:20px;height:20px;stroke-width:1.5}
-  .lock-card h3{font-family:var(--app-font-serif);font-size:21px;font-weight:500;margin:0 0 6px;color:var(--app-fg)}
-  .lock-card p{font-size:12px;color:var(--app-fg-subtle);line-height:1.7;margin:0 0 18px}
-  .field{height:36px;border:1px solid var(--app-border);border-radius:6px;display:flex;align-items:center;gap:8px;padding:0 11px;font-size:12.5px;color:var(--app-fg-faint);background:var(--app-surface)}
-  .field .dots{letter-spacing:2px;color:var(--app-fg-muted)}
-  .field .eye{margin-left:auto;color:var(--app-fg-faint)}
-  .field .eye svg{width:13px;height:13px}
-  .btn-lg{height:36px;width:100%;margin-top:9px;border:0;border-radius:6px;background:var(--app-accent);color:#241505;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -1px 0 rgba(120,60,0,.16)}
-  .lock-foot{margin-top:12px;font-size:11px;color:var(--app-fg-faint);display:flex;justify-content:center;gap:14px}
-  .lock-foot a{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.24)}
-
-  /* ---------- 设置对话框 ---------- */
-  .stage{height:792px;background:#EFEFEC;display:grid;place-items:center;padding:26px}
-  .dialog{width:648px;height:530px;background:var(--app-surface);border:1px solid var(--app-border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 44px rgba(26,26,24,.12)}
-  .dlg-head{height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 18px 0 20px;border-bottom:1px solid var(--app-border);flex:none}
-  .dlg-head h3{font-family:var(--app-font-serif);font-size:16px;font-weight:500;margin:0}
-  .dlg-head .x{border:0;background:none;color:var(--app-fg-faint);cursor:pointer;padding:2px;display:grid;place-items:center;border-radius:4px}
-  .dlg-head .x:hover{color:var(--app-fg);background:var(--app-surface-sunken)}
-  .dlg-head .x svg{width:14px;height:14px}
-  .dlg-body{flex:1;display:grid;grid-template-columns:158px minmax(0,1fr);min-height:0}
-  .dlg-nav{border-right:1px solid var(--app-border);padding:10px 9px;display:flex;flex-direction:column;gap:1px;background:var(--app-bg-side)}
-  .dlg-nav a{font-size:12px;color:var(--app-fg-muted);padding:6px 9px;border-radius:5px;text-decoration:none}
-  .dlg-nav a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
-  .dlg-content{padding:16px 20px;overflow:hidden}
-  .set-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid var(--app-border-subtle)}
-  .set-row:last-child{border-bottom:0}
-  .set-label{font-size:12.5px;color:var(--app-fg)}
-  .set-hint{font-size:11px;color:var(--app-fg-faint);margin-top:3px;line-height:1.5}
-  .switch{width:34px;height:20px;border-radius:999px;background:var(--app-accent);position:relative;flex:none;cursor:pointer;transition:background 150ms}
-  .switch::after{content:"";position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.18)}
-  .switch.off{background:#D6D6D2}
-  .switch.off::after{left:2px;right:auto}
-  .seg-s{display:flex;background:var(--app-surface-sunken);border-radius:5px;padding:1.5px}
-  .seg-s span{font-size:11px;padding:3px 10px;border-radius:4px;color:var(--app-fg-subtle)}
-  .seg-s span.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:0 1px 1px rgba(26,26,24,.08)}
-  .pick{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--app-fg-muted);border:1px solid var(--app-border);border-radius:5px;padding:4px 9px;background:var(--app-surface)}
-  .pick svg{width:11px;height:11px;color:var(--app-fg-faint)}
-
-  /* ---------- 组件状态 ---------- */
-  .states{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .state-card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;padding:16px 18px}
-  .state-card h4{font-size:11px;font-family:var(--app-font-mono);text-transform:uppercase;color:var(--app-fg-faint);font-weight:400;margin:0 0 14px}
-  .srow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px}
-  .btn-s{height:30px;padding:0 13px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-  .btn-s.primary{background:var(--app-accent);color:#241505;box-shadow:inset 0 1px 0 rgba(255,255,255,.26)}
-  .btn-s.primary:hover{background:#E5760F}
-  .btn-s.ink{background:var(--app-fg);color:var(--app-surface)}
-  .btn-s.outline{border-color:var(--app-border);color:var(--app-fg-muted);background:var(--app-surface)}
-  .btn-s.outline:hover{border-color:var(--app-fg-faint);color:var(--app-fg)}
-  .btn-s.ghost{color:var(--app-fg-muted);background:none}
-  .btn-s.ghost:hover{background:var(--app-surface-sunken)}
-  .btn-s.danger{color:#B3261E;background:none;border-color:rgba(179,38,30,.24)}
-  .btn-s:disabled{opacity:.4;cursor:not-allowed}
-  .btn-s.focus{outline:2px solid rgba(246,130,31,.35);outline-offset:2px}
-  .inp{height:30px;border:1px solid var(--app-border);border-radius:6px;padding:0 10px;font-size:12px;color:var(--app-fg);display:flex;align-items:center;min-width:150px;background:var(--app-surface)}
-  .inp.ph{color:var(--app-fg-faint)}
-  .inp.focus{border-color:var(--app-accent);box-shadow:0 0 0 3px rgba(246,130,31,.14)}
-  .inp.err{border-color:#B3261E;box-shadow:0 0 0 3px rgba(179,38,30,.10)}
-  .inp.dis{background:var(--app-surface-sunken);color:var(--app-fg-faint)}
-  .cb{width:14px;height:14px;border:1px solid var(--app-fg-faint);border-radius:3px;display:grid;place-items:center;color:transparent;flex:none}
-  .cb.on{background:var(--app-accent);border-color:var(--app-accent);color:#fff}
-  .cb svg{width:9px;height:9px;stroke-width:3}
-  .rad{width:14px;height:14px;border:1px solid var(--app-fg-faint);border-radius:50%;display:grid;place-items:center;flex:none}
-  .rad.on{border-color:var(--app-accent);border-width:4px}
-  .legend{font-size:10.5px;color:var(--app-fg-faint);margin-top:10px;font-family:var(--app-font-mono)}
-  .chip-s{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:999px;background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:11.5px}
-  .chip-s.brand{background:var(--app-accent-subtle);color:var(--app-accent-fg);font-weight:600}
-  .chip-s .d{width:5px;height:5px;border-radius:50%;background:var(--app-accent)}
-  .chip-s.brand .d{background:var(--app-accent)}
-
-  /* ---------- 空状态 ---------- */
-  .empty-block{display:grid;place-items:center;flex:1;padding:24px;text-align:center}
-  .empty-block .t{font-size:13px;color:var(--app-fg-muted);margin-bottom:4px}
-  .empty-block .d{font-size:11.5px;color:var(--app-fg-faint);line-height:1.7;max-width:240px}
-  .empty-block .k{margin-top:14px;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);border:1px solid var(--app-border);border-radius:5px;padding:4px 9px}
-
-  @media (max-width:900px){.states{grid-template-columns:1fr}}
-
-
 
   /* ---------- 原子文档布局 ---------- */
   .lv{margin-top:44px;scroll-margin-top:20px}
@@ -471,49 +129,32 @@
   .lv-d{font-size:12px;color:var(--app-fg-subtle)}
 
   .cgrid{display:grid;gap:14px;align-items:start}
-  .cgrid.g2{grid-template-columns:1fr 1fr}
+  .cgrid.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .cgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  @media(max-width:900px){.cgrid.g2,.cgrid.g3{grid-template-columns:1fr}}
+  @media(max-width:900px){.cgrid.g2,.cgrid.g3{grid-template-columns:minmax(0,1fr)}}
+  .sub-h{grid-column:1/-1;margin:10px 0 0;padding-bottom:6px;border-bottom:1px solid var(--app-border-subtle);
+    font-family:var(--app-font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--app-fg-faint)}
 
-  .card{border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);overflow:hidden}
-  .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--app-border-subtle)}
+  .card{border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);overflow:hidden;min-width:0}
+  .card-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--app-border-subtle);flex-wrap:wrap;min-width:0}
   .card-h .name{font-size:12.5px;font-weight:600;color:var(--app-fg)}
-  .card-h .path{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);white-space:nowrap}
-  .card-b{padding:16px 14px 14px}
-  .cnote{font-size:11px;color:var(--app-fg-faint);line-height:1.6;margin:12px 0 0}
-  .cnote code, .steps code{font-family:var(--app-font-mono);font-size:10.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted)}
+  .card-h .path{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);text-align:right;overflow-wrap:anywhere;min-width:0}
+  .card-b{padding:16px 14px 14px;min-width:0}
+  .cnote{font-size:11px;color:var(--app-fg-faint);line-height:1.6;margin:12px 0 0;overflow-wrap:anywhere}
+  .cnote code, .steps code, .matrix code{font-family:var(--app-font-mono);font-size:10.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px;color:var(--app-fg-muted);overflow-wrap:anywhere}
 
   /* 颜色 */
   .cwrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 8px}
-  .cs{display:flex;flex-direction:column;gap:4px}
+  .cs{display:flex;flex-direction:column;gap:4px;min-width:0}
   .cs i{height:26px;border-radius:4px;border:1px solid rgba(26,26,24,.10);display:block}
-  .cs b{font-size:10.5px;font-weight:500;color:var(--app-fg-muted);font-family:var(--app-font-mono)}
-  .cs em{font-size:9.5px;color:var(--app-fg-faint);font-style:normal;font-family:var(--app-font-mono)}
+  .cs b{font-size:10.5px;font-weight:500;color:var(--app-fg-muted);font-family:var(--app-font-mono);overflow-wrap:anywhere}
+  .cs em{font-size:9.5px;color:var(--app-fg-faint);font-style:normal;font-family:var(--app-font-mono);overflow-wrap:anywhere}
 
   /* 字号 */
   .scale{display:flex;flex-direction:column;gap:10px}
   .srow2{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-  .sm{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);white-space:nowrap}
-
-  /* 滚动条原子（DESIGN §4.3）：10px 槽 + 6px 滑块，透明内缩 2px */
-  .sb-atoms{display:flex;gap:18px;align-items:flex-start}
-  .sb-a{display:flex;flex-direction:column;align-items:center;gap:6px}
-  .sb-a-box{position:relative;width:34px;height:92px;border:1px solid var(--app-border);border-radius:4px;background:var(--app-surface);overflow:hidden}
-  .sb-a-thumb{position:absolute;top:8px;right:2px;width:6px;height:34px;border-radius:999px;background:#C4C4C0}
-  .sb-a-hover .sb-a-thumb{background:#8E8E8A}
-  .sb-a-hover .sb-a-thumb::after{content:"";position:absolute;inset:-2px -4px -2px -4px}
-
-  /* 图片瀑布流原子（DESIGN §4.5）：按原比例占位，列高自然不等 */
-  .gal-atoms{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
-  .gal-a-col{display:flex;flex-direction:column;gap:8px}
-  .gal-a-item{width:100%}
-  .gal-a-t{position:relative;width:100%;border-radius:4px;overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
-  .gal-a-t.lazy{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
-  .s32{font-family:var(--app-font-serif);font-size:32px;line-height:1.2;color:var(--app-fg)}
-  .s17{font-family:var(--app-font-serif);font-size:17px;color:var(--app-fg)}
-  .s14{font-size:14px;color:var(--app-fg-muted)}
-  .s135{font-size:13.5px;font-weight:600;color:var(--app-fg)}
-  .s12{font-family:var(--app-font-mono);font-size:12px;color:var(--app-fg-faint)}
+  .srow2 > *{min-width:0;overflow-wrap:anywhere}
+  .sm{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);overflow-wrap:anywhere}
 
   /* 间距 */
   .sps{display:flex;flex-direction:column;gap:6px}
@@ -535,30 +176,241 @@
   .r1{width:100%;height:1px;background:var(--app-border);display:block}
   .r2{width:100%;height:1px;background:var(--app-border-subtle);display:block}
   .r3{width:14px;height:1.5px;background:var(--app-accent);display:block;flex:none}
+  .r4{width:22px;height:1px;background:var(--app-fg-faint);opacity:.42;display:block;flex:none}
   .dots{display:flex;flex-direction:column;gap:8px}
   .dots span{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--app-fg-muted)}
   .dots i{width:5px;height:5px;border-radius:50%;display:block}
   .cbs{display:flex;align-items:center;gap:12px}
+  .mono-demo{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums}
+
+  /* 滚动条原子（DESIGN §4.3）：10px 槽 + 6px 滑块，透明内缩 2px */
+  .sb-atoms{display:flex;gap:18px;align-items:flex-start}
+  .sb-a{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sb-a-box{position:relative;width:34px;height:92px;border:1px solid var(--app-border);border-radius:4px;background:var(--app-surface);overflow:hidden}
+  .sb-a-thumb{position:absolute;top:8px;right:2px;width:6px;height:34px;border-radius:999px;background:var(--app-scrollbar-thumb)}
+  .sb-a-hover .sb-a-thumb{background:var(--app-scrollbar-thumb-hover)}
+  .sb-a-hover .sb-a-thumb::after{content:"";position:absolute;inset:-2px -4px -2px -4px}
+
+  /* 图片瀑布流原子（DESIGN §4.5）：按原比例占位，列高自然不等 */
+  .gal-atoms{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
+  .gal-a-col{display:flex;flex-direction:column;gap:8px}
+  .gal-a-item{width:100%}
+  .gal-a-t{position:relative;width:100%;border-radius:4px;overflow:hidden;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
+  .gal-a-t.lazy{background:linear-gradient(90deg,var(--app-surface-sunken) 0%,var(--app-border-subtle) 50%,var(--app-surface-sunken) 100%);background-size:200% 100%}
+
+  .s32{font-family:var(--app-font-serif);font-size:32px;line-height:1.2;color:var(--app-fg)}
+  .s17{font-family:var(--app-font-serif);font-size:17px;color:var(--app-fg)}
+  .s14{font-size:14px;color:var(--app-fg-muted)}
+  .s135{font-size:13.5px;font-weight:600;color:var(--app-fg)}
+  .s12{font-family:var(--app-font-mono);font-size:12px;color:var(--app-fg-faint)}
+
+  /* ---------- 通用控件预览 ---------- */
+  .srow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px}
+  .btn-s{height:30px;padding:0 13px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:var(--app-font)}
+  .btn-s.primary{background:var(--app-accent);color:var(--app-accent-text);box-shadow:var(--app-btn-sheen)}
+  .btn-s.primary:hover{background:var(--app-accent-hover)}
+  .btn-s.ink{background:var(--app-fg);color:var(--app-surface)}
+  .btn-s.outline{border-color:var(--app-border);color:var(--app-fg-muted);background:var(--app-surface)}
+  .btn-s.outline:hover{border-color:var(--app-fg-faint);color:var(--app-fg)}
+  .btn-s.ghost{color:var(--app-fg-muted);background:none}
+  .btn-s.ghost:hover{background:var(--app-surface-sunken)}
+  .btn-s.danger{color:var(--app-danger);background:none;border-color:var(--app-border-subtle)}
+  .btn-s:disabled{opacity:.4;cursor:not-allowed}
+  .btn-s.focus{outline:2px solid rgba(246,130,31,.35);outline-offset:2px}
+  .inp{height:30px;border:1px solid var(--app-border);border-radius:6px;padding:0 10px;font-size:12px;color:var(--app-fg);display:flex;align-items:center;min-width:150px;background:var(--app-surface)}
+  .inp.ph{color:var(--app-fg-faint)}
+  .inp.focus{border-color:var(--app-accent);box-shadow:0 0 0 3px rgba(246,130,31,.14)}
+  .inp.err{border-color:var(--app-danger);box-shadow:0 0 0 3px rgba(179,38,30,.10)}
+  .inp.dis{background:var(--app-surface-sunken);color:var(--app-fg-faint)}
+  .chip-s{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:999px;background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:11.5px}
+  .chip-s.brand{background:var(--app-accent-subtle);color:var(--app-accent-fg);font-weight:600}
+  .chip-s .d{width:5px;height:5px;border-radius:50%;background:var(--app-accent)}
+  .switch{width:34px;height:20px;border-radius:999px;background:var(--app-accent);position:relative;flex:none;cursor:pointer;transition:background 150ms}
+  .switch::after{content:"";position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:var(--app-surface);box-shadow:0 1px 2px rgba(0,0,0,.18)}
+  .switch.off{background:var(--app-fg-faint)}
+  .switch.off::after{left:2px;right:auto}
+  .seg-s{display:flex;background:var(--app-surface-sunken);border-radius:5px;padding:1.5px}
+  .seg-s span{font-size:11px;padding:3px 10px;border-radius:4px;color:var(--app-fg-subtle)}
+  .seg-s span.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:var(--app-shadow-seg)}
+  .pick{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--app-fg-muted);border:1px solid var(--app-border);border-radius:5px;padding:4px 9px;background:var(--app-surface)}
+  .pick svg{width:11px;height:11px;color:var(--app-fg-faint)}
+  .cb{width:14px;height:14px;border:1px solid var(--app-fg-faint);border-radius:3px;display:grid;place-items:center;color:transparent;flex:none}
+  .cb.on{background:var(--app-accent);border-color:var(--app-accent);color:var(--app-surface)}
+  .cb svg{width:9px;height:9px;stroke-width:3}
+  .rad{width:14px;height:14px;border:1px solid var(--app-fg-faint);border-radius:50%;display:grid;place-items:center;flex:none}
+  .rad.on{border-color:var(--app-accent);border-width:4px}
   .cb.dis,.rad.dis{opacity:.35}
-  .mono-demo{display:flex;gap:14px;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums}
+  .a-kbd{display:inline-flex;align-items:center;height:17px;padding:0 5px;border:1px solid var(--app-border-subtle);border-radius:4px;
+    background:var(--app-surface-sunken);font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .a-kbd.on-dark{background:rgba(36,21,5,.09);border-color:rgba(36,21,5,.18);color:rgba(36,21,5,.66)}
+  .a-txtbtn{border:0;background:none;color:var(--app-accent-fg);font-family:var(--app-font);font-size:11.5px;padding:0;cursor:pointer}
+  .a-txtbtn:hover{text-decoration:underline;text-underline-offset:3px}
+  .a-iconbtn{display:grid;place-items:center;width:20px;height:20px;border:0;border-radius:4px;background:none;color:var(--app-fg-subtle);cursor:pointer}
+  .a-iconbtn:hover{background:var(--app-hover);color:var(--app-fg)}
+  .a-iconbtn svg{width:13px;height:13px}
+  .a-count{margin-left:auto;font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums;text-align:right}
+  .a-count.hot{color:var(--app-accent-fg)}
+  .a-radio{display:inline-flex;background:var(--app-surface-sunken);border-radius:6px;padding:2px;gap:2px}
+  .a-radio span{font-size:11.5px;padding:4px 12px;border-radius:4px;color:var(--app-fg-muted)}
+  .a-radio span.on{background:var(--app-seg-active);color:var(--app-fg);font-weight:600;box-shadow:var(--app-shadow-seg-lift)}
+  .a-menu{width:190px;border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);box-shadow:var(--app-shadow-card);padding:6px;display:flex;flex-direction:column;gap:1px}
+  .a-menu-label{margin:2px 0 4px;padding:0 8px;font-size:10.5px;color:var(--app-fg-faint)}
+  .a-menu-item{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border:0;border-radius:5px;background:none;color:var(--app-fg-muted);font-family:var(--app-font);font-size:12px;text-align:left;cursor:pointer}
+  .a-menu-item:hover{background:var(--app-hover);color:var(--app-fg)}
+  .a-menu-item svg{width:13px;height:13px;color:var(--app-fg-subtle)}
+  .a-menu-item.danger{color:var(--app-danger)}
+  .a-menu-sep{height:1px;background:var(--app-border-subtle);margin:4px 0}
+  .a-up{display:flex;flex-direction:column;gap:6px}
+  .a-up-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--app-fg-muted)}
+  .a-up-row .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a-up-row .pct{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+  .a-up-row progress{width:96px;height:6px;appearance:none;border:0;border-radius:999px;overflow:hidden;background:var(--app-surface-sunken)}
+  .a-up-row progress::-webkit-progress-bar{background:var(--app-surface-sunken);border-radius:999px}
+  .a-up-row progress::-webkit-progress-value{background:var(--app-accent);border-radius:999px}
+  .a-up-row.err{color:var(--app-danger)}
 
-  /* 组织体示意 */
-  .mini-sb{display:flex;flex-direction:column;gap:1px;background:var(--app-bg-side);padding:8px;border-radius:6px}
-  .mini-sb a{display:flex;align-items:center;gap:8px;height:29px;padding:0 8px;border-radius:5px;color:var(--app-fg-muted);font-size:12px;text-decoration:none}
-  .mini-sb a svg{width:13px;height:13px;fill:none;stroke:var(--app-fg-subtle);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .mini-sb a.hover{background:var(--app-hover);color:var(--app-fg)}
-  .mini-sb a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
-  .mini-sb a.on svg{stroke:var(--app-accent-fg)}
-  .cnt{margin-left:auto;font-family:var(--app-font-mono);font-size:9px}
-  .cnt.plain{color:var(--app-fg-faint)}
+  /* ---------- 侧栏组织体 ---------- */
+  .mini-sb{display:flex;flex-direction:column;gap:var(--app-space-4);background:var(--app-bg-side);padding:var(--app-space-10);border-radius:var(--app-radius)}
+  .mini-sb-row{display:flex;align-items:center;gap:var(--app-space-6);height:var(--app-space-22,22px);padding:0 var(--app-space-xs);border-radius:var(--app-radius-sm);color:var(--app-fg-muted);font-size:12px}
+  .a-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;background:var(--app-surface-sunken);border-radius:var(--app-radius)}
+  .a-seg span{height:28px;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:var(--app-radius-sm);color:var(--app-fg-muted);font-size:11.5px}
+  .a-seg span.on{background:var(--app-seg-active);color:var(--app-fg);font-weight:600;box-shadow:var(--app-shadow-seg-lift)}
+  .a-seg span svg{width:12px;height:12px;color:var(--app-fg-subtle)}
+  .a-seg span.on svg{color:var(--app-accent-fg)}
+  .a-hint{display:flex;align-items:center;gap:var(--app-space-xs);height:34px;padding:0 var(--app-space-10);
+    border:1px solid var(--app-border-subtle);border-radius:var(--app-radius);background:var(--app-surface);color:var(--app-fg-subtle);font-size:12px}
+  .a-hint:hover{border-color:var(--app-border)}
+  .a-cta{display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border:0;border-radius:var(--app-radius);
+    background:var(--app-accent);color:var(--app-accent-text);font-family:var(--app-font);font-size:12.5px;font-weight:600;box-shadow:var(--app-btn-sheen);position:relative}
+  .a-cta svg{width:13px;height:13px;stroke-width:2.2}
+  .a-cta .a-kbd{position:absolute;right:var(--app-space-10)}
+  .a-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--app-space-4)}
+  .a-quick a{display:flex;align-items:center;justify-content:center;gap:4px;height:30px;border-radius:var(--app-radius-sm);color:var(--app-fg-muted);font-size:11.5px;text-decoration:none}
+  .a-quick a:hover{background:var(--app-hover);color:var(--app-fg)}
+  .a-quick a svg{width:12px;height:12px;color:var(--app-fg-subtle)}
+  .a-queue{display:grid;grid-template-columns:1fr 1fr;gap:var(--app-space-6)}
+  .a-queue a{display:flex;align-items:center;gap:6px;height:34px;padding:0 var(--app-space-xs);border-radius:var(--app-radius);
+    background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:12px;text-decoration:none}
+  .a-queue a.hot{background:var(--app-accent-subtle)}
+  .a-queue a.hot svg{color:var(--app-accent-fg)}
+  .a-queue a svg{width:13px;height:13px;color:var(--app-fg-subtle)}
+  .a-zone{height:1px;background:var(--app-border);margin:var(--app-space-md) var(--app-space-xs) var(--app-space-sm)}
+  .a-space{display:flex;align-items:center;gap:6px;height:30px;padding:0 var(--app-space-xs);border:0;border-radius:var(--app-radius-sm);
+    background:none;color:var(--app-fg);font-family:var(--app-font);font-size:12.5px;font-weight:600}
+  .a-space:hover{background:var(--app-hover)}
+  .a-space svg{width:13px;height:13px;color:var(--app-accent-fg)}
+  .a-space .st{margin-left:auto;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
+  .a-sechead{display:flex;align-items:center;gap:8px;height:20px;padding:0 var(--app-space-xs)}
+  .a-sechead .t{font-size:11px;font-weight:500;color:var(--app-fg-faint)}
+  .a-sechead .c{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint);font-variant-numeric:tabular-nums}
+  .a-sechead .sp{flex:1}
+  .a-sechead .a{width:18px;height:18px;display:grid;place-items:center;border:0;border-radius:4px;background:none;color:var(--app-fg-faint);opacity:.75;cursor:pointer}
+  .a-sechead .a:hover{background:var(--app-hover);color:var(--app-fg);opacity:1}
+  .a-sechead .a svg{width:12px;height:12px}
+  .a-tree{display:flex;flex-direction:column;gap:1px}
+  .a-tree .l1{display:flex;align-items:center;gap:6px;height:30px;padding:0 var(--app-space-xs);border-radius:var(--app-radius-sm);color:var(--app-fg);font-size:13px;font-weight:600}
+  .a-tree .l1.on{background:var(--app-surface);box-shadow:inset 2px 0 0 var(--app-accent)}
+  .a-tree .l1:hover{background:var(--app-hover)}
+  .a-tree .l1 svg{width:10px;height:10px;color:var(--app-fg-faint)}
+  .a-tree .l1 .chev{transition:transform 130ms cubic-bezier(.2,.6,.3,1)}
+  .a-tree .l1 .chev.closed{transform:rotate(-90deg)}
+  .a-tree .l1 .slot{width:10px;height:10px;flex:none}
+  .a-tree .l2{position:relative;display:flex;align-items:center;height:30px;padding:0 var(--app-space-xs) 0 26px;border-radius:var(--app-radius-sm);
+    color:var(--app-fg-subtle);font-size:12px}
+  .a-tree .l2:hover{background:var(--app-hover)}
+  .a-tree .l2::before{content:"";position:absolute;left:13px;top:-16px;height:31px;width:1px;background:var(--app-fg-faint);opacity:.42}
+  .a-tree .l2::after{content:"";position:absolute;left:13px;top:15px;width:15px;height:1px;background:var(--app-fg-faint);opacity:.42}
+  .a-new{height:29px;margin-top:4px;padding:0 var(--app-space-xs);border:1px solid var(--app-border-subtle);border-radius:var(--app-radius-sm);
+    background:var(--app-surface);color:var(--app-fg);font-family:var(--app-font);font-size:12px;display:flex;align-items:center}
+  .a-foot{display:flex;align-items:center;gap:6px;padding:10px var(--app-space-xs) 4px;border-top:1px solid var(--app-border);font-size:11px;color:var(--app-fg-muted)}
+  .a-foot .ava{width:19px;height:19px;border-radius:999px;background:var(--app-fg);color:var(--app-surface);display:grid;place-items:center;font-family:var(--app-font-mono);font-size:9px;flex:none}
+  .a-foot .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a-foot .sync{width:5px;height:5px;border-radius:50%;background:var(--app-success);flex:none}
+  .a-foot .sync.off{background:var(--app-fg-faint)}
+  .a-foot .ver{font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)}
 
+  /* ---------- 清单 / 文档 / 属性 ---------- */
   .mini-list{display:flex;flex-direction:column;border:1px solid var(--app-border-subtle);border-radius:6px;overflow:hidden}
-  .mini-props{display:flex;flex-direction:column}
-  .mini-set{display:flex;flex-direction:column}
+  .nrow{position:relative;display:grid;grid-template-columns:16px 1fr auto;gap:2px 10px;align-items:baseline;padding:9px 14px;cursor:pointer;transition:background 130ms cubic-bezier(.2,.6,.3,1)}
+  .nrow:not(:last-child)::after{content:"";position:absolute;left:40px;right:14px;bottom:0;height:1px;background:var(--app-border-subtle)}
+  .nrow:hover{background:var(--app-hover)}
+  .nrow:hover::after,.nrow.on::after{opacity:0}
+  .nrow.on{background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent)}
+  .nc-ic{grid-row:1/3;align-self:start;display:flex;align-items:flex-start;padding-top:2px;color:var(--app-fg-faint)}
+  .nc-ic svg{width:13px;height:13px}
+  .nrow.on .nc-ic{color:var(--app-accent-fg)}
+  .nr-t{display:flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--app-fg);line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nr-m{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint);line-height:1.6;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .nr-d{grid-column:2/-1;font-size:12px;color:var(--app-fg-subtle);line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nrow.on .nr-d{color:var(--app-fg-muted)}
 
-  /* 骨架 */
+  .mini-props{display:flex;flex-direction:column}
+  .prop{display:flex;align-items:baseline;gap:12px;height:32px;font-size:12.5px;min-width:0;border-bottom:1px solid var(--app-border-subtle)}
+  .prop .k{width:120px;flex:none;color:var(--app-fg-subtle);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prop .v{color:var(--app-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+  .pill-b{display:inline-flex;align-items:center;gap:5px;background:var(--app-accent-subtle);color:var(--app-accent-fg);border-radius:999px;padding:0 8px;font-size:11px;line-height:18px;font-weight:600}
+  .pill-b::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--app-accent);flex:none}
+  .prop .v .tc{display:inline-flex;align-items:center;height:19px;padding:0 8px;border-radius:999px;background:var(--app-surface-sunken);color:var(--app-fg-muted);font-size:10.5px;margin-right:4px}
+  .prop .v .lnk{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
+  .prop .v .lnk:hover{border-bottom-color:var(--app-link)}
+  .prop-edit .k{color:var(--app-fg-subtle)}
+  .prop-edit .v input,.prop-edit .v select{height:26px;border:1px solid var(--app-border);border-radius:4px;background:var(--app-surface);color:var(--app-fg);font-family:var(--app-font);font-size:11.5px;padding:0 6px}
+  .prop-edit .v input:focus,.prop-edit .v select:focus{outline:2px solid rgba(246,130,31,.35);outline-offset:1px}
+
+  /* ---------- 设置 ---------- */
+  .mini-set{display:flex;flex-direction:column}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid var(--app-border-subtle)}
+  .set-row:last-child{border-bottom:0}
+  .set-label{font-size:12.5px;color:var(--app-fg)}
+  .set-hint{font-size:11px;color:var(--app-fg-faint);margin-top:3px;line-height:1.5}
+  .a-setnav{width:158px;flex:none;background:var(--app-bg-side);border-right:1px solid var(--app-border);padding:10px 9px;display:flex;flex-direction:column;gap:1px}
+  .a-setnav a{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--app-fg-muted);padding:6px 9px;border-radius:5px;text-decoration:none}
+  .a-setnav a.on{background:var(--app-surface);color:var(--app-fg);font-weight:600;box-shadow:inset 2px 0 0 var(--app-accent)}
+
+  /* ---------- Memo ---------- */
+  .a-inter{display:flex;align-items:center;gap:10px}
+  .a-inter button{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--app-fg-subtle);font-family:var(--app-font);font-size:11px;cursor:pointer;padding:0}
+  .a-inter button:hover{color:var(--app-fg)}
+  .a-inter button svg{width:13px;height:13px}
+  .a-inter button.on{color:var(--app-accent-fg)}
+  .a-inter .n{font-family:var(--app-font-mono);font-size:10px;color:var(--app-fg-faint)}
+  .a-quote{border-left:2px solid var(--app-accent);border-radius:0 6px 6px 0;background:var(--app-surface-sunken);padding:8px 10px;font-size:11.5px;color:var(--app-fg-muted)}
+  .a-quote .h{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--app-fg-faint);margin-bottom:4px}
+  .a-quote .h svg{width:11px;height:11px}
+  .a-quote .h button{border:0;background:none;color:var(--app-accent-fg);font-family:var(--app-font);font-size:10.5px;cursor:pointer;padding:0}
+
+  /* ---------- 表格 / AI / 浮标 / 首页 / 锁定 ---------- */
+  .a-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px}
+  .a-tbl th,.a-tbl td{border:1px solid var(--app-border-subtle);padding:5px 8px;text-align:left;color:var(--app-fg-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a-tbl th{background:var(--app-surface-sunken);font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-subtle);font-weight:400}
+  .a-tbl td.sel{background:var(--app-accent-subtle);color:var(--app-fg)}
+  .a-ai{width:220px;border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface);box-shadow:var(--app-shadow-card);overflow:hidden}
+  .a-ai .h{padding:10px 12px;border-bottom:1px solid var(--app-border-subtle);font-size:12px;font-weight:600;color:var(--app-fg);display:flex;align-items:center;gap:6px}
+  .a-ai .h svg{width:13px;height:13px;color:var(--app-accent-fg)}
+  .a-ai .b{padding:10px 12px;font-size:11.5px;color:var(--app-fg-muted);line-height:1.65}
+  .a-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:var(--app-fg);color:var(--app-surface);font-size:11px;box-shadow:var(--app-shadow-card)}
+  .a-badge svg{width:12px;height:12px}
+  .a-home{display:flex;flex-direction:column;gap:10px}
+  .a-home .bar{font-family:var(--app-font-serif);font-size:20px;color:var(--app-fg);border-bottom:1px solid var(--app-border);padding-bottom:6px}
+  .a-home .acts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .a-home .act{background:var(--app-surface-sunken);border-radius:6px;padding:9px 10px;font-size:11.5px;color:var(--app-fg);display:flex;align-items:center;gap:6px}
+  .a-home .act .dot{width:7px;height:7px;border-radius:50%;background:var(--app-accent);flex:none}
+  .a-home .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--app-border-subtle);border-bottom:1px solid var(--app-border-subtle)}
+  .a-home .st{padding:8px 10px;border-right:1px solid var(--app-border-subtle);display:flex;flex-direction:column;gap:2px}
+  .a-home .st:last-child{border-right:0}
+  .a-home .st b{font-family:var(--app-font-mono);font-size:18px;color:var(--app-fg);font-weight:400}
+  .a-home .st span{font-size:10.5px;color:var(--app-fg-faint)}
+  .a-lock{width:250px;text-align:center}
+  .a-lock .mark{width:46px;height:46px;border-radius:999px;background:var(--app-surface-sunken);display:grid;place-items:center;margin:0 auto 12px;color:var(--app-fg-subtle)}
+  .a-lock .mark svg{width:20px;height:20px}
+  .a-lock h4{margin:0 0 4px;font-size:15px;font-weight:500;color:var(--app-fg)}
+  .a-lock p{margin:0 0 12px;font-size:11px;color:var(--app-fg-faint);line-height:1.7}
+
+  /* ---------- 骨架 ---------- */
   .skel{display:grid;grid-template-columns:25fr 34fr 41fr;gap:5px;height:104px}
   .skel.memo{grid-template-columns:25fr 52fr 23fr}
+  .skel.home{grid-template-columns:25fr 75fr}
+  .skel.two{grid-template-columns:1fr 1fr}
   .skel div{display:grid;place-items:center;font-family:var(--app-font-mono);font-size:9px;color:var(--app-fg-faint)}
   .skel div{border-radius:4px;background:var(--app-surface-sunken);border:1px solid var(--app-border-subtle)}
   .sk-a{grid-column:1}
@@ -571,14 +423,15 @@
   .sd-n{background:var(--app-bg-side);border-radius:3px;border:1px solid var(--app-border-subtle)}
   .sd-c{background:var(--app-surface);border-radius:3px;border:1px solid var(--app-border-subtle)}
 
-  /* 页面索引 */
+  /* ---------- 页面索引 ---------- */
   .pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   @media(max-width:900px){.pages{grid-template-columns:1fr}}
   .pg{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--app-border);border-radius:8px;background:var(--app-surface)}
-  .pg-skel{display:flex;gap:2px;width:64px;height:36px;flex:none}
+  .pg-skel{display:flex;gap:2px;width:64px;height:36px;flex:none;position:relative}
   .pg-skel i{background:var(--app-surface-sunken);box-shadow:inset 0 0 0 1px var(--app-border);border-radius:2px;display:block}
   .pg-skel i.hole{background:transparent;box-shadow:inset 0 0 0 1px var(--app-border-subtle)}
   .pg-skel i.dim{opacity:.45}
+  .pg-skel i.fill{background:var(--app-border-subtle)}
   .pg-skel.stack{position:relative}
   .pg-skel i.overlay{background:var(--app-surface);box-shadow:inset 0 0 0 1px var(--app-border);position:absolute;left:24%;top:18%;width:52%;height:64%}
   .pg-t{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -586,87 +439,217 @@
   .pg-t span{font-size:11px;color:var(--app-fg-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pg-note{font-size:11px;color:var(--app-fg-faint);margin:12px 0 0;line-height:1.7}
 
-  /* 规则 */
-  .steps{margin:0;padding-left:21px;font-size:12.5px;line-height:1.9;color:var(--app-fg-muted)}
+  /* ---------- 规则 ---------- */
+  .steps{margin:0;padding-left:21px;font-size:12.5px;line-height:1.9;color:var(--app-fg-muted);overflow-wrap:anywhere}
   .steps li::marker{color:var(--app-fg-faint)}
-  .matrix{width:100%;border-collapse:collapse;font-size:11.5px}
-  .matrix th{text-align:left;font-family:var(--app-font-mono);font-size:9.5px;font-weight:400;color:var(--app-fg-faint);padding:0 8px 6px 0;border-bottom:1px solid var(--app-border)}
-  .matrix td{padding:6px 8px 6px 0;border-bottom:1px solid var(--app-border-subtle);color:var(--app-fg-muted);line-height:1.6}
-  .matrix td:first-child{color:var(--app-fg);white-space:nowrap;width:64px}
+  .matrix{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
+  .matrix th{text-align:left;font-family:var(--app-font-mono);font-size:9.5px;font-weight:400;color:var(--app-fg-faint);padding:0 8px 6px 0;border-bottom:1px solid var(--app-border);overflow-wrap:anywhere}
+  .matrix td{padding:6px 8px 6px 0;border-bottom:1px solid var(--app-border-subtle);color:var(--app-fg-muted);line-height:1.6;overflow-wrap:anywhere}
+  .matrix td:first-child{color:var(--app-fg);width:96px}
+  .matrix td code{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-fg-muted)}
 
+  .board{max-width:1290px;margin:0 auto;padding:0 30px 96px}
+  .board-head{padding:52px 0 26px;border-bottom:1px solid var(--app-border);max-width:1290px;margin:0 auto}
+  .board-head .kicker{font-family:var(--app-font-mono);font-size:10.5px;letter-spacing:0;color:var(--app-fg-faint);text-transform:uppercase;display:flex;align-items:center;gap:9px;margin-bottom:14px}
+  .board-head .kicker::before{content:"";width:16px;height:1.5px;background:var(--app-accent)}
+  .board-head h1{font-family:var(--app-font-serif);font-weight:500;font-size:34px;line-height:1.26;margin:0 0 10px}
+  .board-head p{font-size:13.5px;color:var(--app-fg-muted);margin:0 0 8px;max-width:820px;line-height:1.75}
+  .board-head a{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
   .board-foot{max-width:1290px;margin:0 auto;padding:24px 30px 80px;font-size:11.5px;color:var(--app-fg-faint);line-height:1.7}
   .board-foot b{color:var(--app-fg-muted);font-weight:600}
   .board-foot code{font-family:var(--app-font-mono);font-size:10.5px;background:var(--app-surface-sunken);border-radius:3px;padding:1px 4px}
-
 </style>
 </head>
 <body>
 <header class="board-head">
-  <div class="kicker">Menote V2 · 原子设计清单 v1 · 2026-10-31</div>
+  <div class="kicker">Menote V2 · 原子设计清单 v2 · 2026-11-03</div>
   <h1>原子设计清单</h1>
-  <p>按五层拆解界面：Tokens → Atoms → Molecules → Organisms → Templates → Pages。前四层的控件都是<b>真实渲染</b>（直接用 tokens 拼出来，不是示意图），第五层给出每屏的栏位骨架与组成。全篇不依赖其它文件即可阅读；令牌数值的完整定义见 <a href="../DESIGN.md">DESIGN.md</a>。</p>
+  <p>按六层拆解界面：Tokens → Atoms → Molecules → Organisms → Templates → Pages。前四层的控件都是<b>真实渲染</b>（直接用 tokens 拼出来，不是示意图），Templates 与 Pages 两层给出每屏的栏位骨架与组成。全篇不依赖其它文件即可阅读；令牌数值的完整定义见 <a href="../DESIGN.md">DESIGN.md</a>，实现取值见 <code>src/web/src/styles/tokens.css</code>。</p>
+  <p>本版对照 <b>DESIGN.md v1.9</b>（2026-11-03：标题位统一为界面字体／黑体）与实现 <b>0.1.18</b>（2026-11-03）补齐：侧栏三段重做、回看三格、待整理两格、加密空间独立成行、主题树连接线与展开箭头、段标题 11/500/faint、页脚连接状态点；属性区只读/编辑两态、设置面板九分区、主题三档切换、表格网格线、图片上传进度、AI 概述、Memo 评论/收藏/引述。两者不一致时以 <a href="../DESIGN.md">DESIGN.md</a> 为准并回改本文件。</p>
 </header>
 
 <main class="board">
 
   <section class="lv" id="l0">
-    <div class="lv-head"><span class="lv-n">00</span><h2>Tokens</h2><span class="lv-d">原子之前的原料 · tokens.css</span></div>
+    <div class="lv-head"><span class="lv-n">00</span><h2>Tokens</h2><span class="lv-d">原子之前的原料 · src/web/src/styles/tokens.css</span></div>
     <div class="cgrid g2">
       <div class="card">
-        <div class="card-h"><span class="name">颜色 · color</span><span class="path">--app-*</span></div>
+        <div class="card-h"><span class="name">颜色 · 表面与结构</span><span class="path">--app-*</span></div>
         <div class="card-b">
           <div class="cwrap">
-            <div class="cs"><i style="background:#FFFFFF"></i><b>surface</b><em>#FFFFFF</em></div>
-            <div class="cs"><i style="background:#F1F1EE"></i><b>bg-side</b><em>#F1F1EE</em></div>
-            <div class="cs"><i style="background:#F4F4F2"></i><b>sunken</b><em>#F4F4F2</em></div>
-            <div class="cs"><i style="background:#FEF6EE"></i><b>selected</b><em>#FEF6EE</em></div>
-            <div class="cs"><i style="background:#E6E6E3"></i><b>border</b><em>#E6E6E3</em></div>
-            <div class="cs"><i style="background:#1A1A18"></i><b>fg</b><em>#1A1A18</em></div>
-            <div class="cs"><i style="background:#6C6F6B"></i><b>fg-subtle</b><em>#6C6F6B</em></div>
-            <div class="cs"><i style="background:#74776F"></i><b>fg-faint</b><em>#74776F</em></div>
-            <div class="cs"><i style="background:#F6821F"></i><b>accent</b><em>#F6821F</em></div>
-            <div class="cs"><i style="background:#B4530F"></i><b>accent-fg</b><em>#B4530F</em></div>
-            <div class="cs"><i style="background:#FEF2E7"></i><b>accent-subtle</b><em>#FEF2E7</em></div>
-            <div class="cs"><i style="background:#0051C3"></i><b>link</b><em>#0051C3</em></div>
+            <div class="cs"><i style="background:var(--app-surface)"></i><b>surface</b><em>#FFFFFF</em></div>
+            <div class="cs"><i style="background:var(--app-bg-side)"></i><b>bg-side</b><em>#F1F1EE</em></div>
+            <div class="cs"><i style="background:var(--app-surface-sunken)"></i><b>sunken</b><em>#F4F4F2</em></div>
+            <div class="cs"><i style="background:var(--app-raised-on-side)"></i><b>raised-on-side</b><em>#FFFFFF</em></div>
+            <div class="cs"><i style="background:var(--app-seg-active)"></i><b>seg-active</b><em>#FFFFFF</em></div>
+            <div class="cs"><i style="background:var(--app-selected)"></i><b>selected</b><em>#FEF6EE</em></div>
+            <div class="cs"><i style="background:var(--app-hover)"></i><b>hover</b><em>#F6F6F4</em></div>
+            <div class="cs"><i style="background:var(--app-border)"></i><b>border</b><em>#E6E6E3</em></div>
+            <div class="cs"><i style="background:var(--app-border-subtle)"></i><b>border-subtle</b><em>#F0F0ED</em></div>
+            <div class="cs"><i style="background:var(--app-accent-subtle)"></i><b>accent-subtle</b><em>#FEF2E7</em></div>
           </div>
+          <p class="cnote">侧栏后退一档（bg-side），清单与文档同纸面（surface）；三种区域靠底色差拉开，不靠描边。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">字号 · type scale</span><span class="path">7 档</span></div>
+        <div class="card-h"><span class="name">颜色 · 文字与状态</span><span class="path">--app-fg-* / --app-accent-*</span></div>
+        <div class="card-b">
+          <div class="cwrap">
+            <div class="cs"><i style="background:var(--app-fg)"></i><b>fg</b><em>#1A1A18</em></div>
+            <div class="cs"><i style="background:var(--app-fg-muted)"></i><b>fg-muted</b><em>#4E504D</em></div>
+            <div class="cs"><i style="background:var(--app-fg-subtle)"></i><b>fg-subtle</b><em>#6C6F6B</em></div>
+            <div class="cs"><i style="background:var(--app-fg-faint)"></i><b>fg-faint</b><em>#74776F</em></div>
+            <div class="cs"><i style="background:var(--app-accent)"></i><b>accent</b><em>#F6821F</em></div>
+            <div class="cs"><i style="background:var(--app-accent-hover)"></i><b>accent-hover</b><em>#E5760F</em></div>
+            <div class="cs"><i style="background:var(--app-accent-text)"></i><b>accent-text</b><em>#241505</em></div>
+            <div class="cs"><i style="background:var(--app-accent-fg)"></i><b>accent-fg</b><em>#B4530F</em></div>
+            <div class="cs"><i style="background:var(--app-link)"></i><b>link</b><em>#0051C3</em></div>
+            <div class="cs"><i style="background:var(--app-success)"></i><b>success</b><em>#5F8B3F</em></div>
+            <div class="cs"><i style="background:var(--app-danger)"></i><b>danger</b><em>#B3261E</em></div>
+          </div>
+          <p class="cnote">文字四档对比度 17.43 / 8.14 / 5.09 / 4.55:1；accent 在白底只有 2.58:1，<b>不得承载文字</b>。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">颜色 · 滚动条</span><span class="path">--app-scrollbar-*</span></div>
+        <div class="card-b">
+          <div class="cwrap">
+            <div class="cs"><i style="background:var(--app-scrollbar-thumb)"></i><b>thumb</b><em>#C4C4C0</em></div>
+            <div class="cs"><i style="background:var(--app-scrollbar-thumb-hover)"></i><b>thumb-hover</b><em>#8E8E8A</em></div>
+            <div class="cs"><i style="background:var(--app-surface);border-style:dashed"></i><b>track</b><em>transparent</em></div>
+          </div>
+          <p class="cnote">常态 1.75:1（刻意低于 3:1），悬停 3.29:1；槽宽 <code>--app-scrollbar-size: 10px</code>，滑块内缩 <code>--app-scrollbar-inset: 2px</code> 后可见宽 6px。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">颜色 · 文档渲染</span><span class="path">--md-*</span></div>
+        <div class="card-b">
+          <div class="cwrap">
+            <div class="cs"><i style="background:var(--md-body-color)"></i><b>body-color</b><em>fg-muted</em></div>
+            <div class="cs"><i style="background:var(--md-h1-color)"></i><b>h1-color</b><em>fg</em></div>
+            <div class="cs"><i style="background:var(--md-code-bg)"></i><b>code-bg</b><em>sunken</em></div>
+            <div class="cs"><i style="background:var(--md-quote-color)"></i><b>quote-color</b><em>accent</em></div>
+            <div class="cs"><i style="background:var(--md-table-head-bg)"></i><b>table-head-bg</b><em>sunken</em></div>
+            <div class="cs"><i style="background:var(--md-kicker-color)"></i><b>kicker-color</b><em>fg-faint</em></div>
+          </div>
+          <p class="cnote">正文一律取 <code>--md-*</code>，外壳取 <code>--app-*</code>，两层不得互相引用具体值；设置·样式只写 <code>--md-*</code>，覆盖不回流外壳。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">字体栈 · font stack</span><span class="path">--app-font*</span></div>
         <div class="card-b">
           <div class="scale">
-            <div class="srow2"><span class="s32">材质工作流</span><span class="sm">32 · serif 500</span></div>
-            <div class="srow2"><span class="s17">Menote</span><span class="sm">17 · serif 500</span></div>
-            <div class="srow2"><span class="s14">正文十四像素，行高 1.78</span><span class="sm">14 · sans 400</span></div>
-            <div class="srow2"><span class="s135">清单标题</span><span class="sm">13.5 · sans 600</span></div>
-            <div class="srow2"><span class="s12">2026-10-30</span><span class="sm">12 mono</span></div>
+            <div class="srow2"><span class="s17" style="font-family:var(--app-font-serif)">Menote 品牌字</span><span class="sm">--app-font-serif</span></div>
+            <div class="srow2"><span class="s14" style="font-family:var(--app-font)">界面正文 · 按钮 · 侧栏</span><span class="sm">--app-font</span></div>
+            <div class="srow2"><span class="s12" style="font-family:var(--app-font-mono)">2026-11-03 · 1,240 字</span><span class="sm">--app-font-mono</span></div>
           </div>
+          <p class="cnote">界面字体默认自托管 Noto Sans SC（<code>data-font="system"</code> 可切回系统栈）；<code>--app-font-serif</code> 现指向界面字体，衬线只作角色名。等宽只用于元数据与代码。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">间距 · spacing</span><span class="path">4px 基准</span></div>
+        <div class="card-h"><span class="name">字号 · type scale</span><span class="path">--app-size-* / --md-*</span></div>
+        <div class="card-b">
+          <div class="scale">
+            <div class="srow2"><span class="s32">材质工作流</span><span class="sm">32 · --md-h1-size</span></div>
+            <div class="srow2"><span class="s17">Menote</span><span class="sm">17 · --app-size-brand</span></div>
+            <div class="srow2"><span class="s14">正文十四像素，行高 1.78</span><span class="sm">14 · --app-font-body</span></div>
+            <div class="srow2"><span class="s135">清单标题</span><span class="sm">13.5 · --app-size-list-title</span></div>
+            <div class="srow2"><span style="font-size:12.5px">按钮与侧栏项</span><span class="sm">12.5 · --app-size-button</span></div>
+            <div class="srow2"><span style="font-size:11px;color:var(--app-fg-faint)">段标题 主题 / 标签</span><span class="sm">11 · --app-size-sechead</span></div>
+            <div class="srow2"><span class="s12">2026-11-03</span><span class="sm">10 / 9.5 mono</span></div>
+          </div>
+          <p class="cnote">只允许 10 / 10.5 / 11 / 11.5 / 12 / 12.5 / 13.5 / 14 / 14.5 / 16 / 17 / 27 / 32 / 36 这几档，半像素级字号视为生成物。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">间距 · spacing</span><span class="path">--app-space-* · 4px 基准</span></div>
         <div class="card-b">
           <div class="sps">
-            <div class="spi"><i style="width:4px"></i><span>4</span></div>
-            <div class="spi"><i style="width:8px"></i><span>8</span></div>
-            <div class="spi"><i style="width:12px"></i><span>12</span></div>
-            <div class="spi"><i style="width:14px"></i><span>14</span></div>
-            <div class="spi"><i style="width:18px"></i><span>18</span></div>
-            <div class="spi"><i style="width:24px"></i><span>24</span></div>
-            <div class="spi"><i style="width:34px"></i><span>34</span></div>
+            <div class="spi"><i style="width:4px"></i><span>4 · space-4</span></div>
+            <div class="spi"><i style="width:6px"></i><span>6 · space-6</span></div>
+            <div class="spi"><i style="width:10px"></i><span>10 · space-10</span></div>
+            <div class="spi"><i style="width:14px"></i><span>14 · space-14</span></div>
+            <div class="spi"><i style="width:18px"></i><span>18 · space-18</span></div>
+            <div class="spi"><i style="width:22px"></i><span>22 · space-22</span></div>
+            <div class="spi"><i style="width:34px"></i><span>34 · space-34</span></div>
           </div>
+          <p class="cnote">另有语义档 <code>xs 8 / sm 12 / md 16 / lg 24 / xl 32 / 2xl 48</code>；清单紧（60px 行）、文档松（14px / 1.78）。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">圆角 · radius</span><span class="path">4 级 + 胶囊</span></div>
+        <div class="card-h"><span class="name">圆角 · radius</span><span class="path">--app-radius-*</span></div>
         <div class="card-b">
           <div class="rads">
-            <div class="ri"><b style="border-radius:4px"></b><span>4 项</span></div>
-            <div class="ri"><b style="border-radius:6px"></b><span>6 控件</span></div>
-            <div class="ri"><b style="border-radius:8px"></b><span>8 卡片</span></div>
-            <div class="ri"><b style="border-radius:10px"></b><span>10 对话框</span></div>
-            <div class="ri"><b style="border-radius:999px"></b><span>999 胶囊</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius-sm)"></b><span>4 sm</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius-md)"></b><span>5 md 侧栏行</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius)"></b><span>6 控件</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius-lg)"></b><span>8 卡片</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius-xl)"></b><span>10 对话框</span></div>
+            <div class="ri"><b style="border-radius:var(--app-radius-pill)"></b><span>999 胶囊</span></div>
           </div>
+          <p class="cnote">清单行、属性行、首页最近编辑行是 0 圆角——列表不是卡片墙。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">阴影与材质</span><span class="path">--app-shadow-* / --app-btn-sheen</span></div>
+        <div class="card-b">
+          <div class="srow" style="align-items:flex-start">
+            <div style="width:104px;height:52px;border-radius:var(--app-radius);background:var(--app-surface);box-shadow:var(--app-shadow-dialog);display:grid;place-items:center;font-size:10.5px;color:var(--app-fg-faint)">对话框</div>
+            <div style="width:104px;height:52px;border-radius:var(--app-radius-lg);border:1px solid var(--app-border);background:var(--app-surface);box-shadow:var(--app-shadow-card);display:grid;place-items:center;font-size:10.5px;color:var(--app-fg-faint)">网格卡悬停</div>
+            <div style="width:104px;height:52px;border-radius:var(--app-radius);background:var(--app-accent);color:var(--app-accent-text);box-shadow:var(--app-btn-sheen);display:grid;place-items:center;font-size:11.5px;font-weight:600">主按钮</div>
+          </div>
+          <p class="cnote">全站只允许这三处阴影；其余层级靠底色差与 1px 线承担。分段选中项用 <code>--app-shadow-seg-lift</code> 抬升，不算第四种层级。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">选中语言 · 四种</span><span class="path">DESIGN §4.2</span></div>
+        <div class="card-b">
+          <div class="scale">
+            <div class="srow2"><span style="background:var(--app-surface);box-shadow:inset 2px 0 0 var(--app-accent);padding:4px 10px;border-radius:var(--app-radius-sm);font-size:11.5px">侧栏树</span><span class="sm">白底 + 2px 橙条（竖）</span></div>
+            <div class="srow2"><span style="background:var(--app-selected);box-shadow:inset 3px 0 0 var(--app-accent);padding:4px 10px;font-size:11.5px">笔记清单</span><span class="sm">淡橙底 + 3px 橙条</span></div>
+            <div class="srow2"><span style="border:1px solid var(--app-accent);box-shadow:inset 0 0 0 1px var(--app-accent);padding:4px 10px;border-radius:var(--app-radius-lg);font-size:11.5px">网格卡</span><span class="sm">1px 橙边 + 内描边</span></div>
+            <div class="srow2"><span style="background:var(--app-surface);box-shadow:var(--app-shadow-seg);padding:4px 10px;border-radius:var(--app-radius-sm);font-size:11.5px">分段控件</span><span class="sm">白底 + 1px 阴影</span></div>
+          </div>
+          <p class="cnote">分段是控件族自身的语言，不与区域选中混用；同一屏里可同时出现，靠阴影有无区分。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">版心 · 阅读宽度三档</span><span class="path">--app-doc-measure</span></div>
+        <div class="card-b">
+          <div class="scale">
+            <div class="srow2"><span style="display:block;width:42rem;max-width:100%;height:8px;background:var(--app-accent);opacity:.5;border-radius:2px"></span><span class="sm">窄 42rem / 672</span></div>
+            <div class="srow2"><span style="display:block;width:56rem;max-width:100%;height:8px;background:var(--app-accent);opacity:.5;border-radius:2px"></span><span class="sm">加宽 56rem / 896</span></div>
+            <div class="srow2"><span style="display:block;width:100%;height:8px;background:var(--app-accent);opacity:.5;border-radius:2px"></span><span class="sm">撑满 100%</span></div>
+          </div>
+          <p class="cnote"><code>data-measure="wide|full"</code> 覆盖 <code>--app-doc-measure</code>；Memo 时间轴与图册共用同一档位（<code>--app-memo-timeline-max</code>），编辑器正文亦然。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">尺寸总表 · key sizes</span><span class="path">DESIGN §4.1</span></div>
+        <div class="card-b">
+          <table class="matrix">
+            <tbody>
+              <tr><td>侧栏 / 清单</td><td>248 · 340 · 文档 1fr（最小 420）</td></tr>
+              <tr><td>侧栏行</td><td>30（回看 / 树 / 加密空间）</td></tr>
+              <tr><td>采集两格</td><td>34 · gap 6 · 凹槽底</td></tr>
+              <tr><td>输入 / 主按钮</td><td>34 / 32（侧栏新建笔记 34）</td></tr>
+              <tr><td>清单行</td><td>60 · 分隔线自 40px 起</td></tr>
+              <tr><td>属性行</td><td>32 · 键名列 120px</td></tr>
+              <tr><td>对话框</td><td>736 × 608 · 左导航 158</td></tr>
+              <tr><td>锁定卡</td><td>346</td></tr>
+              <tr><td>Memo 浮层</td><td>工作栏 216 · Todo 196</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">焦点环与动效</span><span class="path">--app-focus-* / --app-motion-*</span></div>
+        <div class="card-b">
+          <div class="srow">
+            <div class="inp focus" style="border-color:var(--app-border)">聚焦态 · 3px 橙 35%</div>
+            <span class="sm">--app-focus-ring: 0 0 0 3px rgba(246,130,31,.35)</span>
+          </div>
+          <p class="cnote">动效只用 <code>--app-motion-fast: 130ms</code> 与 <code>--app-ease</code>；不用浏览器默认焦点样式，触控目标 ≥ 44px。</p>
         </div>
       </div>
     </div>
@@ -686,28 +669,30 @@
             <span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg></span>
             <span><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg></span>
           </div>
-          <p class="cnote">线性、圆头端点，不用实心图标。</p>
+          <p class="cnote">线性、圆头端点，不用实心图标。侧栏回看三格用 12（<code>--app-icon-xs</code>），树箭头 10（<code>--app-icon-xxs</code>）。</p>
         </div>
       </div>
       <div class="card">
         <div class="card-h"><span class="name">线 · rule</span><span class="path">1px / 1.5px</span></div>
         <div class="card-b">
           <div class="rule-demo">
-            <div><i class="r1"></i><span class="sm">1px 结构线</span></div>
-            <div><i class="r2"></i><span class="sm">1px 细分隔</span></div>
-            <div><i class="r3"></i><span class="sm">14×1.5 装饰短线</span></div>
+            <div><i class="r1"></i><span class="sm">1px 结构线 --app-border</span></div>
+            <div><i class="r2"></i><span class="sm">1px 细分隔 --app-border-subtle</span></div>
+            <div><i class="r3"></i><span class="sm">14×1.5 装饰短线 --app-accent</span></div>
+            <div><i class="r4"></i><span class="sm">树连接线 fg-faint 42%</span></div>
           </div>
+          <p class="cnote">线条预算：横线只分区（2 条），竖线只表层级（1 条）；同一职责不重复。</p>
         </div>
       </div>
       <div class="card">
         <div class="card-h"><span class="name">点 · dot</span><span class="path">5px</span></div>
         <div class="card-b">
           <div class="dots">
-            <span><i style="background:#F6821F"></i>进行中</span>
-            <span><i style="background:#93968F"></i>待办</span>
-            <span><i style="background:#5F8B3F"></i>已同步</span>
+            <span><i style="background:var(--app-accent)"></i>进行中 / 主入口</span>
+            <span><i style="background:var(--app-fg-faint)"></i>待办 / 离线</span>
+            <span><i style="background:var(--app-success)"></i>已连接</span>
           </div>
-          <p class="cnote">颜色是唯一语义时，必须配文字。</p>
+          <p class="cnote">颜色是唯一语义时必须配文字；侧栏页脚的连接点跟随 <code>navigator.onLine</code>。</p>
         </div>
       </div>
       <div class="card">
@@ -718,23 +703,35 @@
             <span class="cb"></span>
             <span class="cb dis"></span>
           </div>
-          <p class="cnote">关 / 开 / 禁用，热区 ≥ 44。</p>
+          <p class="cnote">关 / 开 / 禁用，热区 ≥ 44。属性区编辑态的复选属性用同一枚。</p>
         </div>
       </div>
       <div class="card">
         <div class="card-h"><span class="name">单选 · radio</span><span class="path">14 / 50%</span></div>
         <div class="card-b">
           <div class="cbs"><span class="rad on"></span><span class="rad"></span><span class="rad dis"></span></div>
-          <p class="cnote">选中用 4px 橙边，不用对勾。</p>
+          <p class="cnote">选中用 4px 橙边，不用对勾；多档互斥时升级为 radiogroup。</p>
         </div>
       </div>
       <div class="card">
         <div class="card-h"><span class="name">等宽文字 · mono</span><span class="path">10–11.5</span></div>
         <div class="card-b">
           <div class="mono-demo">
-            <span>2026-10-30</span><span>1,240 字</span><span>#8c2a</span>
+            <span>2026-11-03</span><span>1,240 字</span><span>#8c2a</span>
           </div>
-          <p class="cnote">数字用 tabular-nums，列才对得齐。</p>
+          <p class="cnote">数字用 tabular-nums，列才对得齐；中文不用等宽。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">快捷键胶囊 · kbd</span><span class="path">17px · --app-kbd-height</span></div>
+        <div class="card-b">
+          <div class="srow">
+            <span class="a-kbd">⌘N</span>
+            <span class="a-kbd">⌘↵</span>
+            <span class="a-kbd">⌘K</span>
+            <span class="a-cta" style="width:150px">新建笔记<span class="a-kbd on-dark">⌘N</span></span>
+          </div>
+          <p class="cnote">深色底上的 ⌘N 用半透明胶囊（<code>--app-btn-kbd-bg/line/fg</code>），不抢主按钮文字。</p>
         </div>
       </div>
       <div class="card">
@@ -750,7 +747,7 @@
               <span class="sm">悬停 3.29:1</span>
             </div>
           </div>
-          <p class="cnote">发丝线 · 悬停加深；轨道透明，槽位恒定预留。</p>
+          <p class="cnote">发丝线 · 悬停加深；轨道透明，槽位恒定预留（<code>scrollbar-gutter: stable</code>），触屏交回系统。</p>
         </div>
       </div>
       <div class="card">
@@ -769,11 +766,37 @@
           <p class="cnote">按原始比例落位不裁切；懒加载占位保比例，滚动不跳版。</p>
         </div>
       </div>
+      <div class="card">
+        <div class="card-h"><span class="name">进度条 · progress</span><span class="path">原生 &lt;progress&gt;</span></div>
+        <div class="card-b">
+          <div class="a-up">
+            <div class="a-up-row"><span class="n">材质-01.png</span><progress value="62" max="100"></progress><span class="pct">62%</span></div>
+            <div class="a-up-row"><span class="n">灯光-02.png</span><progress value="100" max="100"></progress><span class="pct">100%</span></div>
+          </div>
+          <p class="cnote">用原生 <code>&lt;progress&gt;</code>（结构门禁禁内联 style），上色走 <code>::-webkit-progress-*</code> 与令牌。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">段标题文字 · section head</span><span class="path">11 / 500 / faint</span></div>
+        <div class="card-b">
+          <div class="a-sechead"><span class="t">主题</span><span class="c">12</span><span class="sp"></span></div>
+          <div class="a-sechead"><span class="t">标签</span><span class="sp"></span></div>
+          <p class="cnote">层级由字号、字重、颜色承担，<b>不画延展线</b>；右侧动作 18px 槽，悬停才加实。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">角标 · kicker</span><span class="path">9.5 mono + 装饰短线</span></div>
+        <div class="card-b">
+          <div class="srow2"><span class="s12">NOTE · UE5</span><span class="sm">--md-kicker-size / --md-kicker-color</span></div>
+          <div class="srow2" style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--app-font-mono);font-size:9.5px;color:var(--app-fg-faint)"><i style="width:14px;height:1.5px;background:var(--app-accent);display:block"></i>NOTE · UE5</span><span class="sm">--app-kicker-line-width</span></div>
+          <p class="cnote">文档标题上方的装饰短线是橙色的唯一例外形态：只标一次，不成面。</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="lv" id="l2">
-    <div class="lv-head"><span class="lv-n">02</span><h2>Molecules</h2><span class="lv-d">单个可交互控件 · components/ui</span></div>
+    <div class="lv-head"><span class="lv-n">02</span><h2>Molecules</h2><span class="lv-d">单个可交互控件 · components/ui 与共用控件</span></div>
     <div class="cgrid g2">
       <div class="card">
         <div class="card-h"><span class="name">按钮 · button</span><span class="path">高 30 / 圆角 6</span></div>
@@ -787,7 +810,7 @@
             <button class="btn-s danger">删除</button>
             <button class="btn-s outline" disabled>禁用</button>
           </div>
-          <p class="cnote">主按钮文字用 #241505（6.87:1），不用白字。</p>
+          <p class="cnote">主按钮文字用 <code>--app-accent-text</code>（#241505，6.87:1），不用白字。</p>
         </div>
       </div>
       <div class="card">
@@ -835,26 +858,178 @@
         <div class="card-b">
           <div class="srow"><div class="pick">15 分钟 <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
           <div class="pick">14 px <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div></div>
-          <p class="cnote">当前值直接显示，不带「请选择」。</p>
+          <p class="cnote">当前值直接显示，不带「请选择」；展开层跟随应用主题（<code>data-theme</code> 写 <code>color-scheme</code>）。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">单选组 · radiogroup</span><span class="path">账户菜单 · 主题</span></div>
+        <div class="card-b">
+          <div class="a-radio" role="radiogroup">
+            <span>跟随系统</span><span class="on">浅色</span><span>深色</span>
+          </div>
+          <p class="cnote">三档互斥：跟随系统 / 浅色 / 深色。跟随档由 JS 解析系统偏好后落 <code>data-theme</code>；改档同步写服务端外观偏好。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">图标按钮 · icon button</span><span class="path">14 / 行尾 18 槽</span></div>
+        <div class="card-b">
+          <div class="srow">
+            <button class="a-iconbtn" aria-label="折叠侧栏"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+            <button class="a-iconbtn" aria-label="新建主题"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button class="a-iconbtn" aria-label="更多"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+          </div>
+          <p class="cnote">侧栏段标题右侧动作 18px（<code>--app-minibtn-size</code>）；树行尾动作悬停才出现。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">行内文字按钮 · text button</span><span class="path">属性区 / 工具条</span></div>
+        <div class="card-b">
+          <div class="srow">
+            <button class="a-txtbtn">编辑</button>
+            <button class="a-txtbtn">添加属性</button>
+            <button class="a-txtbtn">保存定义</button>
+            <button class="a-txtbtn">取消</button>
+            <button class="a-txtbtn" style="color:var(--app-fg-faint)">全部 ›</button>
+          </div>
+          <p class="cnote">无边框无底色；出现「编辑 / 完成」互斥切换，编辑态才出现删除与类型下拉。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">上下文菜单项 · menu item</span><span class="path">components/ui/ContextMenu</span></div>
+        <div class="card-b">
+          <div class="a-menu" style="width:168px">
+            <button class="a-menu-item"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>重命名</button>
+            <button class="a-menu-item"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建分组</button>
+            <div class="a-menu-sep"></div>
+            <button class="a-menu-item danger"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>删除</button>
+          </div>
+          <p class="cnote">右键或 <kbd>ContextMenu</kbd> / <kbd>Shift+F10</kbd> 唤出；破坏性操作前有分隔线与二次确认。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">计数徽标 · count</span><span class="path">等宽 · 右对齐</span></div>
+        <div class="card-b">
+          <div class="srow" style="gap:14px">
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--app-fg-muted)">收件箱<span class="a-count hot">7</span></span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--app-fg-muted)">草稿箱<span class="a-count">3</span></span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--app-fg-muted)">收藏<span class="a-count">24</span></span>
+          </div>
+          <p class="cnote">收件箱计数用强调色（外部推来的未知增量），草稿箱与收藏用中性灰——两个都上橙，橙就失去指示意义。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">上传进度行 · upload row</span><span class="path">编辑器底部</span></div>
+        <div class="card-b">
+          <div class="a-up">
+            <div class="a-up-row"><span class="n">材质-01.png</span><progress value="62" max="100"></progress><span class="pct">62%</span></div>
+            <div class="a-up-row err"><span class="n">灯光-02.png</span><span class="pct" style="color:var(--app-danger)">上传失败</span><button class="a-iconbtn" aria-label="忽略"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+          </div>
+          <p class="cnote">逐文件一行「文件名 · 百分比 · 进度条」；失败留红字并可点 × 忽略。</p>
         </div>
       </div>
     </div>
   </section>
 
   <section class="lv" id="l3">
-    <div class="lv-head"><span class="lv-n">03</span><h2>Organisms</h2><span class="lv-d">页面里的独立区块 · features/*/components</span></div>
+    <div class="lv-head"><span class="lv-n">03</span><h2>Organisms</h2><span class="lv-d">页面里的独立区块 · app/* 与 features/*/components</span></div>
     <div class="cgrid g2">
+      <div class="sub-h">侧栏 · app/Sidebar.tsx（DESIGN §5.5，2026-11-03 定稿）</div>
       <div class="card">
-        <div class="card-h"><span class="name">侧栏导航项 · nav item</span><span class="path">高 29</span></div>
+        <div class="card-h"><span class="name">视图切换分段 · formseg</span><span class="path">高 32 · 凹槽三格</span></div>
         <div class="card-b">
           <div class="mini-sb">
-            <a><svg viewBox="0 0 24 24"><path d="M4 5h16M4 11h16M4 17h9"/></svg>Memo 时间线<span class="cnt plain">24</span></a>
-            <a class="hover"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>最近编辑</a>
-            <a class="on"><svg viewBox="0 0 24 24"><path d="M12 3l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>收藏<span class="cnt plain">6</span></a>
+            <div class="a-seg">
+              <span><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>首页</span>
+              <span class="on"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/></svg>笔记</span>
+              <span><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4Z"/></svg>Memo</span>
+            </div>
           </div>
-          <p class="cnote">默认 / 悬停 / 选中，选中为白底 + 2px 橙条。</p>
+          <p class="cnote">凹槽分段（sunken 槽 + 选中项纸面 + 1px 抬升阴影，无描边）；三等分 1fr，图标 + 文字。目的地先于输入被看见。</p>
         </div>
       </div>
+      <div class="card">
+        <div class="card-h"><span class="name">快速输入 + 新建笔记</span><span class="path">34 + 34 · 共享区域</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-hint">记一条 Memo…<span class="a-kbd">⌘↵</span></div>
+            <div class="a-cta"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建笔记<span class="a-kbd on-dark">⌘N</span></div>
+          </div>
+          <p class="cnote">快速输入是纸面 + 发丝边（34），新笔记是全站唯一橙色面（34，上下 1px 材质）；展开态盖住按钮的共享区域，导航不位移。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">回看三格 · quick</span><span class="path">高 30 · 三等分</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-quick">
+              <a><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>最近编辑</a>
+              <a><svg viewBox="0 0 24 24"><path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>收藏</a>
+              <a><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>回收站</a>
+            </div>
+          </div>
+          <p class="cnote">无填充，悬停才浮出浅底；gap 4，图标 12。与下方采集两格靠「填充强度」分层。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">待整理两格 · queue</span><span class="path">高 34 · 凹槽底</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-queue">
+              <a class="hot"><svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>收件箱<span class="a-count hot">7</span></a>
+              <a><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/></svg>草稿箱<span class="a-count">3</span></a>
+            </div>
+          </div>
+          <p class="cnote">凹槽底（sunken），收件箱加强调浅底 + 橙计数；草稿箱中性。紧贴主题树——整理动作的终点是树。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">分区线 + 加密空间行</span><span class="path">工作区｜内容区</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-zone"></div>
+            <div class="a-space"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>加密空间<span class="st">已锁</span></div>
+          </div>
+          <p class="cnote">「加密空间」是空间不是分类，独立成行放在主题段之上（原名「私人空间」，2026-11-03 更名）；锁图标用 accent-fg，状态 9.5 等宽。解锁后按主题节点渲染并可一键上锁。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">段标题行 + 内联新建主题</span><span class="path">components/ui/SectionHead</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-sechead"><span class="t">主题</span><span class="c">12</span><span class="sp"></span><span class="a"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div>
+            <div class="a-new">主题名称，回车确认</div>
+            <div class="a-sechead"><span class="t">标签</span><span class="sp"></span><span class="a"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></span></div>
+          </div>
+          <p class="cnote">「新建主题」收进段标题行，内联输入贴标题正下方，列表底部不再常驻创建入口。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">主题树 · topic tree</span><span class="path">连接线 + 展开箭头</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-tree">
+              <div class="l1"><span class="chev"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>材质工作流</div>
+              <div class="l2">基础层</div>
+              <div class="l2">光照</div>
+              <div class="l1 on"><span class="slot"></span>场景灯光</div>
+            </div>
+          </div>
+          <p class="cnote">父子之间一条竖线 + 肘线（fg-faint 42%，同时间轴轴线做法），是侧栏唯一的层级线；一级 13/600、二级 12/400、缩进 26；选中为白底 + 2px 橙条。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">侧栏页脚 · account foot</span><span class="path">头像 · 用户名 · 连接点</span></div>
+        <div class="card-b">
+          <div class="mini-sb">
+            <div class="a-foot">
+              <span class="ava">M</span><span class="nm">menote</span><span class="sync"></span><span class="ver">0.1.18</span>
+            </div>
+          </div>
+          <p class="cnote">版本号在用户名旁、等宽、靠右（不在品牌旁）；连接状态点跟随 <code>navigator.onLine</code>，离线转 faint。点脚部打开账户菜单。</p>
+        </div>
+      </div>
+
+      <div class="sub-h">清单 / 文档 / 属性 · features/notes、features/props</div>
       <div class="card">
         <div class="card-h"><span class="name">笔记清单行 · note row</span><span class="path">高 60</span></div>
         <div class="card-b">
@@ -862,29 +1037,161 @@
             <div class="nrow on"><div class="nc-ic"><svg viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/></svg></div><div class="nr-t">材质工作流</div><div class="nr-m">14:02</div><div class="nr-d">基础层只负责底色与粗糙度</div></div>
             <div class="nrow"><div class="nc-ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><div class="nr-t">场景灯光规范</div><div class="nr-m">昨天</div><div class="nr-d">Lumen 与烘焙的分界</div></div>
           </div>
-          <p class="cnote">选中为淡橙底 + 3px 橙条；分隔线从 40px 起。</p>
+          <p class="cnote">选中为淡橙底 + 3px 橙条；分隔线从 40px 起；标题 / 摘要 / 时间三行信息。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">属性行 · property row</span><span class="path">高 32 × 2 列</span></div>
+        <div class="card-h"><span class="name">属性区 · 只读态</span><span class="path">默认态 · 点「编辑」才改</span></div>
         <div class="card-b">
           <div class="mini-props">
             <div class="prop"><span class="k">状态</span><span class="v"><span class="pill-b">进行中</span></span></div>
-            <div class="prop"><span class="k">更新</span><span class="v">2026-10-30</span></div>
+            <div class="prop"><span class="k">概述</span><span class="v">AI 生成的段落摘要</span></div>
             <div class="prop"><span class="k">标签</span><span class="v"><span class="tc">UE5</span><span class="tc">材质</span></span></div>
-            <div class="prop"><span class="k">来源</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>
+            <div class="prop"><span class="k">parent_url</span><span class="v"><span class="lnk">figma.com/file/8c2a</span></span></div>
           </div>
-          <p class="cnote">键名固定 30px 列；不写死会左右不对齐。</p>
+          <p class="cnote">默认只排版键与值，http(s) 值是可点链接；键名列 120px，长键不截成 pa…。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">设置行 · setting row</span><span class="path">高 56</span></div>
+        <div class="card-h"><span class="name">属性区 · 编辑态</span><span class="path">点「编辑」后</span></div>
+        <div class="card-b">
+          <div class="mini-props">
+            <div class="prop prop-edit"><span class="k">状态</span><span class="v"><select><option>进行中</option></select></span></div>
+            <div class="prop prop-edit"><span class="k">更新</span><span class="v"><input value="2026-11-03" readonly></span></div>
+            <div class="prop prop-edit"><span class="k">标签</span><span class="v"><input value="UE5, 材质"><button class="a-iconbtn" aria-label="删除属性"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div>
+          </div>
+          <p class="cnote">编辑态才出现输入控件、删除、类型下拉与「添加属性」；改类型只写定义不改值，单选/多选无候选时不写入。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">表格网格 · table grid</span><span class="path">四边发丝线</span></div>
+        <div class="card-b">
+          <table class="a-tbl">
+            <thead><tr><th style="width:26%">字段</th><th style="width:26%">材质</th><th style="width:26%">光照</th><th style="width:22%">备注</th></tr></thead>
+            <tbody>
+              <tr><td>名称</td><td class="sel">基础层</td><td>柔和</td><td>—</td></tr>
+              <tr><td>负责人</td><td>陈</td><td>李</td><td>待确认</td></tr>
+            </tbody>
+          </table>
+          <p class="cnote">每个单元格四边都有线（<code>--md-table-border</code>），表头单独底色，选中单元格叠 accent-subtle；表格文档占文档栏全宽，标题与属性左缘对齐、不居中。</p>
+        </div>
+      </div>
+
+      <div class="sub-h">设置 / 账户 · features/settings、app/AccountMenu</div>
+      <div class="card">
+        <div class="card-h"><span class="name">设置行式项 · setting row</span><span class="path">左标签 右控件</span></div>
         <div class="card-b">
           <div class="mini-set">
             <div class="set-row"><div><div class="set-label">开启自动保存</div><div class="set-hint">停止输入 800ms 后写入</div></div><div class="switch"></div></div>
-            <div class="set-row"><div><div class="set-label">默认视图</div><div class="set-hint">进入主题后先看到什么</div></div><div class="seg-s"><span class="on">列表</span><span>网格</span></div></div>
+            <div class="set-row"><div><div class="set-label">阅读宽度</div><div class="set-hint">影响正文、Memo 时间轴与图册</div></div><div class="seg-s"><span class="on">窄</span><span>加宽</span><span>撑满</span></div></div>
+            <div class="set-row"><div><div class="set-label">界面字体</div><div class="set-hint">品牌字与标题随此切换</div></div><div class="pick">Noto Sans SC <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div></div>
           </div>
-          <p class="cnote">左标签右控件，说明行不超过两行。</p>
+          <p class="cnote">一行一个设置项，说明不超过两行；「恢复默认」放标题行右侧，不放底部。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">设置分区导航 · settings nav</span><span class="path">左导航 158</span></div>
+        <div class="card-b">
+          <div class="a-setnav">
+            <a class="on">外观</a>
+            <a>样式</a>
+            <a>AI 助手</a>
+            <a>远程备份</a>
+            <a>附件</a>
+            <a>恢复码</a>
+            <a>MCP 接入</a>
+            <a>剪藏模板</a>
+            <a>插件</a>
+          </div>
+          <p class="cnote">九个分区，导航在左、内容在右滚动；设置对话框 736 × 608（2026-11-02 放宽，原 648 × 530）。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">账户菜单 · account menu</span><span class="path">主题三档 + 三个动作</span></div>
+        <div class="card-b">
+          <div class="a-menu">
+            <p class="a-menu-label">主题</p>
+            <div class="a-radio"><span class="on">跟随系统</span><span>浅色</span><span>深色</span></div>
+            <div class="a-menu-sep"></div>
+            <button class="a-menu-item"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>系统状态</button>
+            <button class="a-menu-item"><svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/></svg>设置</button>
+            <button class="a-menu-item danger"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>退出登录</button>
+          </div>
+          <p class="cnote">菜单用 fixed 定位逃出侧栏裁剪；主题切换只换 <code>data-theme</code> 上的令牌块，不写第二套结构。</p>
+        </div>
+      </div>
+
+      <div class="sub-h">Memo / AI / 扩展 · features/memo、features/ai、浏览器扩展</div>
+      <div class="card">
+        <div class="card-h"><span class="name">Memo 互动栏 · interactions</span><span class="path">评论 / 收藏 / 引述</span></div>
+        <div class="card-b">
+          <div class="a-inter">
+            <button><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>评论<span class="n">2</span></button>
+            <button class="on"><svg viewBox="0 0 24 24"><path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/></svg>收藏</button>
+            <button><svg viewBox="0 0 24 24"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>引述</button>
+          </div>
+          <p class="cnote">只在明文 Memo 上出现；评论数用等宽小字，收藏态用 accent-fg；加密条目整体不提供这三项。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">Memo 引述快照 · quote snapshot</span><span class="path">引自 + 原文摘录</span></div>
+        <div class="card-b">
+          <div class="a-quote">
+            <div class="h"><svg viewBox="0 0 24 24"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg>引自 2026-11-02 09:40<button>查看来源</button></div>
+            基础层只负责底色与粗糙度，细节交给光照。
+          </div>
+          <p class="cnote">引述保存来源快照，来源被删时显示「来源已删除」；快照是密文边界的例外，需随可见性谓词处理。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">AI 概述对话框 · ai dialog</span><span class="path">生成 → 确认 → 写入属性</span></div>
+        <div class="card-b">
+          <div class="a-ai">
+            <div class="h"><svg viewBox="0 0 24 24"><path d="m12 3 1.9 4.6L18.5 9l-4.6 1.4L12 15l-1.9-4.6L5.5 9l4.6-1.4Z"/></svg>AI 助手</div>
+            <div class="b">概述建议（确认后保存到标题下的属性「概述」，原文不变，可再编辑）</div>
+          </div>
+          <p class="cnote">清单右键「AI 概述」直接进入并开始生成；概述与标签分开确认，不改写原文。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">剪藏扩展浮标 · selection badge</span><span class="path">浏览器扩展 · 独立仓库</span></div>
+        <div class="card-b">
+          <div class="a-badge"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg>存 Memo</div>
+          <p class="cnote">网页划选 1–2000 字时出现的 closed Shadow DOM 浮标（0.1.18 新增，划选存 Memo）；下方无空间时改放上方。归属独立仓库 <code>Menote-clients/browser-extension</code>，不在本仓 <code>src/</code>。</p>
+        </div>
+      </div>
+
+      <div class="sub-h">首页 / 锁定 · app/HomePage、features/encryption</div>
+      <div class="card">
+        <div class="card-h"><span class="name">首页区块组 · home blocks</span><span class="path">一屏装完 · 零卡片描边</span></div>
+        <div class="card-b">
+          <div class="a-home">
+            <div class="bar">11 月 3 日 星期一</div>
+            <div class="acts">
+              <div class="act"><span class="dot"></span>记一条 Memo</div>
+              <div class="act">新建笔记</div>
+              <div class="act">搜索一切</div>
+            </div>
+            <div class="stats">
+              <div class="st"><b>7</b><span>收件箱</span></div>
+              <div class="st"><b>3</b><span>草稿箱</span></div>
+              <div class="st"><b>24</b><span>收藏</span></div>
+              <div class="st"><b>12</b><span>Memo 待办</span></div>
+            </div>
+          </div>
+          <p class="cnote">行动块用凹陷底色无描边，状态带用等宽数字且项间 1px 竖发丝；最近编辑与主题速览是无框行列表。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">加密空间锁定卡 · lock card</span><span class="path">宽 346 · 内容区居中</span></div>
+        <div class="card-b">
+          <div class="a-lock">
+            <div class="mark"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+            <h4>加密空间已锁定</h4>
+            <p>输入空间密码解锁；标题明文，正文密文。</p>
+            <div class="inp" style="margin:0 auto">••••</div>
+          </div>
+          <p class="cnote">新会话默认锁定；空间密码最少 4 位，单篇加密密码最少 6 位（2026-11-03 确认）。</p>
         </div>
       </div>
     </div>
@@ -894,31 +1201,80 @@
     <div class="lv-head"><span class="lv-n">04</span><h2>Templates</h2><span class="lv-d">区块排成骨架 · 只定栅格不定内容</span></div>
     <div class="cgrid g3">
       <div class="card">
-        <div class="card-h"><span class="name">三栏 · list view</span><span class="path">248 / 340 / 1fr</span></div>
+        <div class="card-h"><span class="name">桌面三栏 · notes</span><span class="path">248 / 340 / 1fr</span></div>
         <div class="card-b">
           <div class="skel"><div class="sk-a">248</div><div class="sk-b">340</div><div class="sk-c">1fr</div></div>
-          <p class="cnote">应用高 792，三栏各自滚动。</p>
+          <p class="cnote">应用高 792，最小宽 1120；三栏各自滚动，页面本身不滚。栏位编号见 design.html 00 屏（A / B / C）。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">Memo 视图</span><span class="path">248 / 1fr / 232</span></div>
+        <div class="card-h"><span class="name">首页视图 · home</span><span class="path">248 / 1fr</span></div>
         <div class="card-b">
-          <div class="skel memo"><div class="sk-a">248</div><div class="sk-c">1fr</div><div class="sk-b">232</div></div>
-          <p class="cnote">todo 侧板可折叠，折叠后变两栏。</p>
+          <div class="skel home"><div class="sk-a">248</div><div class="sk-b">1fr</div></div>
+          <p class="cnote">主区单栏，五块自上而下（I1 报头 → I6 浏览入口），792 内一屏装完。</p>
         </div>
       </div>
       <div class="card">
-        <div class="card-h"><span class="name">对话框 · dialog</span><span class="path">648 × 530</span></div>
+        <div class="card-h"><span class="name">Memo 视图 · memos</span><span class="path">248 / 1fr · 浮层</span></div>
+        <div class="card-b">
+          <div class="skel memo"><div class="sk-a">248</div><div class="sk-c">1fr</div><div style="grid-column:3">浮层</div></div>
+          <p class="cnote">D1 工作栏 216 与 D3 Todo 196 是绝对定位浮层，不占栅格列；切图册时 Todo 消失而轴的位置不动。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">Memo 图册 · gallery</span><span class="path">替换 D2 · 3 列</span></div>
+        <div class="card-b">
+          <div class="skel memo"><div class="sk-a">248</div><div class="sk-c">3 列瀑布流</div></div>
+          <p class="cnote">同一批 Memo 附件的另一种排布；按原比例不裁切，不挂 Todo 浮条；加密条目整体不出现。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">表格文档 · table doc</span><span class="path">文档栏 + 全宽网格</span></div>
+        <div class="card-b">
+          <div class="skel"><div class="sk-a">248</div><div class="sk-b">340</div><div class="sk-c">表格网格</div></div>
+          <p class="cnote">网格使用主视区全部可用宽度；标题、属性、标签仍按所选版心但左缘对齐，不在文档栏居中。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">设置对话框 · dialog</span><span class="path">736 × 608</span></div>
         <div class="card-b">
           <div class="skel-d"><div class="sd-h">标题栏 50</div><div class="sd-b"><div class="sd-n">158</div><div class="sd-c">1fr</div></div></div>
-          <p class="cnote">左导航 158，右侧内容区滚动。</p>
+          <p class="cnote">左导航 158，右侧内容区滚动；标题与底部操作固定，中段自身滚动。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">锁定态 · locked</span><span class="path">248 / 1fr · 居中</span></div>
+        <div class="card-b">
+          <div class="skel home"><div class="sk-a">248</div><div class="sk-b">锁定卡 346</div></div>
+          <p class="cnote">内容区 place-items:center；锁定卡宽固定，不随窗口拉宽。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">移动端 · mobile</span><span class="path">单栏 + 底栏 50</span></div>
+        <div class="card-b">
+          <div class="skel two"><div class="sk-a">单栏</div><div class="sk-b">底栏</div></div>
+          <p class="cnote">头 44 · 底栏 50；清单与文档是两个页面；触控目标 ≥ 44（<code>--app-touch-target</code>）。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">资源状态页 · monitor</span><span class="path">移动 3 屏 / 桌面 1 屏</span></div>
+        <div class="card-b">
+          <div class="skel two"><div class="sk-a">移动</div><div class="sk-b">桌面</div></div>
+          <p class="cnote">口径是「用量 + 估算 + 滞后声明」，不是实时仪表盘；桌面版四张卡一行、趋势与明细并排。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">剪藏扩展弹窗 · clip popup</span><span class="path">浏览器扩展 · 独立仓库</span></div>
+        <div class="card-b">
+          <div class="skel-d" style="width:70%"><div class="sd-h">主界面</div><div class="sd-b"><div class="sd-c">预览页 / 设置页</div></div></div>
+          <p class="cnote">三级结构：主界面、独立预览页、设置页；主界面只留「收藏网址 / 剪藏此页」两个平级操作。逐项视觉见设计稿 <code>todo/20261101-TP3-…/20261102-TP3-弹窗界面设计稿.html</code>，已并入 <code>wiki/design.html</code> 汇总区第 18 屏。</p>
         </div>
       </div>
     </div>
   </section>
 
   <section class="lv" id="l5">
-    <div class="lv-head"><span class="lv-n">05</span><h2>Pages</h2><span class="lv-d">模板灌入真实内容 · 八屏</span></div>
+    <div class="lv-head"><span class="lv-n">05</span><h2>Pages</h2><span class="lv-d">模板灌入真实内容 · 十六页</span></div>
     <div class="pages">
       <div class="pg">
         <div class="pg-skel"><i style="flex:25"></i><i style="flex:34"></i><i style="flex:41"></i></div>
@@ -929,20 +1285,36 @@
         <div class="pg-t"><b>主界面 · 深色</b><span>同结构，仅换令牌</span></div>
       </div>
       <div class="pg">
-        <div class="pg-skel"><i style="flex:25"></i><i style="flex:52"></i><i style="flex:23"></i></div>
+        <div class="pg-skel"><i style="flex:25"></i><i style="flex:75"></i></div>
+        <div class="pg-t"><b>首页</b><span>HomePage · I1–I6 六块</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel stack"><i style="flex:25"></i><i style="flex:52"></i><i style="flex:23" class="overlay"></i></div>
         <div class="pg-t"><b>Memo 时间线</b><span>Sidebar · Timeline · TodoPanel</span></div>
       </div>
       <div class="pg">
-        <div class="pg-skel"><i style="flex:40"></i><i style="flex:60"></i></div>
-        <div class="pg-t"><b>网格布局</b><span>Sidebar · NoteGrid</span></div>
+        <div class="pg-skel"><i style="flex:25"></i><i style="flex:75"></i></div>
+        <div class="pg-t"><b>Memo 图册</b><span>Sidebar · Gallery（3 列瀑布流）</span></div>
       </div>
       <div class="pg">
-        <div class="pg-skel"><i style="flex:40"></i><i style="flex:60" class="hole"></i></div>
-        <div class="pg-t"><b>私人空间 · 锁定</b><span>Sidebar · LockScreen</span></div>
+        <div class="pg-skel"><i style="flex:25"></i><i style="flex:75" class="hole"></i></div>
+        <div class="pg-t"><b>加密空间 · 锁定态</b><span>Sidebar · LockScreen</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel"><i style="flex:25"></i><i style="flex:75" class="hole"></i></div>
+        <div class="pg-t"><b>加密空间 · 已解锁</b><span>加密空间行展开为主题节点</span></div>
       </div>
       <div class="pg">
         <div class="pg-skel stack"><i class="dim" style="flex:1"></i><i class="overlay"></i></div>
-        <div class="pg-t"><b>设置</b><span>Dialog 648×530，7 分组</span></div>
+        <div class="pg-t"><b>设置</b><span>Dialog 736×608，9 分区</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel stack"><i class="dim" style="flex:1"></i><i class="overlay"></i></div>
+        <div class="pg-t"><b>AI 概述</b><span>对话框 · 确认后写入属性</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel stack"><i class="dim" style="flex:1"></i><i class="overlay"></i></div>
+        <div class="pg-t"><b>剪藏扩展弹窗</b><span>主界面 / 预览页 / 设置页</span></div>
       </div>
       <div class="pg">
         <div class="pg-skel"><i style="flex:50"></i><i style="flex:50"></i></div>
@@ -950,10 +1322,26 @@
       </div>
       <div class="pg">
         <div class="pg-skel"><i style="flex:25"></i><i style="flex:34" class="hole"></i><i style="flex:41" class="hole"></i></div>
-        <div class="pg-t"><b>空状态</b><span>空清单 / 空文档</span></div>
+        <div class="pg-t"><b>空状态</b><span>空清单 / 空文档 / 无搜索结果</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel"><i style="flex:34"></i><i style="flex:66"></i></div>
+        <div class="pg-t"><b>移动端 01–03</b><span>首页 / Memo / 写入面板</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel"><i style="flex:34"></i><i style="flex:66"></i></div>
+        <div class="pg-t"><b>移动端 04–07</b><span>切到笔记 / 笔记清单 / 文档 / 主题抽屉</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel"><i style="flex:34"></i><i style="flex:66"></i></div>
+        <div class="pg-t"><b>移动端 08–10</b><span>我的 / 已存条目 / Memo 图册</span></div>
+      </div>
+      <div class="pg">
+        <div class="pg-skel"><i style="flex:40"></i><i style="flex:60"></i></div>
+        <div class="pg-t"><b>资源状态页</b><span>移动 3 屏 + 桌面 1 屏</span></div>
       </div>
     </div>
-    <p class="pg-note">每屏 = 模板 + 真实内容。栏位宽度取自 §04 Templates，不另设比例；同一模板在浅色与深色下结构完全相同，只换令牌。</p>
+    <p class="pg-note">每屏 = 模板 + 真实内容。栏位宽度取自 §04 Templates，不另设比例；同一模板在浅色与深色下结构完全相同，只换令牌。移动端 10 屏、移动端资源状态页 3 屏、桌面资源状态页 1 屏的正式稿分别在 <code>wiki/mobile.html</code>、<code>wiki/monitor.html</code>、<code>wiki/monitor-desktop.html</code>。</p>
   </section>
 
   <section class="lv" id="l6">
@@ -963,11 +1351,35 @@
         <div class="card-h"><span class="name">判定顺序</span><span class="path">自上而下，先命中先归属</span></div>
         <div class="card-b">
           <ol class="steps">
-            <li>只吃 token、不含业务语义 → <code>components/ui</code></li>
-            <li>含业务语义、只服务一个 feature → <code>features/&lt;x&gt;/components</code></li>
+            <li>只吃 token、不含业务语义 → <code>src/web/src/components/ui</code></li>
+            <li>含业务语义、只服务一个 feature → <code>src/web/src/features/&lt;x&gt;</code></li>
             <li>跨 feature 复用且含业务语义 → 提升到该 feature 的公共入口 <code>index.ts</code></li>
+            <li>只服务外壳装配（侧栏、首页、账户菜单、移动壳） → <code>src/web/src/app</code></li>
           </ol>
           <p class="cnote">不判定「算分子还是有机体」——边界主观，争论没有产出。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">现有模块归属</span><span class="path">src/web/src</span></div>
+        <div class="card-b">
+          <table class="matrix">
+            <thead><tr><th>层</th><th>模块</th><th>归属路径</th></tr></thead>
+            <tbody>
+              <tr><td>外壳</td><td>AppShell / MainLayout / Sidebar / HomePage / AccountMenu / MobileApp / MobileScreens / MobileComposer / SystemStatusPage</td><td><code>app/*</code></td></tr>
+              <tr><td>共用控件</td><td>ContextMenu / SectionHead</td><td><code>components/ui/*</code></td></tr>
+              <tr><td>笔记</td><td>NoteList / NoteGrid / NoteDocument / DocTitle / EncryptedNoteView / NoteEmptyState / OrganizeDialog / TrashItemPanel / BlankFormChooser</td><td><code>features/notes</code></td></tr>
+              <tr><td>属性</td><td>PropertyPanel</td><td><code>features/props</code></td></tr>
+              <tr><td>编辑器</td><td>NoteEditor / FormatBar / SlashMenu / EditorAdapter</td><td><code>features/editor</code></td></tr>
+              <tr><td>表格</td><td>TableDocument / TableBlockDialog / TableCellEditor / FieldTypeMenu / AnchoredPanel</td><td><code>features/table</code></td></tr>
+              <tr><td>Memo</td><td>MemoTimeline / MemoGallery / MemoWorkbar / MemoBar / QuickComposer / TodoSidePanel / MemoInteractionDialogs</td><td><code>features/memo</code></td></tr>
+              <tr><td>主题树</td><td>TopicTree</td><td><code>features/tree</code></td></tr>
+              <tr><td>设置</td><td>SettingsDialog / StyleSection / AiSection / PluginSection / ClipTemplateManager / McpTokenManager / RaindropPanel</td><td><code>features/settings</code></td></tr>
+              <tr><td>加密</td><td>EncryptDialogs / PrivateSpaceDialog</td><td><code>features/encryption</code></td></tr>
+              <tr><td>附件</td><td>AttachmentListPanel</td><td><code>features/attachments</code></td></tr>
+              <tr><td>AI / 备份 / 监控 / 版本 / 同步 / 认证 / Markdown</td><td>各 feature 入口</td><td><code>features/ai · backup · monitor · versions · sync · auth · markdown</code></td></tr>
+              <tr><td>扩展</td><td>剪藏弹窗 / 划选浮标</td><td><code>Menote-clients/browser-extension</code>（独立仓库）</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
       <div class="card">
@@ -980,8 +1392,23 @@
               <tr><td>输入框</td><td>default / focus / error / disabled / readonly</td></tr>
               <tr><td>清单行</td><td>default / hover / selected / locked</td></tr>
               <tr><td>对话框</td><td>open / loading / error / dirty close</td></tr>
+              <tr><td>属性值</td><td>只读 / 编辑（类型控件 / 链接 / 空值）</td></tr>
+              <tr><td>图片附件</td><td>上传中 / 成功 / 失败 / 裂图</td></tr>
+              <tr><td>加密空间</td><td>未设置 / 已锁 / 已解锁</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="name">待确认</span><span class="path">与定稿文档的出入</span></div>
+        <div class="card-b">
+          <ul class="steps">
+            <li>DESIGN.md v1.9（2026-11-03）已把标题位改为界面字体（<code>--app-font-serif</code> 只作角色名，指向 <code>--app-font</code>），与 <code>tokens.css</code> 一致；实现侧仍可自托管 Noto Sans SC，或在设置·外观切回系统栈。</li>
+            <li>DESIGN.md §4.1 的对话框写 648 × 530，实现已放宽为 736 × 608（<code>--app-settings-dialog</code> / <code>--app-settings-height</code>）。</li>
+            <li>侧栏搜索入口：DESIGN §7 记为「本轮移除、位置待定」，实现侧栏无搜索框，检索入口在首页与清单顶部。</li>
+            <li>图册（FR-MEMO-6）在 DESIGN 中记为「延期」，实现已有 <code>MemoGallery</code> 与移动端「图册」筛选入口，状态需同步。</li>
+          </ul>
+          <p class="cnote">以上均为「实现已落地、文档未同步」或「实现缺席」的差异，未擅自改动定稿文档。</p>
         </div>
       </div>
     </div>
@@ -990,5 +1417,7 @@
 </main>
 
 <footer class="board-foot">
-  <div>五层共 26 个条目。文档内控件由 <code>--app-*</code> 令牌直接渲染，与实现同源；令牌定义见 <b>DESIGN.md</b>，两者不一致时以 DESIGN.md 的数值为准并回改本文件。</div>
+  <div>六层共 88 个条目（Tokens 13 · Atoms 12 · Molecules 12 · Organisms 21 · Templates 10 · Pages 16，另 4 张归属判定卡）。文档内控件由 <code>--app-*</code> / <code>--md-*</code> 令牌直接渲染，与实现同源；令牌定义见 <b>DESIGN.md</b> 与 <code>src/web/src/styles/tokens.css</code>，两者不一致时以 DESIGN.md 的数值为准并回改本文件。页面字号与字重不随 Noto Sans SC 变化（本页无外部资源，预览回落系统栈）。</div>
 </footer>
+</body>
+</html>

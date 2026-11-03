@@ -1,0 +1,86 @@
+/* ============================================================
+   汇总区外框 —— design.html 的 14–17 屏（外部视觉稿汇总）
+   与 base.css 的主稿作用域（.src--main）互不干扰：
+   主稿规则带 .src--main 前缀，汇总区规则只认 .agg。
+   ============================================================ */
+
+.agg{margin-top:64px;scroll-margin-top:24px}
+.agg .screen-head{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;padding-left:34px}
+.agg .screen-head .n{
+  font-family:var(--app-font-mono);font-size:11px;color:var(--app-accent-fg);
+  background:var(--app-accent-subtle);border-radius:7px;padding:3px 8px;flex:none;
+}
+.agg .screen-head h2{font-family:var(--app-font-ui);font-weight:600;font-size:23px;margin:0;letter-spacing:.01em}
+.agg .screen-head .desc{font-size:12.5px;color:var(--app-fg-faint)}
+
+.agg-note{
+  margin:0 34px 22px;padding:15px 18px;background:var(--app-accent-subtle);
+  border-radius:var(--app-radius);font-size:13px;line-height:1.82;color:var(--app-fg-muted);
+}
+.agg-note b{color:var(--app-accent-fg)}
+.agg-note a{color:var(--app-link);text-decoration:none;border-bottom:1px solid rgba(0,81,195,.26)}
+.agg-note a:hover{border-bottom-color:var(--app-link)}
+@media(max-width:680px){.agg-note{margin-left:0}.agg .screen-head{padding-left:0}}
+
+/* 汇总区总标题 */
+.agg-toc{
+  margin:72px 0 0;padding:34px 34px 0;border-top:1px solid var(--app-border);
+}
+.agg-toc .kicker{
+  display:flex;align-items:center;gap:10px;margin-bottom:18px;
+  font-family:var(--app-font-mono);font-size:11px;letter-spacing:.06em;color:var(--app-fg-faint);
+}
+.agg-toc .kicker::before{content:"";width:18px;height:2px;border-radius:2px;background:var(--app-accent)}
+.agg-toc h2{font-family:var(--app-font-ui);font-weight:600;font-size:28px;margin:0 0 12px;letter-spacing:.01em}
+.agg-toc p{font-size:13.5px;color:var(--app-fg-muted);margin:0 0 8px;max-width:860px;line-height:1.85}
+.agg-toc .agg-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 32px;margin:18px 0 0;max-width:1000px}
+.agg-toc .agg-list a{
+  display:flex;align-items:baseline;gap:10px;padding:9px 12px;border-radius:10px;
+  color:var(--app-fg-muted);text-decoration:none;font-size:13px;
+  border:1px solid var(--app-border-subtle);background:var(--app-surface);
+  transition:border-color 160ms cubic-bezier(.2,.6,.3,1),color 160ms cubic-bezier(.2,.6,.3,1);
+}
+.agg-toc .agg-list a:hover{border-color:var(--app-border);color:var(--app-fg)}
+.agg-toc .agg-list b{font-family:var(--app-font-mono);font-size:10.5px;color:var(--app-accent-fg);font-weight:400;flex:none}
+.agg-toc .agg-list span{font-size:11.5px;color:var(--app-fg-faint)}
+@media(max-width:680px){.agg-toc .agg-list{grid-template-columns:1fr}}
+
+/* ============================================================
+   展示口径（2026-11-03）：汇总区同样以黑体为主
+   源稿的衬线位（文档标题 / 品牌字 / 章节标题）改走 UI 无衬线；
+   本文件在源稿样式之后加载，同权重下以本文件为准。
+   ============================================================ */
+.src--mobile,
+.src--monitor,
+.src--monitor-desktop,
+.src--atomic{--app-font-serif:var(--app-font-ui)}
+
+/* ============================================================
+   汇总区统一控制条
+   源稿自带切换按钮的（移动端／资源状态页）用源稿样式；
+   没有的（剪藏扩展）由这里补一条，样式对齐 .ctrl。
+   ============================================================ */
+.agg-controls{display:flex;gap:10px;align-items:center;margin:0 34px 20px}
+.agg-controls .ctrl{
+  height:30px;padding:0 12px;border:1px solid var(--app-border);border-radius:6px;
+  background:var(--app-surface);color:var(--app-fg-muted);font-size:12px;
+  font-family:var(--app-font-ui);cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+}
+.agg-controls .ctrl:hover{border-color:var(--app-fg-faint);color:var(--app-fg)}
+.agg-controls .ctrl[aria-pressed="true"]{background:var(--app-accent-subtle);border-color:#F0CFAE;color:var(--app-accent-fg)}
+.agg-controls .ctrl .led{width:7px;height:7px;border-radius:50%;background:var(--app-border);flex:none}
+.agg-controls .ctrl[aria-pressed="true"] .led{background:var(--app-accent)}
+@media(max-width:680px){.agg-controls{margin-left:0}}
+
+/* 汇总区里可点的元素也给手型 */.src--mobile .tab,
+.src--mobile .filters span,
+.src--mobile .rlist a,
+.src--mobile .hscroll .card,
+.src--mobile .mm,
+.src--monitor .tab,
+.src--monitor .filters span,
+.src--monitor .srow,
+.src--monitor-desktop .snav a,
+.src--monitor-desktop .segmini span,
+.src--atomic .cb,
+.src--atomic .switch{cursor:pointer}
