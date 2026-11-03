@@ -94,9 +94,9 @@
 
 - **原理**：Worker 内 `env.MONITOR.writeDataPoint()` 原生写入，indexes 携带路由、blobs 携带方法/状态码/CPU ms/D1 读写行/R2 操作数；查询走 SQL API。
 - **收益**：把「1% 采样估算」升级为全量精确计数，且将 CPU 与 D1/R2 维度纳入；写入免费、独立额度、不占 D1 写配额（现状采样写 D1 反而耗配额）；绑定自动预配，一键部署承诺不破。
-- **代价与边界**：读取需 API Token（SQL API），无 Token 时基础模式看不到精确值——需保留极简本地聚合（内存计数 + 低频落 D1 单行）或明确提示「配置 Token 后可查精确用量」；三类口径中「本地」标签含义需同步更新为「应用内全量计数」。
-- **核验义务 ⑤**：Analytics Engine 免费档写入额度与数据保留期；SQL API 免费调用额度。
-- **结论**：推荐做小 PoC 核验后再定是否替换现有采样。**待负责人确认。**
+- **代价与边界**（2026-11-03 核验后修订，详见开发记录）：写入免费档 10 万点/日、保留 3 个月、单次调用 ≤250 点；写入 fire-and-forget 零本地成本。~~读取需 API Token~~ **——已过时**：2026-10 起 Analytics SQL API 提供 Workers Binding（Beta），`wrangler.jsonc` 声明 `analytics` 绑定后 Worker 内直接 `query()` 自账户 AE 数据集，隐式鉴权、无 Token、无外呼，「零配置口径破口」不复存在；但 binding 的免费计划可用性与调用计量官方未写明（核验义务 ⑨），且只覆盖 AE 数据集（GraphQL 的 D1/R2 官方数据仍需 Token）。
+- **核验义务 ⑤/⑨**：AE 免费档写入额度与保留期（已核，见 §6）；binding 免费计划可用性、调用计量方式、Miniflare 测试支持（W4 PoC 内容）。
+- **结论**：升级为**推荐方案**（A+B 组合）：AE 精确写入 + binding 零 Token 查询 + monitor-pull 落 D1 快照补 3 个月保留期限制。**待负责人确认。**
 
 ### 方案 B：增强模式 Cron 定时采样 + D1 快照缓存
 
@@ -148,10 +148,10 @@
 | Workers Logs 免费档 | 按日事件额度与保留期 | ① |
 | Analytics Engine 免费档 | 写入数据点额度、SQL API 调用额度、数据保留期 | ⑤ 方案 A PoC 前核 |
 
-> **核验回填（2026-11-03）**：⑤ Analytics Engine **免费计划可用**——写入 100,000 data points/日、SQL API 查询 10,000 次/日（每次 POST 计 1 次）；数据保留 3 个月；单次调用 ≤250 个数据点，1 index（≤96B）+20 blobs（单点共 ≤16KB）+20 doubles；高流量写入侧自动抽样（查询须按 `_sample_interval` 加权）。写入为 fire-and-forget（不需 await/waitUntil，不占 D1/subrequest）；读取需 `Account Analytics Read` Token（与增强模式 G12 同权限，可复用）。完整代价评估见开发记录 2026-11-03 条目。
+> **核验回填（2026-11-03，同日修订）**：⑤ Analytics Engine **免费计划可用**——写入 100,000 data points/日、SQL API 查询 10,000 次/日（每次 POST 计 1 次）；数据保留 3 个月；单次调用 ≤250 个数据点，1 index（≤96B）+20 blobs（单点共 ≤16KB）+20 doubles；高流量写入侧自动抽样（查询须按 `_sample_interval` 加权）。写入为 fire-and-forget（不需 await/waitUntil，不占 D1/subrequest）。~~读取需 `Account Analytics Read` Token~~ **已修订**：Analytics SQL Binding（⑨）使 Worker 内查询免 Token，外部（脚本/DuckDB）查询仍需 Token。完整代价评估见开发记录 2026-11-03 两条目。
 | Queues 免费计划 | 可用性 | ④ |
 
-> **核验回填（2026-11-03）**：④ Queues **免费计划可用**（官方 pricing 页：Workers Free 含 10,000 operations/日、消息保留 24h，典型投递 ≈ 3 operations）——已按负责人指示引入真实 Queues；⑥ Workers AI 免费档 10k Neurons/日、双候选模型目录 ID 核验为 `@cf/zai-org/glm-4.7-flash` 与 `@cf/qwen/qwen3-30b-a3b-fp8`（均当期在目录），Neurons 实际定价与消耗待部署实测。
+> **核验回填（2026-11-03）**：④ Queues **免费计划可用**（官方 pricing 页：Workers Free 含 10,000 operations/日、消息保留 24h，典型投递 ≈ 3 operations）——已按负责人指示引入真实 Queues；⑥ Workers AI 免费档 10k Neurons/日、双候选模型目录 ID 核验为 `@cf/zai-org/glm-4.7-flash` 与 `@cf/qwen/qwen3-30b-a3b-fp8`（均当期在目录），Neurons 实际定价与消耗待部署实测。**⑨（新增，同日）**：Analytics SQL Binding（Beta，2026-10）——`{ "analytics": { "binding": "ANALYTICS_SQL" } }`（Wrangler ≥4.145）后 Worker 内 `query()` 零 Token 直查自账户 AE 数据集，绑定随部署创建；**未核**：免费计划可用性、调用计量（是否计入 SQL API 10k 次/日）、Miniflare 本地支持，并入 W4 PoC。
 | Images Transformations | 账号级开通与自定义域名要求 | ③（2.5 节） |
 | Time Travel | 时间窗口长度 | ② |
 | Durable Objects 免费档 | SQLite 后端 DO 可用性 | ⑦ |
