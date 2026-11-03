@@ -1,0 +1,236 @@
+/* Menote V2 · Notion 风格主题 · 皮肤层（TP10）
+   —— 叠加在 wiki/assets/base.css 之上，给主稿 00–13 屏换一套 Notion 令牌与形态。
+   —— 原则：只改值不改名（--app-* 与 tokens.css 同名），结构与信息架构不动。
+   —— 切换：<html data-skin="menote|notion"> 换配色族，data-mode="light|dark" 换稿面明暗。
+
+   皮肤层不动 base.css —— 主稿仍是权威稿，本文件只做覆盖。 */
+
+/* ============ 0 · 开关条 ============ */
+.mn-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 99;
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  border-radius: 10px; border: 1px solid var(--app-border);
+  background: var(--app-surface); box-shadow: var(--sh-2);
+  font-family: var(--app-font-ui);
+}
+.mn-toggle .lbl { font-size: 10.5px; color: var(--app-fg-faint); padding: 0 5px; white-space: nowrap; }
+.mn-toggle .sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--app-border-subtle); }
+.mn-toggle button {
+  border: 0; background: none; cursor: pointer; white-space: nowrap;
+  font-family: var(--app-font-ui); font-size: 12px; color: var(--app-fg-muted);
+  padding: 5px 10px; border-radius: 6px;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.mn-toggle button:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-toggle button.on { background: var(--app-surface-sunken); color: var(--app-fg); font-weight: 600; }
+
+/* ============ 1 · 稿面明暗（只影响稿面外壳，不动屏内 s-light / s-dark） ============ */
+[data-mode="dark"] {
+  --canvas: #141414;
+  --app-surface: #202020;
+  --app-surface-sunken: #252525;
+  --app-border: #333333;
+  --app-border-subtle: #2C2C2C;
+  --app-fg: #E9E9E7;
+  --app-fg-muted: #B4B3AE;
+  --app-fg-subtle: #9D9C99;
+  --app-fg-faint: #9D9C99;
+  --app-accent: #529CCA;
+  --app-accent-fg: #7FB6E0;
+  --app-accent-subtle: #1E3A4A;
+  --app-link: #529CCA;
+}
+[data-mode="dark"] .src--main .frame.dark { background: var(--app-surface); border-color: var(--app-border); }
+
+/* ============ 2 · Notion 配色族 · 稿面外壳 ============ */
+:root[data-skin="notion"] {
+  --canvas: #F7F7F5;
+  --app-surface: #FFFFFF;
+  --app-surface-sunken: #F1F1EF;
+  --app-border: #E9E8E5;
+  --app-border-subtle: #F1F1EF;
+  --app-fg: #37352F;
+  --app-fg-muted: #6B6A65;
+  --app-fg-subtle: #86857F;
+  --app-fg-faint: #86857F;
+  --app-accent: #2383E2;
+  --app-accent-fg: #1B6FD1;
+  --app-accent-subtle: #E7F3F8;
+  --app-link: #1B6FD1;
+  --app-success: #0F7B6C;
+  --app-danger: #E03E3E;
+  /* 圆角：Notion 的控件更方，圆角主要留给浮层 */
+  --app-radius-sm: 4px;
+  --app-radius: 6px;
+  --app-radius-lg: 8px;
+  --app-radius-xl: 12px;
+  /* 阴影：Notion 的投影更轻更散 */
+  --sh-1: 0 1px 2px rgba(15, 15, 15, .06);
+  --sh-2: 0 4px 12px rgba(15, 15, 15, .08);
+  --sh-3: 0 8px 24px rgba(15, 15, 15, .12);
+}
+
+/* ============ 3 · Notion 配色族 · 屏内令牌（浅 / 深） ============ */
+[data-skin="notion"] .src--main .s-light {
+  --app-surface: #FFFFFF;
+  --app-bg-side: #F7F7F5;
+  --app-surface-sunken: #F1F1EF;
+  --app-raised-on-side: #FFFFFF;
+  --app-seg-active: #FFFFFF;
+  --app-selected: #EDEBE9;
+  --app-hover: #F1F1EF;
+  --app-border: #E9E8E5;
+  --app-border-subtle: #F1F1EF;
+  --app-fg: #37352F;
+  --app-fg-muted: #6B6A65;
+  --app-fg-subtle: #86857F;
+  --app-fg-faint: #86857F;
+  --app-accent: #2383E2;
+  --app-accent-hover: #1F6FEB;
+  --app-accent-text: #FFFFFF;
+  --app-accent-fg: #1B6FD1;
+  --app-accent-subtle: #E7F3F8;
+  --app-link: #1B6FD1;
+  --app-success: #0F7B6C;
+  --app-danger: #E03E3E;
+  --app-scrollbar-thumb: #C8C7C2;      /* 常态 1.75:1，与橙主题同档（暖灰略暗才守得住对比） */
+  --app-scrollbar-thumb-hover: #94938E; /* 悬停 3.33:1 */
+}
+[data-skin="notion"] .src--main .s-dark {
+  --app-surface: #191919;
+  --app-bg-side: #202020;
+  --app-surface-sunken: #252525;
+  --app-raised-on-side: #2C2C2C;
+  --app-seg-active: #343434;
+  --app-selected: #2C2C2C;
+  --app-hover: #2C2C2C;
+  --app-border: #383838;
+  --app-border-subtle: #2C2C2C;
+  --app-fg: #E9E9E7;
+  --app-fg-muted: #B4B3AE;
+  --app-fg-subtle: #9D9C99;
+  --app-fg-faint: #9D9C99;
+  --app-accent: #529CCA;
+  --app-accent-hover: #6BAFDB;
+  --app-accent-text: #0F1B24;
+  --app-accent-fg: #7FB6E0;
+  --app-accent-subtle: #1E3A4A;
+  --app-link: #529CCA;
+  --app-success: #4DAB9A;
+  --app-danger: #FF7369;
+  --app-scrollbar-thumb: #525250;      /* 常态 1.94:1 */
+  --app-scrollbar-thumb-hover: #6E6E6B; /* 悬停 3.05:1 */
+}
+
+/* ============ 4 · Notion 形态 · 组件覆盖 ============ */
+
+/* 4.1 主按钮：色块本身说话，不靠内阴影材质 */
+[data-skin="notion"] .src--main .btn,
+[data-skin="notion"] .src--main .btn-lg,
+[data-skin="notion"] .src--main .btn-s.primary {
+  background: var(--app-accent);
+  color: var(--app-accent-text);
+  box-shadow: none;
+  transition: background var(--dur) var(--ease), transform 120ms var(--ease);
+}
+[data-skin="notion"] .src--main .btn:hover,
+[data-skin="notion"] .src--main .btn-lg:hover,
+[data-skin="notion"] .src--main .btn-s.primary:hover { background: var(--app-accent-hover); }
+[data-skin="notion"] .src--main .btn:active,
+[data-skin="notion"] .src--main .btn-lg:active { transform: scale(.99); }
+
+/* 4.2 成色的按钮 / 勾选 / 勾选框：字色跟着主题走，不再写死深棕 */
+[data-skin="notion"] .src--main .box.done,
+[data-skin="notion"] .src--main .cb.on,
+[data-skin="notion"] .src--main .tl-b .task .bx.on { color: var(--app-accent-text); }
+[data-skin="notion"] .src--main .box.done { background: var(--app-accent); border-color: var(--app-accent); }
+
+/* 4.3 深色下的写死值回收成令牌 */
+[data-skin="notion"] .src--main .s-dark .memo { background: var(--app-surface-sunken); border-color: var(--app-border); }
+[data-skin="notion"] .src--main .s-dark .vt span.on,
+[data-skin="notion"] .src--main .s-dark .modes span.on { background: var(--app-seg-active); box-shadow: none; }
+[data-skin="notion"] .src--main .s-dark .gcard:hover { box-shadow: var(--sh-2); }
+[data-skin="notion"] .src--main .stage { background: var(--app-surface-sunken); }
+[data-skin="notion"] .src--main .switch.off { background: var(--app-border); }
+[data-skin="notion"] .src--main .subact:hover { border-color: var(--app-accent-subtle); }
+[data-skin="notion"] .src--main .btn-s.danger {
+  color: var(--app-danger);
+  border-color: color-mix(in srgb, var(--app-danger) 26%, transparent);
+}
+[data-skin="notion"] .src--main .inp.err {
+  border-color: var(--app-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-danger) 12%, transparent);
+}
+[data-skin="notion"] .src--main .prop .v .lnk { border-bottom-color: color-mix(in srgb, var(--app-link) 30%, transparent); }
+[data-skin="notion"] .src--main .lock-foot a { border-bottom-color: color-mix(in srgb, var(--app-link) 28%, transparent); }
+
+/* 4.4 排版：Notion 的字更黑、更大、行距更松 */
+[data-skin="notion"] .src--main .doc-title {
+  font-family: var(--app-font-ui); font-size: 38px; font-weight: 700;
+  line-height: 1.2; letter-spacing: -.012em; margin: 0 0 20px;
+}
+[data-skin="notion"] .src--main .prose { font-size: 16px; line-height: 1.58; color: var(--app-fg); }
+[data-skin="notion"] .src--main .prose h2 { font-size: 24px; font-weight: 700; line-height: 1.3; margin: 28px 0 8px; }
+[data-skin="notion"] .src--main .prose h3 { font-size: 18px; font-weight: 600; line-height: 1.35; margin: 22px 0 6px; }
+[data-skin="notion"] .src--main .prose p { margin: 0 0 14px; }
+[data-skin="notion"] .src--main .prose ul { padding-left: 24px; margin: 0 0 14px; }
+[data-skin="notion"] .src--main .prose li { margin-bottom: 5px; }
+[data-skin="notion"] .src--main .prose code { font-size: 13px; color: var(--app-danger); border-radius: 3px; }
+[data-skin="notion"] .src--main .prose blockquote {
+  border-left: 3px solid var(--app-fg); color: var(--app-fg); border-radius: 0; padding: 4px 0 4px 16px;
+}
+[data-skin="notion"] .src--main .prose pre { border-radius: var(--app-radius); border: 1px solid var(--app-border-subtle); }
+[data-skin="notion"] .src--main .prose td { color: var(--app-fg-muted); }
+[data-skin="notion"] .src--main .home-bar h1 { font-family: var(--app-font-ui); font-size: 32px; font-weight: 700; letter-spacing: -.012em; }
+[data-skin="notion"] .src--main .home-bar .sub { font-family: var(--app-font-ui); font-size: 13px; }
+[data-skin="notion"] .src--main .brand { font-family: var(--app-font-ui); font-size: 17px; font-weight: 600; }
+[data-skin="notion"] .src--main .lock-card h3 { font-family: var(--app-font-ui); font-size: 22px; font-weight: 700; }
+[data-skin="notion"] .src--main .dlg-head h3 { font-family: var(--app-font-ui); font-size: 16px; font-weight: 600; }
+[data-skin="notion"] .src--main .act .t { font-size: 14px; font-weight: 600; }
+[data-skin="notion"] .src--main .tl-b p { font-size: 15px; line-height: 1.6; color: var(--app-fg); }
+
+/* 4.5 稿面自身的排版：标题位统一无衬线，权重按 Notion 的阶梯 */
+[data-skin="notion"] .src--main .board-head h1 { font-family: var(--app-font-ui); font-size: 34px; font-weight: 700; letter-spacing: -.012em; }
+[data-skin="notion"] .src--main .screen-head h2 { font-family: var(--app-font-ui); font-size: 21px; font-weight: 600; letter-spacing: -.005em; }
+[data-skin="notion"] .src--main .fw-cap b { font-family: var(--app-font-ui); font-weight: 600; }
+
+/* 4.6 表格与提示块：去掉橙色味道 */
+[data-skin="notion"] .src--main table.cmp tbody tr:hover { background: var(--app-hover); }
+[data-skin="notion"] .src--main table.cmp tbody td:first-child { color: var(--app-accent-fg); }
+[data-skin="notion"] .src--main .callout { background: var(--app-surface-sunken); }
+
+/* 4.7 焦点环：与橙主题同机制，换成蓝色 */
+[data-skin="notion"] .src--main :focus-visible { outline: 2px solid color-mix(in srgb, var(--app-accent) 45%, transparent); outline-offset: 1px; }
+
+/* ============ 4.8 窄屏让位：浮动导航改顶部横排 ============
+   主稿在 ≥1200px 时给 body 留 224px 右侧通道给浮动导航，稿面因此只剩 ~950px，
+   而应用最小宽 1120px（248+340+420）会被裁掉文档栏。这里把阈值提到 1400px：
+   窗口不够宽时导航改顶部横排，稿面拿回整幅宽度。 */
+@media (max-width:1400px){
+  .pagenav{
+    left:0;right:0;top:0;bottom:auto;transform:none;
+    flex-direction:row;align-items:center;gap:4px;padding:7px 12px;
+    max-height:none;overflow-x:auto;overflow-y:hidden;
+    border-left:0;border-right:0;border-top:0;border-radius:0;
+    box-shadow:0 1px 0 var(--app-border-subtle);
+  }
+  .pagenav-h{display:none}
+  .pagenav a{white-space:nowrap}
+  body{padding-top:40px;padding-right:0}
+  .mn-toggle{top:52px}
+}
+
+/* ============ 5 · TP10 追加屏（令牌对照 / 落地路径） ============ */.mn-ledger { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; margin: 16px 0 0 42px; }
+.mn-ledger .it { border: 1px solid var(--app-border); border-radius: var(--app-radius); overflow: hidden; background: var(--app-surface); }
+.mn-ledger .chip { height: 40px; border-bottom: 1px solid var(--app-border-subtle); }
+.mn-ledger .tx { padding: 7px 9px 9px; }
+.mn-ledger .n { font-size: 11.5px; font-weight: 600; color: var(--app-fg); display: block; }
+.mn-ledger .v { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+.mn-paths { margin: 22px 0 0 42px; display: grid; gap: 12px; }
+.mn-path { display: grid; grid-template-columns: 150px 1fr auto; gap: 18px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--app-border-subtle); }
+.mn-path:last-child { border-bottom: 0; }
+.mn-path .step { font-size: 13.5px; font-weight: 600; color: var(--app-fg); }
+.mn-path .how { font-size: 13px; color: var(--app-fg-muted); line-height: 1.75; }
+.mn-path .how code { font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-fg); background: var(--app-surface-sunken); padding: 1px 5px; border-radius: 4px; }
+.mn-path .cost { font-size: 12px; color: var(--app-fg-faint); white-space: nowrap; }
+.mn-path .cost b { color: var(--app-accent-fg); font-weight: 600; }
