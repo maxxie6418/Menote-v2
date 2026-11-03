@@ -33,7 +33,7 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
    视图切换 2026-11-02 起为凹槽分段 + 图标（负责人反馈文字标签太弱、不显眼），同步 DESIGN §5.5。
    搜索入口为轻量命令行形式（无边框、无底色），与快速输入的输入框形态明显区分；搜索功能尚未实现，入口先禁用。
    首页整屏由 app/HomePage 接入。私人空间入口可设置密码或解锁（FR-ENC-1）。
-   版本号移到脚部用户名旁（悬停显构建 id）。 */
+   版本号在脚部靠右，与用户名分开（悬停显构建 id）。 */
 export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onOpenPrivate, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);

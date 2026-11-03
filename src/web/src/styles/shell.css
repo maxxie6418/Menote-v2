@@ -384,8 +384,8 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 /* ---------- 侧栏账户（G1；负责人 2026-11-01：脚部只留用户名，弹出账户菜单） ---------- */
 .mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-4) var(--app-space-2); border-radius: var(--app-radius-sm); }
 .mn-foot-user:hover { background: var(--app-hover); color: var(--app-fg); }
-.mn-foot-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.mn-foot-version { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); flex: none; }
+.mn-foot-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.mn-foot-version { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); flex: none; }
 .mn-ava { display: grid; place-items: center; width: var(--app-avatar-size); height: var(--app-avatar-size); border-radius: var(--app-radius-pill); background: var(--app-fg); color: var(--app-surface); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); flex: none; }
 [data-sidebar="collapsed"] .mn-sb-foot { gap: var(--app-space-2); }
 [data-sidebar="collapsed"] .mn-foot-user { justify-content: center; padding-inline: var(--app-zero); }
