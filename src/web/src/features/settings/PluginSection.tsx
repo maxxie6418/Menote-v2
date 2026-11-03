@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { RaindropSettings } from "@menote/shared";
+import { DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings, type RaindropSettings } from "@menote/shared";
 import { readRaindropSettings, updateRaindropSettings } from "../../services/raindropSettingsService";
 import { RaindropPanel } from "./RaindropPanel";
 
@@ -9,7 +9,12 @@ export function PluginSection({ userId }: { userId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => { void readRaindropSettings(userId).then((value) => { if (!cancelled) setSettings(value); }); };
+    const refresh = () => {
+      void readRaindropSettings(userId).then((value) => {
+        // 无本地记录时服务返回 null，由调用方回退默认（关闭）。不能把 null 一直当成加载中，否则开关永远禁用。
+        if (!cancelled) setSettings(value ? normalizeRaindropSettings(value) : { ...DEFAULT_RAINDROP_SETTINGS });
+      });
+    };
     refresh();
     window.addEventListener("menote:raindrop-settings", refresh);
     return () => { cancelled = true; window.removeEventListener("menote:raindrop-settings", refresh); };

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   FIELDS_KEY, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
   type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, renderTable, replaceTable, type ParsedTable } from "../../lib/gfmTable";
+import { AnchoredPanel } from "./AnchoredPanel";
 import { TableCellEditor } from "./TableCellEditor";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
 
@@ -172,8 +173,9 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
       ...(existing?.options ? { options: existing.options } : {}),
     };
     // 类型是增强信息：不迁移既有值（FR-TBL-4 精神），仅影响后续编辑控件。
+    // 单选/多选留着菜单，方便接着改候选；其余类型选完即关。
     onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, def));
-    setMenuCol(null);
+    if (type !== "select" && type !== "multiselect") setMenuCol(null);
   };
 
   const setColumnOptions = (col: number, raw: string) => {
@@ -232,81 +234,63 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
 
   return (
     <div className="mn-tabledoc" aria-label="多维表格">
-      {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
+      {error && !addingCol && menuCol === null && <p className="mn-tabledoc-error" role="alert">{error}</p>}
       {header.length > 0 && (
-        <>
-          <div className="mn-tabledoc-bar">
-            <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
-            <div className="mn-tabledoc-bar-actions">
-              <button type="button" className="mn-textbtn" aria-expanded={addingCol}
-                onClick={() => { setAddingCol((open) => !open); setMenuCol(null); }}>
-                <Plus aria-hidden="true" /> 添加字段
-              </button>
-              <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
-            </div>
+        <div className="mn-tabledoc-bar">
+          <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
+          <div className="mn-tabledoc-bar-actions">
+            <button type="button" className="mn-textbtn" data-table-add-trigger aria-expanded={addingCol}
+              onClick={() => { setAddingCol((open) => !open); setMenuCol(null); setError(null); }}>
+              <Plus aria-hidden="true" /> 添加字段
+            </button>
+            <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
           </div>
-          {/* 加字段表单常驻在工具条下方，不再做成表头里的浮层——浮层会被表格滚动容器裁掉 */}
-          {addingCol && (
-            <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)}
-              taken={header.map((item) => item.trim())} />
-          )}
-        </>
+        </div>
       )}
-      {header.length === 0 ? (
+      {header.length === 0 && !addingCol ? (
         <div className="mn-tabledoc-scaffold">
           <p>空白表格文档：从添加第一个字段开始（字段定义存 YAML `fields:`，内容为标准 Markdown 表格）。</p>
           <div className="mn-tabledoc-scaffold-actions">
-            <button type="button" className="mn-auth-submit" aria-expanded={addingCol} onClick={() => setAddingCol((open) => !open)}>
+            <button type="button" className="mn-auth-submit" data-table-add-trigger aria-expanded={addingCol}
+              onClick={() => { setAddingCol(true); setError(null); }}>
               <Plus size={14} aria-hidden="true" /> 添加字段
             </button>
             <button type="button" className="mn-auth-link" onClick={onSwitchToNote}>切换为普通笔记</button>
           </div>
-          {addingCol && <AddColumnForm onConfirm={addColumn} onCancel={() => setAddingCol(false)} taken={[]} />}
         </div>
       ) : (
         <div className="mn-tabledoc-scroll">
           <div className="mn-tabledoc-grid" role="grid">
-            {/* 表头行 */}
             <div className="mn-tabledoc-row head" role="row">
               <div className="mn-tabledoc-rownum" role="columnheader" aria-label="行号" />
-              {header.map((name, col) => {
-                const type = columnType(col);
-                const def = fieldDefs[name.trim()];
-                return (
-                  <div className="mn-tabledoc-hcell" role="columnheader" key={col}>
-                    <input
-                      className="mn-tabledoc-hname" value={renames[col] ?? name} aria-label={`字段名（${name}）`}
-                      onChange={(event) => setRenames((prev) => ({ ...prev, [col]: event.target.value }))}
-                      onBlur={() => commitRename(col)}
-                      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-                    />
-                    <button type="button" className="mn-tabledoc-hbadge" aria-label={`字段类型：${FIELD_TYPE_LABELS[type]}`}
-                      aria-expanded={menuCol === col} onClick={() => setMenuCol(menuCol === col ? null : col)}>
-                      {FIELD_TYPE_LABELS[type]}
-                    </button>
-                    {menuCol === col && (
-                      <div className="mn-tcell-pop mn-tabledoc-hmenu">
-                        <FieldTypeMenu value={def?.type} onPick={(picked) => changeColumnType(col, picked)} />
-                        {def && (def.type === "select" || def.type === "multiselect") && (
-                          <label className="mn-tabledoc-optedit">
-                            候选值（每行一个，禁含逗号）
-                            <textarea
-                              rows={4} value={(def.options ?? []).join("\n")}
-                              onChange={(event) => setColumnOptions(col, event.target.value)}
-                            />
-                          </label>
-                        )}
-                        <button type="button" className="mn-tabledoc-hdel"
-                          onClick={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}>
-                          删除字段
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {header.map((name, col) => (
+                <ColumnHeaderCell
+                  key={col}
+                  name={name}
+                  draft={renames[col]}
+                  type={columnType(col)}
+                  def={fieldDefs[name.trim()]}
+                  menuOpen={menuCol === col}
+                  error={menuCol === col ? error : null}
+                  onDraft={(value) => setRenames((prev) => ({ ...prev, [col]: value }))}
+                  onCommit={() => commitRename(col)}
+                  onToggle={() => { setAddingCol(false); setMenuCol(menuCol === col ? null : col); }}
+                  onClose={() => setMenuCol(null)}
+                  onPick={(picked) => changeColumnType(col, picked)}
+                  onOptions={(raw) => setColumnOptions(col, raw)}
+                  onDelete={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}
+                />
+              ))}
+              {addingCol && (
+                <AddColumnForm
+                  onConfirm={addColumn}
+                  onCancel={() => setAddingCol(false)}
+                  onEdit={() => setError(null)}
+                  taken={header.map((item) => item.trim())}
+                  error={error}
+                />
+              )}
             </div>
-            {/* 数据行 */}
             {(table?.rows ?? []).map((cells, row) => (
               <div className={`mn-tabledoc-row${draggingRow === row ? " dragging" : ""}`} role="row" key={row}
                 onDragEnd={() => setDraggingRow(null)}
@@ -327,57 +311,119 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                     />
                   </div>
                 ))}
+                {addingCol && <AddColumnSpacer />}
               </div>
             ))}
-            {/* 添加行 */}
             <div className="mn-tabledoc-row foot" role="row">
               <div className="mn-tabledoc-rownum" role="presentation" />
               {header.map((_, col) => <div className="mn-tabledoc-cell ghost" role="presentation" key={col} />)}
+              {addingCol && <AddColumnSpacer />}
             </div>
           </div>
-          <div className="mn-tabledoc-actions">
-            <button type="button" className="mn-auth-link" onClick={addRow}>
-              <Plus size={14} aria-hidden="true" /> 添加行
-            </button>
-          </div>
+          {header.length > 0 && (
+            <div className="mn-tabledoc-actions">
+              <button type="button" className="mn-auth-link" onClick={addRow}>
+                <Plus size={14} aria-hidden="true" /> 添加行
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-/** 加字段表单：命名 + 选类型（ FieldTypeMenu 7 种）。 */
-function AddColumnForm({ onConfirm, onCancel, taken }: {
+/** 已有字段的表头：名称就地改，类型菜单挂到该列下方（portal，不被滚动容器裁切）。 */
+function ColumnHeaderCell({ name, draft, type, def, menuOpen, error, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onDelete }: {
+  name: string;
+  draft: string | undefined;
+  type: PropertyType;
+  def: PropertyDef | undefined;
+  menuOpen: boolean;
+  error: string | null;
+  onDraft: (value: string) => void;
+  onCommit: () => void;
+  onToggle: () => void;
+  onClose: () => void;
+  onPick: (type: PropertyType) => void;
+  onOptions: (raw: string) => void;
+  onDelete: () => void;
+}) {
+  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
+  const options = (def?.options ?? []).join("\n");
+  return (
+    <div className="mn-tabledoc-hcell" role="columnheader" ref={setAnchor}>
+      <input
+        className="mn-tabledoc-hname" value={draft ?? name} aria-label={`字段名（${name}）`}
+        onChange={(event) => onDraft(event.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+      />
+      <button type="button" className="mn-tabledoc-hbadge" aria-label={`字段类型：${FIELD_TYPE_LABELS[type]}`}
+        aria-expanded={menuOpen} onClick={onToggle}>
+        {FIELD_TYPE_LABELS[type]}
+      </button>
+      {menuOpen && anchor && (
+        <AnchoredPanel anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${error ?? ""}`} onClose={onClose}>
+          {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
+          <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
+          {def && (def.type === "select" || def.type === "multiselect") && (
+            <label className="mn-tabledoc-optedit">
+              候选值（每行一个，禁含逗号）
+              <textarea rows={4} value={options} onChange={(event) => onOptions(event.target.value)} />
+            </label>
+          )}
+          <button type="button" className="mn-tabledoc-hdel" onClick={onDelete}>删除字段</button>
+        </AnchoredPanel>
+      )}
+    </div>
+  );
+}
+
+/** 加字段落在表尾新列：名称在该列表头，类型和确认挂在这一列下面。 */
+function AddColumnForm({ onConfirm, onCancel, onEdit, taken, error }: {
   onConfirm: (name: string, type: PropertyType, options?: string[]) => void;
   onCancel: () => void;
+  onEdit: () => void;
   taken: string[];
+  error: string | null;
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<PropertyType>("text");
-  const formRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
+  const duplicate = name.trim() !== "" && taken.includes(name.trim());
+  const canAdd = name.trim() !== "" && !duplicate;
+  const message = duplicate ? `字段名「${name.trim()}」已存在` : error;
   useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !formRef.current?.contains(event.target)) onCancel();
-    };
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onCancel]);
+    anchor?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [anchor]);
   return (
-    <div ref={formRef} className="mn-tabledoc-addform" role="form" aria-label="添加字段" onPointerDown={(event) => event.stopPropagation()}>
-      <input className="mn-tabledoc-hname" value={name} autoFocus aria-label="字段名" placeholder="字段名"
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={(event) => { if (event.key === "Enter" && name.trim() && !taken.includes(name.trim())) onConfirm(name, type); }} />
-      <FieldTypeMenu value={type} onPick={setType} />
-      <div className="mn-tabledoc-addform-actions">
-        <button type="button" className="mn-auth-submit" disabled={!name.trim() || taken.includes(name.trim())}
-          onClick={() => onConfirm(name, type)}>添加</button>
-        <button type="button" className="mn-auth-link" onClick={onCancel}>取消</button>
+    <>
+      <div ref={setAnchor} className="mn-tabledoc-hcell mn-tabledoc-addcol" role="columnheader">
+        <input
+          className="mn-tabledoc-hname" value={name} autoFocus aria-label="字段名" placeholder="字段名"
+          aria-invalid={duplicate || undefined} autoComplete="off"
+          onChange={(event) => { setName(event.target.value); onEdit(); }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && canAdd) onConfirm(name, type);
+            if (event.key === "Escape") onCancel();
+          }}
+        />
       </div>
-    </div>
+      {anchor && (
+        <AnchoredPanel anchor={anchor} label="添加字段" layoutKey={`${type}:${message ?? ""}`} onClose={onCancel}>
+          {message && <p className="mn-tabledoc-error" role="alert">{message}</p>}
+          <FieldTypeMenu value={type} onPick={setType} />
+          <div className="mn-tabledoc-addform-actions">
+            <button type="button" className="mn-auth-submit" disabled={!canAdd} onClick={() => onConfirm(name, type)}>添加</button>
+            <button type="button" className="mn-auth-link" onClick={onCancel}>取消</button>
+          </div>
+        </AnchoredPanel>
+      )}
+    </>
   );
+}
+
+function AddColumnSpacer() {
+  return <div className="mn-tabledoc-cell mn-tabledoc-addcol" role="presentation" />;
 }

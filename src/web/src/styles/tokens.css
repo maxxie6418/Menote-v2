@@ -293,6 +293,7 @@
   --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
   --app-tabledoc-rownum-width: 2.875rem; /* 46px：拖拽手柄 + 行号 + 删除按钮并排的最小宽 */
   --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
+  --app-tabledoc-menu-z: 16;        /* 字段菜单：高于表头 sticky(2)，低于遮罩(20) */
   --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
   --app-motion-loop: 1.4s;          /* 登录加载动画循环周期 */
   --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
