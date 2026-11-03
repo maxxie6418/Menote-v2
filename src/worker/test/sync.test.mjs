@@ -173,6 +173,32 @@ test("encrypted items carry key wraps through push and pull (G7)", async () => {
   });
 });
 
+function settingOp(key, value, baseRev = 0) {
+  return {
+    operationId: crypto.randomUUID(), userId: "ignored", entityId: key, entity: "setting", action: "upsert",
+    baseRev, baseMetaRev: 0,
+    payload: { setting: { userId: "ignored", key, sensitivity: "ordinary", value, rev: baseRev + 1, updatedAt: 1 } },
+  };
+}
+
+test("ai and raindrop settings sync; unknown setting keys stay rejected", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const ai = settingOp("ai", { enabled: true, model: "@cf/zai-org/glm-4.7-flash", dailyCallLimit: 50 });
+    const raindrop = settingOp("raindrop", { enabled: true });
+    const junk = settingOp("token", { secret: "nope" });
+    const pushed = await post(mf, cookie, [ai, raindrop, junk]);
+    const results = (await pushed.json()).results;
+    assert.equal(results.find((row) => row.operationId === ai.operationId).result, "applied");
+    assert.equal(results.find((row) => row.operationId === raindrop.operationId).result, "applied");
+    assert.equal(results.find((row) => row.operationId === junk.operationId).result, "rejected");
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    assert.equal(page.settings.find((row) => row.key === "ai").value.enabled, true);
+    assert.equal(page.settings.find((row) => row.key === "raindrop").value.enabled, true);
+    assert.equal(page.settings.some((row) => row.key === "token"), false);
+  });
+});
+
 test("private space topic wraps travel through push and pull (FR-ENC-1)", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

@@ -1,4 +1,7 @@
-import type { Item, TopicNode, UserSetting } from "@menote/shared";
+import {
+  AI_SETTING_KEY, RAINDROP_SETTING_KEY, normalizeAiSettings, normalizeRaindropSettings,
+  type Item, type TopicNode, type UserSetting,
+} from "@menote/shared";
 import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
@@ -143,9 +146,17 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };
 }
 
+const ORDINARY_SETTING_KEYS = new Set(["appearance", AI_SETTING_KEY, RAINDROP_SETTING_KEY]);
+
+function ordinarySettingValue(key: string, value: unknown): unknown {
+  if (key === AI_SETTING_KEY) return normalizeAiSettings(value);
+  if (key === RAINDROP_SETTING_KEY) return normalizeRaindropSettings(value);
+  return value;
+}
+
 async function applySetting(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const incoming = (operation.payload as { setting?: UserSetting } | null)?.setting;
-  if (!incoming || incoming.key !== operation.entityId || incoming.key !== "appearance" || incoming.sensitivity !== "ordinary" ||
+  if (!incoming || incoming.key !== operation.entityId || !ORDINARY_SETTING_KEYS.has(incoming.key) || incoming.sensitivity !== "ordinary" ||
       !Number.isSafeInteger(operation.baseRev) || operation.baseRev < 0) throw new SyncRejected("invalid_payload");
   const current = await readSettingState(ctx.db, ctx.userId, incoming.key);
   if ((current?.rev ?? 0) !== operation.baseRev) {
@@ -153,8 +164,11 @@ async function applySetting(ctx: ApplyContext, operation: OutboxOperation): Prom
     await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "setting", incoming.key, "conflict", rev, 0, null, ctx.now);
     return { operationId: operation.operationId, result: "conflict", detail: { rev, metaRev: 0, contentHash: null } };
   }
-  const next: UserSetting = { userId: ctx.userId, key: incoming.key, sensitivity: "ordinary", value: incoming.value,
-    rev: operation.baseRev + 1, updatedAt: ctx.now };
+  const next: UserSetting = {
+    userId: ctx.userId, key: incoming.key, sensitivity: "ordinary",
+    value: ordinarySettingValue(incoming.key, incoming.value),
+    rev: operation.baseRev + 1, updatedAt: ctx.now,
+  };
   const changed = await writeSetting(ctx.db, next, operation.baseRev, operation.operationId, ctx.now);
   if (changed !== 1) {
     const latest = await readSettingState(ctx.db, ctx.userId, incoming.key);

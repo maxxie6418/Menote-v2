@@ -3,7 +3,7 @@ import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
 import { bulkPutMemoComments, deleteMemoComments } from "../db/memoCommentsRepo";
-import { deleteOutboxRows, listPendingOutbox, markOutboxError } from "../db/outboxRepo";
+import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseParkedSettings } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
@@ -205,6 +205,7 @@ export async function runSyncCycle(userId: string): Promise<void> {
   setPhase("syncing");
   try {
     const deviceId = await getDeviceId();
+    await releaseParkedSettings(userId);
     await drainOutbox(userId, deviceId);
     await pullUpdates(userId);
     setPhase("idle");

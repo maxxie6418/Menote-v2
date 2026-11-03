@@ -26,6 +26,13 @@ export async function enqueueOutbox(rows: OutboxRow[]): Promise<void> {
   await localDb.outbox.bulkAdd(rows);
 }
 
+/** 旧服务端把 ai / raindrop 设置拒绝后停在永久退避。放行后下一轮再推，不必让用户重开一次开关。 */
+export async function releaseParkedSettings(userId: string): Promise<void> {
+  const rows = await localDb.outbox.where("userId").equals(userId).toArray();
+  const stuck = rows.filter((row) => row.entity === "setting" && row.lastError?.startsWith("rejected:"));
+  await Promise.all(stuck.map((row) => localDb.outbox.update(row.seq!, { nextRetryAt: null })));
+}
+
 /** 队首可推送操作：nextRetryAt 已到期或为空，按 seq 稳定排序，单轮上限由调用方裁剪。 */
 export async function listPendingOutbox(userId: string, limit = 20): Promise<OutboxRow[]> {
   const now = Date.now();
