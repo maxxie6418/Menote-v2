@@ -24,5 +24,12 @@ h1 { margin: var(--app-space-sm) var(--app-zero); font-size: var(--app-font-titl
 .monitor-fields label { display: grid; gap: var(--app-space-xs); }
 .monitor-fields input { max-width: var(--app-field-width); }
 input, select { font: inherit; color: var(--app-fg); background: var(--app-surface); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-space-xs); }
+/* 弹层是系统控件，只改 select 的背景盖不住选项列表。color-scheme 跟 data-theme，选项再用表面色兜住 Firefox。 */
+:root[data-theme="light"] select,
+:root[data-theme="light"] option { color-scheme: light; }
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] option { color-scheme: dark; }
+option { background-color: var(--app-surface); color: var(--app-fg); }
+option:checked { background-color: var(--app-selected); color: var(--app-fg); }
 
 .monitor-trend { padding-left: var(--app-space-lg); color: var(--app-fg-muted); }

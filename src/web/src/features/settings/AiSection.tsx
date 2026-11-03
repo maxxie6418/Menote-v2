@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AI_MODEL_OPTIONS, type AiSettings, type AiUsageSummary } from "@menote/shared";
+import { AI_MODEL_OPTIONS, DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings, updateAiSettings } from "../../services/aiSettingsService";
 import { readAiUsage } from "../../services/aiService";
 
@@ -11,7 +11,12 @@ export function AiSection({ userId }: { userId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => { void readAiSettings(userId).then((value) => { if (!cancelled) setSettings(value); }); };
+    const refresh = () => {
+      void readAiSettings(userId).then((value) => {
+        // 无本地记录时服务返回 null，由调用方回退默认（关闭）。不能把 null 一直当成加载中。
+        if (!cancelled) setSettings(value ? normalizeAiSettings(value) : { ...DEFAULT_AI_SETTINGS });
+      });
+    };
     refresh();
     window.addEventListener("menote:ai-settings", refresh);
     return () => { cancelled = true; window.removeEventListener("menote:ai-settings", refresh); };

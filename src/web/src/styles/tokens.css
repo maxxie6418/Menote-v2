@@ -1,6 +1,8 @@
 /* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
    取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
 :root {
+  /* 未写入 data-theme 前先声明两种都支持。主题落定后由下方覆盖成单一值，
+     否则 Windows 的 select 弹层会跟系统走，深色界面里弹出浅色菜单。 */
   color-scheme: light dark;
   /* 颜色 · 表面与结构（DESIGN §2.1） */
   --app-surface: #fff;
@@ -383,7 +385,11 @@
 }
 /* 深色令牌由 data-theme 驱动（账户菜单·主题切换）：index.html 引导脚本 + lib/theme.ts
    负责写入；“跟随系统”档由 JS 依据系统偏好解析后落 data-theme。 */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --app-surface: #1a1c1e;
   --app-bg-side: #131518;
   --app-surface-sunken: #232629;
