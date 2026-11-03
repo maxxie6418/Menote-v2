@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>Menote 侧栏 v5 · 线条预算</title>
+<style>
+:root{
+  --f-serif: ui-serif, Georgia, "Songti SC", "Source Han Serif SC", "SimSun", serif;
+  --f-ui: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Roboto, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0B0D0F; --card:#111417; --card-line:#1E2326;
+  --text:#E9EBED; --text-dim:#A7ADB2; --text-faint:#7E848B;
+  --surface:#1A1C1E; --bg-side:#131518; --sunken:#232629; --selected:#2B2118; --hover:#222528;
+  --border:#2C3033; --border-subtle:#24282B;
+  --fg:#E9EBED; --fg-muted:#A7ADB2; --fg-subtle:#8A9095; --fg-faint:#7E848B;
+  --accent:#F6821F; --accent-fg:#FBAD41; --accent-subtle:#3A2716;
+  --shadow-seg:0 1px 2px rgba(0,0,0,.42);
+  --shadow-raise:inset 0 0 0 1px var(--border);
+  --seg-hl:inset 0 1px 0 rgba(255,255,255,.07);
+  --success:#8CA86B;
+  --btn-text:#241505;
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  --page:#F6F6F3; --card:#FFFFFF; --card-line:#E6E6E3;
+  --text:#1A1A18; --text-dim:#4E504D; --text-faint:#6C6F6B;
+  --surface:#FFFFFF; --bg-side:#F1F1EE; --sunken:#EAEAE6; --selected:#FEF6EE; --hover:#E9E9E5;
+  --border:#DEDEDA; --border-subtle:#E8E8E4;
+  --fg:#1A1A18; --fg-muted:#4E504D; --fg-subtle:#6C6F6B; --fg-faint:#74776F;
+  --accent:#F6821F; --accent-fg:#B4530F; --accent-subtle:#FEF2E7;
+  --shadow-seg:0 1px 2px rgba(26,26,24,.12);
+  --shadow-raise:inset 0 0 0 1px var(--border);
+  --seg-hl:inset 0 1px 0 rgba(255,255,255,0);
+  --success:#5F8B3F;
+  --btn-text:#241505;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:26px 30px 56px;background:var(--page);color:var(--text);font-family:var(--f-ui);
+  -webkit-font-smoothing:antialiased;transition:background .2s}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+svg{fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+#i-more circle{fill:currentColor;stroke:none}
+
+.wrap{max-width:1240px;margin:0 auto}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:16px}
+.head h1{margin:0 0 5px;font-family:var(--f-serif);font-size:22px;font-weight:500}
+.head p{margin:0;font-size:12.5px;color:var(--text-dim);line-height:1.7;max-width:770px}
+.ctrls{display:flex;gap:10px;flex:none}
+.themebtns{display:flex;gap:2px;padding:3px;border-radius:6px;background:var(--sunken);flex:none}
+.themebtns button{height:26px;padding:0 12px;border:0;border-radius:4px;background:none;color:var(--text-faint);
+  font:500 11.5px/1 var(--f-ui);cursor:pointer}
+.themebtns button.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow-seg)}
+
+.req{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 24px;margin-bottom:22px;padding:12px 16px;
+  border:1px solid var(--card-line);border-radius:8px;background:var(--card)}
+.req div{font-size:11.5px;line-height:1.6;color:var(--text-dim)}
+.req b{display:block;font-family:var(--f-mono);font-size:9.5px;font-weight:400;color:var(--accent-fg);margin-bottom:2px}
+.req s{color:var(--text-faint);text-decoration-thickness:1px}
+
+.stage{display:grid;grid-template-columns:248px 1fr;gap:38px;align-items:start;margin-bottom:26px}
+.stage-head{margin-bottom:12px}
+.stage-head .k{font-family:var(--f-mono);font-size:9.5px;color:var(--text-faint)}
+.stage-head h2{margin:5px 0 2px;font-size:13.5px;font-weight:600}
+.stage-head .s{font-size:11px;color:var(--text-faint)}
+
+/* ============ 侧栏 ============ */
+.sb{position:relative;width:248px;height:700px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;
+  display:flex;flex-direction:column;padding:12px 10px 10px;overflow:hidden;color:var(--fg-muted);font-size:12px;line-height:1.2}
+.sb svg{width:13px;height:13px}
+.top{margin-bottom:22px}
+.brandrow{display:flex;align-items:center;justify-content:space-between;height:28px;padding:0 8px;margin-bottom:10px}
+.brand{display:flex;align-items:center;gap:7px;font-family:var(--f-serif);font-size:16.5px;font-weight:500;color:var(--fg);line-height:1}
+.logo{position:relative;width:16px;height:16px;border-radius:4px;background:var(--accent);flex:none}
+.logo::before{content:"";position:absolute;left:4px;right:4px;top:5px;height:1.5px;border-radius:1px;background:#fff;
+  box-shadow:0 3.5px 0 #fff}
+.ibtn{width:24px;height:24px;display:grid;place-items:center;border:0;border-radius:4px;background:none;
+  color:var(--fg-faint);cursor:pointer;padding:0}
+.ibtn:hover{background:var(--hover);color:var(--fg)}
+
+/* 分段：无描边、无内陷阴影 */
+.seg{height:32px;padding:3px;border-radius:6px;background:var(--sunken);display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px;margin-bottom:8px}
+.seg button{height:26px;padding:0;border:0;border-radius:4px;background:none;color:var(--fg-subtle);
+  font:500 12px/1 var(--f-ui);display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
+.seg button svg{width:13px;height:13px;flex:none;color:var(--fg-faint)}
+.seg button:hover{color:var(--fg-muted)}
+.seg button.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:var(--shadow-seg), var(--seg-hl)}
+.seg button.on svg{color:var(--accent-fg)}
+
+.composer{height:34px;display:flex;align-items:center;gap:8px;padding:0 10px;margin-bottom:8px;
+  border:1px solid var(--border-subtle);border-radius:6px;background:var(--surface);color:var(--fg-subtle);
+  font-size:12px;cursor:text}
+.composer:hover{border-color:var(--border)}
+.kbd{display:inline-flex;align-items:center;height:17px;padding:0 5px;border-radius:4px;background:var(--sunken);
+  border:1px solid var(--border-subtle);font-family:var(--f-mono);font-size:9.5px;color:var(--fg-faint);
+  flex:none;font-variant-numeric:tabular-nums}
+.composer .kbd{margin-left:auto}
+
+.cta{position:relative;width:100%;height:34px;border:0;border-radius:6px;background:var(--accent);color:var(--btn-text);
+  font:600 12.5px/1 var(--f-ui);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24), inset 0 -1px 0 rgba(120,60,0,.16)}
+.cta:hover{background:#E5760F}
+.cta svg{width:14px;height:14px}
+.cta .kbd{position:absolute;right:9px;background:rgba(36,21,5,.09);border-color:rgba(36,21,5,.18);
+  color:rgba(36,21,5,.68);font-weight:500}
+
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:14px}
+.g3 a{height:30px;display:flex;align-items:center;justify-content:center;gap:3px;border-radius:4px;
+  color:var(--fg-muted);font-size:11.5px;text-decoration:none;cursor:pointer;transition:background .12s}
+.g3 a svg{width:12px;height:12px;color:var(--fg-subtle);flex:none}
+.g3 a:hover{background:var(--hover);color:var(--fg)}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:22px}
+.g2 a{height:34px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:6px;
+  background:var(--sunken);color:var(--fg-muted);font-size:12px;text-decoration:none;cursor:pointer}
+.g2 a svg{width:13px;height:13px;color:var(--fg-subtle);flex:none}
+.g2 a:hover{background:var(--hover)}
+.g2 .num{margin-left:auto;font-family:var(--f-mono);font-size:10px;color:var(--fg-faint);
+  font-variant-numeric:tabular-nums;min-width:14px;text-align:right}
+.g2 .num.acc{color:var(--accent-fg)}
+.g2 a.hot{background:var(--accent-subtle)}
+.g2 a.hot svg{color:var(--accent-fg)}
+.g2 a.hot .num{color:var(--accent-fg);font-weight:500}
+
+/* 段标题：11/500 faint + 右侧延展线 */
+.sl{display:flex;align-items:center;gap:8px;height:20px;padding:0 8px;margin-bottom:6px;
+  font-size:11px;font-weight:500;color:var(--fg-faint);line-height:1}
+.sl .line{flex:1;height:1px;background:var(--border)}
+.sl .cnt{font-family:var(--f-mono);font-size:9.5px;font-weight:400;color:var(--fg-faint);
+  font-variant-numeric:tabular-nums;margin-left:-2px}
+.sl button{width:18px;height:18px;display:grid;place-items:center;border:0;border-radius:4px;background:none;
+  color:var(--fg-faint);cursor:pointer;padding:0;flex:none;opacity:.75}
+.sl button:hover{background:var(--hover);color:var(--fg);opacity:1}
+.sl button svg{width:12px;height:12px}
+
+/* 线条预算：lean = 删标题延展线，保留 2 横（分区）+ 1 纵（层级） */
+.sb[data-lines="lean"] .sl .line{background:none}
+.sb[data-lines="lean"] .space{margin-bottom:14px}
+
+/* 加密空间 */
+.zone{height:1px;background:var(--border);margin:16px 8px 12px}
+.space{display:flex;align-items:center;gap:7px;height:30px;padding:0 8px;border-radius:4px;cursor:pointer;
+  margin-bottom:12px}
+.space svg{width:13px;height:13px;color:var(--accent-fg);flex:none}
+.space .lbl{font-size:12.5px;font-weight:600;color:var(--fg)}
+.space .state{margin-left:auto;font-family:var(--f-mono);font-size:9.5px;color:var(--fg-faint)}
+.space:hover{background:var(--hover)}
+
+/* 树：三级 */
+.tree{display:flex;flex-direction:column;gap:1px}
+.trow{position:relative;display:flex;align-items:center;gap:6px;height:30px;padding:0 8px;border-radius:4px;
+  font-size:12px;color:var(--fg-subtle);cursor:pointer}
+.trow .chev{width:10px;height:10px;color:var(--fg-faint);flex:none;transition:transform .15s cubic-bezier(.2,.6,.3,1)}
+.trow .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow.l1{color:var(--fg);font-weight:600;font-size:13px}
+.trow.l2{padding-left:26px;font-size:12px;font-weight:400;color:var(--fg-subtle)}
+.trow.l2::before{content:"";position:absolute;left:13px;top:-16px;height:calc(50% + 16px);width:1px;background:var(--fg-faint);opacity:.42}
+.trow.l2::after{content:"";position:absolute;left:13px;top:calc(50% - .5px);width:15px;height:1px;background:var(--fg-faint);opacity:.42}
+.trow .num{margin-left:auto;font-family:var(--f-mono);font-size:10px;font-weight:400;color:var(--fg-faint);
+  font-variant-numeric:tabular-nums;min-width:16px;text-align:right}
+.trow:hover{background:var(--hover)}
+.trow.on{background:var(--surface);box-shadow:inset 2px 0 0 var(--accent)}
+.trow.on .lbl{font-weight:600;color:var(--fg)}
+
+.tags{display:flex;flex-wrap:wrap;gap:5px;padding:0 8px}
+.tagchip{height:21px;display:inline-flex;align-items:center;padding:0 9px;border-radius:999px;
+  background:var(--sunken);color:var(--fg-subtle);font-size:11px;text-decoration:none;cursor:pointer}
+.tagchip:hover{color:var(--fg)}
+
+.foot{margin-top:auto;display:flex;align-items:center;gap:7px;padding:10px 8px 2px;border-top:1px solid var(--border);
+  font-size:11.5px;color:var(--fg-muted)}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--accent-subtle);color:var(--accent-fg);
+  display:grid;place-items:center;font:600 10px/1 var(--f-mono);flex:none}
+.ver{margin-left:auto;font-family:var(--f-mono);font-size:9.5px;color:var(--fg-faint);font-variant-numeric:tabular-nums}
+.sync{width:5px;height:5px;border-radius:50%;background:var(--success);flex:none;margin-left:1px}
+
+/* ============ 改动说明 ============ */
+.changes{display:flex;flex-direction:column;gap:14px}
+.card{border:1px solid var(--card-line);border-radius:8px;background:var(--card);padding:14px 16px}
+.card h3{margin:0 0 3px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card h3 span{font-family:var(--f-mono);font-size:9.5px;font-weight:400;color:var(--accent-fg)}
+.card .why{margin:0 0 12px;font-size:11.5px;line-height:1.6;color:var(--text-dim)}
+.card .why b{color:var(--text);font-weight:600}
+.demo{width:320px;background:var(--bg-side);border-radius:6px;box-shadow:inset 0 0 0 1px var(--border);padding:12px;margin-bottom:10px}
+.demo .hint{font-family:var(--f-mono);font-size:9px;color:var(--text-faint);margin-top:9px;display:flex;gap:6px;align-items:center}
+.demo .hint i{width:4px;height:4px;border-radius:50%;background:var(--accent);display:inline-block}
+.spec{display:grid;grid-template-columns:1fr 1fr;gap:5px 18px;font-size:11px;line-height:1.55;color:var(--text-dim)}
+.spec b{color:var(--text);font-weight:600;font-family:var(--f-mono);font-size:10px}
+.spec code{font-family:var(--f-mono);font-size:10px;color:var(--text-dim)}
+.detail-list{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px}
+.detail-list div{font-size:11px;line-height:1.55;color:var(--text-dim)}
+.detail-list b{display:block;font-size:11.5px;color:var(--text);font-weight:600;margin-bottom:1px}
+.detail-list code{font-family:var(--f-mono);font-size:10px;color:var(--accent-fg)}
+.linecmp{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+.lcol{background:var(--bg-side);border-radius:6px;box-shadow:inset 0 0 0 1px var(--border);padding:12px}
+.lcol .lhd{font-family:var(--f-mono);font-size:9.5px;color:var(--text-faint);margin-bottom:8px}
+.lcol.keep .lhd{color:var(--accent-fg)}
+.lcol b{display:block;font-size:11.5px;color:var(--text);font-weight:600;margin-bottom:2px}
+.lcol span{font-size:11px;line-height:1.55;color:var(--text-dim)}
+.lcol > div + div{margin-top:10px}
+
+/* 类型对照 */
+.type{display:flex;flex-direction:column;gap:2px}
+.type > div{display:flex;align-items:center;height:26px;padding:0 8px;gap:8px}
+.type .l{flex:1;height:1px;background:var(--border)}
+.type .lv{font-family:var(--f-mono);font-size:9px;color:var(--text-faint);width:74px;flex:none}
+.type .sm-hd{font-size:11px;font-weight:500;color:var(--fg-faint)}
+.type .sm-l1{font-size:13px;font-weight:600;color:var(--fg)}
+.type .sm-l2{font-size:12px;font-weight:400;color:var(--fg-subtle);padding-left:18px}
+
+/* 变更表 */
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:18px}
+.tbl th,.tbl td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--card-line);color:var(--text-dim);vertical-align:top}
+.tbl th{font-family:var(--f-mono);font-size:9.5px;font-weight:400;color:var(--text-faint)}
+.tbl td:first-child{color:var(--text);font-weight:600;width:120px}
+.tbl tr:last-child td{border-bottom:0}
+.tbl code{font-family:var(--f-mono);font-size:10px}
+.tblbox{border:1px solid var(--card-line);border-radius:8px;background:var(--card);padding:6px 8px;margin-bottom:18px}
+
+.todo{border:1px solid var(--card-line);border-radius:8px;background:var(--card);padding:14px 18px}
+.todo h3{margin:0 0 8px;font-family:var(--f-serif);font-size:13.5px;font-weight:500}
+.todo ul{margin:0;padding:0 0 0 14px;display:grid;grid-template-columns:1fr 1fr;gap:5px 26px}
+.todo li{font-size:11.5px;line-height:1.65;color:var(--text-dim)}
+.todo li b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h7l5 5v13H6z"/><path d="M13 3v5h5"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.6 6 .7-4.5 4.2 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.8l6-.7z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7 7.5 20h9L17.5 7"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.5 13.5 6 4h12l2.5 9.5V20h-17z"/><path d="M3.5 13.5H9l1 2.5h4l1-2.5h5.5"/></symbol>
+<symbol id="i-draft" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+<symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
+<symbol id="i-panel" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.5 4.5v15"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+
+<div class="head">
+  <div>
+    <h1>侧栏 v5 · 线条预算</h1>
+    <p>上一版为了「有细节」加了三笔线：两条标题延展线、一条树连接线；加上原有的分区线与页脚线，侧栏里一共五条线。<b style="color:var(--text)">线一多，眼睛先看到线，再看到内容。</b>这一版按职责重算：<b style="color:var(--text)">横线只分区，竖线只表层级，同一种工作只出现一次</b>。五条减到三条——删掉两条标题延展线，保留纵向连接线，因为它说的是层级，不是装饰。右上角可以来回切着看。</p>
+  </div>
+  <div class="ctrls">
+    <div class="themebtns">
+      <button type="button" data-lines-btn="full">五条线</button>
+      <button type="button" data-lines-btn="lean" class="on">三条线</button>
+    </div>
+    <div class="themebtns">
+      <button type="button" data-theme-btn="dark" class="on">深色</button>
+      <button type="button" data-theme-btn="light">浅色</button>
+    </div>
+  </div>
+</div>
+
+<div class="req">
+  <div><b>01 删标题线</b>主题、标签的延展线（2 笔）去掉，标题靠 11/500/faint 与间距自证</div>
+  <div><b>02 留连接线</b>树的 L 形连接线保留（1 笔），起点提到父级箭头中心</div>
+  <div><b>03 留两条</b>「工作区｜内容区」「内容区｜个人区」两条真分区线</div>
+  <div><b>04 可切换</b>右上角「五条线 / 三条线」直接对比</div>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 侧栏成品 ============ -->
+  <div>
+    <div class="stage-head">
+      <div class="k">FINAL · 深色 248 × 700</div>
+      <h2>成品</h2>
+      <div class="s">与侧栏实际尺寸 1:1</div>
+    </div>
+    <div class="sb" data-lines="lean">
+      <div class="top">
+        <div class="brandrow">
+          <span class="brand"><i class="logo"></i>Menote</span>
+          <button class="ibtn"><svg><use href="#i-panel"/></svg></button>
+        </div>
+        <div class="seg">
+          <button><svg><use href="#i-home"/></svg>首页</button>
+          <button class="on"><svg><use href="#i-file"/></svg>笔记</button>
+          <button><svg><use href="#i-note"/></svg>Memo</button>
+        </div>
+        <div class="composer"><span>记一条 Memo</span><span class="kbd">⌘↵</span></div>
+        <button class="cta"><svg><use href="#i-plus"/></svg>新建笔记<span class="kbd">⌘N</span></button>
+      </div>
+
+      <div class="g3">
+        <a><svg><use href="#i-clock"/></svg>最近编辑</a>
+        <a><svg><use href="#i-star"/></svg>收藏</a>
+        <a><svg><use href="#i-trash"/></svg>回收站</a>
+      </div>
+      <div class="g2">
+        <a class="hot"><svg><use href="#i-inbox"/></svg>收件箱<span class="num acc">3</span></a>
+        <a><svg><use href="#i-draft"/></svg>草稿箱<span class="num">8</span></a>
+      </div>
+
+      <div class="zone"></div>
+      <div class="space">
+        <svg><use href="#i-lock"/></svg><span class="lbl">加密空间</span><span class="state">已锁</span>
+      </div>
+
+      <div class="sl">主题<span class="cnt">6</span><span class="line"></span><button aria-label="新建主题"><svg><use href="#i-plus"/></svg></button></div>
+      <div class="tree">
+        <a class="trow l1"><svg class="chev"><use href="#i-chev-down"/></svg><span class="lbl">收藏</span><span class="num">3</span></a>
+        <a class="trow l2 on"><span class="lbl">测试</span><span class="num">3</span></a>
+        <a class="trow l1"><svg class="chev"><use href="#i-chev-right"/></svg><span class="lbl">学习</span><span class="num">8</span></a>
+        <a class="trow l1"><svg class="chev"><use href="#i-chev-right"/></svg><span class="lbl">工作</span><span class="num">12</span></a>
+        <a class="trow l1"><svg class="chev"><use href="#i-chev-right"/></svg><span class="lbl">阅读</span><span class="num">6</span></a>
+        <a class="trow l1"><svg class="chev"><use href="#i-chev-right"/></svg><span class="lbl">灵感</span><span class="num">2</span></a>
+      </div>
+
+      <div class="sl" style="margin-top:22px">标签<span class="line"></span><button aria-label="管理标签"><svg><use href="#i-more"/></svg></button></div>
+      <div class="tags"><a class="tagchip">#UE5</a><a class="tagchip">#材质</a></div>
+
+      <div class="foot"><span class="avatar">T</span><span>tokamak</span><span class="sync" title="已同步"></span><span class="ver">v0.1.13</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 改动卡片 ============ -->
+  <div class="changes">
+
+    <div class="card">
+      <h3><span>01</span>新建主题：从列表底挪进标题行</h3>
+      <p class="why">底部那条常驻的「＋ 新建主题」删掉了。它一直是可达的，滚动到底就是一次误触；而创建主题本来就该是<strong>低频动作</strong>。现在入口挂在「主题」标题右侧，点它之后在<strong>标题正下方</strong>展开一个内联输入框——位置在标题后，成本比通栏一行高一档。</p>
+      <div class="demo">
+        <div class="sl" style="margin:0 0 6px">主题<span class="line"></span><button><svg><use href="#i-plus"/></svg></button></div>
+        <div style="display:flex;align-items:center;height:30px;padding:0 8px;border:1px dashed var(--border);
+          border-radius:4px;color:var(--fg-faint);font-size:12px">新主题名称<span style="margin-left:auto;font-family:var(--f-mono);font-size:9px">⏎ 创建 · Esc 取消</span></div>
+        <div class="hint"><i></i>点击 ＋ 后的展开态：输入框贴在标题下方，不推移下面的主题</div>
+      </div>
+      <div class="spec">
+        <div><b>入口</b> 标题行右侧 · 12px ＋ · 常态 75% 透明</div>
+        <div><b>展开态</b> 虚线框 30 高，紧跟标题，出即聚焦</div>
+        <div><b>标题吸顶</b> 主题列表滚动时标题（含 ＋）停住</div>
+        <div><b>删除</b> 底部「＋ 新建主题」整行</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span>02</span>三个名字：用尺寸、字重、颜色拆开</h3>
+      <p class="why">原来三层的字号只差 0.5–1.5px、颜色只差一档，所以读起来是「三个同级标题」。现在把三层的<strong>分工</strong>写清楚：段标题是<strong>分隔</strong>（小一号、浅两档、离内容 6px），一级主题是<strong>定位</strong>（最大最重），二级分类是<strong>内容</strong>（最轻、缩进）。</p>
+      <div class="demo">
+        <div class="type">
+          <div><span class="lv">段标题</span><span class="sm-hd">主题</span><span style="flex:1"></span><span style="color:var(--fg-faint)"><svg style="width:12px;height:12px"><use href="#i-plus"/></svg></span></div>
+          <div><span class="lv">一级主题</span><span class="sm-l1">收藏</span><span class="num" style="margin-left:auto;font-family:var(--f-mono);font-size:10px;color:var(--fg-faint)">3</span></div>
+          <div><span class="lv">二级分类</span><span class="sm-l2">测试</span><span class="num" style="margin-left:auto;font-family:var(--f-mono);font-size:10px;color:var(--fg-faint)">3</span></div>
+        </div>
+      </div>
+      <div class="spec">
+        <div><b>段标题</b> 11 / 500 / faint，不缩进、距内容 6</div>
+        <div><b>一级主题</b> 13 / 600 / fg，带展开箭头</div>
+        <div><b>二级分类</b> 12 / 400 / subtle，缩进 26</div>
+        <div><b>为什么</b> 三层各占一个维度：尺寸、重量、颜色</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span>03</span>加密空间：更名，位置留在主题之上</h3>
+      <p class="why">沿用方案 2 的位置——它是<strong>空间</strong>不是<strong>分类</strong>，所以和主题列表平级但不进列表。<strong>已锁</strong>用等宽 9.5 挂在右侧，不抢标题；解锁后这里换成「已解锁」+ 退出按钮。列表滚动时它不动，因为它是<strong>入口</strong>，不是内容。</p>
+      <div class="demo">
+        <div style="display:flex;align-items:center;gap:7px;height:30px;padding:0 8px;border-radius:4px;background:var(--surface)">
+          <svg style="width:13px;height:13px;color:var(--accent-fg)"><use href="#i-lock"/></svg>
+          <span style="font-size:12.5px;font-weight:600;color:var(--fg)">加密空间</span>
+          <span style="margin-left:auto;font-family:var(--f-mono);font-size:9.5px;color:var(--fg-faint)">已锁</span>
+        </div>
+        <div class="hint"><i></i>悬停态（图示为悬停底）：常态无底色，与主题列表区分靠位置而非装饰</div>
+      </div>
+      <div class="spec">
+        <div><b>文案</b> 私人空间 → 加密空间（FR-ENC-1 不动）</div>
+        <div><b>位置</b> 主题之上，独立一行，列表滚动时不动</div>
+        <div><b>状态</b> 已锁 / 已解锁，9.5 等宽</div>
+        <div><b>禁止</b> 不做卡片、不加锁形徽标底色</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span>04</span>材质：加在「面」上，不加在「边界」上</h3>
+      <p class="why">上一版为了去掉「厚」，把材质也一起删了，于是按钮变成一块平涂的色、选中项变成一块没有边界的白。物体感不是靠描边给的，是靠<strong>光</strong>给的：顶部 1px 高光说明「这是凸起的」，底部 1px 压边说明「它坐在底上」。这两条谁都不占视觉宽度。</p>
+      <div class="demo">
+        <button class="cta" style="width:248px;margin-bottom:10px"><svg><use href="#i-plus"/></svg>新建笔记<span class="kbd">⌘N</span></button>
+        <div class="seg" style="margin:0;width:248px">
+          <button><svg><use href="#i-home"/></svg>首页</button>
+          <button class="on"><svg><use href="#i-file"/></svg>笔记</button>
+          <button><svg><use href="#i-note"/></svg>Memo</button>
+        </div>
+        <div class="hint"><i></i>按钮：顶部 8% 白 + 底部 16% 棕；分段选中项：顶部 7% 白 + 1px 阴影，仍然没有描边</div>
+      </div>
+      <div class="spec">
+        <div><b>主按钮</b> 纯色块 + 上下各 1px 内阴影（材质）</div>
+        <div><b>分段选中</b> 无描边，仅阴影 + 1px 顶部内高光</div>
+        <div><b>输入框</b> 边框 border-subtle，悬停才加深</div>
+        <div><b>原则</b> 一个边界只留一种分隔手段；材质另算</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span>05</span>线条预算：五条减到三条</h3>
+      <p class="why">线在侧栏里只有两种工作：<strong>横线分区、竖线表层级</strong>。五笔线里，两笔在给标题描边——那是装饰，不是信息；去掉之后纵向连接线反而更清楚，因为它成了侧栏里<strong>唯一的层级线索</strong>。</p>
+      <div class="linecmp">
+        <div class="lcol">
+          <div class="lhd">删掉：2 笔装饰</div>
+          <div><b>主题 / 标签 的延展线（2 笔）</b><span>标题本来就比条目小一号、浅两档，不需要再画一条线声明「我是标题」。这两笔是同一种工作的重复。</span></div>
+        </div>
+        <div class="lcol keep">
+          <div class="lhd">留下：3 条</div>
+          <div><b>树的 L 形连接线（1 纵）</b><span>从父级箭头中心画到子项中心，多子项自动拼接成一条连续竖线；三级同样适用。</span></div>
+          <div><b>工作区 ｜ 内容区（1 横）</b><span>采集队列与加密空间、主题不是一类东西，需要一条边界。</span></div>
+          <div><b>内容区 ｜ 个人区（1 横）</b><span>页脚之上，账号与版本不再和内容混在一起。</span></div>
+        </div>
+      </div>
+      <div class="spec">
+        <div><b>规则</b> 横线只分区，竖线只表层级</div>
+        <div><b>重复禁止</b> 同一职责只出现一次，不做第二条平行线</div>
+        <div><b>结果</b> 5 → 3：2 横 + 1 纵</div>
+        <div><b>对比</b> 右上角切「五条线 / 三条线」</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="tblbox">
+<table class="tbl">
+  <tr><th>位置</th><th>v4（五条线）</th><th>v5（三条线）</th><th>为什么</th></tr>
+  <tr><td>主题标题</td><td><code>11/500 + 延展线 + 6 + ＋</code></td><td><code>11/500 + 6 + ＋</code></td><td>标题的层级由字号字重承担，线是多余的</td></tr>
+  <tr><td>标签标题</td><td><code>11/500 + 延展线 + ⋯</code></td><td><code>11/500 + ⋯</code></td><td>两处必须一致，只删一处会更乱</td></tr>
+  <tr><td>主题树</td><td><code>L 形连接线，起点在父级行底部</code></td><td><code>保留；起点提到父级箭头中心；fg-faint 42%</code></td><td>全站唯一的层级线；用 fg-faint 而不用 border（border 在白底上等于没画，同时间轴轴线做法）</td></tr>
+  <tr><td>工作区 ｜ 内容区</td><td><code>1px 发丝线</code></td><td><code>保留</code></td><td>真分区：队列与内容不是一类</td></tr>
+  <tr><td>内容区 ｜ 个人区</td><td><code>1px 上界线</code></td><td><code>保留</code></td><td>真分区：账号不参与内容阅读</td></tr>
+</table>
+</div>
+
+<div class="todo">
+  <h3>落地前要一起定的四件事</h3>
+  <ul>
+    <li><b>还能不能再少</b>：三条里唯一可再删的是「工作区｜内容区」，只靠 24 留白分隔；但那样加密空间会显得孤立，我倾向留着。</li>
+    <li><b>标题吸顶</b>：主题超过一屏时，「主题 6 ＋」这一行要不要 sticky？我按 sticky 画，因为创建入口跟着标题走。</li>
+    <li><b>多子项与三级</b>：连接线按「父级中心 → 子项中心」逐段画，多个子项会自动拼成一条连续竖线；三级沿用同一套，缩进每级 26。</li>
+    <li><b>规范登记</b>：材质两条内阴影、tabular 计数、两条分区线要写进 DESIGN §4.1，否则实现会照旧值做回去。</li>
+  </ul>
+</div>
+
+</div>
+
+<script>
+document.querySelectorAll('[data-lines-btn]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var sb = document.querySelector('.sb');
+    if (sb) sb.setAttribute('data-lines', btn.dataset.linesBtn);
+    document.querySelectorAll('[data-lines-btn]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+  });
+});
+document.querySelectorAll('[data-theme-btn]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.documentElement.setAttribute('data-theme', btn.dataset.themeBtn);
+    document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+  });
+});
+</script>
+</body>
+</html>

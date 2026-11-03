@@ -1,0 +1,175 @@
+/* ---------- 侧栏 ---------- */
+/* 侧栏信息层级（2026-11-03 定稿）：一条竖轴（品牌 logo / 行图标 / 段标题 / 树缩进同落 x=18）、
+   两种度量（并排的是「格」gap 4–6，纵向的是「行」gap 1）、三级填充（无填充导航 → 凹槽或纸面 → 实心橙）。
+   线的预算：横线只分区（工作区｜内容区、内容区｜个人区两条），竖线只表层级（树连接线一条），
+   同一职责只出现一次。 */
+.mn-sidebar { display: flex; flex-direction: column; width: var(--app-sidebar-width); flex: none; padding: var(--app-space-md) var(--app-space-10) var(--app-space-10); background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); min-width: 0; overflow-y: auto; }
+.mn-sb-top { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-2); height: var(--app-nav-height); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-10); }
+.mn-brand { display: flex; align-items: center; gap: var(--app-space-2); font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); line-height: var(--app-leading-nav); }
+.mn-logo { width: var(--app-logo-size); height: var(--app-logo-size); flex: none; }
+.mn-sb-top-actions { display: flex; align-items: center; gap: var(--app-space-6); }
+
+/* 搜索入口：轻量命令行形态——无边框、无底色、无图标强调，与快速输入的输入框明显区分（负责人 2026-11-01）。 */
+.mn-search {
+  display: flex; align-items: center; gap: var(--app-space-6);
+  width: var(--app-full-size); height: var(--app-nav-height);
+  padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-6);
+  border: var(--app-zero); border-radius: var(--app-radius-md);
+  background: none; color: var(--app-fg-faint);
+  font-family: var(--app-font); font-size: var(--app-size-nav);
+  text-align: left; cursor: pointer;
+}
+.mn-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
+.mn-search-kbd { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-search:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
+.mn-search:disabled { cursor: default; }
+.mn-iconbtn { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-space-4); border-radius: var(--app-radius-sm); }
+.mn-iconbtn:hover { color: var(--app-fg); background: var(--app-hover); }
+.mn-iconbtn svg { width: var(--app-icon-md); height: var(--app-icon-md); }
+.mn-iconbtn[aria-disabled="true"] { cursor: default; }
+
+/* 快速输入（FR-IA-5）收起态：纸面 + 发丝边——输入面靠「纸面差」成立，不靠框线；
+   与上面的凹槽分段是两种材质，不会读成同类。右侧 ⌘↵ 为小胶囊。 */
+.mn-memo-hint {
+  display: flex; align-items: center; gap: var(--app-space-xs);
+  width: var(--app-full-size); height: var(--app-input-height);
+  padding: var(--app-zero) var(--app-space-10); margin-bottom: var(--app-space-xs);
+  border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius);
+  background: var(--app-surface); color: var(--app-fg-subtle);
+  font-family: var(--app-font); font-size: var(--app-size-nav); line-height: var(--app-leading-nav);
+  text-align: left; cursor: pointer;
+  transition: border-color var(--app-motion-fast) var(--app-ease);
+}
+.mn-memo-hint:hover { border-color: var(--app-border); }
+.mn-kbd {
+  margin-left: auto; display: inline-flex; align-items: center;
+  height: var(--app-kbd-height); padding: var(--app-zero) var(--app-space-5);
+  border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm);
+  background: var(--app-surface-sunken);
+  font-family: var(--app-font-mono); font-size: var(--app-size-kicker);
+  color: var(--app-fg-faint); font-variant-numeric: tabular-nums;
+}
+
+/* 主操作：全站唯一一块橙色面。物体感靠 1px 上光 + 1px 压边，不靠描边（材质不等于边界）。 */
+.mn-btn {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: var(--app-space-6);
+  height: var(--app-cta-height); margin-bottom: var(--app-space-22);
+  border: var(--app-zero); border-radius: var(--app-radius);
+  background: var(--app-accent); color: var(--app-accent-text);
+  font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-medium);
+  cursor: pointer; box-shadow: var(--app-btn-sheen);
+  transition: background var(--app-motion-fast) var(--app-ease);
+}
+.mn-btn:hover { background: var(--app-accent-hover); }
+.mn-btn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); stroke-width: 2.2; }
+.mn-btn[aria-disabled="true"] { cursor: default; }
+/* 快捷键绝对定位，不参与居中计算——否则文字会被挤偏 */
+.mn-btn-kbd {
+  position: absolute; right: var(--app-space-10); margin: var(--app-zero);
+  background: var(--app-btn-kbd-bg); border-color: var(--app-btn-kbd-line); color: var(--app-btn-kbd-fg);
+}
+
+/* 回看三格：无填充导航，只在悬停浮出一层底（同一套「格」度量，靠填充强度与采集组分层） */
+.mn-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--app-space-4); margin-bottom: var(--app-space-14); }
+.mn-quick a {
+  display: flex; align-items: center; justify-content: center; gap: var(--app-space-4);
+  height: var(--app-tree-row-height); border-radius: var(--app-radius-sm);
+  color: var(--app-fg-muted); font-size: var(--app-size-chip); line-height: var(--app-leading-nav);
+  text-decoration: none; white-space: nowrap;
+  transition: background var(--app-motion-fast) var(--app-ease), color var(--app-motion-fast) var(--app-ease);
+}
+.mn-quick a svg { width: var(--app-icon-xs); height: var(--app-icon-xs); color: var(--app-fg-subtle); flex: none; }
+.mn-quick a:hover { background: var(--app-hover); color: var(--app-fg); }
+
+/* 采集两格：凹槽底 + 右对齐等宽计数。收件箱上强调浅底（外部推来的未知增量），草稿箱保持中性（自己知道的存量）。
+   两个都上橙，橙就不再有指示意义（DESIGN §5.5）。 */
+.mn-queue { display: grid; grid-template-columns: 1fr 1fr; gap: var(--app-space-6); margin-bottom: var(--app-space-22); }
+.mn-queue a {
+  display: flex; align-items: center; gap: var(--app-space-6);
+  height: var(--app-duo-height); padding: var(--app-zero) var(--app-space-xs);
+  border-radius: var(--app-radius); background: var(--app-surface-sunken);
+  color: var(--app-fg-muted); font-size: var(--app-size-nav); text-decoration: none;
+  transition: background var(--app-motion-fast) var(--app-ease);
+}
+.mn-queue a svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
+.mn-queue a:hover { background: var(--app-hover); }
+.mn-queue a.on { box-shadow: var(--app-hairline-inset); color: var(--app-fg); }
+.mn-queue a.hot { background: var(--app-accent-subtle); }
+.mn-queue a.hot svg { color: var(--app-accent-fg); }
+.mn-queue a.hot .mn-count { color: var(--app-accent-fg); }
+.mn-count {
+  margin-left: auto; min-width: var(--app-count-width); text-align: right;
+  font-family: var(--app-font-mono); font-size: var(--app-size-micro);
+  font-weight: var(--app-weight-regular); color: var(--app-fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 大区分界：工作区｜内容区。唯一用途是分区，不装饰标题、不表达层级。 */
+.mn-zone { height: var(--app-line); background: var(--app-border); margin: var(--app-space-md) var(--app-space-xs) var(--app-space-sm); }
+
+/* 加密空间（FR-ENC-1）：是「空间」不是「分类」，所以与主题列表平级、独立成行、不进列表。 */
+.mn-space {
+  display: flex; align-items: center; gap: var(--app-space-6);
+  width: var(--app-full-size); height: var(--app-tree-row-height);
+  padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-14);
+  border: var(--app-zero); border-radius: var(--app-radius-sm); background: none;
+  color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button);
+  font-weight: var(--app-weight-medium); cursor: pointer; text-align: left;
+}
+.mn-space svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-accent-fg); flex: none; }
+.mn-space:hover { background: var(--app-hover); }
+.mn-space-state { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+
+/* 段标题：11/500/faint + 右侧动作。层级由尺寸、字重、颜色三件承担，不再画延展线。 */
+.mn-sechead { display: flex; align-items: center; gap: var(--app-space-xs); height: var(--app-sechead-height); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-6); }
+.mn-sechead-t { font-size: var(--app-size-sechead); font-weight: var(--app-weight-regular); color: var(--app-fg-faint); line-height: var(--app-leading-nav); white-space: nowrap; }
+.mn-sechead-c { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); font-variant-numeric: tabular-nums; }
+.mn-sechead-sp { flex: 1; }
+.mn-sechead-a { width: var(--app-minibtn-size); height: var(--app-minibtn-size); display: grid; place-items: center; flex: none; border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: pointer; opacity: .75; transition: opacity var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
+.mn-sechead-a:hover { background: var(--app-hover); color: var(--app-fg); opacity: 1; }
+.mn-sechead-a svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+
+/* 主题树：一级 13/600/fg，二级 12/400/subtle，缩进 26。
+   父子之间一条竖线 + 肘线——侧栏里唯一的层级线，用 fg-faint + 42% 透明度，
+   与时间轴轴线同源（--app-border 在白底上等于没画）。 */
+.mn-tree { display: flex; flex-direction: column; gap: var(--app-line); margin-bottom: var(--app-space-22); }
+.mn-tree-list, .mn-tree-sublist { list-style: none; margin: var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-line); }
+.mn-tree-sublist { padding-left: var(--app-tree-indent); }
+.mn-treerow {
+  display: flex; align-items: center; gap: var(--app-space-6);
+  height: var(--app-tree-row-height); padding: var(--app-zero) var(--app-space-xs);
+  border-radius: var(--app-radius-sm); color: var(--app-fg);
+  font-size: var(--app-size-tree-l1); font-weight: var(--app-weight-medium); line-height: var(--app-leading-nav);
+}
+.mn-tree-sublist .mn-treerow { font-size: var(--app-size-nav); font-weight: var(--app-weight-regular); color: var(--app-fg-subtle); }
+.mn-treerow:hover { background: var(--app-hover); }
+.mn-treerow.on { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-side); }
+.mn-treerow.on svg { color: var(--app-accent-fg); }
+.mn-tree-chev { width: var(--app-icon-xxs); height: var(--app-icon-xxs); color: var(--app-fg-faint); flex: none; transition: transform var(--app-motion-fast) var(--app-ease); }
+.mn-tree-chev[data-open="false"] { transform: rotate(-90deg); }
+.mn-tree-slot { width: var(--app-icon-xxs); height: var(--app-icon-xxs); flex: none; }
+/* 行尾动作悬停才出现（低频动作不常驻） */
+.mn-treerow .mn-minibtn { opacity: 0; cursor: pointer; transition: opacity var(--app-motion-fast) var(--app-ease); }
+.mn-treerow:hover .mn-minibtn, .mn-treerow:focus-within .mn-minibtn { opacity: 1; }
+.mn-treerow.priv .mn-minibtn { opacity: 1; }
+/* 连接线：起点在父级箭头中心（竖线 16px 上探），终点在子项中心；多子项逐段拼接即连续 */
+.mn-tree-sublist > li > .mn-treerow { position: relative; }
+.mn-tree-sublist > li > .mn-treerow::before {
+  content: ""; position: absolute;
+  left: calc(var(--app-tree-guide-x) - var(--app-tree-indent));
+  top: calc(var(--app-space-md) * -1);
+  height: calc(50% + var(--app-space-md));
+  width: var(--app-line); background: var(--app-fg-faint); opacity: var(--app-tree-guide-opacity);
+}
+.mn-tree-sublist > li > .mn-treerow::after {
+  content: ""; position: absolute;
+  left: calc(var(--app-tree-guide-x) - var(--app-tree-indent));
+  top: calc(50% - (var(--app-line) / 2));
+  width: var(--app-tree-guide-stub);
+  height: var(--app-line); background: var(--app-fg-faint); opacity: var(--app-tree-guide-opacity);
+}
+.mn-tree-empty { margin: var(--app-zero); padding: var(--app-space-2) var(--app-space-xs) var(--app-space-6); font-size: var(--app-size-label); color: var(--app-fg-faint); }
+.mn-treerow .mn-locklabel { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-tags { display: flex; flex-wrap: wrap; gap: var(--app-space-5); padding: var(--app-zero) var(--app-space-xs) var(--app-space-4); }
+.mn-sb-foot { margin-top: auto; display: flex; align-items: center; gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-4); border-top: var(--app-line) solid var(--app-border); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
+
