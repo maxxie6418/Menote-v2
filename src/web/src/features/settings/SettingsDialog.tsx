@@ -9,9 +9,10 @@ import { McpTokenManager } from "./McpTokenManager";
 import { ClipTemplateManager } from "./ClipTemplateManager";
 import { StyleSection } from "./StyleSection";
 import { AiSection } from "./AiSection";
+import { PluginSection } from "./PluginSection";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 
-export type SettingsSection = "appearance" | "style" | "ai" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates";
+export type SettingsSection = "appearance" | "style" | "ai" | "backup" | "attachments" | "recovery" | "mcp" | "clipTemplates" | "plugins";
 
 const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
@@ -22,6 +23,7 @@ const NAV: Array<{ id: SettingsSection; label: string }> = [
   { id: "recovery", label: "恢复码" },
   { id: "mcp", label: "MCP 接入" },
   { id: "clipTemplates", label: "剪藏模板" },
+  { id: "plugins", label: "插件" },
 ];
 
 interface SettingsDialogProps {
@@ -66,6 +68,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
             {section === "recovery" && <RecoverySection userId={userId} />}
             {section === "mcp" && <McpTokenManager />}
             {section === "clipTemplates" && <ClipTemplateManager />}
+            {section === "plugins" && <PluginSection userId={userId} />}
           </div>
         </div>
       </div>

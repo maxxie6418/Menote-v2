@@ -1,62 +1,15 @@
 import { Document, isMap, parseDocument, YAMLMap } from "yaml";
-import type { McpBookmarkRequest } from "@menote/shared";
-
-const COLUMNS = [
-  { name: "标题", type: "text" }, { name: "网址", type: "link" }, { name: "摘要", type: "text" },
-  { name: "备注", type: "text" }, { name: "标签", type: "multiselect" }, { name: "类型", type: "select" },
-  { name: "封面", type: "link" }, { name: "采集时间", type: "date" }, { name: "重要", type: "checkbox" },
-] as const;
-
-function splitFrontmatter(markdown: string): { yaml: string | null; body: string } {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/.exec(markdown);
-  return match ? { yaml: match[1]!, body: markdown.slice(match[0].length) } : { yaml: null, body: markdown };
-}
-
-function toTableCell(value: string | string[] | boolean): string {
-  const raw = Array.isArray(value) ? value.join(", ") : String(value);
-  return raw.replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|").trim();
-}
-
-function parseTableRow(line: string): string[] {
-  const content = line.trim().replace(/^\|/, "").replace(/\|$/, "");
-  const cells: string[] = [];
-  let value = "";
-  for (let i = 0; i < content.length; i += 1) {
-    if (content[i] === "\\" && content[i + 1] === "|") { value += "|"; i += 1; }
-    else if (content[i] === "|") { cells.push(value.trim()); value = ""; }
-    else value += content[i];
-  }
-  cells.push(value.trim());
-  return cells;
-}
-
-function isDelimiter(line: string): boolean {
-  const cells = parseTableRow(line);
-  return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
-}
-
-function renderTable(headers: string[], rows: string[][]): string {
-  const line = (cells: string[]) => `| ${cells.map(toTableCell).join(" | ")} |`;
-  return [line(headers), line(headers.map(() => "---")), ...rows.map(line)].join("\n");
-}
+import { BOOKMARK_COLUMNS, BOOKMARK_ROW_ID_COLUMN, type McpBookmarkRequest } from "@menote/shared";
+import { findTable, generateRowId, renderTable, splitFrontmatter, toTableCell } from "./tableMarkdown";
 
 function appendToTable(body: string, bookmark: McpBookmarkRequest): string {
-  const lines = body.split(/\r?\n/);
-  let start = -1;
-  for (let index = 0; index < lines.length - 1; index += 1) {
-    if (lines[index]!.trim().startsWith("|") && isDelimiter(lines[index + 1]!)) { start = index; break; }
-  }
+  const parsed = findTable(body);
   let headers: string[];
   let rows: string[][];
-  let end = -1;
-  if (start >= 0) {
-    headers = parseTableRow(lines[start]!);
-    end = start + 1;
-    rows = [];
-    while (end + 1 < lines.length && lines[end + 1]!.trim().startsWith("|")) {
-      end += 1;
-      rows.push(parseTableRow(lines[end]!));
-    }
+  let start: number;
+  let end: number;
+  if (parsed) {
+    ({ headers, rows, start, end } = parsed);
   } else {
     // A table item with a non-empty but unparseable table must never be
     // silently rewritten as a second table: the client would then degrade it.
@@ -65,17 +18,21 @@ function appendToTable(body: string, bookmark: McpBookmarkRequest): string {
     }
     headers = [];
     rows = [];
+    start = -1;
+    end = -1;
   }
-  for (const column of COLUMNS) if (!headers.includes(column.name)) headers.push(column.name);
+  for (const column of BOOKMARK_COLUMNS) if (!headers.includes(column.name)) headers.push(column.name);
+  if (!headers.includes(BOOKMARK_ROW_ID_COLUMN)) headers.push(BOOKMARK_ROW_ID_COLUMN);
   const record: Record<string, string | string[] | boolean> = {
     标题: bookmark.title, 网址: bookmark.link, 摘要: bookmark.excerpt ?? "", 备注: bookmark.note ?? "",
     标签: bookmark.tags, 类型: bookmark.type, 封面: bookmark.cover ?? "", 采集时间: bookmark.capturedAt,
-    重要: bookmark.important,
+    重要: bookmark.important, [BOOKMARK_ROW_ID_COLUMN]: generateRowId(),
   };
   const cells = headers.map((header) => toTableCell(record[header] ?? ""));
   const newRows = [...rows.map((row) => headers.map((_, index) => row[index] ?? "")), cells];
   const nextTable = renderTable(headers, newRows).split("\n");
   if (start < 0) return `${body.trimEnd()}${body.trim() ? "\n\n" : ""}${nextTable.join("\n")}\n`;
+  const lines = body.split(/\r?\n/);
   lines.splice(start, end - start + 1, ...nextTable);
   return lines.join("\n");
 }
@@ -91,10 +48,10 @@ function addFieldDefinitions(yamlSource: string | null): string {
     map = document.createNode({}) as YAMLMap;
     document.set("fields", map);
   }
-  for (const column of COLUMNS) {
+  for (const column of BOOKMARK_COLUMNS) {
     if (map.has(column.name)) continue;
-    const definition = column.name === "类型"
-      ? { type: column.type, options: ["link", "article", "image", "video", "document", "audio"] }
+    const definition = column.options
+      ? { type: column.type, options: [...column.options] }
       : { type: column.type };
     map.set(column.name, document.createNode(definition));
   }

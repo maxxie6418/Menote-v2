@@ -14,6 +14,7 @@ import { mcpTokenRoutes } from "./routes/mcpTokens";
 import { mcpRoutes } from "./routes/mcp";
 import { clipTemplateRoutes } from "./routes/clipTemplates";
 import { aiRoutes } from "./routes/ai";
+import { raindropRoutes } from "./routes/raindrop";
 import { dispatchAiQueue } from "./services/aiService";
 
 /* 仅装配：路由注册与请求观察（FR-DEP-4/工程设计 §4，入口 ≤200 行）。 */
@@ -29,7 +30,8 @@ const app = new Hono<AppEnv>()
   .route("/", mcpTokenRoutes)
   .route("/", mcpRoutes)
   .route("/", clipTemplateRoutes)
-  .route("/", aiRoutes);
+  .route("/", aiRoutes)
+  .route("/", raindropRoutes);
 
 export default {
   scheduled(controller, env, ctx) {

@@ -31,3 +31,14 @@ export {
 export type { UserSetting, MonitorSample } from "./types/settings";
 export { isClipTemplateV1 } from "./types/clipTemplate";
 export type { ClipTemplateV1, ClipTemplateField, StoredClipTemplate } from "./types/clipTemplate";
+export {
+  RAINDROP_SETTING_KEY, DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings,
+  BOOKMARK_ROW_ID_COLUMN, BOOKMARK_COLUMNS, RAINDROP_INTERVAL_HOURS,
+  RAINDROP_SNAPSHOT_KEEP, RAINDROP_MAX_REMOTE_ITEMS, RAINDROP_PUSH_CONFIRM_MIN,
+} from "./contracts/raindrop";
+export type {
+  RaindropSettings, BookmarkColumnDef, RaindropMappedFields,
+  RaindropBindingView, RaindropRunStatus, RaindropSyncRunView, RaindropStatusView,
+  RaindropPullOutcome, RaindropPushOutcome, RaindropPushPreview, RaindropPushPreviewCreate,
+  RaindropPushPreviewUpdate, RaindropPushPreviewMissing,
+} from "./contracts/raindrop";

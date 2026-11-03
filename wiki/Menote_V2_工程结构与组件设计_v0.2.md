@@ -1,7 +1,7 @@
-# Menote V2 工程结构与组件设计（v0.9）
+# Menote V2 工程结构与组件设计（v0.10）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
@@ -38,8 +38,8 @@ Menote-v2/
     ├── worker/             # Cloudflare Worker API
     │   └── src/
     │       ├── index.ts                 # 仅装配（路由注册 + 中间件挂载），禁业务逻辑
-    │       ├── routes/                  # auth / sync / attachments / trash / restore / backup / monitor / admin（mcp/admin 为 M4）
-    │       ├── services/                # 业务服务（sessions、tokens、sync、mcp、backup、crypto、envelope、snapshot、monitor）
+    │       ├── routes/                  # auth / sync / attachments / trash / restore / backup / monitor / raindrop / admin（mcp/admin 为 M4）
+    │       ├── services/                # 业务服务（sessions、tokens、sync、mcp、backup、crypto、envelope、snapshot、monitor、raindrop）
     │       ├── jobs/                    # Cron：snapshot / backup-push / cleanup（孤儿、审计）
     │       ├── db/                      # D1 访问层（迁移 SQL 文件 + 查询模块）
     │       └── middleware/              # session / csrf / configGuard
@@ -131,7 +131,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：本地检索查询在 `services/searchService.ts`。入口是首页与清单顶部搜索框，不另建命令面板（负责人 2026-11-02）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「MCP 接入」与「剪藏模板」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「MCP 接入」「剪藏模板」与「插件」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
@@ -150,6 +150,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - MCP 网址收藏：`routes/mcp.ts` 在 `bookmark:write` 已授权时注册 `append_bookmark`；`services/mcpBookmarkService.ts` 只读取用户指定且在 Token 范围内的明文 Note/Table，`services/mcpBookmarkFormat.ts` 负责追加收藏行/记录；`db/mcpBookmarks.ts` 执行用户归属、加密与范围过滤。仅返回目标 ID 和操作回执，不依赖内容读取权限；写入经同步服务维护 rev、日志和幂等。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
 - AI 模块（FR-AI-2，TP8）：shared `contracts/ai.ts` 契约单源；Worker `routes/ai.ts` → `services/aiService.ts` → `db/ai.ts`（`ai_tasks`/`ai_usage_daily` 独立表，不与业务表耦合）；推理经 Workers AI 原生绑定 `AI`，任务队列 `ai-tasks`（生产者/消费者同 Worker，`index.ts` queue 入口 → `dispatchAiQueue` 逐条 ack/retry）；提交链路固定为 开关 → 加密排除（SQL 侧谓词）→ 复用/去重 → 每日预算 → 入队；AI 设置随 `user_settings` 同步（`ai` 键），不经 REST。
+- Raindrop 连接器模块（FR-EXT-3，TP9）：shared `contracts/raindrop.ts` 契约单源；Worker `routes/raindrop.ts`（会话鉴权，owner）→ `services/raindropService.ts`（绑定/拉取编排、同步基线与冲突分类）+ `services/raindropApi.ts`（远端 REST 客户端，令牌解密后内存内使用、不落日志）+ `services/raindropTable.ts`（表格行按「行 ID」列的读写，含存量回填）→ `db/raindrop.ts`（`raindrop_bindings` / `raindrop_sync_rows` / `raindrop_sync_runs` 独立表，不与业务表耦合）。定时拉取注册进 G3 `scheduledJobs`（令牌缺失/开关关闭跳过，fail-closed）；远端原始 JSON 快照写 R2 `raindrop/{userId}/` 前缀（内容 hash 复用、保留最近 100 份）；插件收藏标准列由 `mcpBookmarkFormat` 增加「行 ID」列；推送（阶段 B）复用同一账本与基线。
 - 官方资源监控：Analytics Token 需 Account Analytics Read；项目筛选标识为 Worker 脚本名、D1 Database ID、R2 Bucket 名称；未配置的资源明确显示需补充标识，不展示账户总量冒充项目数据。
 
 ## 5. 数据契约摘要（M1 细化为 `src/shared` 类型与迁移 SQL）

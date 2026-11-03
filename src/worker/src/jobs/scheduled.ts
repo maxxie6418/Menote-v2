@@ -30,6 +30,15 @@ export const scheduledJobs: ScheduledJob[] = [
     },
   },
   {
+    name: "raindrop_pull",
+    description: "Raindrop 收藏定时拉取（FR-EXT-3，TP9；插件开关关闭/未到期/无令牌的绑定逐个跳过）",
+    enabled: true,
+    run: async (env) => {
+      const { runScheduledPulls } = await import("../services/raindropService");
+      await runScheduledPulls(env);
+    },
+  },
+  {
     name: "cleanup",
     description: "孤儿附件 30 天真删、软删/日志 90 天保留期清理（G10）",
     enabled: true,
