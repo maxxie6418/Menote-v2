@@ -30,6 +30,8 @@ export interface SyncPage {
   settings: UserSetting[];
   /** 加密条目的包装块（按条目分组随页返回，G7）。 */
   wraps: Array<{ itemId: string; wraps: KeyWrap[] }>;
+  /** 私人空间主题密钥包装（按主题分组随页返回）。 */
+  topicWraps: Array<{ topicId: string; wraps: KeyWrap[] }>;
   nextCursor: string | null;
   hasMore: boolean;
   fullResync: boolean;

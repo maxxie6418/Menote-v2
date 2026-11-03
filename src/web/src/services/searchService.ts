@@ -1,6 +1,7 @@
 import type { Item, TopicNode } from "@menote/shared";
 import { parseEnvelope } from "./encryptionCommandService";
 import { isNoteUnlocked, readPlain } from "./keyringService";
+import { isHiddenPrivateItem } from "./privateSpaceService";
 
 /** 本地检索命中（FR-IA-10）。摘要只来自可展示的明文，不缓存正文副本。 */
 export interface SearchHit {
@@ -76,7 +77,7 @@ export async function searchLocalItems(items: Item[], topics: TopicNode[], query
   if (!tokens.length) return [];
   const hits: SearchHit[] = [];
   for (const item of items) {
-    if (item.deletedAt !== null) continue;
+    if (item.deletedAt !== null || isHiddenPrivateItem(item, topics)) continue;
     const title = displayTitle(item);
     const titleBlob = `${title}\n${item.tags.join(" ")}\n${topicLabel(item, topics)}`.toLocaleLowerCase();
     const body = await readableBody(item);

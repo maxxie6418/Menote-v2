@@ -53,6 +53,7 @@ export async function readItemWrapGroups(db: D1Database, userId: string, itemIds
 
 export async function putTopicWraps(db: D1Database, userId: string, topicId: string, wraps: KeyWrap[], now: number): Promise<void> {
   for (const wrap of wraps) {
+    if (wrap.wrapper !== "password" && wrap.wrapper !== "recovery") continue;
     await db.prepare(
       `INSERT INTO topic_key_wraps (user_id, topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -61,6 +62,24 @@ export async function putTopicWraps(db: D1Database, userId: string, topicId: str
          iv = excluded.iv, ciphertext = excluded.ciphertext, generation = excluded.generation`,
     ).bind(userId, topicId, wrap.wrapper, fromB64(wrap.kdfSalt), wrap.kdfIterations, fromB64(wrap.iv), fromB64(wrap.ciphertext), wrap.generation, now).run();
   }
+}
+
+export async function readTopicWrapGroups(db: D1Database, userId: string, topicIds: string[]): Promise<Array<{ topicId: string; wraps: KeyWrap[] }>> {
+  if (topicIds.length === 0) return [];
+  const placeholders = topicIds.map(() => "?").join(",");
+  const rows = await db.prepare(
+    `SELECT topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM topic_key_wraps
+     WHERE user_id = ? AND topic_id IN (${placeholders})
+     ORDER BY topic_id, wrapper`,
+  ).bind(userId, ...topicIds).all<WrapRow & { topic_id: string }>();
+  const groups = new Map<string, KeyWrap[]>();
+  for (const row of rows.results) {
+    const topicId = row.topic_id;
+    const group = groups.get(topicId) ?? [];
+    group.push(toKeyWrap(row));
+    groups.set(topicId, group);
+  }
+  return [...groups.entries()].map(([topicId, wraps]) => ({ topicId, wraps }));
 }
 
 export async function readTopicWraps(db: D1Database, userId: string, topicId: string): Promise<KeyWrap[]> {

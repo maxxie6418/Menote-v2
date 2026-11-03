@@ -37,9 +37,19 @@ export async function createTopic(userId: string, name: string, parentId: string
   return topic;
 }
 
+async function isPrivatePlace(userId: string, topicId: string): Promise<boolean> {
+  const topic = await getTopic(userId, topicId);
+  if (!topic || topic.deletedAt !== null) return false;
+  if (topic.isEncSpace) return true;
+  if (!topic.parentId) return false;
+  const parent = await getTopic(userId, topic.parentId);
+  return Boolean(parent?.isEncSpace && parent.deletedAt === null);
+}
+
 export async function renameTopic(userId: string, id: string, name: string): Promise<TopicNode> {
   const topic = await getTopic(userId, id);
   if (!topic) throw new Error(`topic not found: ${id}`);
+  if (topic.isEncSpace) throw new Error("私人空间不可改名");
   const next = { ...topic, name };
   await localDb.transaction("rw", localDb.topics, localDb.outbox, async () => {
     await localDb.topics.put(next);
@@ -52,6 +62,7 @@ export async function renameTopic(userId: string, id: string, name: string): Pro
 export async function softDeleteTopic(userId: string, id: string): Promise<void> {
   const topic = await getTopic(userId, id);
   if (!topic) throw new Error(`topic not found: ${id}`);
+  if (topic.isEncSpace) throw new Error("私人空间不可删除");
   const next = { ...topic, deletedAt: Date.now() };
   await localDb.transaction("rw", localDb.topics, localDb.outbox, async () => {
     await localDb.topics.put(next);
@@ -66,6 +77,9 @@ export async function createNote(
   userId: string,
   options: { title?: string; type?: "note" | "table"; topicId?: string | null; groupId?: string | null; source?: ItemSource } = {},
 ): Promise<Item> {
+  if (options.topicId && await isPrivatePlace(userId, options.topicId)) {
+    throw new Error("私人空间里的笔记必须加密创建");
+  }
   const source = options.source ?? "manual";
   const requestedTitle = options.title?.trim() || "无标题";
   const item: Item = {
@@ -234,6 +248,9 @@ export function saveItemMeta(userId: string, id: string, patch: ItemMetaPatch): 
 async function saveItemMetaInner(userId: string, id: string, patch: ItemMetaPatch): Promise<Item> {
   const current = await requireItem(userId, id);
   if (patch.groupId && !patch.topicId) throw new Error("分组归属必须同时指定主题（D1 约束同构）");
+  if (patch.topicId && await isPrivatePlace(userId, patch.topicId) && current.content.scope !== "private_space") {
+    throw new Error("不能把明文笔记移入私人空间");
+  }
   const next: Item = {
     ...current, ...patch, metaRev: current.metaRev + 1, updatedAt: Date.now(),
   };

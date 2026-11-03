@@ -8,10 +8,12 @@ import { NoteDocument, OrganizeDialog, TrashItemPanel } from "../features/notes"
 import { purgeItemsPermanently } from "../services/versionService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
-import { useSectionItems, useTopics } from "../services/contentHooks";
-import { createNote, saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
+import { useLockVersion, useSectionItems, useTopics } from "../services/contentHooks";
+import { saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
+import { createNoteForPlace } from "../services/privateSpaceService";
 import { requestSync } from "../services/syncEngine";
-import { lockIfIdle } from "../services/keyringService";
+import { isTopicUnlocked, lockIfIdle } from "../services/keyringService";
+import { PrivateSpaceDialog } from "../features/encryption";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
@@ -114,6 +116,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [settingsOpen, setSettingsOpen] = useState(() => route.kind === "settings" || route.kind === "me");
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(() => route.kind === "settings" ? route.section : "appearance");
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
+  const [privateGate, setPrivateGate] = useState(false);
   const [summaryRequest, setSummaryRequest] = useState<{ id: string; token: number } | null>(null);
   const userId = user.id;
   const settingsReturn = useRef<AppRoute>({ kind: "home" });
@@ -166,14 +169,20 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   }, [route, layout]);
 
   const openNewNote = useCallback(async () => {
-    const created = await createNote(userId);
-    setView("main");
-    setSection({ kind: "drafts" });
-    setNoteId(created.id);
-    setMobilePane("doc");
-    setDrawerOpen(false);
-    navigate(sectionRoute({ kind: "drafts" }, created.id));
-  }, [userId, navigate]);
+    const place = section.kind === "topic" ? section.id : null;
+    try {
+      const created = await createNoteForPlace(userId, place);
+      const next = created.section.kind === "topic" ? created.section : { kind: "drafts" as const };
+      setView("main");
+      setSection(next);
+      setNoteId(created.item.id);
+      setMobilePane("doc");
+      setDrawerOpen(false);
+      navigate(sectionRoute(next, created.item.id));
+    } catch (cause) {
+      if (cause instanceof Error && cause.message === "private_space_locked") setPrivateGate(true);
+    }
+  }, [userId, navigate, section]);
   const openMemoComposer = useCallback(() => {
     setCollapsed(false);
     setMemoComposerSignal((value) => value + 1);
@@ -257,6 +266,18 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
 
   const topics = useTopics(userId);
   const items = useSectionItems(userId, section);
+  const lockVersion = useLockVersion();
+  useEffect(() => {
+    if (section.kind !== "topic") return;
+    const topic = topics.find((row) => row.id === section.id);
+    if (!topic) return;
+    const root = topic.isEncSpace ? topic : topics.find((row) => row.id === topic.parentId && row.isEncSpace);
+    if (root && !isTopicUnlocked(root.id)) {
+      setNoteId(null);
+      setSection({ kind: "recent" });
+      navigate(sectionRoute({ kind: "recent" }), true);
+    }
+  }, [lockVersion, section, topics, navigate]);
 
   const account = { username: user.username, role: user.role };
   const shellProps = {
@@ -272,6 +293,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       collapsed={collapsed && layout === "compact"}
       drawerOpen={drawerOpen}
       section={section}
+      onOpenPrivate={() => setPrivateGate(true)}
       onSelectSection={(next) => {
         setView("main");
         if (next.kind === "memos" && section.kind !== "memos") setNoteReturn({ section: section.kind === "home" ? { kind: "recent" } : section, noteId });
@@ -299,6 +321,22 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
     />
   ) : null;
+  const privateDialog = privateGate ? (
+    <PrivateSpaceDialog
+      userId={userId}
+      onOpened={(topicId) => {
+        setPrivateGate(false);
+        setView("main");
+        const next = { kind: "topic" as const, id: topicId };
+        setSection(next);
+        setNoteId(null);
+        setMobilePane("list");
+        setDrawerOpen(false);
+        navigate(sectionRoute(next));
+      }}
+      onCancel={() => setPrivateGate(false)}
+    />
+  ) : null;
 
   if (view === "status") {
     return (
@@ -307,6 +345,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         {sidebar}
         <SystemStatusPage onBack={() => { goBack({ kind: "home" }); setView("main"); }} />
         {settingsDialog}
+        {privateDialog}
       </div>
     );
   }
@@ -314,8 +353,9 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   if (layout === "mobile") {
     return (
       <div className="mn-shell" {...shellProps}>
-        <MobileApp user={user} onLogout={onLogout} onOpenSettings={openSettings} onOpenStatus={() => { navigate({ kind: "status" }); setView("status"); }} route={route} onNavigate={navigate} />
+        <MobileApp user={user} onLogout={onLogout} onOpenSettings={openSettings} onOpenPrivate={() => setPrivateGate(true)} onOpenStatus={() => { navigate({ kind: "status" }); setView("status"); }} route={route} onNavigate={navigate} />
         {settingsDialog}
+        {privateDialog}
       </div>
     );
   }
@@ -349,6 +389,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             setMobilePane("doc");
             setDrawerOpen(false);
           }}
+          onOpenPrivate={() => setPrivateGate(true)}
           onNavigate={(next) => {
             if (next.kind === "memos") setNoteReturn({ section: { kind: "recent" }, noteId: null });
             setSection(next);
@@ -359,6 +400,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           }}
         />
         {settingsDialog}
+        {privateDialog}
       </div>
     );
   }
@@ -379,6 +421,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); navigate(sectionRoute(noteReturn.section, noteReturn.noteId ?? undefined), true); }}
         />
         {settingsDialog}
+        {privateDialog}
       </div>
     );
   }
@@ -427,6 +470,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             </article>
           )}
         />
+        {privateDialog}
       </div>
     );
   }
@@ -507,6 +551,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         />
       )}
       {settingsDialog}
+      {privateDialog}
     </div>
   );
 }

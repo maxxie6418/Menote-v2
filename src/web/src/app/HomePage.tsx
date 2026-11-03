@@ -11,6 +11,7 @@ interface HomePageProps {
   onOpenTodos: () => void;
   onOpenItem: (item: Item) => void;
   onNavigate: (section: BrowseSection) => void;
+  onOpenPrivate: () => void;
 }
 
 function formatTime(timestamp: number): string {
@@ -40,7 +41,7 @@ function countTopicItems(topic: TopicNode, topics: TopicNode[], items: Item[]): 
   return items.filter((item) => item.type !== "memo" && item.topicId !== null && childIds.has(item.topicId)).length;
 }
 
-export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos, onOpenItem, onNavigate }: HomePageProps) {
+export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos, onOpenItem, onNavigate, onOpenPrivate }: HomePageProps) {
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [allTopicsOpen, setAllTopicsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -162,7 +163,7 @@ export function HomePage({ userId, onCreateNote, onOpenMemoComposer, onOpenTodos
                 {topic.name}<span>{countTopicItems(topic, snapshot.topics, snapshot.items)}</span>
               </button>
             ))}
-            {snapshot.topics.some((topic) => topic.isEncSpace) && <span className="mn-home-topic is-private"><LockKeyhole aria-hidden="true" />私人空间</span>}
+            <button type="button" className="mn-home-topic is-private" onClick={onOpenPrivate}><LockKeyhole aria-hidden="true" />私人空间</button>
             {!topics.length && <p className="mn-home-empty">还没有主题</p>}
           </div>
         </section>

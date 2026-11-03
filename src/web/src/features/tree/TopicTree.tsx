@@ -1,19 +1,25 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Lock, Plus } from "lucide-react";
-import { useTopics, type BrowseSection } from "../../services/contentHooks";
+import { useLockVersion, useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
+import { isTopicUnlocked } from "../../services/keyringService";
+import { lockPrivateSpace } from "../../services/privateSpaceService";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 
 interface TopicTreeProps {
   userId: string;
   selected: BrowseSection;
   onSelect: (section: BrowseSection) => void;
+  onOpenPrivate: () => void;
 }
 
 /** 目录树（FR-IA-1/3：只显示主题与分组；分组最多一层；私人空间固定入口，G7 提供解锁）。 */
-export function TopicTree({ userId, selected, onSelect }: TopicTreeProps) {
+export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTreeProps) {
+  useLockVersion();
   const topics = useTopics(userId);
   const active = topics.filter((row) => row.deletedAt === null);
+  const space = active.find((row) => row.depth === 0 && row.isEncSpace);
+  const spaceOpen = space ? isTopicUnlocked(space.id) : false;
   const roots = active.filter((row) => row.depth === 0 && !row.isEncSpace);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -54,13 +60,20 @@ export function TopicTree({ userId, selected, onSelect }: TopicTreeProps) {
           <Plus /> 新建主题
         </button>
       )}
-      <a
-        href="#" className="mn-treerow priv" aria-disabled="true"
-        title="私人空间将在 M2 提供解锁"
-        onClick={(event) => event.preventDefault()}
-      >
-        <Lock /> <span>私人空间</span> <span className="mn-locklabel">锁定</span>
-      </a>
+      {space && spaceOpen ? (
+        <ul className="mn-tree-list">
+          <TopicNodeView
+            userId={userId} topic={space} fixed
+            groups={active.filter((row) => row.depth === 1 && row.parentId === space.id)}
+            selected={selected} onSelect={onSelect}
+            onLock={() => { void lockPrivateSpace(userId); onSelect({ kind: "recent" }); }}
+          />
+        </ul>
+      ) : (
+        <button type="button" className="mn-treerow priv" onClick={onOpenPrivate}>
+          <Lock /> <span>私人空间</span> <span className="mn-locklabel">{space ? "锁定" : "未设置"}</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -71,9 +84,11 @@ interface TopicNodeViewProps {
   groups: Array<{ id: string; name: string; depth: 0 | 1 }>;
   selected: BrowseSection;
   onSelect: (section: BrowseSection) => void;
+  fixed?: boolean;
+  onLock?: () => void;
 }
 
-function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeViewProps) {
+function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = false, onLock }: TopicNodeViewProps) {
   const [addingGroup, setAddingGroup] = useState(false);
   const [name, setName] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; target: { id: string; name: string; depth: 0 | 1 }; trigger: HTMLElement } | null>(null);
@@ -94,16 +109,17 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeV
     setMenuAt(bounds.left, bounds.bottom, target, event.target instanceof HTMLElement ? event.target : event.currentTarget);
   };
 
+  const lockedRoot = fixed && contextMenu?.target.id === topic.id;
   const actions: ContextMenuAction[] = contextMenu ? [
-    {
+    ...(lockedRoot ? [] : [{
       label: "重命名",
       onSelect: async () => {
         const next = window.prompt(`重命名${contextMenu.target.depth === 0 ? "主题" : "分组"}`, contextMenu.target.name);
         if (next?.trim()) await renameTopic(userId, contextMenu.target.id, next.trim());
       },
-    },
+    }]),
     ...(contextMenu.target.depth === 0 ? [{ label: "新建分组", onSelect: () => setAddingGroup(true) }] : []),
-    {
+    ...(lockedRoot ? [] : [{
       label: "删除",
       destructive: true,
       separatorBefore: true,
@@ -121,7 +137,7 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeV
           onSelect(isTopic ? { kind: "recent" } : { kind: "topic", id: topic.id });
         }
       },
-    },
+    }]),
   ] : [];
 
   const submitGroup = async () => {
@@ -135,13 +151,16 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect }: TopicNodeV
   return (
     <li>
       <div
-        className={isSelected ? "mn-treerow on" : "mn-treerow"}
+        className={isSelected ? `mn-treerow on${fixed ? " priv" : ""}` : `mn-treerow${fixed ? " priv" : ""}`}
         onContextMenu={(event) => openPointerMenu(event, topic)}
         onKeyDown={(event) => openKeyboardMenu(event, topic)}
       >
         <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
-          {topic.name}
+          {fixed && <Lock />}{topic.name}
         </button>
+        {fixed && onLock && (
+          <button type="button" className="mn-minibtn" aria-label="锁定私人空间" title="锁定" onClick={onLock}><Lock /></button>
+        )}
         <button type="button" className="mn-minibtn" aria-label={`在「${topic.name}」下新建分组`} title="新建分组"
           onClick={() => setAddingGroup((value) => !value)}><Plus /></button>
       </div>

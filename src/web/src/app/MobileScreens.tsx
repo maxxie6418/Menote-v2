@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
-import { useHomeSnapshot, useLocalSearch, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
+import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
+import { isTopicUnlocked } from "../services/keyringService";
+import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
 import { groupByDay, memoImages, statusLabel, MemoGallery } from "../features/memo";
 import { NoteDocument } from "../features/notes";
@@ -169,11 +171,16 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
   </div>;
 }
 
-export function MobileMe({ userId, username, role, onSettings, onStatus, onLogout, onOpenSection }: {
-  userId: string; username: string; role: string; onSettings: (section?: SettingsSection) => void; onStatus: () => void; onLogout: () => void;
+export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, onStatus, onLogout, onOpenSection }: {
+  userId: string; username: string; role: string; onSettings: (section?: SettingsSection) => void; onOpenPrivate: () => void; onStatus: () => void; onLogout: () => void;
   onOpenSection: (section: NoteSection) => void;
 }) {
-  const { items, topics } = useHomeSnapshot(userId);
+  useLockVersion();
+  const { items: allItems, topics } = useHomeSnapshot(userId);
+  const hidden = hiddenPrivateTopicIds(topics);
+  const items = allItems.filter((item) => !item.topicId || !hidden.has(item.topicId));
+  const space = topics.find((topic) => topic.depth === 0 && topic.isEncSpace && topic.deletedAt === null);
+  const spaceLabel = space && isTopicUnlocked(space.id) ? "已解锁" : space ? "锁定" : "未设置";
   const pending = usePendingOutboxCount();
   const notes = items.filter((item) => item.type !== "memo");
   const memos = items.filter((item) => item.type === "memo");
@@ -191,7 +198,7 @@ export function MobileMe({ userId, username, role, onSettings, onStatus, onLogou
         <div><b>{notes.length}</b><em>笔记</em></div><div><b>{memos.length}</b><em>Memo</em></div><div><b>{attachments}</b><em>附件</em></div><div><b>{week}<span>条</span></b><em>本周新增</em></div>
       </div></section>
       <div className="m-msec"><b>内容</b></div>
-      <button type="button" className="m-mi" onClick={() => onSettings("recovery")}><LockKeyhole />私人空间<em>锁定</em><ChevronRight className="chev" /></button>
+      <button type="button" className="m-mi" onClick={onOpenPrivate}><LockKeyhole />私人空间<em>{spaceLabel}</em><ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => tags[0] && onOpenSection({ kind: "tag", tag: tags[0] })}><Tag />标签<em>{tags.length}</em><ChevronRight className="chev" /></button>
       <div className="m-msec"><b>设置</b></div>
       <button type="button" className="m-mi" onClick={() => onSettings("appearance")}><Settings />外观与账户<ChevronRight className="chev" /></button>
@@ -204,10 +211,12 @@ export function MobileMe({ userId, username, role, onSettings, onStatus, onLogou
   </div>;
 }
 
-export function MobileTopicSheet({ userId, selected, onClose, onSelect }: {
-  userId: string; selected: NoteSection; onClose: () => void; onSelect: (section: NoteSection) => void;
+export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onSelect }: {
+  userId: string; selected: NoteSection; onClose: () => void; onOpenPrivate: () => void; onSelect: (section: NoteSection) => void;
 }) {
+  useLockVersion();
   const topics = useTopics(userId).filter((topic) => topic.deletedAt === null);
+  const space = topics.find((topic) => topic.depth === 0 && topic.isEncSpace);
   const roots = topics.filter((topic) => topic.depth === 0 && !topic.isEncSpace).sort((a, b) => a.name.localeCompare(b.name));
   const allTags = [...new Set(useHomeSnapshot(userId).items.filter((item) => item.type === "memo" || !item.topicId || !privateTopicIds(topics).has(item.topicId)).flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
 
@@ -223,7 +232,12 @@ export function MobileTopicSheet({ userId, selected, onClose, onSelect }: {
           {groups.map((group) => <button type="button" className={`m-tree-row sub${selected.kind === "topic" && selected.id === group.id ? " on" : ""}`} key={group.id} onClick={() => { onSelect({ kind: "topic", id: group.id }); onClose(); }}>{group.name}</button>)}
         </div>;
       })}
-      {topics.some((topic) => topic.isEncSpace) && <><div className="m-lsec"><b>加密空间</b></div><div className="m-tree-row locked"><LockKeyhole />私人空间<em>锁定</em></div></>}
+      <div className="m-lsec"><b>加密空间</b></div>
+      <button type="button" className="m-tree-row" onClick={() => {
+        if (space && isTopicUnlocked(space.id)) { onSelect({ kind: "topic", id: space.id }); onClose(); return; }
+        onOpenPrivate();
+        onClose();
+      }}><LockKeyhole />私人空间<em>{space && isTopicUnlocked(space.id) ? "已解锁" : space ? "锁定" : "未设置"}</em></button>
       <div className="m-lsec"><b>标签</b></div><div className="m-tagrow">{allTags.length ? allTags.map((tag) => <button type="button" key={tag} className={selected.kind === "tag" && selected.tag === tag ? "on" : ""} onClick={() => { onSelect({ kind: "tag", tag }); onClose(); }}>#{tag}</button>) : <span>暂无标签</span>}</div>
     </div>
   </section></div>;

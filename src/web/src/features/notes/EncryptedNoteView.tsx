@@ -8,7 +8,8 @@ import { useItem, useLockVersion } from "../../services/contentHooks";
 import { degradeTableToNote } from "../../services/contentService";
 import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/encryptionCommandService";
 import { uploadAttachment } from "../../services/attachmentService";
-import { isNoteUnlocked, lockItem, lockOnLeave, readPlain, unlockNote } from "../../services/keyringService";
+import { isNoteUnlocked, lockItem, lockOnLeave, openSpaceNote, readPlain, unlockNote } from "../../services/keyringService";
+import { lockPrivateSpace, unlockPrivateSpace } from "../../services/privateSpaceService";
 import { UnlockPanel } from "../encryption";
 import { DocTitle } from "./DocTitle";
 
@@ -33,6 +34,17 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const unlocked = isNoteUnlocked(item.id);
+  const inSpace = item.content.scope === "private_space";
+
+  useEffect(() => {
+    if (!inSpace || unlocked) return;
+    let cancelled = false;
+    void openSpaceNote(item.id, item.topicId).then((result) => {
+      if (cancelled) return;
+      if (result === "no_wrap") setUnlockError("这则笔记缺少空间密钥包装，暂时打不开。");
+    });
+    return () => { cancelled = true; };
+  }, [inSpace, item.id, item.topicId, unlocked]);
 
   useEffect(() => {
     if (!unlocked) { setPlain(null); return; }
@@ -63,6 +75,15 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
 
   const onUnlock = async (credential: string, useRecovery: boolean) => {
     setUnlockError(null);
+    if (inSpace) {
+      const result = await unlockPrivateSpace(userId, credential, useRecovery);
+      if (result === "ok") {
+        const opened = await openSpaceNote(item.id, item.topicId);
+        if (opened !== "ok") setUnlockError("私人空间已解锁，但这则笔记打不开。");
+      } else if (result === "bad_credential") setUnlockError("空间密码或恢复码不正确。");
+      else setUnlockError("私人空间的密钥包装还没同步到本机，请稍后重试。");
+      return;
+    }
     const result = await unlockNote(item.id, credential, useRecovery);
     if (result === "bad_credential") setUnlockError("凭据不正确，或与当前作用域不符。");
     if (result === "no_wraps") setUnlockError("包装块尚未同步到本机，请稍后重试。");
@@ -86,13 +107,15 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(plain)}>保存失败 · 重试</button>}
           {unlocked && (
             <>
-              <button type="button" className="mn-iconbtn" aria-label="立即锁定" title="锁定（快捷）" onClick={() => lockItem(item.id)}>
+              <button type="button" className="mn-iconbtn" aria-label="立即锁定" title="锁定（快捷）" onClick={() => { if (inSpace) void lockPrivateSpace(userId); else lockItem(item.id); }}>
                 <Lock />
               </button>
-              <button type="button" className="mn-iconbtn" aria-label="解除本篇加密" title="解除加密（转为明文）"
-                onClick={() => { if (window.confirm("解除本篇加密并转为明文？")) void decryptToPlain(userId, item.id, plain ?? "").then(onBack); }}>
-                <ShieldOff />
-              </button>
+              {!inSpace && (
+                <button type="button" className="mn-iconbtn" aria-label="解除本篇加密" title="解除加密（转为明文）"
+                  onClick={() => { if (window.confirm("解除本篇加密并转为明文？")) void decryptToPlain(userId, item.id, plain ?? "").then(onBack); }}>
+                  <ShieldOff />
+                </button>
+              )}
               <span className="mn-vt" role="group" aria-label="编辑/预览切换">
                 <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><Pencil /></button>
                 <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"} onClick={() => setMode("preview")}><Eye /></button>
@@ -103,7 +126,15 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       </div>
       <div className="mn-docbody">
         <DocTitle value={item.title ?? ""} readOnly />
-        {!unlocked && <UnlockPanel onUnlock={onUnlock} error={unlockError} />}
+        {!unlocked && (
+          <UnlockPanel
+            onUnlock={onUnlock}
+            error={unlockError}
+            title={inSpace ? "私人空间已锁定" : undefined}
+            passwordHint={inSpace ? "输入空间密码解锁。解锁后，这次会话里的空间笔记都可以打开。" : undefined}
+            passwordPlaceholder={inSpace ? "空间密码" : undefined}
+          />
+        )}
         {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && mode === "edit" && item.type === "table" && (
           <TableDocument

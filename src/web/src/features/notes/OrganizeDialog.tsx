@@ -54,7 +54,7 @@ export function OrganizeDialog({ item, topics, onDone, onMove, onDelete, allowDe
             <span>主题</span>
             <select value={topicId} onChange={(event) => { setTopicId(event.target.value); setGroupId(""); }}>
               <option value="">（选择主题）</option>
-              {active.filter((row) => row.depth === 0).map((row) => (
+              {active.filter((row) => row.depth === 0 && !row.isEncSpace).map((row) => (
                 <option key={row.id} value={row.id}>{row.name}</option>
               ))}
             </select>

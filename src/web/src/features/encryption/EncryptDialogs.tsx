@@ -77,9 +77,12 @@ export function EncryptSetupDialog({ onConfirm, onCancel }: {
 }
 
 /** 锁定态解锁面板（FR-ENC-4/6）：密码或恢复码；标题明文可辨识（列表层）。 */
-export function UnlockPanel({ onUnlock, error }: {
+export function UnlockPanel({ onUnlock, error, title = "此笔记已加密", passwordHint = "输入单篇密码解锁。", passwordPlaceholder = "单篇密码" }: {
   onUnlock: (credential: string, useRecovery: boolean) => Promise<void>;
   error: string | null;
+  title?: string;
+  passwordHint?: string;
+  passwordPlaceholder?: string;
 }) {
   const [credential, setCredential] = useState("");
   const [useRecovery, setUseRecovery] = useState(false);
@@ -87,11 +90,11 @@ export function UnlockPanel({ onUnlock, error }: {
   return (
     <div className="mn-unlockpanel">
       <span className="mn-unlockmark" aria-hidden="true"><Lock /></span>
-      <h3 className="mn-unlocktitle">此笔记已加密</h3>
-      <p className="mn-auth-hint">{useRecovery ? "输入恢复码解锁。" : "输入单篇密码解锁。"}</p>
+      <h3 className="mn-unlocktitle">{title}</h3>
+      <p className="mn-auth-hint">{useRecovery ? "输入恢复码解锁。" : passwordHint}</p>
       <input
         className="mn-propinput mn-unlockinput" type="password" value={credential} autoFocus
-        placeholder={useRecovery ? "XXXX-XXXX-…" : "单篇密码"} aria-label="解锁凭据"
+        placeholder={useRecovery ? "XXXX-XXXX-…" : passwordPlaceholder} aria-label="解锁凭据"
         onChange={(event) => setCredential(event.target.value)}
         onKeyDown={(event) => { if (event.key === "Enter") { setBusy(true); void onUnlock(credential, useRecovery).finally(() => setBusy(false)); } }}
       />

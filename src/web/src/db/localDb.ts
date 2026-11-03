@@ -35,6 +35,12 @@ export interface WrapRow {
   wraps: KeyWrap[];
 }
 
+/** 私人空间主题密钥包装（K_topic：空间密码 + 恢复码）。 */
+export interface TopicWrapRow {
+  topicId: string;
+  wraps: KeyWrap[];
+}
+
 /** 版本快照（G8，FR-VER-1）：封存写入前的一份全文；加密条目只存密文（FR-VER-5）。 */
 export interface VersionRow {
   id?: number;
@@ -57,6 +63,7 @@ class MenoteLocalDb extends Dexie {
   settings!: Table<UserSetting, [string, string]>;
   outbox!: Table<OutboxRow, number>;
   wraps!: Table<WrapRow, string>;
+  topicWraps!: Table<TopicWrapRow, string>;
   versions!: Table<VersionRow, number>;
   meta!: Table<MetaRow, string>;
 
@@ -94,6 +101,17 @@ class MenoteLocalDb extends Dexie {
       const payload = row.payload as { item?: Item; topic?: TopicNode; comment?: MemoComment; setting?: UserSetting } | null;
       row.userId = payload?.item?.userId ?? payload?.topic?.userId ?? payload?.comment?.userId ?? payload?.setting?.userId ?? "";
     }));
+    this.version(4).stores({
+      topics: "id, userId, parentId, [userId+deletedAt]",
+      items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
+      memoComments: "id, userId, memoId, [userId+memoId+createdAt], [userId+deletedAt]",
+      settings: "[userId+key], userId",
+      outbox: "++seq, userId, entityId, nextRetryAt",
+      wraps: "itemId",
+      topicWraps: "topicId",
+      versions: "++id, itemId, createdAt, userId",
+      meta: "key",
+    });
   }
 }
 

@@ -3,7 +3,7 @@ import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
 import { readMemoCommentState, readMemoOwnerState, upsertMemoComment } from "../db/memoComments";
-import { putItemWraps, putTopicWraps, readItemWrapGroups } from "../db/keyWraps";
+import { putItemWraps, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
   appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
@@ -226,8 +226,9 @@ export async function buildSyncPage(db: D1Database, userId: string, cursor: numb
     const topics = await readAllTopics(db, userId);
     const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
     const wraps = await readItemWrapGroups(db, userId, encryptedIds);
+    const topicWraps = await readTopicWrapGroups(db, userId, topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
     return {
-      items, topics, tombstones: [], wraps, settings: await readSettings(db, userId),
+      items, topics, tombstones: [], wraps, topicWraps, settings: await readSettings(db, userId),
       memoComments: await readAllMemoComments(db, userId),
       nextCursor: String(oldestSeq - 1), hasMore: items.length === PULL_PAGE_LIMIT, fullResync: true,
     };
@@ -245,12 +246,13 @@ export async function buildSyncPage(db: D1Database, userId: string, cursor: numb
   const memoComments = await readMemoComments(db, userId, memoCommentIds);
   const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
   const wraps = await readItemWrapGroups(db, userId, encryptedIds);
+  const topicWraps = await readTopicWrapGroups(db, userId, topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
   const tombstones = page.entries.filter((entry) => entry.op === "delete"
       && (entry.entity === "item" ? !existingItemIds.has(entry.entityId)
         : entry.entity === "topic" ? !existingTopicIds.has(entry.entityId) : true))
     .map((entry) => toTombstone(entry, userId, now));
   return {
-    items, topics, memoComments, tombstones, wraps, settings: await readSettings(db, userId),
+    items, topics, memoComments, tombstones, wraps, topicWraps, settings: await readSettings(db, userId),
     nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(cursor),
     hasMore: page.hasMore, fullResync: false,
   };

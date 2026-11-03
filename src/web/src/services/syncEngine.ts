@@ -111,8 +111,13 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
     if (pending.length === 0) return;
     // 加密条目：随操作携带本地包装块（G7）。
     for (const row of pending) {
-      const stored = await localDb.wraps.get(row.entityId);
-      if (stored) row.wraps = stored.wraps;
+      if (row.entity === "topic" && row.action === "upsert") {
+        const stored = await localDb.topicWraps.get(row.entityId);
+        if (stored?.wraps.length) row.wraps = stored.wraps;
+      } else {
+        const stored = await localDb.wraps.get(row.entityId);
+        if (stored) row.wraps = stored.wraps;
+      }
     }
     const results = await postPush(deviceId, pending);
     if (results === null) {
@@ -165,6 +170,9 @@ async function pullUpdates(userId: string): Promise<void> {
     // 包装块随页落库（G7：加密条目他端解锁的依据）。
     for (const group of (body as { wraps?: Array<{ itemId: string; wraps: KeyWrap[] }> }).wraps ?? []) {
       await localDb.wraps.put({ itemId: group.itemId, wraps: group.wraps });
+    }
+    for (const group of (body as { topicWraps?: Array<{ topicId: string; wraps: KeyWrap[] }> }).topicWraps ?? []) {
+      await localDb.topicWraps.put({ topicId: group.topicId, wraps: group.wraps });
     }
     if (fullResync) {
       const keep = await pendingEntityIds(userId);

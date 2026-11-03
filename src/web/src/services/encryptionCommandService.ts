@@ -66,6 +66,7 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
 /** 解密为明文形态（移除单篇加密）：包装块本地清除，服务端旧行随清理期滚动（无害残留）。 */
 export async function decryptToPlain(userId: string, id: string, markdown: string): Promise<Item> {
   const current = await requireItem(userId, id);
+  if (current.content.scope === "private_space") throw new Error("私人空间笔记不能转为明文");
   const next: Item = {
     ...current, rev: current.rev + 1, contentHash: await (async () => {
       const { sha256Hex } = await import("../lib/hash");

@@ -60,6 +60,19 @@ export async function unwrapContentKey(wrap: RawWrap, credential: string): Promi
   return aesDecrypt(await importAesGcm(kekBytes), wrap.iv, wrap.ciphertext);
 }
 
+/** 用已有原始密钥包装另一把密钥（私人空间：K_item 由 K_topic 包装，不走口令 KDF）。
+ *  kdfIterations 记 1 只为满足服务端 CHECK (kdf_iterations > 0)；盐不参与解密。 */
+export async function wrapKeyWithRaw(rawKey: Uint8Array, wrappingKey: Uint8Array, generation = 0): Promise<RawWrap> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const sealed = await aesEncrypt(await importAesGcm(wrappingKey), rawKey);
+  return { wrapper: "topic", kdfSalt: toB64(salt), kdfIterations: 1, ...sealed, generation };
+}
+
+/** 用原始密钥解开包装块；密钥不符由 GCM 校验失败抛出。 */
+export async function unwrapKeyWithRaw(wrap: RawWrap, wrappingKey: Uint8Array): Promise<Uint8Array> {
+  return aesDecrypt(await importAesGcm(wrappingKey), wrap.iv, wrap.ciphertext);
+}
+
 export function generateContentKey(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
 }

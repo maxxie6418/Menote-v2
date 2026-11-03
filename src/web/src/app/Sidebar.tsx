@@ -15,6 +15,7 @@ interface SidebarProps {
   drawerOpen: boolean;
   section: BrowseSection;
   onSelectSection: (section: BrowseSection) => void;
+  onOpenPrivate: () => void;
   onCreateNote: () => void;
   onLogout: () => void;
   onToggleCollapse: () => void;
@@ -31,9 +32,9 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
    视图切换按 DESIGN §5.5 为「首页 | 笔记 | Memo」，置顶在快速输入之上——形态是目的地，应先于输入被看见。
    视图切换 2026-11-02 起为凹槽分段 + 图标（负责人反馈文字标签太弱、不显眼），同步 DESIGN §5.5。
    搜索入口为轻量命令行形式（无边框、无底色），与快速输入的输入框形态明显区分；搜索功能尚未实现，入口先禁用。
-   首页整屏由 app/HomePage 接入；搜索尚未实现，入口禁用。私人空间固定入口保持锁定态（G7）。
+   首页整屏由 app/HomePage 接入。私人空间入口可设置密码或解锁（FR-ENC-1）。
    版本号移到脚部用户名旁（悬停显构建 id）。 */
-export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
+export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onOpenPrivate, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -106,7 +107,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
       {!collapsed && (
         <>
           <div className="mn-seclabel"><span className="mn-seclabel-text">主题</span></div>
-          <TopicTree userId={userId} selected={section} onSelect={onSelectSection} />
+          <TopicTree userId={userId} selected={section} onSelect={onSelectSection} onOpenPrivate={onOpenPrivate} />
           <div className="mn-seclabel">
             <span className="mn-seclabel-text">标签</span>
             <button type="button" className="mn-minibtn" aria-disabled="true" title="标签管理将在后续版本开放" aria-label="管理标签（未开放）">

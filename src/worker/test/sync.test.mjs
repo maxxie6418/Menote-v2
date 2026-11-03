@@ -169,5 +169,26 @@ test("encrypted items carry key wraps through push and pull (G7)", async () => {
     const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
     assert.equal(page.items.find((row) => row.id === "enc1").content.scope, "self");
     assert.deepEqual(page.wraps, [{ itemId: "enc1", wraps: [wrap] }]);
+    assert.deepEqual(page.topicWraps, []);
+  });
+});
+
+test("private space topic wraps travel through push and pull (FR-ENC-1)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const password = { wrapper: "password", kdfSalt: "c2FsdA==", kdfIterations: 600000, iv: "aXYxMg==", ciphertext: "d3JhcA==", generation: 0 };
+    const recovery = { wrapper: "recovery", kdfSalt: "c2FsdDI=", kdfIterations: 600000, iv: "aXYyMg==", ciphertext: "cmVjb3Zlcnk=", generation: 0 };
+    const topicId = "space-1";
+    const operation = {
+      ...topicOp(topicId),
+      wraps: [password, recovery],
+      payload: { topic: { id: topicId, userId: "ignored", parentId: null, name: "私人空间", depth: 0, isEncSpace: true, deletedAt: null } },
+    };
+    const pushed = await post(mf, cookie, [operation]);
+    assert.equal((await pushed.json()).results[0].result, "applied");
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    const topic = page.topics.find((row) => row.id === topicId);
+    assert.equal(topic.isEncSpace, true);
+    assert.deepEqual(page.topicWraps, [{ topicId, wraps: [password, recovery] }]);
   });
 });

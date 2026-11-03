@@ -6,6 +6,7 @@ import { listMemoComments } from "../db/memoCommentsRepo";
 import { listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { countPendingOutbox } from "../db/outboxRepo";
+import { hiddenPrivateTopicIds } from "./privateSpaceService";
 
 /** 服务层数据钩子：UI 只经此读取本地库（结构检查：UI 禁直连 IndexedDB）。
  *  同标签页由 liveQuery 自动更新；跨标签页经无内容广播触发重读（refresh 版本号参与查询键）。 */
@@ -122,6 +123,8 @@ export function useStarredItems(userId: string): Item[] {
 
 /** 当前分区的清单数据（Note 类分区）；全部钩子无条件调用（React hooks 规则），按分区取值。 */
 export function useSectionItems(userId: string, section: BrowseSection): Item[] | undefined {
+  const topics = useTopics(userId);
+  useLockVersion();
   const topic = useNotesInTopic(userId, section.kind === "topic" ? section.id : "");
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
@@ -129,14 +132,15 @@ export function useSectionItems(userId: string, section: BrowseSection): Item[] 
   const tag = useTagItems(userId, section.kind === "tag" ? section.tag : "");
   const starred = useStarredItems(userId);
   const trash = useTrashedItems(userId);
-  if (section.kind === "topic") return topic;
-  if (section.kind === "inbox") return inbox;
-  if (section.kind === "drafts") return drafts;
-  if (section.kind === "tag") return tag;
-  if (section.kind === "starred") return starred;
-  if (section.kind === "trash") return trash;
-  if (section.kind === "home") return recent;
-  return recent;
+  const hidden = hiddenPrivateTopicIds(topics);
+  const mask = (rows: Item[] | undefined) => rows?.filter((item) => item.topicId === null || !hidden.has(item.topicId));
+  if (section.kind === "topic") return hidden.has(section.id) ? [] : topic;
+  if (section.kind === "inbox") return mask(inbox);
+  if (section.kind === "drafts") return mask(drafts);
+  if (section.kind === "tag") return mask(tag);
+  if (section.kind === "starred") return mask(starred);
+  if (section.kind === "trash") return mask(trash);
+  return mask(recent);
 }
 
 import { subscribeLockState, getLockVersion } from "./keyringService";

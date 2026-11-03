@@ -27,6 +27,17 @@ test("markdown encrypt/decrypt round-trips with distinct IVs (C-1 密文边界)"
   assert.equal(await crypto1.decryptMarkdown(a, key), "# 正文\n含 | 竖线与\n\n段落");
 });
 
+test("topic key wrap uses the raw key and ignores the stored salt (G4 私人空间)", async () => {
+  const itemKey = crypto1.generateContentKey();
+  const topicKey = crypto1.generateContentKey();
+  const wrap = await crypto1.wrapKeyWithRaw(itemKey, topicKey);
+  assert.equal(wrap.wrapper, "topic");
+  assert.equal(wrap.kdfIterations, 1);
+  const opened = await crypto1.unwrapKeyWithRaw(wrap, topicKey);
+  assert.deepEqual(Array.from(opened), Array.from(itemKey));
+  await assert.rejects(crypto1.unwrapKeyWithRaw(wrap, crypto1.generateContentKey()));
+});
+
 test("recovery code format is Crockford 8x4 and unique per generation (G4 §3)", () => {
   const code = crypto1.generateRecoveryCode();
   assert.match(code, /^[0-9A-HJ-NP-TVWXYZ]{4}(-[0-9A-HJ-NP-TVWXYZ]{4}){7}$/);
