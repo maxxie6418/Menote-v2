@@ -5,10 +5,38 @@ import { history } from "@milkdown/kit/plugin/history";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
 import { TextSelection } from "@milkdown/kit/prose/state";
+import type { Node } from "@milkdown/kit/prose/model";
 import { lift, setBlockType, wrapIn } from "@milkdown/kit/prose/commands";
 import { wrapInList } from "@milkdown/kit/prose/schema-list";
+import { perfProbe } from "../../lib/perfProbe";
+import { RoundTripGuard } from "./roundtrip";
+import { locateTable, runTableCommand as runTableCommandOn, type TableCommandId, type TableContext } from "./tableCommands";
 import type { EditorAdapter } from "./EditorAdapter";
 import type { BlockAction, InlineAction } from "./markdownEdit";
+
+/**
+ * markdown 前缀长度（UTF-16 字符数）。
+ *
+ * `doc.cut(0, upto)` 落在**列表内部**时，Milkdown 的 gfm 预设序列化任务列表项会读取空父节点
+ * 并抛错（`Cannot read properties of undefined`）。切点落在列表内部是常态（列表项里的光标），
+ * 所以这里兜一层：失败时按正文字符占比折算，保持与真实 markdown 偏移同一量纲——
+ * 偏移一点可以接受，抛错会直接中断编辑。
+ */
+function markdownPrefix(
+  serializer: (content: Node) => string,
+  doc: Node,
+  upto: number,
+  scale: () => { total: number; totalText: number },
+): number {
+  try {
+    return serializer(doc.cut(0, upto)).length;
+  } catch {
+    const { total, totalText } = scale();
+    if (totalText <= 0) return 0;
+    const text = doc.textBetween(0, upto, "\n", "\n").length;
+    return Math.round((text / totalText) * total);
+  }
+}
 
 /**
  * Milkdown WYSIWYG 适配器（E4 PoC 准入通过后接入，负责人 2026-11-01 拍板）：
@@ -20,12 +48,26 @@ import type { BlockAction, InlineAction } from "./markdownEdit";
 export class MilkdownWysiwygAdapter implements EditorAdapter {
   private editor: Editor | null = null;
   private disposed = false;
+  /** 诊断打点用的按键监听拆卸函数（FR-EDT-10）。 */
+  private detachKeyListener: (() => void) | null = null;
+  /** 往返保真守卫（FR-EDT-8）：基线是上一次可信文本。 */
+  private guard: RoundTripGuard | null = null;
+  /** 编辑器最近一次规范序列化结果（编辑态正文空间）。 */
+  private canonicalText = "";
+  /** 最近一次算出的「保留原文」文本（持久化用）。 */
+  private preservedText: string | null = null;
 
   static async create(
     host: HTMLElement,
     options: { initialMarkdown: string; onInput: (markdown: string) => void },
   ): Promise<MilkdownWysiwygAdapter> {
     const adapter = new MilkdownWysiwygAdapter();
+    // 键入延迟基线（FR-EDT-10 / W0）：按一次键 → 序列化完成。诊断关闭时不打点。
+    let lastKeyAt = 0;
+    const onKeyDown = () => {
+      if (perfProbe.isEnabled) lastKeyAt = performance.now();
+    };
+    host.addEventListener("keydown", onKeyDown, true);
     const editor = await Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, host);
@@ -35,7 +77,14 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
           attributes: { class: "md-body mn-editor-prose" },
         }));
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-          if (!adapter.disposed) options.onInput(markdown);
+          if (adapter.disposed) return;
+          adapter.canonicalText = markdown;
+          adapter.preservedText = null;
+          if (perfProbe.isEnabled && lastKeyAt > 0) {
+            perfProbe.record("editor.keyToMarkdown", performance.now() - lastKeyAt);
+            lastKeyAt = 0;
+          }
+          options.onInput(markdown);
         });
       })
       .use(commonmark)
@@ -44,21 +93,119 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       .use(listener)
       .create();
     if (adapter.disposed) {
+      host.removeEventListener("keydown", onKeyDown, true);
       await editor.destroy();
       return adapter;
     }
     adapter.editor = editor;
+    adapter.detachKeyListener = () => host.removeEventListener("keydown", onKeyDown, true);
+    adapter.guard = new RoundTripGuard(options.initialMarkdown);
+    adapter.canonicalText = options.initialMarkdown;
+    adapter.preservedText = options.initialMarkdown;
     return adapter;
   }
 
-  loadMarkdown(markdown: string): void {
+  /**
+   * 载入文本。
+   * - 外部写回（他端变更、属性区写回）：基线整体替换。
+   * - 本地改动（插入附件、源码变换）：基线沿用「保留原文」的结果，未触碰块继续保留原始字节。
+   */
+  loadMarkdown(markdown: string, options?: { keepBaseline?: boolean }): void {
     if (this.disposed || !this.editor) return;
     this.editor.action(replaceAll(markdown));
+    this.canonicalText = markdown;
+    if (options?.keepBaseline && this.guard) {
+      const result = this.guard.update(markdown);
+      this.preservedText = result.text;
+    } else {
+      this.guard?.reset(markdown);
+      this.preservedText = markdown;
+    }
   }
 
   getMarkdown(): string {
     if (!this.editor) return "";
-    return this.editor.action(getMarkdown());
+    if (this.canonicalText) return this.canonicalText;
+    return perfProbe.measure("editor.serialize", () => this.editor!.action(getMarkdown()));
+  }
+
+  /**
+   * 应当持久化的文本（FR-EDT-8）：未触碰的块回填原文，避免版本历史出现纯格式噪声。
+   * 编辑态仍是规范序列化文本，光标与选区逻辑不受影响。
+   */
+  getPreservedMarkdown(): string {
+    if (this.preservedText !== null) return this.preservedText;
+    if (!this.guard) return this.getMarkdown();
+    const result = this.guard.update(this.getMarkdown());
+    this.preservedText = result.text;
+    return result.text;
+  }
+
+  /** 外部回声是否就是当前内容（避免把自己写的内容当成他端变更整篇重载）。 */
+  isSameContent(markdown: string): boolean {
+    if (markdown === this.canonicalText) return true;
+    return this.preservedText !== null && markdown === this.preservedText;
+  }
+
+  /**
+   * 表格单元格 DOM 元素 → 文档位置。
+   * 用 `view.nodeDOM` 反查而不是 `posAtDOM`：后者依赖 DOM 与文档视图的内部对应关系，
+   * 在自定义节点视图下不稳。逐个比对单元格渲染出的 DOM，命中即取位置。
+   */
+  private locateCell(cell: HTMLElement): { tablePos: number; cellPos: number } | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const doc = view.state.doc;
+      let found: { tablePos: number; cellPos: number } | null = null;
+      doc.descendants((node, pos) => {
+        if (found) return false;
+        if (node.type.name !== "table") return true;
+        let rowPos = pos + 1;
+        node.forEach((row) => {
+          if (found) return;
+          let offset = 0;
+          row.forEach((cellNode) => {
+            if (found) return;
+            const cellPos = rowPos + 1 + offset;
+            offset += cellNode.nodeSize;
+            if (view.nodeDOM(cellPos) === cell) found = { tablePos: pos, cellPos: cellPos + 1 };
+          });
+          rowPos += row.nodeSize;
+        });
+        return true;
+      });
+      return found;
+    });
+  }
+
+  /** 表格上下文（行列与对齐），供表格块操作菜单显示当前状态（FR-EDT-9）。 */
+  getTableContextAt(cell: HTMLElement): TableContext | null {
+    const located = this.locateCell(cell);
+    if (!located || !this.editor) return null;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      return locateTable(view.state.doc, located.cellPos)?.context ?? null;
+    });
+  }
+
+  /** 对指定单元格所在表格执行命令（FR-EDT-9）。 */
+  runTableCommand(command: TableCommandId, cell: HTMLElement): boolean {
+    const located = this.locateCell(cell);
+    if (!located || !this.editor) return false;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const tr = runTableCommandOn(view.state, command, located.cellPos);
+      if (!tr) return false;
+      view.dispatch(tr);
+      view.focus();
+      // 监听器的 markdownUpdated 有 200ms 防抖，这里同步把缓存刷新一次：
+      // 否则在防抖窗口内保存会存到旧内容（表格结构刚变、内容却没变），
+      // 外部回声判断也会拿旧内容去比对。
+      this.canonicalText = ctx.get(serializerCtx)(view.state.doc);
+      this.preservedText = null;
+      return true;
+    });
   }
 
   /** WYSIWYG 格式操作直接作用于 ProseMirror 原生选区，避免 Markdown 字符偏移造成错位。 */
@@ -175,9 +322,15 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     return this.editor.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const serializer = ctx.get(serializerCtx);
+      const doc = view.state.doc;
       const { from, to } = view.state.selection;
-      const start = serializer(view.state.doc.cut(0, from)).length;
-      const end = from === to ? start : serializer(view.state.doc.cut(0, to)).length;
+      let cached: { total: number; totalText: number } | null = null;
+      const scale = () => {
+        if (!cached) cached = { total: serializer(doc).length, totalText: doc.textBetween(0, doc.content.size, "\n", "\n").length };
+        return cached;
+      };
+      const start = markdownPrefix(serializer, doc, from, scale);
+      const end = from === to ? start : markdownPrefix(serializer, doc, to, scale);
       return { start, end };
     });
   }
@@ -190,13 +343,18 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       /** markdown 偏移 → ProseMirror 位置：定位到第一个覆盖该偏移的文本块，再按块内字符数近似取位。
        *  旧实现把匹配块一路覆盖到最后一个文本块，选区永远落在文末，setSelection 后页面直接滚到页尾。 */
       const doc = view.state.doc;
+      let cached: { total: number; totalText: number } | null = null;
+      const scale = () => {
+        if (!cached) cached = { total: serializer(doc).length, totalText: doc.textBetween(0, doc.content.size, "\n", "\n").length };
+        return cached;
+      };
       const posFor = (offset: number) => {
         let found: number | null = null;
         doc.descendants((node, nodePos) => {
           if (found !== null) return false;
           if (!node.isTextblock) return true;
-          const prefix = serializer(doc.cut(0, nodePos)).length;
-          const upto = serializer(doc.cut(0, nodePos + node.nodeSize)).length;
+          const prefix = markdownPrefix(serializer, doc, nodePos, scale);
+          const upto = markdownPrefix(serializer, doc, nodePos + node.nodeSize, scale);
           if (offset <= upto) {
             const within = Math.max(0, Math.min(node.content.size, offset - prefix));
             found = nodePos + 1 + within;
@@ -205,7 +363,18 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         });
         return Math.min(found ?? 1, doc.content.size);
       };
-      const selection = TextSelection.create(doc, posFor(start), posFor(end));
+      const selection = (() => {
+        try {
+          return TextSelection.create(doc, posFor(start), posFor(end));
+        } catch {
+          // 目标位置落在表格这类非行内内容里，TextSelection 不接受——退回第一个段落开头。
+          let safe = 1;
+          doc.forEach((node, offset) => {
+            if (safe === 1 && node.isTextblock && node.type.name === "paragraph") safe = offset + 1;
+          });
+          return TextSelection.create(doc, safe, safe);
+        }
+      })();
       view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
       view.focus();
     });
@@ -229,6 +398,8 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
 
   async destroy(): Promise<void> {
     this.disposed = true;
+    this.detachKeyListener?.();
+    this.detachKeyListener = null;
     if (this.editor) {
       await this.editor.destroy();
       this.editor = null;

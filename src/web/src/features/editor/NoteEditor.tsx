@@ -6,6 +6,7 @@ import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
 import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
 import { FormatBar } from "./FormatBar";
 import { SlashMenu } from "./SlashMenu";
+import { TableBlockToolbar } from "./TableBlockToolbar";
 import { filterActions, type FormatAction } from "./formatActions";
 import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
 
@@ -55,6 +56,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     onInputRef.current(fromEditorMarkdown(markdown, namesRef.current));
   };
 
+  /** 持久化用的正文（FR-EDT-8）：所见即所得走「保留原文」版本，源码态就是用户输入。 */
+  const persistedMarkdown = (adapter: EditorAdapter): string => {
+    const raw = adapter.getPreservedMarkdown?.() ?? adapter.getMarkdown();
+    return fromEditorMarkdown(raw, namesRef.current);
+  };
+
   /** 外部写回（属性区增删、他端变更）会整篇 replaceAll，选区落到文末会把页面滚到底；
    *  这里在重载前后锁住文档滚动位置，避免「加个属性页面直接跳页尾」。 */
   const keepScroll = (apply: () => void) => {
@@ -78,7 +85,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         onInput: emit,
       });
       adapterRef.current = adapter;
-      registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
+      registerGetMarkdown(() => persistedMarkdown(adapter));
       registerApplyExternal((markdown) => keepScroll(() => {
         dirtyRef.current = false;
         adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
@@ -92,7 +99,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       }).then((adapter) => {
         if (cancelled) { void adapter.destroy(); return; }
         adapterRef.current = adapter;
-        registerGetMarkdown(() => fromEditorMarkdown(adapter.getMarkdown(), namesRef.current));
+        registerGetMarkdown(() => persistedMarkdown(adapter));
         registerApplyExternal((markdown) => keepScroll(() => {
           dirtyRef.current = false;
           adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
@@ -129,7 +136,8 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     const adapter = adapterRef.current;
     if (!adapter) return;
     dirtyRef.current = true;
-    adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
+    // 本地改动：基线沿用「保留原文」的结果，未触碰块继续保留原始字节（FR-EDT-8）。
+    adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current), { keepBaseline: true });
     adapter.setSelection(start, end);
     onInputRef.current(markdown);
   };
@@ -215,7 +223,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
     const visible = toEditorMarkdown(externalMarkdown, namesRef.current);
-    if (fromEditorMarkdown(adapter.getMarkdown(), namesRef.current) === externalMarkdown) {
+    // 「我刚写进去的内容」也会从外部回声回来（FR-EDT-8 的保留原文版本与编辑态文本不同），
+    // 用适配器的等价判断避免把本地内容当成他端变更整篇重载。
+    const same = adapter.isSameContent
+      ? adapter.isSameContent(visible)
+      : fromEditorMarkdown(adapter.getMarkdown(), namesRef.current) === externalMarkdown;
+    if (same) {
       dirtyRef.current = false;
       return;
     }
@@ -225,6 +238,10 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   return (
     <div className="mn-editor-wrap" data-dragging={dragging || undefined}>
       {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={runAction} />}
+      {/* 表格块操作（FR-EDT-9）：浮出工具条 + 右键菜单，同一套命令。 */}
+      {mode === "edit" && kind === "wysiwyg" && (
+        <TableBlockToolbar getAdapter={() => adapterRef.current} hostRef={hostRef} />
+      )}
       <div
         ref={hostRef} className="mn-editor-host" data-mode={mode} data-kind={kind}
         onKeyUp={refreshSlash} onMouseUp={refreshSlash}

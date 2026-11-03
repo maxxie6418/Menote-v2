@@ -22,6 +22,14 @@
 .markdown-content th { background: var(--md-table-head-bg); }
 .markdown-content a { color: var(--md-link-color); }
 
+/* 渐进渲染（FR-EDT-10 / TP4 · W3c）：浏览器只布局可视区，长文档首屏先出。
+   纯 CSS 方案，不引入虚拟滚动框架；离屏块按 --md-block-intrinsic-size 占位。 */
+.markdown-content > * { content-visibility: auto; contain-intrinsic-size: auto var(--md-block-intrinsic-size); }
+
+/* 极端超长文档的轻量模式：只渲染纯文本，内容完整不截断。 */
+.md-lite-notice { margin-block: var(--app-space-4); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.md-lite-text { overflow: auto; max-height: var(--app-full-size); margin: var(--app-zero); padding: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font-family: var(--md-code-font); font-size: var(--md-code-size); line-height: var(--md-code-leading); white-space: pre-wrap; word-break: break-word; }
+
 /* 加粗（FR-STYLE-2）：字号、字重、颜色、下划线全部走 token，设置·样式可改 */
 .markdown-content strong { color: var(--md-strong-color); font-size: var(--md-strong-size); font-weight: var(--md-strong-weight); text-decoration-line: var(--md-strong-rule); text-decoration-thickness: var(--md-heading-rule-width); text-decoration-color: var(--md-strong-color); text-underline-offset: var(--md-heading-rule-gap); }
 

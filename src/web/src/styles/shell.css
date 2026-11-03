@@ -525,6 +525,8 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-contextmenu-item { width: var(--app-full-size); min-height: var(--app-chip-height); border: var(--app-zero); border-radius: var(--app-radius-sm); padding: var(--app-space-5) var(--app-space-6); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; }
 .mn-contextmenu-item:hover, .mn-contextmenu-item:focus-visible { outline: none; background: var(--app-hover); color: var(--app-fg); }
 .mn-contextmenu-item.danger { color: var(--app-danger); }
+.mn-contextmenu-item:disabled { color: var(--app-fg-subtle); cursor: not-allowed; }
+.mn-contextmenu-item:disabled:hover { background: none; color: var(--app-fg-subtle); }
 .mn-contextmenu-error { margin: var(--app-space-4) var(--app-space-5); color: var(--app-danger); font-size: var(--app-size-chip); }
 
 /* ---------- E3 属性区 ---------- */
@@ -827,3 +829,24 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 /* 二三级标题并排放，预览只占一行——面板本来就高，预览不该再多吃一屏 */
 .mn-stylepreview h2, .mn-stylepreview h3 { display: inline-block; margin-inline-end: var(--app-space-12); }
 .mn-stylepreview p { margin: var(--app-zero); }
+
+/* 表格块操作工具条（FR-EDT-9 / TP4 · W2）：悬停表格时浮在表格上方；位置由脚本按表格位置写入。 */
+.mn-tablebar { position: absolute; z-index: 4; display: flex; align-items: center; gap: var(--app-space-2); padding: var(--app-space-2) var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); box-shadow: var(--app-shadow-card); transform: translateY(calc(var(--app-full-size) * -1)); }
+.mn-tablebar[data-above="false"] { transform: none; }
+.mn-tablebar-btn { display: grid; place-items: center; width: var(--app-prop-height); height: var(--app-prop-height); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-muted); cursor: pointer; }
+.mn-tablebar-btn:hover, .mn-tablebar-btn:focus-visible { outline: none; background: var(--app-hover); color: var(--app-fg); }
+.mn-tablebar-btn[data-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
+.mn-tablebar-btn:disabled { color: var(--app-fg-subtle); cursor: not-allowed; }
+.mn-tablebar-btn:disabled:hover { background: none; color: var(--app-fg-subtle); }
+
+/* 性能诊断面板（FR-EDT-10 / TP4 · W0）：仅诊断模式挂载，样式全部走 token。 */
+.mn-perfpanel { position: fixed; right: var(--app-space-14); bottom: var(--app-space-14); z-index: var(--app-perf-panel-z); width: var(--app-perf-panel-width); padding: var(--app-space-10); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg); }
+.mn-perfpanel-head { display: flex; align-items: center; gap: var(--app-space-6); margin-bottom: var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-kicker); }
+.mn-perfpanel-head > span { margin-right: auto; }
+.mn-perfpanel-actions { display: flex; gap: var(--app-space-6); margin-top: var(--app-space-6); }
+.mn-perfbtn { border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
+.mn-perfbtn:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-perftable { width: var(--app-full-size); border-collapse: collapse; }
+.mn-perftable th, .mn-perftable td { padding: var(--app-space-2) var(--app-space-4); text-align: right; border-bottom: var(--app-line) solid var(--app-border-subtle); }
+.mn-perftable th:first-child, .mn-perftable td:first-child { text-align: left; }
+.mn-perftable th { color: var(--app-fg-subtle); font-weight: normal; }

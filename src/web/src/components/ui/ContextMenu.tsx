@@ -6,6 +6,8 @@ export interface ContextMenuAction {
   onSelect: () => unknown | Promise<unknown>;
   destructive?: boolean;
   separatorBefore?: boolean;
+  /** 不可用时置灰并跳过，不触发 onSelect。 */
+  disabled?: boolean;
 }
 
 interface ContextMenuProps {
@@ -60,7 +62,7 @@ export function ContextMenu({ x, y, label, actions, onClose, returnFocus }: Cont
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
     event.preventDefault();
-    const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button[role='menuitem']") ?? []);
+    const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button[role='menuitem']:not([disabled])") ?? []);
     if (!buttons.length) return;
     const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const next = event.key === "Home" ? 0
@@ -83,8 +85,11 @@ export function ContextMenu({ x, y, label, actions, onClose, returnFocus }: Cont
               type="button"
               role="menuitem"
               autoFocus={actions[0] === action}
+              disabled={action.disabled}
+              aria-disabled={action.disabled || undefined}
               className={action.destructive ? "mn-contextmenu-item danger" : "mn-contextmenu-item"}
               onClick={async () => {
+                if (action.disabled) return;
                 setError(null);
                 try {
                   await action.onSelect();

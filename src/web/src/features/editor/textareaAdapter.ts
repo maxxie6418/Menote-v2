@@ -27,7 +27,7 @@ export class TextareaSourceAdapter implements EditorAdapter {
     host.appendChild(this.textarea);
   }
 
-  loadMarkdown(markdown: string): void {
+  loadMarkdown(markdown: string, _options?: { keepBaseline?: boolean }): void {
     if (this.disposed) return;
     if (this.textarea.value !== markdown) this.textarea.value = markdown;
   }
