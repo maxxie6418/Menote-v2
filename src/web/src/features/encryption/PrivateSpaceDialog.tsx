@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { generateRecoveryCode } from "../../services/cryptoService";
 import { isTopicUnlocked } from "../../services/keyringService";
 import {
-  findPrivateSpace, privateSpaceReady, recoveryWrapExists, setupPrivateSpace, unlockPrivateSpace,
+  findPrivateSpace, PRIVATE_SPACE_PASSWORD_MIN, privateSpaceReady, recoveryWrapExists, setupPrivateSpace, unlockPrivateSpace,
 } from "../../services/privateSpaceService";
 
 /** 私人空间入口（FR-ENC-1/3/6）：未设密码则设定；已设则解锁。恢复码全账户只有一枚。 */
@@ -48,7 +48,7 @@ export function PrivateSpaceDialog({ userId, onOpened, onCancel }: {
   }, [userId]);
 
   const submitSetup = async () => {
-    if (password.length < 8) { setError("密码至少 8 位。"); return; }
+    if (password.length < PRIVATE_SPACE_PASSWORD_MIN) { setError(`密码至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位。`); return; }
     if (password !== confirm) { setError("两次输入的密码不一致。"); return; }
     if (hasRecovery && !recovery.trim()) { setError("请输入已有的恢复码。"); return; }
     setBusy(true);
@@ -147,11 +147,11 @@ export function PrivateSpaceDialog({ userId, onOpened, onCancel }: {
         <div className="mn-dialog-body">
           <p className="mn-auth-hint">
             {hasRecovery
-              ? "空间密码与登录密码、单篇密码相互独立。本账户已有恢复码，请输入那一枚，不会另发新码。"
-              : "空间密码与登录密码相互独立。接下来会生成一枚恢复码，单篇加密也会共用它。"}
+              ? `空间密码与登录密码、单篇密码相互独立，至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位，不要求复杂组合。本账户已有恢复码，请输入那一枚，不会另发新码。`
+              : `空间密码与登录密码相互独立，至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位，不要求复杂组合。接下来会生成一枚恢复码，单篇加密也会共用它。`}
           </p>
-          <label className="mn-auth-field"><span>空间密码（至少 8 位）</span>
-            <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
+          <label className="mn-auth-field"><span>空间密码（至少 {PRIVATE_SPACE_PASSWORD_MIN} 位）</span>
+            <input type="password" value={password} autoComplete="new-password" minLength={PRIVATE_SPACE_PASSWORD_MIN} onChange={(event) => setPassword(event.target.value)} />
           </label>
           <label className="mn-auth-field"><span>再次输入密码</span>
             <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />

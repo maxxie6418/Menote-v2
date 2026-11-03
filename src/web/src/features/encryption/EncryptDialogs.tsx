@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
 import { generateRecoveryCode } from "../../services/cryptoService";
+import { NOTE_PASSWORD_MIN } from "../../services/encryptionCommandService";
 
 /** 启用单篇加密（FR-ENC-2/3/6）：独立单篇密码；恢复码生成并一次性展示（明文永不入库）。 */
 export function EncryptSetupDialog({ onConfirm, onCancel }: {
@@ -47,9 +48,9 @@ export function EncryptSetupDialog({ onConfirm, onCancel }: {
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="启用单篇加密">
         <div className="mn-dialog-head"><p className="mn-dialog-title">启用单篇加密</p></div>
         <div className="mn-dialog-body">
-          <p className="mn-auth-hint">单篇密码与登录密码相互独立（三凭据分离）。正文与附件将始终密文存储，标题保持明文。</p>
-          <label className="mn-auth-field"><span>单篇密码（至少 8 位）</span>
-            <input type="password" value={password} autoComplete="new-password" onChange={(event) => setPassword(event.target.value)} />
+          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位，不要求复杂组合。正文与附件将始终密文存储，标题保持明文。</p>
+          <label className="mn-auth-field"><span>单篇密码（至少 {NOTE_PASSWORD_MIN} 位）</span>
+            <input type="password" value={password} autoComplete="new-password" minLength={NOTE_PASSWORD_MIN} onChange={(event) => setPassword(event.target.value)} />
           </label>
           <label className="mn-auth-field"><span>再次输入密码</span>
             <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />
@@ -59,7 +60,7 @@ export function EncryptSetupDialog({ onConfirm, onCancel }: {
         <div className="mn-dialog-actions">
           <button type="button" className="mn-auth-submit" disabled={busy} aria-disabled={busy}
             onClick={async () => {
-              if (password.length < 8) { setError("密码至少 8 位。"); return; }
+              if (password.length < NOTE_PASSWORD_MIN) { setError(`密码至少 ${NOTE_PASSWORD_MIN} 位。`); return; }
               if (password !== confirm) { setError("两次输入的密码不一致。"); return; }
               setBusy(true);
               const result = await onConfirm(password, code);

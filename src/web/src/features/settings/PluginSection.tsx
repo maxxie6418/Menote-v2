@@ -37,7 +37,7 @@ export function PluginSection({ userId }: { userId: string }) {
       </div>
       {!settings
         ? <p className="mn-sethint">设置加载中…</p>
-        : enabled ? <RaindropPanel /> : null}
+        : enabled ? <RaindropPanel userId={userId} /> : null}
     </div>
   );
 }

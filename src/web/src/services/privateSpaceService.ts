@@ -13,6 +13,8 @@ import {
 /** 私人空间（FR-ENC-1/2/6）：唯一 isEncSpace 主题；K_topic 由空间密码与恢复码双包装。 */
 
 export const PRIVATE_SPACE_NAME = "私人空间";
+/** 空间密码只做日常隔离，不追求高强度口令（负责人 2026-11-03）。登录口令与单篇密码不沿用此下限。 */
+export const PRIVATE_SPACE_PASSWORD_MIN = 4;
 
 export async function findPrivateSpace(userId: string): Promise<TopicNode | undefined> {
   const topics = await listTopics(userId);
@@ -62,7 +64,7 @@ export async function verifyRecoveryCode(code: string): Promise<boolean> {
 }
 
 export async function setupPrivateSpace(userId: string, password: string, recoveryCode: string): Promise<TopicNode> {
-  if (password.length < 8) throw new Error("密码至少 8 位");
+  if (password.length < PRIVATE_SPACE_PASSWORD_MIN) throw new Error(`密码至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位`);
   const existing = await findPrivateSpace(userId);
   if (existing && await privateSpaceReady(existing.id)) throw new Error("私人空间已设置");
   if (await recoveryWrapExists()) {

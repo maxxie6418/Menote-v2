@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { RAINDROP_INTERVAL_HOURS } from "@menote/shared";
+import { RAINDROP_INTERVAL_HOURS, resolveItemId } from "@menote/shared";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
@@ -42,7 +42,7 @@ raindropRoutes.post("/api/raindrop/bind", requireSession, sameOriginGuard, async
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
   const body: unknown = await c.req.json().catch(() => null);
   const input = (body ?? {}) as Record<string, unknown>;
-  const tableItemId = typeof input.tableItemId === "string" ? input.tableItemId.trim() : "";
+  const tableItemId = resolveItemId(typeof input.tableItemId === "string" ? input.tableItemId : "");
   const collectionId = input.collectionId;
   if (!tableItemId || tableItemId.length > 128 || typeof collectionId !== "number" || !Number.isInteger(collectionId)
     || collectionId < 0 || !RAINDROP_INTERVAL_HOURS.includes(input.pullIntervalHours as 1 | 6 | 24)) {

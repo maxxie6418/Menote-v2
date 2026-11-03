@@ -7,12 +7,15 @@ import { archiveVersionBeforeSave } from "./versionService";
 import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope } from "./contentShared";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
+/** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
+export const NOTE_PASSWORD_MIN = 6;
 
 /** 启用单篇加密：生成内容密钥、密码+恢复码双包装（FR-ENC-2/6），写回密文并随操作携带包装块。
  *  未提供恢复码时自动生成并返回（明文仅此一次展示，永不入库）。 */
 export async function enableItemEncryption(
   userId: string, id: string, markdown: string, password: string, recoveryCode?: string,
 ): Promise<{ item: Item; recoveryCode: string; key: Uint8Array }> {
+  if (password.length < NOTE_PASSWORD_MIN) throw new Error(`密码至少 ${NOTE_PASSWORD_MIN} 位`);
   const current = await requireItem(userId, id);
   if (current.type === "memo") throw new Error("memo_cannot_encrypt"); // FR-ENC-1：Memo 不入加密作用域
   const key = generateContentKey();

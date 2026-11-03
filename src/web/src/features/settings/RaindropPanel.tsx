@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { RAINDROP_INTERVAL_HOURS, type RaindropPushPreview, type RaindropStatusView } from "@menote/shared";
+import { useEffect, useMemo, useState } from "react";
+import { RAINDROP_INTERVAL_HOURS, resolveItemId, type Item, type RaindropPushPreview, type RaindropStatusView, type TopicNode } from "@menote/shared";
+import { useHomeSnapshot } from "../../services/contentHooks";
+import { flushSync } from "../../services/syncEngine";
 import {
   bindRaindropTable, clearRaindropToken, previewRaindropPush, pullRaindropNow, pushRaindropNow,
   readRaindropStatus, saveRaindropToken, unbindRaindropTable,
@@ -16,10 +18,27 @@ function formatTime(value: number | null): string {
   return value === null ? "—" : new Date(value).toLocaleString();
 }
 
-/** 目标输入兼容三种写法：`/n/<短 ID>` 链接、旧路径链接、裸 Item ID。 */
-function parseTableItemId(raw: string): string {
-  const match = /[A-Za-z0-9_-]{22}/.exec(raw);
-  return match ? match[0] : raw.trim();
+function isInterval(value: number): value is 1 | 6 | 24 {
+  return (RAINDROP_INTERVAL_HOURS as readonly number[]).includes(value);
+}
+
+/** 私人空间整棵排除：服务端拒绝 in_enc_space，锁定与否都不可绑。 */
+function privateTopicIds(topics: TopicNode[]): Set<string> {
+  const roots = new Set(topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
+  return new Set(topics.filter((topic) => topic.isEncSpace || (topic.parentId !== null && roots.has(topic.parentId))).map((topic) => topic.id));
+}
+
+function bindableTables(items: Item[], topics: TopicNode[]): Item[] {
+  const blocked = privateTopicIds(topics);
+  return items
+    .filter((item) => item.type === "table" && item.deletedAt === null && item.content.scope === "plain"
+      && (item.topicId === null || !blocked.has(item.topicId)))
+    .sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function topicLabel(item: Item, topics: TopicNode[]): string {
+  if (!item.topicId) return "未归类";
+  return topics.find((topic) => topic.id === item.topicId)?.name ?? "未归类";
 }
 
 function runSummary(run: RaindropStatusView["runs"][number]): string {
@@ -31,13 +50,17 @@ function runSummary(run: RaindropStatusView["runs"][number]): string {
 
 const STATUS_LABELS = { ok: "成功", partial: "部分完成", failed: "失败" } as const;
 
-/** Raindrop 连接器面板（TP9 阶段 A）：令牌、绑定、立即拉取、同步记录与快照信息。 */
-export function RaindropPanel() {
+/** Raindrop 连接器面板（TP9）：令牌、搜索选取表格、立即拉取、同步记录与快照信息。 */
+export function RaindropPanel({ userId }: { userId: string }) {
+  const snapshot = useHomeSnapshot(userId);
+  const tables = useMemo(() => bindableTables(snapshot.items, snapshot.topics), [snapshot.items, snapshot.topics]);
   const [status, setStatus] = useState<RaindropStatusView | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
-  const [targetDraft, setTargetDraft] = useState("");
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [seeded, setSeeded] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("0");
   const [intervalDraft, setIntervalDraft] = useState<number>(1);
   const [preview, setPreview] = useState<RaindropPushPreview | null>(null);
@@ -53,6 +76,21 @@ export function RaindropPanel() {
     return () => controller.abort();
   }, []);
 
+  const binding = status?.binding ?? null;
+
+  useEffect(() => {
+    if (seeded || !binding) return;
+    setCollectionDraft(String(binding.collectionId));
+    if (isInterval(binding.pullIntervalHours)) setIntervalDraft(binding.pullIntervalHours);
+    if (binding.tableItemId) setSelectedId(binding.tableItemId);
+    setSeeded(true);
+  }, [binding, seeded]);
+
+  useEffect(() => {
+    const resolved = query.trim() ? resolveItemId(query) : "";
+    if (resolved && tables.some((item) => item.id === resolved)) setSelectedId(resolved);
+  }, [query, tables]);
+
   const run = async (action: () => Promise<void>, successText: string) => {
     setBusy(true);
     setMessage("");
@@ -67,8 +105,29 @@ export function RaindropPanel() {
     }
   };
 
-  const binding = status?.binding ?? null;
   const runs = status?.runs ?? [];
+  const needle = query.trim().toLowerCase();
+  const resolvedQuery = query.trim() ? resolveItemId(query) : "";
+  const shown = tables.filter((item) => {
+    if (!needle) return true;
+    if (item.id === resolvedQuery) return true;
+    return (item.title ?? "").toLowerCase().includes(needle) || topicLabel(item, snapshot.topics).toLowerCase().includes(needle);
+  });
+  const selected = tables.find((item) => item.id === selectedId);
+  const bound = tables.find((item) => item.id === binding?.tableItemId);
+
+  const submitBind = () => {
+    if (!selectedId) return;
+    void run(async () => {
+      await flushSync(userId);
+      await bindRaindropTable({
+        tableItemId: selectedId,
+        collectionId: Math.max(0, Number.parseInt(collectionDraft, 10) || 0),
+        pullIntervalHours: intervalDraft,
+      });
+      setQuery("");
+    }, binding ? "绑定已更新" : "绑定成功，可在下方手动拉取或等待定时执行");
+  };
 
   return (
     <div>
@@ -100,14 +159,32 @@ export function RaindropPanel() {
         <div>
           <p className="mn-setlabel">绑定中间件表格</p>
           <p className="mn-sethint">
-            指定一张多维表格文档（支持 /n/ 短链接或文档 ID）；绑定时会自动补「行 ID」列并回填存量行。
-            收藏范围填收藏夹 ID（0 = 全部）；拉取频率为定时自动执行。
+            搜索并点选一张明文多维表格。也可以把复制的 /n/ 链接贴进搜索框，会自动对上那张表。
+            绑定时会先同步，再补「行 ID」列并回填存量行。收藏范围填收藏夹 ID（0 = 全部）。
           </p>
         </div>
       </div>
+      <div className="mn-tablepick">
+        <input type="search" className="mn-propselect" aria-label="搜索表格" placeholder="搜索表格标题，或粘贴 /n/ 链接"
+          value={query} onChange={(event) => setQuery(event.target.value)} />
+        <p className="mn-sethint">
+          {selected
+            ? `已选：${selected.title || "无标题"}`
+            : selectedId ? "已选当前绑定（本机列表里暂时没有这张表）" : "请选择一张表格"}
+        </p>
+        <div className="mn-tablepick-list" role="listbox" aria-label="可绑定的表格">
+          {shown.length === 0
+            ? <p className="mn-sethint">没有可绑定的明文表格。先新建一张不在私人空间里的多维表格。</p>
+            : shown.map((item) => (
+              <button key={item.id} type="button" role="option" aria-selected={item.id === selectedId}
+                className={item.id === selectedId ? "on" : ""} onClick={() => setSelectedId(item.id)}>
+                <span>{item.title || "无标题"}</span>
+                <span>{topicLabel(item, snapshot.topics)}</span>
+              </button>
+            ))}
+        </div>
+      </div>
       <div className="mn-setrow">
-        <input type="text" className="mn-propselect" aria-label="表格链接或 ID" placeholder="/n/xxxxxxxxxxxxxxxxxxxxxx 或文档 ID"
-          value={targetDraft} onChange={(event) => setTargetDraft(event.target.value)} />
         <input type="number" className="mn-propselect" aria-label="收藏夹 ID" min={0} value={collectionDraft}
           onChange={(event) => setCollectionDraft(event.target.value)} />
         <select className="mn-propselect" aria-label="拉取频率" value={intervalDraft}
@@ -118,16 +195,11 @@ export function RaindropPanel() {
         </select>
       </div>
       <div className="mn-setrow">
+        <button type="button" className="app-button" disabled={busy || !selectedId} onClick={submitBind}>
+          {binding ? "更新绑定" : "绑定"}
+        </button>
         {binding
           ? <>
-              <button type="button" className="app-button" disabled={busy}
-                onClick={() => void run(async () => {
-                  await bindRaindropTable({
-                    tableItemId: parseTableItemId(targetDraft), collectionId: Math.max(0, Number.parseInt(collectionDraft, 10) || 0),
-                    pullIntervalHours: intervalDraft,
-                  });
-                  setTargetDraft("");
-                }, "绑定已更新")}>更新绑定</button>
               <button type="button" className="mn-statuslink" disabled={busy}
                 onClick={() => void run(() => unbindRaindropTable(), "已解绑（表格内容保留）")}>解绑</button>
               <button type="button" className="app-button" disabled={busy}
@@ -137,14 +209,7 @@ export function RaindropPanel() {
                   refresh();
                 }, "")}>立即拉取</button>
             </>
-          : <button type="button" className="app-button" disabled={busy || !targetDraft.trim()}
-              onClick={() => void run(async () => {
-                await bindRaindropTable({
-                  tableItemId: parseTableItemId(targetDraft), collectionId: Math.max(0, Number.parseInt(collectionDraft, 10) || 0),
-                  pullIntervalHours: intervalDraft,
-                });
-                setTargetDraft("");
-              }, "绑定成功，可在下方手动拉取或等待定时执行")}>绑定</button>}
+          : null}
       </div>
 
       {binding
@@ -152,7 +217,7 @@ export function RaindropPanel() {
             <div>
               <p className="mn-setlabel">当前绑定</p>
               <p className="mn-sethint">
-                表格 {binding.tableItemId} · 收藏范围 {binding.collectionId === 0 ? "全部" : `收藏夹 ${binding.collectionId}`}
+                表格 {bound?.title || binding.tableItemId} · 收藏范围 {binding.collectionId === 0 ? "全部" : `收藏夹 ${binding.collectionId}`}
                 · 频率 {INTERVAL_LABELS[binding.pullIntervalHours] ?? `${binding.pullIntervalHours} 小时`}
                 · 上次拉取 {formatTime(binding.lastPullAt)} · 上次推送 {formatTime(binding.lastPushAt)}
                 · 最新快照 {formatTime(binding.lastSnapshotAt)}（远端原始 JSON 留存 R2，作风险兜底）

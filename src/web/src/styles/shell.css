@@ -597,6 +597,14 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-cliptemplate-preview p { margin: var(--app-space-2) var(--app-zero); overflow-wrap: anywhere; }
 /* 设置行内复用属性栏下拉：取消其 flex:1 拉伸，按字段宽取值（外观·界面字体） */
 .mn-setrow .mn-propselect { flex: 0 1 auto; min-width: var(--app-field-width); }
+.mn-tablepick { display: flex; flex-direction: column; gap: var(--app-space-4); width: var(--app-full-size); margin-top: var(--app-space-6); }
+.mn-tablepick .mn-propselect { width: var(--app-full-size); box-sizing: border-box; }
+.mn-tablepick-list { display: flex; flex-direction: column; max-height: var(--app-auth-card-width); overflow-y: auto; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); }
+.mn-tablepick-list button { display: flex; align-items: baseline; justify-content: space-between; gap: var(--app-space-10); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-6) var(--app-space-10); cursor: pointer; }
+.mn-tablepick-list button span:last-child { color: var(--app-fg-faint); flex: none; }
+.mn-tablepick-list button.on { background: var(--app-surface-sunken); }
+.mn-tablepick-list button:hover { background: var(--app-hover); }
+.mn-tablepick-list .mn-sethint { padding: var(--app-space-6) var(--app-space-10); }
 .mn-statuslink { border: var(--app-zero); background: none; color: var(--app-link); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; padding: var(--app-space-2) var(--app-space-4); border-radius: var(--app-radius-sm); }
 .mn-statuslink:hover { background: var(--app-hover); }
 .mn-mcp-manager { display: grid; gap: var(--app-space-md); }
