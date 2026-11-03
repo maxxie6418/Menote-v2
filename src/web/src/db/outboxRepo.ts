@@ -1,4 +1,5 @@
-import type { OutboxOperation } from "@menote/shared";
+import type { OutboxOperation, UserSetting } from "@menote/shared";
+import { newId } from "../lib/hash";
 import { localDb, type OutboxRow } from "./localDb";
 
 /** outbox 队列（G2 专项设计 §3）：本地写与入队同一 Dexie 事务；正文不复制进队列。 */
@@ -31,6 +32,30 @@ export async function releaseParkedSettings(userId: string): Promise<void> {
   const rows = await localDb.outbox.where("userId").equals(userId).toArray();
   const stuck = rows.filter((row) => row.entity === "setting" && row.lastError?.startsWith("rejected:"));
   await Promise.all(stuck.map((row) => localDb.outbox.update(row.seq!, { nextRetryAt: null })));
+}
+
+/**
+ * 设置操作落败收尾（G2 §5）：本地 rev 对齐服务端实测值，避免乐观 rev 漂移后
+ * baseRev 永久错位、后续每次推送都撞冲突被丢；仍需生效的写入按修正后的 baseRev
+ * 重排一条新操作（同 operationId 会被服务端幂等记录挡回），重排至多 2 次防并发互写死循环。
+ */
+export async function settleSettingResult(row: OutboxRow, serverRev: number, requeue: boolean): Promise<void> {
+  await localDb.transaction("rw", localDb.settings, localDb.outbox, async () => {
+    const current = await localDb.settings.get([row.userId, row.entityId]);
+    if (current && current.rev !== serverRev) await localDb.settings.put({ ...current, rev: serverRev });
+    await localDb.outbox.delete(row.seq!);
+    if (!requeue || row.retries >= 2 || !current) return;
+    const queued = await localDb.outbox.where("userId").equals(row.userId)
+      .and((entry) => entry.entity === "setting" && entry.entityId === row.entityId).count();
+    if (queued > 0) return;
+    const setting: UserSetting = { ...current, rev: serverRev + 1, updatedAt: Date.now() };
+    const retry = toOutboxRow({
+      operationId: newId(), userId: row.userId, entityId: row.entityId, entity: "setting", action: "upsert",
+      baseRev: serverRev, baseMetaRev: 0, payload: { setting },
+    }, Date.now());
+    retry.retries = row.retries + 1;
+    await enqueueOutbox([retry]);
+  });
 }
 
 /** 队首可推送操作：nextRetryAt 已到期或为空，按 seq 稳定排序，单轮上限由调用方裁剪。 */

@@ -199,6 +199,43 @@ test("ai and raindrop settings sync; unknown setting keys stay rejected", async 
   });
 });
 
+test("setting op previously recorded as rejected re-applies on same operationId re-push", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const ai = settingOp("ai", { enabled: true, model: "@cf/zai-org/glm-4.7-flash", dailyCallLimit: 50 });
+    // 模拟旧服务端白名单只收 appearance 时留下的 rejected 幂等记录（0.1.10 前的真实存量）
+    const database = await mf.getD1Database("DB");
+    await database.prepare(
+      `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
+       VALUES ((SELECT id FROM users LIMIT 1), ?, 'setting', 'ai', 'rejected', 0, 0, NULL, 1)`,
+    ).bind(ai.operationId).run();
+    const pushed = await post(mf, cookie, [ai]);
+    assert.equal((await pushed.json()).results[0].result, "applied");
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    assert.equal(page.settings.find((row) => row.key === "ai").value.enabled, true);
+    // 应用后的重放仍走幂等 duplicate
+    const replay = await post(mf, cookie, [ai]);
+    assert.equal((await replay.json()).results[0].result, "duplicate");
+  });
+});
+
+test("rejected record re-push with still-invalid key rejects again without wedging the batch", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const junk = settingOp("token", { secret: "nope" });
+    const ai = settingOp("ai", { enabled: true, model: "@cf/zai-org/glm-4.7-flash", dailyCallLimit: 50 });
+    const database = await mf.getD1Database("DB");
+    await database.prepare(
+      `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
+       VALUES ((SELECT id FROM users LIMIT 1), ?, 'setting', 'token', 'rejected', 0, 0, NULL, 1)`,
+    ).bind(junk.operationId).run();
+    const pushed = await post(mf, cookie, [junk, ai]);
+    const results = (await pushed.json()).results;
+    assert.equal(results.find((row) => row.operationId === junk.operationId).result, "rejected");
+    assert.equal(results.find((row) => row.operationId === ai.operationId).result, "applied");
+  });
+});
+
 test("private space topic wraps travel through push and pull (FR-ENC-1)", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

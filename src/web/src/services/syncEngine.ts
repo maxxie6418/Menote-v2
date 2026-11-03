@@ -3,7 +3,7 @@ import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
 import { bulkPutMemoComments, deleteMemoComments } from "../db/memoCommentsRepo";
-import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseParkedSettings } from "../db/outboxRepo";
+import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseParkedSettings, settleSettingResult } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
@@ -87,6 +87,13 @@ async function saveConflictCopy(row: OutboxRow): Promise<void> {
 
 async function handleResult(row: OutboxRow, result: SyncOperationResult): Promise<void> {
   if (result.result === "applied") return deleteOutboxRows([row.seq!]);
+  if (row.entity === "setting") {
+    // 设置行：本地 rev 对齐服务端防乐观漂移；服务端无记录（rev 0）的冲突重推一次，
+    // 让已拨开的开关真正落库（否则 UI 显示已开启、推理仍 409）。
+    if (result.result === "duplicate") return settleSettingResult(row, result.rev, false);
+    if (result.result === "conflict") return settleSettingResult(row, result.detail.rev, result.detail.rev === 0);
+    return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);
+  }
   if (result.result === "duplicate") {
     // 服务端已有更新版本（重放/过期 LWW）：本地对齐版本号，条目内容随拉取收敛。
     if (row.entity === "item") {
@@ -139,7 +146,12 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
       else if (result) await handleResult(row, result);
       else await markOutboxError(row.seq!, "missing_result", backoffMs(row.retries));
     }
-    if (pending.length < PUSH_BATCH) return;
+    if (pending.length < PUSH_BATCH) {
+      // 结果处理可能重排了设置操作（冲突重推），队列仍有到期行则继续排空，
+      // 保证 flushSync 单轮内把开关推上服务端（AI 提交前依赖这一轮）。
+      if ((await listPendingOutbox(userId, PUSH_BATCH)).length === 0) return;
+      continue;
+    }
   }
 }
 

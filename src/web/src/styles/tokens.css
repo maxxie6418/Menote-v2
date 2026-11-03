@@ -154,6 +154,7 @@
   --app-tree-guide-x: 0.8125rem;   /* 13px 树连接线 x（父级箭头中心） */
   --app-tree-guide-stub: 0.9375rem;/* 15px 树连接线肘线长 */
   --app-tree-guide-opacity: 0.42;  /* 连接线透明度（与时间轴轴线同源） */
+  --app-tree-row-mid: 50%;         /* 树行垂直中点（连接线起点/肘线对齐基准） */
   --app-formseg-height: 2rem;      /* 32px 侧栏视图切换（凹槽分段） */
   --app-doc-pad: var(--app-space-34);
   /* 快速输入（FR-IA-5）：展开态与「新建笔记」共享区域。高度恒定，

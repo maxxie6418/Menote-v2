@@ -9,7 +9,7 @@ import { readMemoCommentState, readMemoOwnerState, upsertMemoComment } from "../
 import { putItemWraps, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, countItemReferences, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  appendSyncLog, countItemReferences, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
   readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, toTombstone, upsertItemRow, upsertTopicRow,
   readSettingState, writeSetting,
@@ -183,10 +183,15 @@ async function applySetting(ctx: ApplyContext, operation: OutboxOperation): Prom
 export async function applyOperation(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const previous = await readSyncOperation(ctx.db, ctx.userId, operation.operationId);
   if (previous) {
-    if (previous.result === "conflict") {
+    if (previous.result === "rejected") {
+      // rejected 不是已应用：旧服务端拒过的操作（如早前被拒的 ai 设置）在规则放行后
+      // 同 operationId 重推须重新判定，删记录后落入下方正常流程（G2 §6 幂等只覆盖已应用）。
+      await deleteSyncOperation(ctx.db, ctx.userId, operation.operationId);
+    } else if (previous.result === "conflict") {
       return { operationId: operation.operationId, result: "conflict", detail: { rev: previous.rev, metaRev: previous.metaRev, contentHash: previous.contentHash } };
+    } else {
+      return { operationId: operation.operationId, result: "duplicate", rev: previous.rev, metaRev: previous.metaRev, contentHash: previous.contentHash };
     }
-    return { operationId: operation.operationId, result: "duplicate", rev: previous.rev, metaRev: previous.metaRev, contentHash: previous.contentHash };
   }
   try {
     if (operation.entity === "item") {

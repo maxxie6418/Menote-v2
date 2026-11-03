@@ -213,6 +213,13 @@ export async function recordSyncOperation(
   ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now).run();
 }
 
+/** 撤销一条已知操作记录（G2 §6 幂等只覆盖已应用；rejected 记录重推前删除以重新判定）。 */
+export async function deleteSyncOperation(db: D1Database, userId: string, operationId: string): Promise<void> {
+  await db.prepare(
+    "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ?",
+  ).bind(userId, operationId).run();
+}
+
 export async function upsertItemRow(
   db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
 ): Promise<void> {
