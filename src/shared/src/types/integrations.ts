@@ -101,6 +101,21 @@ export interface McpBookmarkResult {
   result: "applied" | "duplicate";
 }
 
+/** 浏览器划选等来源提交的 Memo 载荷；服务端组装引用块与来源行，Memo 固定落时间线。 */
+export interface McpMemoRequest {
+  schemaVersion: 1;
+  operationId: string;
+  text: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+}
+
+export interface McpMemoResult {
+  itemId: string;
+  rev: number;
+  result: "applied" | "duplicate";
+}
+
 export interface BackupTarget {
   id: string;
   userId: string;

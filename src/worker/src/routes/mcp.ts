@@ -1,12 +1,13 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import type { McpBookmarkRequest, McpClipRequest } from "@menote/shared";
+import type { McpBookmarkRequest, McpClipRequest, McpMemoRequest } from "@menote/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { appendMcpAudit, incrementMcpRateLimit } from "../db/mcpAudit";
 import { findVisibleAttachmentOwner } from "../db/mcpPermissions";
 import { authenticateMcpToken } from "../services/mcpTokenManagementService";
 import { createClipNote } from "../services/mcpClipService";
+import { createMcpMemo } from "../services/mcpMemoService";
 import { appendMcpBookmark } from "../services/mcpBookmarkService";
 import { readUserAttachment, storeAttachment } from "../services/attachmentService";
 import { ensureSchemaReady } from "../services/authService";
@@ -38,6 +39,10 @@ const bookmarkInput = z.object({
   note: z.string().max(10_000).optional(), tags: z.array(z.string().max(200)).max(100),
   type: z.enum(["link", "article", "image", "video", "document", "audio"]),
   cover: z.string().url().max(4096).optional(), capturedAt: z.string().datetime({ offset: true }), important: z.boolean(),
+});
+const memoInput = z.object({
+  schemaVersion: z.literal(1), operationId: z.string().uuid(), text: z.string().min(1).max(20_000),
+  sourceUrl: z.string().url().max(4_096).optional(), sourceTitle: z.string().max(500).optional(),
 });
 
 function decodeBase64(value: string): ArrayBuffer {
@@ -138,6 +143,29 @@ mcpRoutes.post("/api/mcp", async (c) => {
               result: error instanceof Error ? error.message.slice(0, 100) : "clip_failed", operationId, at: now });
           }
           return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "clip_failed" }] };
+        }
+      });
+    }
+    if (token.permissions.includes("item:create") && token.includeMemos) {
+      server.registerTool("create_memo", {
+        description: "Create a Memo (short-form timeline entry) in Menote. Does not read existing project content.",
+        inputSchema: memoInput,
+      }, async (raw) => {
+        const request = raw as McpMemoRequest;
+        const operationId = typeof request.operationId === "string" ? request.operationId : null;
+        try {
+          const result = await createMcpMemo({ db: c.env.DB, userId: token.userId, tokenId: token.id, now }, request);
+          await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+            tool: "create_memo", itemId: result.itemId, revBefore: null, revAfter: result.rev,
+            result: result.result, operationId: request.operationId, at: now });
+          return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+        } catch (error) {
+          if (operationId) {
+            await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+              tool: "create_memo", itemId: operationId, revBefore: null, revAfter: null,
+              result: error instanceof Error ? error.message.slice(0, 100) : "memo_failed", operationId, at: now });
+          }
+          return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "memo_failed" }] };
         }
       });
     }

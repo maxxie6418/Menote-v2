@@ -26,6 +26,7 @@ export {
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
   type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
   type McpClipRequest, type McpClipResult, type McpBookmarkRequest, type McpBookmarkResult,
+  type McpMemoRequest, type McpMemoResult,
 } from "./types/integrations";
 export type { UserSetting, MonitorSample } from "./types/settings";
 export { isClipTemplateV1 } from "./types/clipTemplate";
