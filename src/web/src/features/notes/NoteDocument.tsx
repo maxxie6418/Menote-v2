@@ -31,12 +31,14 @@ interface NoteDocumentProps {
   onBack: () => void;
   showBack: boolean;
   crumb: string;
+  /** 清单右键「AI 概述」：token 变化时打开对话框并开始生成。 */
+  openSummaryToken?: number;
 }
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; message: string };
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
-export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb }: NoteDocumentProps) {
+export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
@@ -51,6 +53,12 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [aiAssist, setAiAssist] = useState(false);
+  const [autoSummary, setAutoSummary] = useState(false);
+  useEffect(() => {
+    if (!openSummaryToken) return;
+    setAutoSummary(true);
+    setAiAssist(true);
+  }, [openSummaryToken]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
@@ -236,7 +244,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
                     <Clock />版本历史
                   </button>
                   {!isTableDoc && (
-                    <button type="button" role="menuitem" onClick={() => { setAiAssist(true); setMoreOpen(false); }}>
+                    <button type="button" role="menuitem" onClick={() => { setAutoSummary(false); setAiAssist(true); setMoreOpen(false); }}>
                       <Sparkles />AI 助手
                     </button>
                   )}
@@ -333,12 +341,13 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           title={item.title ?? ""}
           tags={item.tags}
           markdown={draft ?? item.content.markdown}
+          autoRun={autoSummary ? "summary" : undefined}
           onApplySummary={(next) => { void saveFullMarkdown(next); }}
           onApplyTags={async (recommended) => {
             const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
             await saveItemMeta(userId, item.id, { tags: merged });
           }}
-          onClose={() => setAiAssist(false)}
+          onClose={() => { setAiAssist(false); setAutoSummary(false); }}
         />
       )}
       {encrypting && item && (

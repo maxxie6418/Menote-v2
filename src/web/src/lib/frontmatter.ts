@@ -186,3 +186,9 @@ export function readPropRows(markdown: string, namespace: string): PropRow[] {
 export function removeProp(markdown: string, key: string): string {
   return writeValue(markdown, key, null);
 }
+
+/** 确认保存的 AI 概述（FR-AI-1）：数据键 `summary`，属性区显示名「概述」。先写值再补定义，避免定义写入把已有值清成空串。 */
+export function writeSummaryProperty(markdown: string, summary: string): string {
+  const withValue = writeValue(markdown, "summary", summary);
+  return writeDef(withValue, PROPS_KEY, "summary", { type: "multiline", label: "概述" });
+}

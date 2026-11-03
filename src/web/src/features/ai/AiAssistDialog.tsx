@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import type { AiSettings, AiTaskKind, AiTaskView, AiUsageSummary } from "@menote/shared";import { readAiSettings } from "../../services/aiSettingsService";
+import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiTaskKind, type AiTaskView, type AiUsageSummary } from "@menote/shared";
+import { readAiSettings } from "../../services/aiSettingsService";
 import { pollAiTask, readAiUsage, submitAiTask } from "../../services/aiService";
-import { splitFrontmatter, writeValue } from "../../lib/frontmatter";
+import { splitFrontmatter, writeSummaryProperty } from "../../lib/frontmatter";
 
 export interface AiAssistDialogProps {
   userId: string;
@@ -11,6 +12,8 @@ export interface AiAssistDialogProps {
   tags: string[];
   /** 完整 Markdown（含 frontmatter）；提交给推理的正文会剥离 YAML。 */
   markdown: string;
+  /** 从清单「AI 概述」进入时自动提交一次摘要，仍须确认后才写入。 */
+  autoRun?: AiTaskKind;
   onApplySummary: (nextMarkdown: string) => void;
   onApplyTags: (tags: string[]) => Promise<void>;
   onClose: () => void;
@@ -19,7 +22,7 @@ export interface AiAssistDialogProps {
 type RunState = { kind: "idle" } | { kind: "running" } | { kind: "error"; message: string };
 
 /** AI 助手对话框（FR-AI-2 / 主文档 13.3）：摘要与标签推荐，手动触发、确认后才写入。 */
-export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplySummary, onApplyTags, onClose }: AiAssistDialogProps) {
+export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun, onApplySummary, onApplyTags, onClose }: AiAssistDialogProps) {
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [run, setRun] = useState<RunState>({ kind: "idle" });
   const [task, setTask] = useState<AiTaskView | null>(null);
@@ -28,7 +31,11 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplyS
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => { void readAiSettings(userId).then((value) => { if (!cancelled) setSettings(value); }); };
+    const refresh = () => {
+      void readAiSettings(userId).then((value) => {
+        if (!cancelled) setSettings(value ? normalizeAiSettings(value) : { ...DEFAULT_AI_SETTINGS });
+      });
+    };
     refresh();
     window.addEventListener("menote:ai-settings", refresh);
     return () => { cancelled = true; window.removeEventListener("menote:ai-settings", refresh); };
@@ -63,6 +70,13 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplyS
     }
   }, [itemId, markdown, tags, title]);
 
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoRun || !settings?.enabled || autoStarted.current) return;
+    autoStarted.current = true;
+    void runTask(autoRun);
+  }, [autoRun, runTask, settings?.enabled]);
+
   const summary = task?.status === "done" && task.result?.type === "summary" ? task.result.summary : null;
   const recommended = task?.status === "done" && task.result?.type === "tags" ? task.result.tags : null;
 
@@ -85,7 +99,7 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplyS
               <div className="mn-dialog-actions">
                 <button type="button" className="mn-auth-submit" disabled={run.kind === "running"}
                   onClick={() => { void runTask("summary"); }}>
-                  <Sparkles /> 生成摘要
+                  <Sparkles /> 生成概述
                 </button>
                 <button type="button" className="mn-auth-submit" disabled={run.kind === "running"}
                   onClick={() => { void runTask("tags"); }}>
@@ -97,11 +111,11 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplyS
               {run.kind === "error" && <p className="mn-auth-hint" role="alert">{run.message}</p>}
               {summary !== null && (
                 <div>
-                  <p className="mn-setlabel">摘要建议（确认后写入属性区 summary，可再编辑）</p>
+                  <p className="mn-setlabel">概述建议（确认后保存到标题下的属性「概述」，原文不变，可再编辑）</p>
                   <p className="mn-sethint">{summary}</p>
                   <div className="mn-dialog-actions">
-                    <button type="button" className="mn-auth-submit" onClick={() => { onApplySummary(writeValue(markdown, "summary", summary)); onClose(); }}>
-                      采用
+                    <button type="button" className="mn-auth-submit" onClick={() => { onApplySummary(writeSummaryProperty(markdown, summary)); onClose(); }}>
+                      保存到属性区
                     </button>
                     <button type="button" className="mn-auth-link" onClick={() => { void runTask("summary", true); }}>重新生成</button>
                   </div>

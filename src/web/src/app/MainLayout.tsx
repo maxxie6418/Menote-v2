@@ -16,6 +16,7 @@ interface MainLayoutProps {
   onMoveNote?: (item: Item) => void | Promise<unknown>;
   onToggleStar?: (item: Item) => void | Promise<unknown>;
   onTrashNote?: (item: Item) => void | Promise<unknown>;
+  onAiSummary?: (item: Item) => void;
   emptyTitle: string;
   emptyDetail: string;
   document: ReactNode;
@@ -26,7 +27,7 @@ interface MainLayoutProps {
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const filtering = query.trim().length > 0;
@@ -73,7 +74,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
             <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索当前清单" aria-label="搜索当前清单" />
           </label>
           {viewMode === "list"
-            ? <NoteList items={shown} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={filtering ? "没有匹配的内容" : emptyTitle} emptyDetail={filtering ? "换个词，或清空搜索。" : emptyDetail} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} />
+            ? <NoteList items={shown} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={filtering ? "没有匹配的内容" : emptyTitle} emptyDetail={filtering ? "换个词，或清空搜索。" : emptyDetail} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
             : <NoteGrid items={shown} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={filtering ? "没有匹配的内容" : emptyTitle} emptyDetail={filtering ? "换个词，或清空搜索。" : emptyDetail} />}
         </section>
       )}

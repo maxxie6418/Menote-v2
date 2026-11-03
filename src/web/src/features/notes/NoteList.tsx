@@ -14,10 +14,11 @@ interface NoteListProps {
   onMove?: (item: Item) => void;
   onToggleStar?: (item: Item) => void;
   onTrash?: (item: Item) => void;
+  onAiSummary?: (item: Item) => void;
 }
 
 /** 清单视图（FR-IA-3 穿透聚合后的扁平列表；行样式自 M1.2 git 历史恢复）。 */
-export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, onMove, onToggleStar, onTrash }: NoteListProps) {
+export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, onMove, onToggleStar, onTrash, onAiSummary }: NoteListProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Item; trigger: HTMLElement } | null>(null);
   if (!items) return <div className="mn-empty" role="status" aria-busy="true" />;
   if (items.length === 0) return <NoteEmptyState title={emptyTitle} detail={emptyDetail} />;
@@ -62,6 +63,7 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
           onMove={() => onMove(contextMenu.item)}
           onToggleStar={() => onToggleStar(contextMenu.item)}
           onTrash={() => onTrash(contextMenu.item)}
+          onAiSummary={onAiSummary ? () => onAiSummary(contextMenu.item) : undefined}
         />
       )}
     </div>
@@ -69,7 +71,7 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
 }
 
 function NoteContextMenu({
-  item, x, y, returnFocus, onClose, onMove, onToggleStar, onTrash,
+  item, x, y, returnFocus, onClose, onMove, onToggleStar, onTrash, onAiSummary,
 }: {
   item: Item;
   x: number;
@@ -79,10 +81,13 @@ function NoteContextMenu({
   onMove: () => void;
   onToggleStar: () => void;
   onTrash: () => void;
+  onAiSummary?: () => void;
 }) {
+  const canSummarize = item.type === "note" && item.content.scope === "plain" && onAiSummary;
   const actions: ContextMenuAction[] = [
     { label: "移动到…", onSelect: onMove },
     { label: item.starred ? "取消收藏" : "加入收藏", onSelect: onToggleStar },
+    ...(canSummarize ? [{ label: "AI 概述", onSelect: onAiSummary, separatorBefore: true }] : []),
     { label: "移入回收站", onSelect: onTrash, destructive: true, separatorBefore: true },
   ];
   return <ContextMenu x={x} y={y} label={`笔记「${item.title}」操作`} actions={actions} onClose={onClose} returnFocus={returnFocus} />;

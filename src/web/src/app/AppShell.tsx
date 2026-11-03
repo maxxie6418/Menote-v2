@@ -114,11 +114,19 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [settingsOpen, setSettingsOpen] = useState(() => route.kind === "settings" || route.kind === "me");
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(() => route.kind === "settings" ? route.section : "appearance");
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
+  const [summaryRequest, setSummaryRequest] = useState<{ id: string; token: number } | null>(null);
   const userId = user.id;
   const settingsReturn = useRef<AppRoute>({ kind: "home" });
   const moveNote = useCallback((item: Item) => setOrganizingItem(item), []);
   const toggleNoteStar = useCallback((item: Item) =>
     saveItemMeta(userId, item.id, { starred: !item.starred }), [userId]);
+  const openAiSummary = useCallback((item: Item) => {
+    if (item.type !== "note" || item.content.scope !== "plain") return;
+    setNoteId(item.id);
+    setMobilePane("doc");
+    navigate(sectionRoute(section, item.id));
+    setSummaryRequest({ id: item.id, token: Date.now() });
+  }, [navigate, section]);
   const trashNote = useCallback(async (item: Item) => {
     if (!window.confirm(`将「${item.title}」移入回收站？之后可恢复。`)) return;
     await softDeleteItem(userId, item.id);
@@ -455,6 +463,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         onMoveNote={moveNote}
         onToggleStar={toggleNoteStar}
         onTrashNote={trashNote}
+        onAiSummary={openAiSummary}
         emptyTitle={emptyTitle}
         emptyDetail={emptyDetail}
         mobilePane={mobilePane}
@@ -470,6 +479,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
             showBack={layout === "tablet"}
             crumb={title}
+            openSummaryToken={summaryRequest?.id === noteId ? summaryRequest.token : undefined}
           />
         ) : (
           <article className="mn-doc" aria-label="文档区">

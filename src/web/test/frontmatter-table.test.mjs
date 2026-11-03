@@ -38,6 +38,15 @@ test("reserved namespaces props/fields carry type definitions (开放项 #5)", (
   assert.deepEqual(rows.find((row) => row.key === "due").raw, "2026-11-01");
 });
 
+test("confirmed AI summary is a labeled 概述 property and keeps the body", () => {
+  const next = fm.writeSummaryProperty("# 正文\n\n段落", "两句话的概述。");
+  const row = fm.readPropRows(next, fm.PROPS_KEY).find((entry) => entry.key === "summary");
+  assert.equal(row.raw, "两句话的概述。");
+  assert.equal(row.def.type, "multiline");
+  assert.equal(row.def.label, "概述");
+  assert.match(next, /# 正文/);
+});
+
 test("table field definitions do not create property values (FR-TBL-3 / FR-PROP-4)", () => {
   const markdown = fm.writeDef("", fm.FIELDS_KEY, "状态", { type: "select", options: ["待办", "完成"] });
   const data = fm.parseFrontmatterData(markdown);
