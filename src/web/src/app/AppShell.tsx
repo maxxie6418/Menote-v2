@@ -11,6 +11,7 @@ import { subscribeLocalChanges } from "../lib/broadcast";
 import { useLockVersion, useSectionItems, useTopics } from "../services/contentHooks";
 import { saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
+import { prefetchSettings } from "../services/settingsPrefetch";
 import { requestSync } from "../services/syncEngine";
 import { isTopicUnlocked, lockIfIdle } from "../services/keyringService";
 import { PrivateSpaceDialog } from "../features/encryption";
@@ -235,6 +236,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
+  useEffect(() => { prefetchSettings(userId); }, [userId]);
 
   // FR-ENC-4 不活动自动锁定（默认 15 分钟）：周期检查，锁定触发全局重渲染。
   useEffect(() => {

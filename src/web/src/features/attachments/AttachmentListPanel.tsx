@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Attachment } from "@menote/shared";
 import { attachmentUrl, deleteAttachment, listAttachmentReferences, listAttachments, type AttachmentDetails } from "../../services/attachmentService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 interface AttachmentListPanelProps { userId: string }
 function formatSize(size: number): string {
@@ -11,15 +12,18 @@ function formatSize(size: number): string {
 
 /** 附件管理：显示文件名、缩略图与引用文章；删除由服务端再次校验零引用。 */
 export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
-  const [attachments, setAttachments] = useState<Attachment[] | null>(null);
-  const [references, setReferences] = useState<Record<string, AttachmentDetails>>({});
+  const [attachments, setAttachments] = useState<Attachment[] | null>(() => peek<Attachment[]>(SETTINGS_CACHE.attachments(userId)) ?? null);
+  const [references, setReferences] = useState<Record<string, AttachmentDetails>>(() => peek<Record<string, AttachmentDetails>>(SETTINGS_CACHE.attachmentRefs(userId)) ?? {});
   const [error, setError] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [message, setMessage] = useState("");
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (fresh = false) => {
     try {
-      const [rows, refs] = await Promise.all([listAttachments(userId), listAttachmentReferences(userId)]);
+      const [rows, refs] = await Promise.all([
+        loadShared(SETTINGS_CACHE.attachments(userId), () => listAttachments(userId), fresh),
+        loadShared(SETTINGS_CACHE.attachmentRefs(userId), () => listAttachmentReferences(userId), fresh),
+      ]);
       setAttachments(rows);
       setReferences(refs);
       setError(false);
@@ -34,12 +38,12 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
     setMessage("");
     let removed = 0;
     for (const attachment of orphaned) if (await deleteAttachment(attachment.sha256)) removed += 1;
-    await refresh();
+    await refresh(true);
     setMessage(`已清理 ${removed} 个未引用附件。`);
     setCleaning(false);
   };
   const remove = async (sha256: string) => {
-    if (await deleteAttachment(sha256)) await refresh();
+    if (await deleteAttachment(sha256)) await refresh(true);
   };
 
   return (

@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import {
   type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget,
 } from "../../services/backupService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 interface BackupPanelProps { userId: string }
 
 /** 备份目标管理（G9，FR-BAK-1/2/8）：目标 CRUD、凭据复显（C-7）、手动推送一次、运行状态。 */
 export function BackupPanel({ userId }: BackupPanelProps) {
   void userId;
-  const [targets, setTargets] = useState<TargetView[] | null>(null);
+  const [targets, setTargets] = useState<TargetView[] | null>(() => peek<TargetView[]>(SETTINGS_CACHE.targets) ?? null);
   const [kind, setKind] = useState<"webdav" | "s3">("webdav");
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
@@ -25,8 +26,8 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
 
-  const refresh = useCallback(() => {
-    listTargets().then(setTargets);
+  const refresh = useCallback((fresh = false) => {
+    void loadShared(SETTINGS_CACHE.targets, listTargets, fresh).then(setTargets);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -35,7 +36,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     const ok = await createTarget({ kind, endpoint, bucket: bucket || null, username: username || null, secret, schedule, name: name || undefined, remotePath, retentionCount: Math.max(0, Number.parseInt(retentionCount, 10) || 0) });
     if (ok) {
       setSecret(""); setEndpoint(""); setBucket(""); setUsername(""); setName(""); setRemotePath("menote"); setRetentionCount("0");
-      refresh();
+      refresh(true);
     } else {
       setMessage("创建失败：检查端点与凭据。");
     }
@@ -74,7 +75,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     setMessage("推送中…");
     const result = await runTargetOnce(id);
     setMessage(result.ok ? `推送完成（${result.shards} 个月度分片）。` : `推送失败：${result.error ?? "未知错误"}`);
-    refresh();
+    refresh(true);
   };
 
   const reveal = async (id: string) => {
@@ -84,13 +85,13 @@ export function BackupPanel({ userId }: BackupPanelProps) {
 
   const toggleEnabled = async (target: TargetView) => {
     await updateTarget(target.id, { enabled: !target.enabled });
-    refresh();
+    refresh(true);
   };
 
   const remove = async (id: string) => {
     if (!window.confirm("删除此备份目标？（远端已备份内容不受影响）")) return;
     await deleteTarget(id);
-    refresh();
+    refresh(true);
   };
 
   return (

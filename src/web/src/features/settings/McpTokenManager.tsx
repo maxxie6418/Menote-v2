@@ -10,6 +10,7 @@ import {
 import {
   createMcpToken, listMcpScopeTopics, listMcpTokens, revealMcpToken, revokeMcpToken, updateMcpToken,
 } from "../../services/mcpTokenService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -47,18 +48,22 @@ async function copyText(value: string): Promise<void> {
 
 export function McpTokenManager() {
   const endpoint = useMemo(() => `${window.location.origin}/api/mcp`, []);
-  const [tokens, setTokens] = useState<McpTokenView[]>([]);
-  const [topics, setTopics] = useState<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>([]);
-  const [loading, setLoading] = useState(true);
+  const [tokens, setTokens] = useState<McpTokenView[]>(() => (peek<McpTokenView[]>(SETTINGS_CACHE.tokens) ?? []).filter((token) => token.revokedAt === null));
+  const [topics, setTopics] = useState<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(() => peek<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(SETTINGS_CACHE.topics) ?? []);
+  const [loading, setLoading] = useState(() => peek(SETTINGS_CACHE.tokens) === undefined || peek(SETTINGS_CACHE.topics) === undefined);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const refresh = useCallback(async (fresh = false) => {
+    const known = peek(SETTINGS_CACHE.tokens) !== undefined && peek(SETTINGS_CACHE.topics) !== undefined;
+    if (!known) setLoading(true);
     try {
-      const [nextTokens, nextTopics] = await Promise.all([listMcpTokens(), listMcpScopeTopics()]);
+      const [nextTokens, nextTopics] = await Promise.all([
+        loadShared(SETTINGS_CACHE.tokens, listMcpTokens, fresh),
+        loadShared(SETTINGS_CACHE.topics, listMcpScopeTopics, fresh),
+      ]);
       setTokens(nextTokens.filter((token) => token.revokedAt === null));
       setTopics(nextTopics);
     } catch (error) {
@@ -80,7 +85,7 @@ export function McpTokenManager() {
       setVisibleTokens((current) => ({ ...current, [created.id]: secret }));
       setCreating(false);
       setMessage("Token 已创建。可复制地址和 Token 配置客户端；Token 可随时在此重新查看。");
-      await refresh();
+      await refresh(true);
     } catch (error) { setMessage(errorMessage(error)); }
   };
 
@@ -89,7 +94,7 @@ export function McpTokenManager() {
       await updateMcpToken(id, name, config);
       setEditingId(null);
       setMessage("Token 名称与权限已更新，后续请求立即使用新配置。");
-      await refresh();
+      await refresh(true);
     } catch (error) { setMessage(errorMessage(error)); }
   };
 
@@ -108,7 +113,7 @@ export function McpTokenManager() {
       await revokeMcpToken(token.id);
       setVisibleTokens((current) => { const next = { ...current }; delete next[token.id]; return next; });
       setMessage("Token 已撤销，后续请求立即失效。");
-      await refresh();
+      await refresh(true);
     } catch (error) { setMessage(errorMessage(error)); }
   };
 

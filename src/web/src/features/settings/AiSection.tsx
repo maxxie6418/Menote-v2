@@ -2,30 +2,36 @@ import { useEffect, useState } from "react";
 import { AI_MODEL_OPTIONS, DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings, updateAiSettings } from "../../services/aiSettingsService";
 import { readAiUsage } from "../../services/aiService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 /** AI 助手设置节（FR-AI-2）：开关、模型切换、每日额度；用量为本应用精确计数（区别于官方账单口径）。 */
 export function AiSection({ userId }: { userId: string }) {
-  const [settings, setSettings] = useState<AiSettings | null>(null);
-  const [usage, setUsage] = useState<AiUsageSummary | null>(null);
+  const [settings, setSettings] = useState<AiSettings | null>(() => {
+    const cached = peek<AiSettings | null>(SETTINGS_CACHE.ai(userId));
+    if (cached === undefined) return null;
+    return cached ? normalizeAiSettings(cached) : { ...DEFAULT_AI_SETTINGS };
+  });
+  const [usage, setUsage] = useState<AiUsageSummary | null>(() => peek<AiUsageSummary | null>(SETTINGS_CACHE.usage) ?? null);
   const [limitDraft, setLimitDraft] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => {
-      void readAiSettings(userId).then((value) => {
+    const refresh = (fresh: boolean) => {
+      void loadShared(SETTINGS_CACHE.ai(userId), () => readAiSettings(userId), fresh).then((value) => {
         // 无本地记录时服务返回 null，由调用方回退默认（关闭）。不能把 null 一直当成加载中。
         if (!cancelled) setSettings(value ? normalizeAiSettings(value) : { ...DEFAULT_AI_SETTINGS });
       });
     };
-    refresh();
-    window.addEventListener("menote:ai-settings", refresh);
-    return () => { cancelled = true; window.removeEventListener("menote:ai-settings", refresh); };
+    refresh(false);
+    const onChange = () => refresh(true);
+    window.addEventListener("menote:ai-settings", onChange);
+    return () => { cancelled = true; window.removeEventListener("menote:ai-settings", onChange); };
   }, [userId]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void readAiUsage(controller.signal).then((value) => { if (value) setUsage(value); }).catch(() => {});
-    return () => controller.abort();
+    let cancelled = false;
+    void loadShared(SETTINGS_CACHE.usage, () => readAiUsage()).then((value) => { if (!cancelled && value) setUsage(value); }).catch(() => undefined);
+    return () => { cancelled = true; };
   }, [settings]);
 
   if (!settings) return <p className="mn-sethint">设置加载中…</p>;

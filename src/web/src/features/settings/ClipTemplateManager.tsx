@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isClipTemplateV1, type ClipTemplateV1, type StoredClipTemplate } from "@menote/shared";
 import { emptyClipTemplateDraft, listClipTemplates, removeClipTemplate, saveClipTemplate } from "../../services/clipTemplateService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 interface ImportReport {
   unsupported?: unknown[];
@@ -24,20 +25,20 @@ function parseTemplateDraft(draft: string): ClipTemplateV1 | null {
 }
 
 export function ClipTemplateManager() {
-  const [templates, setTemplates] = useState<StoredClipTemplate[]>([]);
+  const [templates, setTemplates] = useState<StoredClipTemplate[]>(() => peek<StoredClipTemplate[]>(SETTINGS_CACHE.clipTemplates) ?? []);
   const [newDraft, setNewDraft] = useState(emptyClipTemplateDraft);
   const [editing, setEditing] = useState<TemplateEdit | null>(null);
   const [imported, setImported] = useState<ClipTemplateV1 | null>(null);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
-  const [listState, setListState] = useState<"loading" | "ready" | "error">("loading");
+  const [listState, setListState] = useState<"loading" | "ready" | "error">(() => peek(SETTINGS_CACHE.clipTemplates) === undefined ? "loading" : "ready");
   const [listError, setListError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function refresh() {
-    setListState("loading");
+  async function refresh(fresh = false) {
+    if (peek(SETTINGS_CACHE.clipTemplates) === undefined) setListState("loading");
     try {
-      setTemplates(await listClipTemplates());
+      setTemplates(await loadShared(SETTINGS_CACHE.clipTemplates, listClipTemplates, fresh));
       setListError("");
       setListState("ready");
     } catch (error) {
@@ -88,13 +89,13 @@ export function ClipTemplateManager() {
     setBusy(true);
     try {
       await saveClipTemplate(template, null);
-      await refresh();
+      await refresh(true);
       setNewDraft(emptyClipTemplateDraft());
       setImported(null);
       setMessage(`规则“${template.name}”已创建；默认状态为${template.enabled ? "启用" : "停用"}。`);
     } catch (error) {
       if (error instanceof Error && error.message === "version_conflict") {
-        await refresh().catch(() => undefined);
+        await refresh(true).catch(() => undefined);
         setMessage("规则 ID 已存在，列表已刷新；请从已有规则中编辑。");
       } else {
         setMessage(error instanceof Error && error.message === "invalid_template" ? "规则字段或选择器格式不正确。" : "创建失败，请重试。");
@@ -111,12 +112,12 @@ export function ClipTemplateManager() {
     try {
       await saveClipTemplate(template, editing.version);
       setEditing(null);
-      await refresh();
+      await refresh(true);
       setMessage(`规则“${template.name}”已更新。`);
     } catch (error) {
       if (error instanceof Error && error.message === "version_conflict") {
         setEditing(null);
-        await refresh().catch(() => undefined);
+        await refresh(true).catch(() => undefined);
         setMessage("规则已被其他修改更新，列表已刷新；请重新编辑最新版本。");
       } else {
         setMessage(error instanceof Error && error.message === "invalid_template" ? "规则字段或选择器格式不正确。" : "更新失败，请重试。");
@@ -143,10 +144,10 @@ export function ClipTemplateManager() {
     try {
       const stored = templates.find((entry) => entry.template.id === template.id);
       await saveClipTemplate({ ...template, enabled }, stored?.version ?? null);
-      await refresh();
+      await refresh(true);
       setMessage(enabled ? "规则已启用。" : "规则已停用。插件同步后将更新本地缓存。");
     } catch {
-      await refresh().catch(() => undefined);
+      await refresh(true).catch(() => undefined);
       setMessage("规则可能已被其他修改更新，列表已重新读取。");
     } finally { setBusy(false); }
   }
@@ -156,7 +157,7 @@ export function ClipTemplateManager() {
     try {
       await removeClipTemplate(id);
       if (editing?.id === id) setEditing(null);
-      await refresh();
+      await refresh(true);
       setMessage("规则已删除；插件下次同步时会移除缓存。");
     } catch {
       setMessage("删除规则失败。");
@@ -192,7 +193,7 @@ export function ClipTemplateManager() {
     <section className="mn-cliptemplate-section" aria-labelledby="mn-cliptemplate-existing-heading">
       <div className="mn-cliptemplate-heading">
         <h4 className="mn-setlabel" id="mn-cliptemplate-existing-heading">已有规则</h4>
-        <button type="button" className="mn-btn" disabled={busy || listState === "loading"} onClick={() => void refresh().catch(() => undefined)}>刷新列表</button>
+        <button type="button" className="mn-btn" disabled={busy || listState === "loading"} onClick={() => void refresh(true).catch(() => undefined)}>刷新列表</button>
       </div>
       {listState === "loading" && <p className="mn-sethint" role="status">正在读取账号规则…</p>}
       {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败：{listError}</p>}

@@ -6,6 +6,7 @@ import {
   bindRaindropTable, clearRaindropToken, previewRaindropPush, pullRaindropNow, pushRaindropNow,
   readRaindropStatus, saveRaindropToken, unbindRaindropTable,
 } from "../../services/raindropService";
+import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 const INTERVAL_LABELS: Record<number, string> = { 1: "每小时", 6: "每 6 小时", 24: "每天" };
 const DIFF_LABELS: Record<string, string> = {
@@ -54,7 +55,7 @@ const STATUS_LABELS = { ok: "成功", partial: "部分完成", failed: "失败" 
 export function RaindropPanel({ userId }: { userId: string }) {
   const snapshot = useHomeSnapshot(userId);
   const tables = useMemo(() => bindableTables(snapshot.items, snapshot.topics), [snapshot.items, snapshot.topics]);
-  const [status, setStatus] = useState<RaindropStatusView | null>(null);
+  const [status, setStatus] = useState<RaindropStatusView | null>(() => peek<RaindropStatusView | null>(SETTINGS_CACHE.raindropStatus) ?? null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
@@ -66,15 +67,11 @@ export function RaindropPanel({ userId }: { userId: string }) {
   const [preview, setPreview] = useState<RaindropPushPreview | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
 
-  const refresh = (signal?: AbortSignal) => {
-    void readRaindropStatus(signal).then((value) => { if (value) setStatus(value); }).catch(() => {});
+  const refresh = (fresh = false) => {
+    void loadShared(SETTINGS_CACHE.raindropStatus, () => readRaindropStatus(), fresh).then((value) => { if (value) setStatus(value); }).catch(() => undefined);
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
-    refresh(controller.signal);
-    return () => controller.abort();
-  }, []);
+  useEffect(() => { refresh(); }, []);
 
   const binding = status?.binding ?? null;
 
@@ -97,7 +94,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
     try {
       await action();
       setMessage(successText);
-      refresh();
+      refresh(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "操作失败");
     } finally {
@@ -206,7 +203,6 @@ export function RaindropPanel({ userId }: { userId: string }) {
                 onClick={() => void run(async () => {
                   const outcome = await pullRaindropNow();
                   setMessage(`拉取完成：新增 ${outcome.pulledNew}、更新 ${outcome.pulledUpdated}、冲突 ${outcome.conflicts}、远端消失 ${outcome.remoteMissing}、跳过 ${outcome.skipped}`);
-                  refresh();
                 }, "")}>立即拉取</button>
             </>
           : null}
@@ -274,7 +270,6 @@ export function RaindropPanel({ userId }: { userId: string }) {
                         const outcome = await pushRaindropNow(true);
                         setPreview(null);
                         setMessage(`推送完成：创建 ${outcome.pushCreated}、更新 ${outcome.pushUpdated}、冲突 ${outcome.conflicts}、失败 ${outcome.pushFailed}、跳过 ${outcome.skipped}`);
-                        refresh();
                       }, "")}>确认推送到 Raindrop</button>
                   </div>
                 </div>
