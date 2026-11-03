@@ -215,6 +215,20 @@ export async function runSyncCycle(userId: string): Promise<void> {
   }
 }
 
+/**
+ * 等到同步锁后跑完一轮。开启 AI 或刚改完的笔记必须先推上服务端，
+ * 否则推理请求会在服务端看到「未启用」或「条目不存在」。
+ */
+export async function flushSync(userId: string): Promise<void> {
+  if (typeof navigator === "undefined" || !navigator.locks) {
+    await runSyncCycle(userId);
+    return;
+  }
+  await navigator.locks.request("menote-sync", async () => {
+    await runSyncCycle(userId);
+  });
+}
+
 /** 主锁调度（G2 §8）：抢不到锁的标签页直接返回，由持锁者同步并广播刷新。 */
 export async function requestSync(userId: string): Promise<void> {
   if (typeof navigator === "undefined" || !navigator.locks) {

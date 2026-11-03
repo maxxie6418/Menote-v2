@@ -2,8 +2,7 @@ import type { AiTaskKind, AiTaskView, AiUsageSummary } from "@menote/shared";
 
 /** AI 助手 REST 客户端（FR-AI-2）：任务提交/轮询与当日用量。错误消息来自服务端中文文案。 */
 
-async function errorFrom(response: Response, fallback: string): Promise<string> {
-  const body: unknown = await response.json().catch(() => null);
+function messageFrom(body: unknown, fallback: string): string {
   return typeof body === "object" && body !== null && typeof Reflect.get(body, "error") === "string"
     ? String(Reflect.get(body, "error"))
     : fallback;
@@ -24,7 +23,7 @@ export async function submitAiTask(input: { itemId: string; kind: AiTaskKind; ti
     body: JSON.stringify(input), cache: "no-store",
   });
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(await errorFrom(response, "AI 任务提交失败"));
+  if (!response.ok) throw new Error(messageFrom(body, "AI 任务提交失败"));
   const task = typeof body === "object" && body !== null ? Reflect.get(body, "task") : undefined;
   if (!validTask(task)) throw new Error("AI 任务响应格式无效");
   return task;
@@ -34,7 +33,7 @@ export async function readAiTask(id: string, signal?: AbortSignal): Promise<AiTa
   const response = await fetch(`/api/ai/tasks/${encodeURIComponent(id)}`, { signal, cache: "no-store" });
   if (response.status === 404) return null;
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(await errorFrom(response, "AI 任务查询失败"));
+  if (!response.ok) throw new Error(messageFrom(body, "AI 任务查询失败"));
   const task = typeof body === "object" && body !== null ? Reflect.get(body, "task") : undefined;
   return validTask(task) ? task : null;
 }

@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiTaskKind, type AiTaskView, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings } from "../../services/aiSettingsService";
 import { pollAiTask, readAiUsage, submitAiTask } from "../../services/aiService";
+import { flushSync } from "../../services/syncEngine";
 import { splitFrontmatter, writeSummaryProperty } from "../../lib/frontmatter";
 
 export interface AiAssistDialogProps {
@@ -57,9 +58,13 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
     setRun({ kind: "running" });
     setTask(null);
     try {
-      const view = await submitAiTask({
-        itemId, kind, title, tags, content: splitFrontmatter(markdown).body, force,
-      });
+      const content = splitFrontmatter(markdown).body.trim();
+      if (!content) {
+        setRun({ kind: "error", message: "这篇没有可提交的正文" });
+        return;
+      }
+      await flushSync(userId);
+      const view = await submitAiTask({ itemId, kind, title, tags, content, force });
       const settled = view.status === "done" || view.status === "failed" ? view : await pollAiTask(view.id);
       setTask(settled);
       if (settled?.status === "failed") setRun({ kind: "error", message: settled.error ?? "AI 任务失败" });
@@ -68,7 +73,7 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
     } catch (cause) {
       setRun({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
     }
-  }, [itemId, markdown, tags, title]);
+  }, [itemId, markdown, tags, title, userId]);
 
   const autoStarted = useRef(false);
   useEffect(() => {

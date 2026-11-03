@@ -133,19 +133,25 @@ function buildMessages(kind: AiTaskKind, title: string, tags: string[], content:
 
 interface ModelReply { response?: unknown; choices?: Array<{ message?: { content?: unknown } }>; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } }
 
+/** 去掉模型仍可能夹带的思考段，避免把推理过程当成概述或标签。 */
+function answerText(raw: string): string {
+  return raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 async function callModel(ai: Ai, model: string, messages: Array<{ role: string; content: string }>): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const option = AI_MODEL_OPTIONS.find((entry) => entry.id === model);
   const maxTokens = option?.maxOutputTokens ?? 512;
-  // GLM 系列要求 max_completion_tokens（max_tokens 已废弃）；其余按通用 max_tokens。
+  // GLM 默认 enable_thinking=true，512 token 会被思考占满、正文为空，概述和标签一起失败。
+  // GLM 用 max_completion_tokens（max_tokens 已废弃）；其余按通用 max_tokens。
   const params: Record<string, unknown> = model.startsWith("@cf/zai-org/")
-    ? { messages, max_completion_tokens: maxTokens }
+    ? { messages, max_completion_tokens: maxTokens, chat_template_kwargs: { enable_thinking: false } }
     : { messages, max_tokens: maxTokens };
   const reply = await ai.run(model, params) as ModelReply;
   const choice = reply.choices?.[0]?.message?.content;
-  const text = typeof choice === "string" && choice.trim() ? choice : typeof reply.response === "string" ? reply.response : "";
+  const raw = typeof choice === "string" && choice.trim() ? choice : typeof reply.response === "string" ? reply.response : "";
   const inputTokens = typeof reply.usage?.prompt_tokens === "number" ? reply.usage.prompt_tokens : 0;
   const outputTokens = typeof reply.usage?.completion_tokens === "number" ? reply.usage.completion_tokens : 0;
-  return { text: text.trim(), inputTokens, outputTokens };
+  return { text: answerText(raw), inputTokens, outputTokens };
 }
 
 export function parseTagRecommendation(text: string): string[] {
@@ -202,7 +208,8 @@ export async function runAiTask(env: Env, message: AiQueueMessage, attempts: num
     await addAiUsage(env.DB, message.userId, dayKey(now), { calls: 1, inputTokens: reply.inputTokens, outputTokens: reply.outputTokens });
   } catch (error) {
     if (attempts < AI_TASK_MAX_RETRIES) throw error;
-    await updateAiTaskOutcome(env.DB, task.id, "failed", { error: String(error).slice(0, 300) }, now);
+    const detail = error instanceof Error ? error.message : String(error);
+    await updateAiTaskOutcome(env.DB, task.id, "failed", { error: detail.slice(0, 300) }, now);
   }
 }
 

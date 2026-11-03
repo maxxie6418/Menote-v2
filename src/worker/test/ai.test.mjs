@@ -54,10 +54,11 @@ async function insertItem(db, overrides = {}) {
 }
 
 function fakeEnv(db, reply) {
-  const ai = { run: async () => reply };
+  const calls = [];
+  const ai = { run: async (model, params) => { calls.push({ model, params }); return reply; } };
   const sent = [];
   const queue = { send: async (message) => { sent.push(message); } };
-  return { env: { DB: db, AI: ai, AI_TASKS_QUEUE: queue }, sent };
+  return { env: { DB: db, AI: ai, AI_TASKS_QUEUE: queue }, sent, calls };
 }
 
 function message(body, attempts = 1) {
@@ -100,6 +101,23 @@ test("submit queues a task, consumer runs it, usage is counted once", async () =
     assert.equal(usage.inputTokens, 120);
     assert.equal(usage.outputTokens, 20);
     assert.equal(usage.dailyCallLimit, 5);
+  });
+});
+
+test("GLM disables thinking and drops a leftover think block", async () => {
+  await withDatabase(async (db) => {
+    await writeAiSettings(db, enabledSettings);
+    await insertItem(db);
+    const { env, sent, calls } = fakeEnv(db, {
+      choices: [{ message: { content: "<think>先想一下</think>\n这是摘要。" } }], usage: {},
+    });
+    const view = await aiService.submitAiTask(env, USER_ID, submitInput(), NOW);
+    await aiService.runAiTask(env, sent[0], 1, NOW + 1);
+    assert.equal(calls[0].model, "@cf/zai-org/glm-4.7-flash");
+    assert.equal(calls[0].params.max_completion_tokens, 512);
+    assert.deepEqual(calls[0].params.chat_template_kwargs, { enable_thinking: false });
+    const done = await aiService.readAiTaskView(env.DB, USER_ID, view.id);
+    assert.deepEqual(done.result, { type: "summary", summary: "这是摘要。" });
   });
 });
 
