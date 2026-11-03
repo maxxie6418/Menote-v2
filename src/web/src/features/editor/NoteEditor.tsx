@@ -22,13 +22,20 @@ const UPLOAD_ERRORS: Record<string, string> = {
   aborted: "已取消",
 };
 
+/** 行内格式按下态比较：内容没变就不换数组引用，避免每次 keyup 都白白触发一次重渲染。 */
+function sameActions(previous: InlineAction[], next: InlineAction[]): boolean {
+  return previous.length === next.length && previous.every((item, index) => item === next[index]);
+}
+
 interface NoteEditorProps {
   mode: "edit" | "preview";
   /** 编辑形态：所见即所得（默认，FR-EDT-1）或源码（更多操作高级入口，FR-EDT-3）。 */
   kind: EditorKind;
   /** 本地库回声（保存回声/他端变更）：与编辑器当前值一致时静默；有未保存输入时不覆盖。 */
   externalMarkdown: string;
-  onInput: (markdown: string) => void;
+  /** 脏信号：只表示「正文变了」，**不带正文**（FR-EDT-10）。
+   *  键入路径不再整篇序列化；落盘/导出/切模式/离开文档前的全量正文统一走 registerGetMarkdown。 */
+  onInput: () => void;
   /** 宿主注册取值器：切换模式/卸载/保存前由上层取真实当前值。 */
   registerGetMarkdown: (get: (() => string) | null) => void;
   /** 属性区/表格等结构化写回合并进编辑器（FR-PROP-3 统一链路）：强制刷新并清除脏标记。 */
@@ -44,16 +51,20 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
   const [active, setActive] = useState<InlineAction[]>([]);
-  const [slash, setSlash] = useState<{ query: string; index: number; top: number; left: number } | null>(null);
+  // from：触发「/」菜单的那个斜杠在正文中的位置。所见即所得走原生选区用不到它，
+  // 源码态按文本算上下文时要用（applySlash 靠它剥掉「/过滤词」）。
+  const [slash, setSlash] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadTask[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
 
-  const emit = (markdown: string) => {
+  /** 脏信号：只报「正文变了」，不携带正文（FR-EDT-10）。
+   *  每次键入整篇序列化是长文档卡顿的主因，正文统一在落盘出口（registerGetMarkdown）取全量。 */
+  const emit = () => {
     dirtyRef.current = true;
-    onInputRef.current(fromEditorMarkdown(markdown, namesRef.current));
+    onInputRef.current();
   };
 
   /** 持久化用的正文（FR-EDT-8）：所见即所得走「保留原文」版本，源码态就是用户输入。 */
@@ -139,14 +150,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     // 本地改动：基线沿用「保留原文」的结果，未触碰块继续保留原始字节（FR-EDT-8）。
     adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current), { keepBaseline: true });
     adapter.setSelection(start, end);
-    onInputRef.current(markdown);
+    onInputRef.current();
   };
 
   const runAction = (action: FormatAction) => {
     const adapter = adapterRef.current;
     if (!adapter) return;
-    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
-    const { start, end } = adapter.getSelection();
     if (action.id === "image") {
       if (kind === "wysiwyg" && slash && adapter instanceof MilkdownWysiwygAdapter) {
         adapter.applyFormat("image", slash.query.length + 1);
@@ -156,12 +165,16 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       return;
     }
     if (kind === "wysiwyg" && adapter instanceof MilkdownWysiwygAdapter) {
+      // 所见即所得走编辑器原生选区，**不取整篇正文**（FR-EDT-10）。
       const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], slash ? slash.query.length + 1 : 0);
       setSlash(null);
       if (applied) requestAnimationFrame(refreshSlash);
       return;
     }
-    const context = slash ? slashContext(markdown, start) : null;
+    // 源码态才需要整篇文本（textarea 读 value 是 O(1)，不是序列化开销）。
+    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const { start, end } = adapter.getSelection();
+    const context = slash ? { from: slash.from, query: slash.query } : slashContext(markdown, start);
     const result = context
       ? applySlash(markdown, context, start, action.id as Parameters<typeof applySlash>[3])
       : action.group === "inline"
@@ -188,7 +201,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       const uploaded = await uploadFile(file, (percent) => patch({ percent }));
       if ("error" in uploaded) {
         patch({ error: uploaded.error });
-        onInputRef.current(markdown);
+        onInputRef.current();
         return;
       }
       // 名字净化后再入库：往返映射与正文引用必须用同一个名字
@@ -204,19 +217,33 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
 
   const refreshSlash = () => {
     const adapter = adapterRef.current;
-    if (!adapter || kind !== "wysiwyg") { setSlash(null); return; }
-    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    if (!adapter) { setSlash(null); return; }
+    if (kind === "source") {
+      // 源码态：textarea 读 value 是 O(1)，不算整篇序列化，上下文仍按文本算。
+      // 源码态不弹「/」菜单（方向键/回车必须留给 textarea 本身），保持既有行为不变。
+      const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+      const { start, end } = adapter.getSelection();
+      const next = activeInline(markdown, start, end);
+      setActive((previous) => (sameActions(previous, next) ? previous : next));
+      setSlash(null);
+      return;
+    }
+    // 所见即所得：用编辑器原生选区算「/」过滤词与行内格式按下态，**不整篇序列化**（FR-EDT-10）。
+    // 空选区的 storedMarks（按下 B 还没输入）只有编辑器自己知道，所以按下态仍走 activeMarks()。
+    const marks = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : [];
+    setActive((previous) => (sameActions(previous, marks) ? previous : marks));
     const { start, end } = adapter.getSelection();
-    // WYSIWYG 直接读选区状态：空选区的 storedMarks（按下 B 还没输入）只有编辑器自己知道
-    setActive(adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : activeInline(markdown, start, end));
     if (start !== end) { setSlash(null); return; }
-    const context = slashContext(markdown, start);
+    // 拿不到原生上下文就退化为「不显示菜单」，绝不用整篇序列化兜底。
+    // 例外：所见即所得创建失败时的源码适配器兜底——那里读 textarea.value 是 O(1)，按文本算即可（保持既有行为）。
+    const context = adapter.getSlashContext?.()
+      ?? (adapter instanceof TextareaSourceAdapter ? slashContext(adapter.getMarkdown(), start) : null);
     if (!context) { setSlash(null); return; }
     const caret = adapter.caretRect();
     const host = hostRef.current?.getBoundingClientRect();
     const top = caret && host ? caret.bottom - host.top + hostRef.current!.scrollTop : 0;
     const left = caret && host ? caret.left - host.left : 0;
-    setSlash({ query: context.query, index: 0, top, left });
+    setSlash({ query: context.query, from: start, index: 0, top, left });
   };
 
   useEffect(() => {

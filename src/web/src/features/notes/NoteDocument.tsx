@@ -43,6 +43,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const [draft, setDraft] = useState<string | null>(null);
+  // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
+  // 用计数递增触发自动保存，正文在保存时从编辑器取全量。
+  const [dirtyTick, setDirtyTick] = useState(0);
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
@@ -54,10 +57,20 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   const [linkCopied, setLinkCopied] = useState(false);
   const [aiAssist, setAiAssist] = useState(false);
   const [autoSummary, setAutoSummary] = useState(false);
+  // AI 面板用的正文：打开面板时取一次**编辑器里的最新正文**。
+  // 键入不再实时更新 draft（FR-EDT-10），直接用 draft 会把未保存的编辑漏给模型。
+  const [aiMarkdown, setAiMarkdown] = useState<string | null>(null);
+  const latestFullMarkdown = (): string => {
+    const base = draft ?? (item?.content.scope === "plain" ? item.content.markdown : "");
+    const body = getMarkdownRef.current?.();
+    return body === undefined || body === null ? base : joinFrontmatter(splitFrontmatter(base).frontText, body);
+  };
   useEffect(() => {
     if (!openSummaryToken) return;
     setAutoSummary(true);
+    setAiMarkdown(latestFullMarkdown());
     setAiAssist(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSummaryToken]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
@@ -68,10 +81,18 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   /** 统一文档更新链路（FR-PROP-3）：属性区/表格写回与正文草稿合并后保存，并回灌编辑器。 */
   const saveFullMarkdown = useCallback(async (next: string) => {
     if (!item) return;
-    setDraft(next);
+    // 正文以**编辑器的最新内容**为准（FR-EDT-10 的连带影响）：
+    // 键入不再实时更新 draft，属性区与 AI 面板回传的 next 是基于「上次保存的正文」拼的，
+    // 直接落盘会把用户尚未保存的正文编辑覆盖掉。frontmatter 仍取 next 里的那份（属性区管 YAML）。
+    // 编辑器没挂载时（整页表格形态）没有取值器，就用 next 原样保存。
+    const editorBody = getMarkdownRef.current?.();
+    const value = editorBody === undefined || editorBody === null
+      ? next
+      : joinFrontmatter(splitFrontmatter(next).frontText, editorBody);
+    setDraft(value);
     setSaveState({ kind: "saving" });
     try {
-      const saved = await saveItemContent(userId, item.id, next);
+      const saved = await saveItemContent(userId, item.id, value);
       const savedMarkdown = saved.content.scope === "plain" ? saved.content.markdown : "";
       setDraft(savedMarkdown);
       applyExternalRef.current?.(savedMarkdown);
@@ -106,11 +127,12 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   }, [item, userId, draft]);
 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
+  // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
   useEffect(() => {
     if (draft === null || !item) return;
     const timer = setTimeout(() => { void flush(); }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [draft, flush, item]);
+  }, [dirtyTick, flush, item]);
 
   // 卸载前尽力落盘（异步保存不阻塞返回；失败保留本地草稿，本地库本就是权威）。
   // 编辑器只持有正文，必须拼回 frontmatter，否则有属性的笔记离开时会把 YAML 写丢。
@@ -244,7 +266,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
                     <Clock />版本历史
                   </button>
                   {!isTableDoc && (
-                    <button type="button" role="menuitem" onClick={() => { setAutoSummary(false); setAiAssist(true); setMoreOpen(false); }}>
+                    <button type="button" role="menuitem" onClick={() => { setAutoSummary(false); setAiMarkdown(latestFullMarkdown()); setAiAssist(true); setMoreOpen(false); }}>
                       <Sparkles />AI 助手
                     </button>
                   )}
@@ -311,7 +333,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
             mode="edit"
             kind={editorKind}
             externalMarkdown={splitFrontmatter(plain.markdown).body}
-            onInput={(value) => setDraft(joinFrontmatter(splitFrontmatter(draft ?? plain.markdown).frontText, value))}
+            onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             uploadFile={uploadAttachment}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
@@ -322,6 +344,8 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         )}
       </div>
       <div className="mn-doc-foot">
+        {/* 字数口径：正文改成「保存时取全量」后，这里显示的是**上次保存**的字符数，
+            输入过程中不实时跳动——这是 FR-EDT-10 的有意取舍（省掉键入热路径上的整篇序列化）。 */}
         <span>{(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).length} 字符</span>
         <span className="mn-doc-foot-right">
           {saveState.kind === "saving" && "保存中…"}
@@ -340,7 +364,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           itemId={item.id}
           title={item.title ?? ""}
           tags={item.tags}
-          markdown={draft ?? item.content.markdown}
+          markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
           autoRun={autoSummary ? "summary" : undefined}
           onApplySummary={(next) => { void saveFullMarkdown(next); }}
           onApplyTags={async (recommended) => {

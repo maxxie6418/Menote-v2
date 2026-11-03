@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Eye, Lock, Pencil, ShieldOff } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
@@ -31,6 +31,14 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   useLockVersion();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [plain, setPlain] = useState<string | null>(null);
+  // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
+  const [dirtyTick, setDirtyTick] = useState(0);
+  // 预览用的正文：切到预览时从编辑器取一次全量（编辑器在预览态会卸载）。
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  // 编辑器注册的全量取值器（落盘出口）：保存、预览、解除加密都从它取正文。
+  const getMarkdownRef = useRef<(() => string) | null>(null);
+  // plain 的最新值：自动保存的定时器里读它，避免定时器闭包拿到旧明文。
+  const plainRef = useRef<string | null>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const unlocked = isNoteUnlocked(item.id);
@@ -53,6 +61,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     }
   }, [unlocked, item, plain]);
 
+  // 同步 plain 的最新值（给自动保存的定时器用）。
+  useEffect(() => { plainRef.current = plain; }, [plain]);
+
   // 单篇离开即重锁（FR-ENC-4）；父组件按 noteId key 重挂载。
   useEffect(() => () => lockOnLeave(item.id), [item.id]);
 
@@ -61,17 +72,23 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     setSaveState({ kind: "saving" });
     try {
       await saveEncryptedContent(userId, item.id, value);
+      // 保存成功后同步最新明文：编辑器卸载后重挂载、预览、解除加密都靠它拿到当前正文。
+      setPlain(value);
       setSaveState({ kind: "idle" });
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
     }
   }, [item.id, userId]);
 
+  // 自动保存：键入只给脏信号，800ms 后从编辑器取全量明文再存（FR-EDT-10）。
+  // 编辑器未挂载（表格形态 / 预览态）时退回 plain 的最新值。
   useEffect(() => {
-    if (plain === null || !unlocked) return;
-    const timer = setTimeout(() => { void flush(plain); }, AUTOSAVE_DEBOUNCE_MS);
+    if (plainRef.current === null || !unlocked) return;
+    const timer = setTimeout(() => {
+      void flush(getMarkdownRef.current?.() ?? plainRef.current ?? "");
+    }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [plain, unlocked, flush]);
+  }, [dirtyTick, unlocked, flush]);
 
   const onUnlock = async (credential: string, useRecovery: boolean) => {
     setUnlockError(null);
@@ -104,7 +121,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         </span>
         <span className="mn-docbar-right">
           {saveState.kind === "saving" && <span className="mn-savestate">保存中…</span>}
-          {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(plain)}>保存失败 · 重试</button>}
+          {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(getMarkdownRef.current?.() ?? plain ?? "")}>保存失败 · 重试</button>}
           {unlocked && (
             <>
               <button type="button" className="mn-iconbtn" aria-label="立即锁定" title="锁定（快捷）" onClick={() => { if (inSpace) void lockPrivateSpace(userId); else lockItem(item.id); }}>
@@ -112,13 +129,24 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
               </button>
               {!inSpace && (
                 <button type="button" className="mn-iconbtn" aria-label="解除本篇加密" title="解除加密（转为明文）"
-                  onClick={() => { if (window.confirm("解除本篇加密并转为明文？")) void decryptToPlain(userId, item.id, plain ?? "").then(onBack); }}>
+                  onClick={() => {
+                    if (!window.confirm("解除本篇加密并转为明文？")) return;
+                    // 取全量正文：编辑器可能已被卸载，退回最近一次保存的明文。
+                    void decryptToPlain(userId, item.id, getMarkdownRef.current?.() ?? plain ?? "").then(onBack);
+                  }}>
                   <ShieldOff />
                 </button>
               )}
               <span className="mn-vt" role="group" aria-label="编辑/预览切换">
                 <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"} onClick={() => setMode("edit")}><Pencil /></button>
-                <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"} onClick={() => setMode("preview")}><Eye /></button>
+                <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"}
+                  onClick={() => {
+                    // 切到预览前取一次全量正文：预览态编辑器会卸载，之后就取不到了（FR-EDT-10）。
+                    const text = getMarkdownRef.current?.() ?? plain ?? "";
+                    setPlain(text);
+                    setPreviewText(text);
+                    setMode("preview");
+                  }}><Eye /></button>
               </span>
             </>
           )}
@@ -135,11 +163,11 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && <MarkdownView markdown={plain} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && mode === "preview" && <MarkdownView markdown={previewText ?? plain ?? ""} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && mode === "edit" && item.type === "table" && (
           <TableDocument
             markdown={plain}
-            onChangeMarkdown={(next) => setPlain(next)}
+            onChangeMarkdown={(next) => { setPlain(next); setDirtyTick((n) => n + 1); }}
             onDegrade={() => { void degradeTableToNote(userId, item.id); }}
             /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
             onSwitchToNote={() => {}}
@@ -150,9 +178,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             mode="edit"
             kind="wysiwyg"
             externalMarkdown={plain}
-            onInput={(value) => setPlain(value)}
+            onInput={() => setDirtyTick((n) => n + 1)}
             uploadFile={uploadAttachment}
-            registerGetMarkdown={(get) => { void get; }}
+            registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             registerApplyExternal={() => {}}
           />
         )}

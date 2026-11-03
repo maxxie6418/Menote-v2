@@ -44,6 +44,12 @@ function markdownPrefix(
  * frontmatter 不进编辑器：YAML 由属性区在编辑器外管理（FR-PROP-1）。
  * 实现注记：视图属性经 editorViewOptionsCtx 在 config 期设置（editorViewCtx 此时未创建，
  * 不得在 config 期 get/update——曾导致编辑器挂载失败、文档区空白）；输入经 listener 插件。
+ *
+ * 键入路径模型（FR-EDT-10，TP4 · W3b）：
+ * Milkdown 的 listener 只有在注册了 `markdownUpdated` 监听器时才会调用序列化器，
+ * 所以**不能**订阅它——否则每次变更停顿（listener 内部 200ms 防抖）都会整篇序列化一次。
+ * 这里只订阅 `updated`（文档级事件，不触发序列化），onInput 退化为**脏信号**（只说「变了」）。
+ * 正文一律现算：`getMarkdown()` 每次序列化当前 doc，落盘/导出/切形态时由上层取。
  */
 export class MilkdownWysiwygAdapter implements EditorAdapter {
   private editor: Editor | null = null;
@@ -52,17 +58,17 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
   private detachKeyListener: (() => void) | null = null;
   /** 往返保真守卫（FR-EDT-8）：基线是上一次可信文本。 */
   private guard: RoundTripGuard | null = null;
-  /** 编辑器最近一次规范序列化结果（编辑态正文空间）。 */
-  private canonicalText = "";
   /** 最近一次算出的「保留原文」文本（持久化用）。 */
   private preservedText: string | null = null;
+  /** preservedText 对应的文档快照：用来判断缓存是否还新鲜（不依赖事件是否触发）。 */
+  private lastGuardDoc: Node | null = null;
 
   static async create(
     host: HTMLElement,
-    options: { initialMarkdown: string; onInput: (markdown: string) => void },
+    options: { initialMarkdown: string; onInput: () => void },
   ): Promise<MilkdownWysiwygAdapter> {
     const adapter = new MilkdownWysiwygAdapter();
-    // 键入延迟基线（FR-EDT-10 / W0）：按一次键 → 序列化完成。诊断关闭时不打点。
+    // 键入延迟基线（FR-EDT-10 / W0）：按一次键 → 变更被感知（updated 触发）。诊断关闭时不打点。
     let lastKeyAt = 0;
     const onKeyDown = () => {
       if (perfProbe.isEnabled) lastKeyAt = performance.now();
@@ -76,15 +82,17 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
           ...previous,
           attributes: { class: "md-body mn-editor-prose" },
         }));
-        ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
+        // 只订阅 `updated`：文档级事件，不触发序列化器。
+        // listener 的 `updated` 条件是 `prevDoc && !prevDoc.eq(doc)`——本版本里
+        // listener 插件的 `state.init` 会把 prevDoc 播种成初始文档，所以首次变更也会触发；
+        // 但正文新鲜度**不挂在这个事件上**（一律用 doc 比较），事件只用来发脏信号。
+        ctx.get(listenerCtx).updated((_ctx, _doc, _prevDoc) => {
           if (adapter.disposed) return;
-          adapter.canonicalText = markdown;
-          adapter.preservedText = null;
           if (perfProbe.isEnabled && lastKeyAt > 0) {
-            perfProbe.record("editor.keyToMarkdown", performance.now() - lastKeyAt);
+            perfProbe.record("editor.keyToChange", performance.now() - lastKeyAt);
             lastKeyAt = 0;
           }
-          options.onInput(markdown);
+          options.onInput();
         });
       })
       .use(commonmark)
@@ -100,8 +108,8 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     adapter.editor = editor;
     adapter.detachKeyListener = () => host.removeEventListener("keydown", onKeyDown, true);
     adapter.guard = new RoundTripGuard(options.initialMarkdown);
-    adapter.canonicalText = options.initialMarkdown;
     adapter.preservedText = options.initialMarkdown;
+    adapter.lastGuardDoc = adapter.currentDoc();
     return adapter;
   }
 
@@ -113,7 +121,6 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
   loadMarkdown(markdown: string, options?: { keepBaseline?: boolean }): void {
     if (this.disposed || !this.editor) return;
     this.editor.action(replaceAll(markdown));
-    this.canonicalText = markdown;
     if (options?.keepBaseline && this.guard) {
       const result = this.guard.update(markdown);
       this.preservedText = result.text;
@@ -121,30 +128,79 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       this.guard?.reset(markdown);
       this.preservedText = markdown;
     }
+    // replaceAll 是同步 dispatch，doc 此刻已是新内容；把快照对齐，缓存才算新鲜。
+    this.lastGuardDoc = this.currentDoc();
   }
 
+  /** 当前文档快照（ProseMirror Node 不可变，可安全持有）。编辑器未就绪时返回 null。 */
+  private currentDoc(): Node | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => ctx.get(editorViewCtx).state.doc);
+  }
+
+  /**
+   * 规范序列化文本（编辑态正文空间）。
+   * 现算，不缓存——键入路径不再整篇序列化，这里只在保存、格式操作、外部回声判断等非热路径被调用。
+   */
   getMarkdown(): string {
     if (!this.editor) return "";
-    if (this.canonicalText) return this.canonicalText;
     return perfProbe.measure("editor.serialize", () => this.editor!.action(getMarkdown()));
   }
 
   /**
    * 应当持久化的文本（FR-EDT-8）：未触碰的块回填原文，避免版本历史出现纯格式噪声。
    * 编辑态仍是规范序列化文本，光标与选区逻辑不受影响。
+   *
+   * 新鲜度用**文档比较**判定（doc.eq）：不依赖 listener 的 `updated` 事件，
+   * 因此在防抖窗口内（listener 内部 200ms）取到的也是新内容，不会读到旧缓存。
    */
   getPreservedMarkdown(): string {
-    if (this.preservedText !== null) return this.preservedText;
+    const doc = this.currentDoc();
+    if (this.preservedText !== null && doc && this.lastGuardDoc && doc.eq(this.lastGuardDoc)) {
+      return this.preservedText;
+    }
     if (!this.guard) return this.getMarkdown();
     const result = this.guard.update(this.getMarkdown());
     this.preservedText = result.text;
+    this.lastGuardDoc = doc;
     return result.text;
   }
 
-  /** 外部回声是否就是当前内容（避免把自己写的内容当成他端变更整篇重载）。 */
+  /**
+   * 外部回声是否就是当前内容（避免把自己写的内容当成他端变更整篇重载）。
+   * 比较对象有两个：规范序列化文本（编辑态）与「保留原文」文本（落盘态）。
+   * 保留原文那一路要求缓存仍新鲜——用户在这之后又改过正文时，回声就不是「自己刚写的」了。
+   */
   isSameContent(markdown: string): boolean {
-    if (markdown === this.canonicalText) return true;
-    return this.preservedText !== null && markdown === this.preservedText;
+    if (markdown === this.getMarkdown()) return true;
+    if (this.preservedText === null || markdown !== this.preservedText) return false;
+    const doc = this.currentDoc();
+    return Boolean(doc && this.lastGuardDoc && doc.eq(this.lastGuardDoc));
+  }
+
+  /**
+   * 「/」菜单上下文（过滤词）。
+   * 直接读 ProseMirror 选区算，**不整篇序列化**（FR-EDT-10）——这是键入热路径上的高频调用。
+   * 语义对齐 markdownEdit.slashContext：行首是 `/`、中间不含 `/` 或换行才触发。
+   */
+  getSlashContext(): { query: string } | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const head = view.state.selection.$head;
+      if (!head.parent.isTextblock) return null;
+      // 列表项在 Markdown 里行首是 "- " 而不是 "/"，源码形态本就不触发，保持行为一致。
+      for (let depth = head.depth; depth > 0; depth -= 1) {
+        if (head.node(depth).type.name === "list_item") return null;
+      }
+      const before = head.parent.textBetween(0, head.parentOffset, "\n", "\n");
+      // 按「行首」判定，和 markdownEdit.slashContext 一致：多行文本块里第二行的行首也算行首。
+      // 列表项另判（上面已 return）：它在 Markdown 里行首是 "- "，本就不触发。
+      const line = before.slice(before.lastIndexOf("\n") + 1);
+      const match = /^\/([^/\n]*)$/.exec(line);
+      if (!match) return null;
+      return { query: match[1] ?? "" };
+    });
   }
 
   /**
@@ -199,11 +255,8 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       if (!tr) return false;
       view.dispatch(tr);
       view.focus();
-      // 监听器的 markdownUpdated 有 200ms 防抖，这里同步把缓存刷新一次：
-      // 否则在防抖窗口内保存会存到旧内容（表格结构刚变、内容却没变），
-      // 外部回声判断也会拿旧内容去比对。
-      this.canonicalText = ctx.get(serializerCtx)(view.state.doc);
-      this.preservedText = null;
+      // 命令改了结构，doc 已经变了：缓存靠 doc 比较自然失效
+      // （lastGuardDoc 仍是旧 doc，下次 getPreservedMarkdown 会重新算，不会读到旧内容）。
       return true;
     });
   }

@@ -31,14 +31,15 @@ async function canonicalize(markdown) {
 export async function guardRoundTrip(source, editedSource) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const emitted = [];
+  // onInput 是脏信号（FR-EDT-10）：只表示「正文变了」，不再带正文。
+  let dirtyCount = 0;
   const steps = {};
   try {
     const canonicalEdited = await canonicalize(editedSource);
     steps.canonicalEdited = canonicalEdited;
     const adapter = await MilkdownWysiwygAdapter.create(host, {
       initialMarkdown: source,
-      onInput: (markdown) => { emitted.push(markdown); },
+      onInput: () => { dirtyCount += 1; },
     });
     steps.created = true;
     // 选区换算：光标落在列表内部时，doc.cut 会触发 Milkdown gfm 序列化器缺陷（既有缺陷，需兜底）。
@@ -54,7 +55,7 @@ export async function guardRoundTrip(source, editedSource) {
     const samePreserved = adapter.isSameContent(preserved);
     await adapter.destroy();
     host.remove();
-    return { canonical, preserved, sameCanonical, samePreserved, emitted: emitted[emitted.length - 1] ?? "", steps };
+    return { canonical, preserved, sameCanonical, samePreserved, dirtyCount, steps };
   } catch (error) {
     return { error: String(error), stack: error instanceof Error ? error.stack : "", steps };
   }

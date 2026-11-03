@@ -12,6 +12,8 @@ export interface EditorAdapter {
   /**
    * 应当持久化的文本（FR-EDT-8）。所见即所得适配器在此把未触碰的块回填成原文；
    * 源码适配器没有这层需要，返回的就是用户输入。缺省时上层退回 getMarkdown()。
+   *
+   * 这是**落盘出口**：按键不再整篇序列化，正文统一在这里按需取全量（FR-EDT-10）。
    */
   getPreservedMarkdown?(): string;
   /**
@@ -19,6 +21,13 @@ export interface EditorAdapter {
    * 避免把本地内容当成他端变更整篇重载。
    */
   isSameContent?(markdown: string): boolean;
+  /**
+   * 当前光标处的「/」菜单上下文（过滤词）。
+   *
+   * 所见即所得适配器走编辑器原生选区算，**不整篇序列化**（FR-EDT-10）；
+   * 缺省时上层退回用 Markdown 文本算。
+   */
+  getSlashContext?(): { query: string } | null;
   /**
    * 取某个表格单元格元素对应的表格上下文（行列与对齐）。不在表格里返回 null。
    * 表格块操作菜单用它在悬停时显示当前状态（FR-EDT-9）。
@@ -40,5 +49,9 @@ export interface EditorAdapter {
 }
 
 export interface EditorAdapterCtor {
-  new (host: HTMLElement, options: { initialMarkdown: string; onInput: (markdown: string) => void }): EditorAdapter;
+  /**
+   * `onInput` 是**脏信号**（FR-EDT-10）：只表示「正文变了」，不带正文——
+   * 键入路径不再整篇序列化，正文统一由 `getPreservedMarkdown()` 在落盘出口取全量。
+   */
+  new (host: HTMLElement, options: { initialMarkdown: string; onInput: () => void }): EditorAdapter;
 }

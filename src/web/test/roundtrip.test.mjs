@@ -116,3 +116,59 @@ test("表格插入数据行不会让分隔行错位", () => {
   assert.ok(result.text.includes("| 新 | 1 |"), "新行应保留");
   assert.ok(result.text.includes("| 苹果 | 3 |"), "原行应保留");
 });
+
+/** 对照语料：覆盖会改变块结构的形态（列表符号、表格分隔行、缩进列表、嵌套列表）。 */
+const equivalenceCases = [
+  ["- 甲\n- 乙\n", "* 甲\n* 乙改\n"],
+  ["* 甲\n* 乙\n", "- 甲\n- 乙改\n"],
+  ["1. 甲\n2. 乙\n", "1. 甲\n2. 乙改\n"],
+  ["| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 3 |\n", "| 名称 | 数量 |\n| -- | -- |\n| 苹果 | 3 |\n"],
+  ["- 外层\n  - 内层\n", "* 外层\n  * 内层\n"],
+  ["标题\n====\n\n段落。\n", "# 标题\n\n段落。\n"],
+  ["段落。\n\n    缩进代码\n", "段落。\n\n```\n缩进代码\n```\n"],
+  ["# T\n\n- 甲\n- 乙\n\n结尾\n", "# T\n\n* 甲\n* 乙改\n\n结尾\n"],
+  ["第一段。\n\n第三段。\n", "第一段。\n\n新插入段。\n\n第三段。\n"],
+  ["段落。\n", ""],
+  ["", "新内容。\n"],
+];
+
+test("回填产出的单元与重新解析完全等价", () => {
+  const cases = [
+    ...evidence.map((item) => [item.source, item.output]),
+    ...equivalenceCases,
+  ];
+  for (const [source, next] of cases) {
+    const result = preserveUnchanged(parseText(source), next);
+    assert.deepEqual(
+      result.units,
+      parseText(result.text).units,
+      `单元与重新解析不一致：${JSON.stringify(source)} → ${JSON.stringify(next)}`,
+    );
+  }
+});
+
+test("列表符号混排时按回填结果真实的分组给出结构键", () => {
+  const source = "- 甲\n- 乙\n";
+  const next = "* 甲\n* 乙改\n";
+  const result = preserveUnchanged(parseText(source), next);
+  assert.ok(result.text.includes("- 甲"), "未触碰的项应保留原文");
+  assert.ok(result.text.includes("* 乙改"), "改动的项应采用新文本");
+  // 旧符号与新符号混排在 Markdown 里是两条列表，结构键必须与重新解析一致
+  assert.deepEqual(result.units, parseText(result.text).units);
+});
+
+test("守卫推进基线用的是回填产出的单元，与重新解析基线行为一致", () => {
+  const source = "- 甲\n- 乙\n\n段落。\n";
+  const next = "* 甲\n* 乙改\n\n段落。\n";
+  const guard = new RoundTripGuard(source);
+  const first = guard.update(next);
+  assert.equal(guard.baselineText, first.text, "基线应推进到回填结果");
+
+  // 用「重新解析回填结果」当基线得到的下一轮结果，应与守卫增量推进的一致
+  const reference = preserveUnchanged(parseText(first.text), next);
+  const second = guard.update(next);
+  assert.equal(second.text, reference.text);
+  assert.equal(second.preserved, reference.preserved);
+  assert.equal(second.rewritten, reference.rewritten);
+  assert.deepEqual(second.units, parseText(second.text).units);
+});

@@ -191,6 +191,136 @@ function gapSignature(gap: string): string {
   return `shape:${gapShape(gap)}`;
 }
 
+/**
+ * 列表单元的种类：由结构键前缀判定。
+ * 键是 mdast 结构的无损编码，因此前缀足以区分「列表项」「整条列表」与其他块。
+ */
+type ListUnitKind = "bullet-item" | "bullet-list" | "ordered-list" | "none";
+
+function listUnitKind(key: string): ListUnitKind {
+  if (key.startsWith("ul:")) return "bullet-item";
+  if (key.startsWith("listu(")) return "bullet-list";
+  if (key.startsWith("listo(")) return "ordered-list";
+  return "none";
+}
+
+/** 取出结构键里「列表项」的键：去掉 `ul:` 前缀或 `listu(...)` / `listo(...)` 包装。 */
+function listItemKey(key: string): string {
+  if (key.startsWith("ul:")) return key.slice(3);
+  return key.slice(key.indexOf("(") + 1, -1);
+}
+
+/** 无序列表符号（`-` / `*` / `+`）：不是列表项返回 null。 */
+function bulletMarker(raw: string): string | null {
+  const match = /^[ \t]{0,3}([-+*])(?:[ \t]+|$)/.exec(raw);
+  return match ? match[1]! : null;
+}
+
+/** 有序列表分隔符（`.` / `)`）：不是有序列表返回 null。 */
+function orderedDelimiter(raw: string): string | null {
+  const match = /^[ \t]{0,3}\d{1,9}([.)])(?:[ \t]+|$)/.exec(raw);
+  return match ? match[1]! : null;
+}
+
+/** 两块之间是否只有空白（没有别的块挡在中间）。 */
+function gapIsBlank(text: string, from: number, to: number): boolean {
+  return !gapHasContent(text.slice(from, to));
+}
+
+/**
+ * 列表项前面的缩进。
+ *
+ * remark 的列表项起点在符号处，缩进不在块内而在**空隙**里，
+ * 而缩进决定了一个列表项是不是上一项的子项——也就是列表怎么分组。
+ * 空隙里没有换行时，整段空隙都是缩进。
+ */
+function itemIndent(text: string, unit: TextUnit, previousEnd: number): string {
+  const gap = text.slice(previousEnd, unit.start);
+  return gap.slice(gap.lastIndexOf("\n") + 1);
+}
+
+/**
+ * 修正回填结果里的列表结构键。
+ *
+ * 回填本身可能改变列表的**分组**：旧原文写 `- 甲`、新文本写 `* 乙`，
+ * 「- 甲」与「* 乙」在 Markdown 里是两个列表而不是一个。
+ * 重新解析回填结果时这些块的结构键会从「列表项」变成「整条列表」，
+ * 因此这里按回填结果里真实的分组修正键，保证 `units` 与重新解析完全等价。
+ *
+ * 只有列表会这样：其余块的结构由块自身的字节决定，
+ * 而保留的字节与新文本的字节在结构上等价（对齐就是按键匹配的）。
+ *
+ * 返回 null 表示**无法在不解析的前提下还原分组**：列表项带了缩进，
+ * 它可能是上一项的子项。这种情况退回整篇解析（罕见）。
+ */
+function fixListKeys(text: string, units: TextUnit[]): TextUnit[] | null {
+  // 缩进决定列表项的归属，缩进不在块内（remark 的列表项起点在符号处），
+  // 只有解析才知道它到底是不是子项——带缩进就老实解析一次。
+  for (let i = 0; i < units.length; i += 1) {
+    if (listUnitKind(units[i]!.key) === "none") continue;
+    if (itemIndent(text, units[i]!, i === 0 ? 0 : units[i - 1]!.end) !== "") return null;
+  }
+  const fixed = units.map((unit) => ({ ...unit }));
+  let i = 0;
+  while (i < fixed.length) {
+    const kind = listUnitKind(fixed[i]!.key);
+    if (kind === "none") {
+      i += 1;
+      continue;
+    }
+    if (kind === "ordered-list") {
+      // 有序列表保持整块：相邻两条分隔符相同的有序列表在回填结果里会并成一条，
+      // 重新解析也是一条，因此这里把两条合成一个单元。
+      const next = i + 1;
+      const delimiter = orderedDelimiter(fixed[i]!.raw);
+      if (
+        delimiter !== null
+        && next < fixed.length
+        && listUnitKind(fixed[next]!.key) === "ordered-list"
+        && gapIsBlank(text, fixed[next - 1]!.end, fixed[next]!.start)
+        && orderedDelimiter(fixed[next]!.raw) === delimiter
+      ) {
+        fixed[i] = {
+          start: fixed[i]!.start,
+          end: fixed[next]!.end,
+          raw: text.slice(fixed[i]!.start, fixed[next]!.end),
+          key: `listo(${listItemKey(fixed[i]!.key)}|${listItemKey(fixed[next]!.key)})`,
+        };
+        fixed.splice(next, 1);
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    // 无序列表：按回填结果里真实的列表符号分组，符号不同即分属两条列表。
+    const marker = bulletMarker(fixed[i]!.raw);
+    const group: number[] = [];
+    let j = i;
+    while (j < fixed.length) {
+      const itemKind = listUnitKind(fixed[j]!.key);
+      if (itemKind !== "bullet-item" && itemKind !== "bullet-list") break;
+      if (bulletMarker(fixed[j]!.raw) !== marker) break;
+      if (j > i && !gapIsBlank(text, fixed[j - 1]!.end, fixed[j]!.start)) break;
+      group.push(j);
+      j += 1;
+    }
+    if (group.length === 0) {
+      i += 1;
+      continue;
+    }
+    // 两条以上同属一条列表 → 逐项成块；只有一条 → 整条列表成块。
+    for (const index of group) {
+      const itemKey = listItemKey(fixed[index]!.key);
+      fixed[index] = {
+        ...fixed[index]!,
+        key: group.length >= 2 ? `ul:${itemKey}` : `listu(${itemKey})`,
+      };
+    }
+    i = j;
+  }
+  return fixed;
+}
+
 /** 校验结果。 */
 export interface GuardResult {
   /** 回填原文后的文本。 */
@@ -201,6 +331,14 @@ export interface GuardResult {
   rewritten: number;
   /** 中段无法一一对应（结构变化较大）时为 true——此时中段整体采用新文本。 */
   misaligned: boolean;
+  /**
+   * 回填结果里的内容单元。
+   *
+   * 与「重新解析 `text`」得到的单元**完全等价**（块数、顺序、key、raw、start、end 一致），
+   * 因此调用方可以拿它当新基线，不必再解析一次整篇——
+   * 回填结果的块结构本来就是已知的：新文本的块，只有被保留的块换成了旧字节。
+   */
+  units: TextUnit[];
 }
 
 /**
@@ -212,6 +350,11 @@ export interface GuardResult {
  * 空隙（块间空白、表格分隔行）取原文还是新文本：
  * - 原文空隙只在「与前一个保留单元在原文中相邻」且「与新文本空隙形状一致」时采用；
  * - 否则用新文本的空隙，保证表格分隔行、列表间距等结构不会错位。
+ *
+ * 顺带产出回填结果的单元数组（`units`）：块结构在拼接时已经确定，
+ * 不需要为了推进基线再解析一遍整篇；
+ * 列表分组会被回填改变（旧符号与新符号混排），因此键由 fixListKeys 按回填结果修正，
+ * 保证 `units` 与「重新解析回填结果」完全等价。
  */
 export function preserveUnchanged(previous: ParsedText, next: string): GuardResult {
   const current = parseText(next);
@@ -249,7 +392,10 @@ export function preserveUnchanged(previous: ParsedText, next: string): GuardResu
   let preserved = 0;
   let rewritten = 0;
   let lastFromPrev = -1;
+  let offset = 0;
   const parts: string[] = [];
+  // 回填结果的单元：与重新解析回填结果等价，偏移顺次累加空隙与原文长度得到。
+  const units: TextUnit[] = [];
   for (let i = 0; i < cur.length; i += 1) {
     const pick = picks[i]!;
     const canonicalGap = i === 0 ? "" : gapBefore(current, i);
@@ -269,6 +415,13 @@ export function preserveUnchanged(previous: ParsedText, next: string): GuardResu
       gap = canonicalGap;
       rewritten += 1;
     }
+    // 单元起点 = 上一个单元终点 + 本次空隙长度；终点 = 起点 + 写入字节长度。
+    const start = offset + gap.length;
+    const end = start + pick.raw.length;
+    // 结构键先取当前文本的键：保留原文的单元其键与旧单元相同（对齐就是按键匹配的）。
+    // 列表分组被回填改变时由 fixListKeys 修正。
+    units.push({ start, end, raw: pick.raw, key: cur[i]!.key });
+    offset = end;
     parts.push(gap, pick.raw);
     if (pick.fromPrev !== null) lastFromPrev = pick.fromPrev;
   }
@@ -284,7 +437,11 @@ export function preserveUnchanged(previous: ParsedText, next: string): GuardResu
     }
   }
 
-  return { text: parts.join("") + tail, preserved, rewritten, misaligned };
+  const text = parts.join("") + tail;
+  // 列表分组可能被回填改变（旧符号与新符号混排），修正后与重新解析等价；
+  // 修正不了（列表项带缩进）时退回整篇解析，保证结果永远与重新解析一致。
+  const fixed = fixListKeys(text, units);
+  return { text, preserved, rewritten, misaligned, units: fixed ?? parseText(text).units };
 }
 
 /**
@@ -305,7 +462,9 @@ export class RoundTripGuard {
   /** 本地改动：基线沿用「保留原文」的结果，未触碰单元继续保留原始字节。 */
   update(text: string): GuardResult {
     const result = preserveUnchanged(this.baseline, text);
-    this.baseline = parseText(result.text);
+    // 基线直接用回填结果重建的单元推进：回填后的块结构本来就是已知的，
+    // 再把整篇解析一遍只是白费一次 remark 解析（保存是热路径）。
+    this.baseline = { text: result.text, units: result.units };
     return result;
   }
 

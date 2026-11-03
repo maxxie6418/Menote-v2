@@ -4,11 +4,12 @@ import { MilkdownWysiwygAdapter } from "../src/features/editor/milkdownAdapter.t
 export async function runTableCommand(source, command, cellIndex = 0) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const emitted = [];
+  // onInput 是脏信号（FR-EDT-10）：只表示「正文变了」，不再带正文。
+  let dirtyCount = 0;
   try {
     const adapter = await MilkdownWysiwygAdapter.create(host, {
       initialMarkdown: source,
-      onInput: (markdown) => { emitted.push(markdown); },
+      onInput: () => { dirtyCount += 1; },
     });
     const cells = Array.from(host.querySelectorAll("td, th"));
     const cell = cells[cellIndex];
@@ -27,7 +28,7 @@ export async function runTableCommand(source, command, cellIndex = 0) {
       : null;
     await adapter.destroy();
     host.remove();
-    return { ok, markdown, preserved, contextBefore, contextAfter, cellCount: cellsAfter.length, emitted: emitted[emitted.length - 1] ?? "" };
+    return { ok, markdown, preserved, contextBefore, contextAfter, cellCount: cellsAfter.length, dirtyCount };
   } catch (error) {
     return { error: String(error), stack: error instanceof Error ? error.stack : "" };
   }
