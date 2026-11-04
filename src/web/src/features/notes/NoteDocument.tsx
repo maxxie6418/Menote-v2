@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Maximize2, Minimize2, ScrollText } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Maximize2, Minimize2, ScrollText, FilePlus2 } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -8,7 +8,7 @@ import { joinFrontmatter, splitFrontmatter } from "../../lib/frontmatter";
 import { TableDocument } from "../table";
 import { AiAssistDialog } from "../ai";
 import { useItem } from "../../services/contentHooks";
-import { degradeTableToNote, isConvertibleBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
+import { createNote, degradeTableToNote, isConvertibleBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
 import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
@@ -27,6 +27,7 @@ const AUTOSAVE_DEBOUNCE_MS = 800;
 const TEMPLATES: TemplateOption[] = [
   { id: "note", name: "普通笔记", hint: "直接写正文，Markdown 原文", icon: <FileText size={16} /> },
   { id: "table", name: "多维表格", hint: "表格式整理，字段带类型", icon: <Table2 size={16} /> },
+  { id: "import", name: "导入文档", hint: "将一个或多个 .md 文件拖到这里", icon: <FilePlus2 size={16} /> },
 ];
 
 interface NoteDocumentProps {
@@ -62,6 +63,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [shortcutAck, setShortcutAck] = useState(false);
   // 模板选择块是否已被点选（点过就收起；直接开写也由 dirtyTick 收起）。
   const [templatePicked, setTemplatePicked] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
@@ -298,8 +301,41 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
   /** 点选模板：先收起方块，普通笔记保持原样，多维表格切形态。 */
   const pickTemplate = (id: string) => {
+    if (id === "import") {
+      setImportMessage("将一个或多个 .md 文件拖到此入口即可导入");
+      return;
+    }
     setTemplatePicked(true);
     if (id === "table") pickTableForm();
+  };
+  const importMarkdownFiles = async (files: File[]) => {
+    const markdownFiles = files.filter((file) => /\.md$/i.test(file.name));
+    if (!markdownFiles.length) {
+      setImportMessage("请拖入 .md Markdown 文件");
+      return;
+    }
+    setImporting(true);
+    setTemplatePicked(true);
+    setSaveState({ kind: "saving" });
+    try {
+      for (let index = 0; index < markdownFiles.length; index += 1) {
+        const file = markdownFiles[index]!;
+        const content = await file.text();
+        const title = file.name.replace(/\.md$/i, "").trim() || "无标题";
+        const target = index === 0
+          ? item
+          : await createNote(userId, { title, topicId: item.topicId, groupId: item.groupId });
+        if (index === 0) await saveItemMeta(userId, target.id, { title });
+        await saveItemContent(userId, target.id, content);
+      }
+      const rejected = files.length - markdownFiles.length;
+      setImportMessage(`已导入 ${markdownFiles.length} 篇 Markdown 笔记${rejected ? `，已跳过 ${rejected} 个非 .md 文件` : ""}`);
+      setSaveState({ kind: "idle" });
+    } catch (cause) {
+      setSaveState({ kind: "error", message: `导入失败：${String(cause)}` });
+    } finally {
+      setImporting(false);
+    }
   };
   const switchToNoteForm = () => {
     void setItemForm(userId, item.id, "note").then((converted) => {
@@ -411,7 +447,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             }}
           />
         </div>
-        {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} />}
+          {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
+          {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
         {plain && mode === "preview" && (
           <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
         )}

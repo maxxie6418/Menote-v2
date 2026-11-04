@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export interface TemplateOption {
   id: string;
@@ -11,6 +11,7 @@ export interface TemplateOption {
 interface TemplatePickerProps {
   templates: TemplateOption[];
   onPick: (id: string) => void;
+  onDropFiles?: (files: File[]) => void;
 }
 
 /**
@@ -18,7 +19,8 @@ interface TemplatePickerProps {
  * 点一下即生效并收起；不点、直接在下面写正文也收起（父级按「已开始写」隐藏）。
  * 每块按「一排五个」的宽度排（占版心 20%），将来加模板按同一排宽续排，超过五个自动换行。
  */
-export function TemplatePicker({ templates, onPick }: TemplatePickerProps) {
+export function TemplatePicker({ templates, onPick, onDropFiles }: TemplatePickerProps) {
+  const [dragging, setDragging] = useState(false);
   return (
     <div className="mn-templatepick-wrap" role="group" aria-label="选择文档模板">
       <div className="mn-templatepick">
@@ -29,6 +31,15 @@ export function TemplatePicker({ templates, onPick }: TemplatePickerProps) {
             className="mn-template"
             title={template.hint}
             onClick={() => onPick(template.id)}
+            onDragOver={template.id === "import" ? (event) => { event.preventDefault(); setDragging(true); } : undefined}
+            onDragLeave={template.id === "import" ? () => setDragging(false) : undefined}
+            onDrop={template.id === "import" ? (event) => {
+              event.preventDefault();
+              setDragging(false);
+              onDropFiles?.(Array.from(event.dataTransfer.files));
+            } : undefined}
+            data-dragging={template.id === "import" && dragging || undefined}
+            aria-label={template.id === "import" ? "拖入 Markdown 文档导入" : template.name}
           >
             <span className="mn-template-icon" aria-hidden="true">{template.icon}</span>
             <span className="mn-template-name">{template.name}</span>
