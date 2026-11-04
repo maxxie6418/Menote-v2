@@ -178,3 +178,27 @@ test("trash restore clears the tombstone and enqueue an upsert (FR-VER-6)", asyn
   const rows = await outboxRows();
   assert.equal(rows[rows.length - 1].action, "upsert", "恢复以 upsert 传播（复活语义）");
 });
+
+test("表格种子默认一列一排；行里填了内容就不再是种子（FR-TBL-9）", async () => {
+  await resetLocalDb();
+  const seed = content.defaultTableSeed();
+  // 字段定义：名称列按文本类型
+  assert.match(seed, /fields:/);
+  assert.match(seed, /名称/);
+  assert.match(seed, /type: text/);
+  // 一列一排：表头行 + 分隔行 + 一个空行
+  const tableLines = seed.split("\n").filter((line) => line.includes("|"));
+  assert.equal(tableLines.length, 3);
+  assert.match(tableLines[0], /名称/);
+  assert.equal(tableLines[2].replace(/[|\s]/g, ""), "");
+  // 种子可识别（来回切换不卡住）
+  const base = { id: "t1", userId: USER, type: "table", topicId: null, groupId: null, title: "无标题", tags: [], status: null, attachmentHashes: [], source: "manual", rev: 1, metaRev: 1, contentHash: "h", pinned: false, starred: false, createdAt: 1, updatedAt: 1, deletedAt: null };
+  const seeded = { ...base, content: { scope: "plain", markdown: seed } };
+  assert.equal(content.isDefaultTableSeed(seeded), true);
+  // 行里填了内容 → 不再是种子（形态随之锁定）
+  const filled = { ...seeded, content: { scope: "plain", markdown: seed.replace("|  |", "| 已填 |") } };
+  assert.equal(content.isDefaultTableSeed(filled), false);
+  // 早期种子（只有表头无数据行）仍可识别
+  const legacy = { ...seeded, content: { scope: "plain", markdown: seed.replace("\n|  |", "") } };
+  assert.equal(content.isDefaultTableSeed(legacy), true);
+});

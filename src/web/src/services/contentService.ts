@@ -142,22 +142,33 @@ export function setItemForm(userId: string, id: string, to: "note" | "table"): P
 
 const DEFAULT_TABLE_COLUMN = "名称";
 
-/** 空白笔记转表格的初始正文：一个「名称」文本列 + 空表体。 */
+/**
+ * 空白笔记转表格的初始正文：一个「名称」文本列 + 一行空行。
+ * 默认给一列一排（负责人 2026-11-04）：表格打开就能填，不必先点「添加行」。
+ */
 export function defaultTableSeed(): string {
-  return `${writeDef("", FIELDS_KEY, DEFAULT_TABLE_COLUMN, { type: "text" })}${renderTable([DEFAULT_TABLE_COLUMN], [])}`;
+  return `${writeDef("", FIELDS_KEY, DEFAULT_TABLE_COLUMN, { type: "text" })}${renderTable([DEFAULT_TABLE_COLUMN], [[""]])}`;
 }
 
 const compact = (value: string) => value.replace(/\s+/g, "");
 
-/** 是否仍是未动过的表格种子（只有「名称」列、没有数据行、正文只有这张表）。 */
+/**
+ * 是否仍是未动过的表格种子（只有「名称」列、至多一行空行、正文只有这张表）。
+ * 行里填了内容就不再是种子——形态随之锁定（FR-TBL-9）。
+ * 兼容两种种子形态：早期的「只有表头无数据行」与现在的「表头 + 一行空行」。
+ */
 export function isDefaultTableSeed(item: Item): boolean {
   if (item.type !== "table" || item.content.scope !== "plain") return false;
   const { body } = splitFrontmatter(item.content.markdown);
   const tables = findTables(body);
   if (tables.length !== 1) return false;
   const table = tables[0]!;
-  if (table.header.length !== 1 || table.header[0]!.trim() !== DEFAULT_TABLE_COLUMN || table.rows.length > 0) return false;
-  return compact(body) === compact(renderTable([DEFAULT_TABLE_COLUMN], []));
+  if (table.header.length !== 1 || table.header[0]!.trim() !== DEFAULT_TABLE_COLUMN) return false;
+  if (table.rows.length > 1) return false;
+  if (table.rows.some((row) => row.some((cell) => cell.trim() !== ""))) return false;
+  const compactBody = compact(body);
+  return compactBody === compact(renderTable([DEFAULT_TABLE_COLUMN], []))
+    || compactBody === compact(renderTable([DEFAULT_TABLE_COLUMN], [[""]]));
 }
 
 async function setItemFormInner(userId: string, id: string, to: "note" | "table"): Promise<Item> {
