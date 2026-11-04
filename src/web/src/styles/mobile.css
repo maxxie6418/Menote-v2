@@ -114,8 +114,9 @@
 [data-layout="mobile"] .mn-formatbar { flex-wrap: nowrap; overflow-x: auto; }
 [data-layout="mobile"] .mn-formatbar .mn-formatbtn { flex: none; width: var(--app-touch-target); height: var(--app-touch-target); }
 .m-mobile-document .mn-doc-title { font-size: var(--app-mobile-title-size); line-height: var(--app-leading-doc-title); }
-.m-mobile-document .mn-propbar { padding: var(--app-space-4) var(--app-space-6); }
-.m-mobile-document .mn-proplist { grid-template-columns: minmax(0, 1fr); }
+/* 属性区在触屏上抬高行高、⋯ 常驻（双列由容器查询按栏宽自动回落单列） */
+.m-mobile-document .mn-props-row { min-height: var(--app-touch-target); }
+.m-mobile-document .mn-props-more { opacity: 1; }
 .m-mobile-document .mn-doc-tags { min-height: var(--app-mobile-row-min-height); }
 .m-mobile-document .mn-editor-host, .m-mobile-document .mn-doc-preview { font-size: var(--app-mobile-body-size); line-height: var(--md-body-leading); }
 .m-mobile-document .mn-editor-source { font-size: var(--app-mobile-body-size); }

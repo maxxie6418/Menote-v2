@@ -233,6 +233,23 @@ export function removePropDef(markdown: string, namespace: string, key: string):
   return removeDef(removeProp(markdown, key), namespace, key);
 }
 
+/**
+ * 重命名属性键（FR-PROP-2 属性设置浮层）：**定义与值一起迁移**。
+ * 分开做会留下「有值没定义」或「有定义没值」的半截状态，所以这里按
+ * 写新值 → 删旧值 → 迁定义三步走；目标键已存在或源键不存在时原样返回（调用方先行校验并提示）。
+ */
+export function renameProp(markdown: string, namespace: string, from: string, to: string): string {
+  if (from === to) return markdown;
+  const row = readPropRows(markdown, namespace).find((entry) => entry.key === from);
+  if (!row) return markdown;
+  if (readPropRows(markdown, namespace).some((entry) => entry.key === to)) return markdown;
+  const value = row.isBoolean ? row.raw === "true"
+    : row.isArray ? row.arrayValues
+      : row.raw;
+  const withValue = value === "" ? markdown : writeValue(markdown, to, value);
+  return renameDef(removeProp(withValue, from), namespace, from, to);
+}
+
 /** 确认保存的 AI 概述（FR-AI-1）：数据键 `summary`，属性区显示名「概述」。先写值再补定义，避免定义写入把已有值清成空串。 */
 export function writeSummaryProperty(markdown: string, summary: string): string {
   const withValue = writeValue(markdown, "summary", summary);

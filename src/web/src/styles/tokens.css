@@ -182,6 +182,19 @@
   --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
   --app-prop-height: 2rem;         /* 32px 属性行 */
   --app-prop-key-width: 7.5rem;    /* 120px 属性键名列：外部剪藏的键是 parent_url / clipped_at 这类长键，30px 会被切成 pa… */
+  /* 属性区双列重做（2026-11-04）：双列键列 96、行尾 ⋯ 22、多选胶囊 20、控件 28、浮层 320/252 */
+  --app-props-key-duo: 6rem;
+  --app-props-more: 1.375rem;
+  --app-props-chip: 1.25rem;
+  --app-props-btn: 1.5rem;
+  --app-props-ctrl: 1.75rem;
+  --app-props-form-label: 3.5rem;
+  --app-props-pop: 20rem;
+  --app-props-pop-sm: 15.75rem;
+  --app-props-z: 28;
+  --app-props-flash: 1.4s;
+  --app-tpl-key-col: 7rem;         /* 设置·默认属性表：键名列 */
+  --app-tpl-type-col: 3.5rem;      /* 设置·默认属性表：类型列 */
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
   --app-kicker-line-height: 0.09375rem; /* 1.5px */
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */

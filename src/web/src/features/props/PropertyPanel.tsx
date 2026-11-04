@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Plus, X } from "lucide-react";
-import type { PropertyTemplate, PropertyType } from "../../lib/frontmatter";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Check, MoreHorizontal, Plus, X } from "lucide-react";
+import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import {
-  PROPS_KEY, type PropRow, type PropertyDef, PROPERTY_TYPES,
-  parseOptionList, readPropRows, removePropDef, writeDef, writeValue,
+  PROPS_KEY, readPropRows, removePropDef, renameProp, writeDef, writeValue, type PropRow,
 } from "../../lib/frontmatter";
 import { readPropertyTemplates } from "../../services/propertyTemplateService";
+import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
+import { AddPropertyPopover } from "./AddPropertyPopover";
+import { PropertySettingsPopover } from "./PropertySettingsPopover";
+import { inferType, isHttpUrl, PROPS_TWO_COLUMN_MIN, SPAN_TYPES } from "./propsShared";
 
 interface PropertyPanelProps {
   markdown: string;
@@ -14,30 +17,37 @@ interface PropertyPanelProps {
   onSave: (next: string) => void;
 }
 
-const TYPE_LABELS: Record<PropertyType, string> = {
-  text: "文本",
-  multiline: "多行文本",
-  number: "数字",
-  date: "日期",
-  select: "单选",
-  multiselect: "多选",
-  checkbox: "复选框",
-  link: "链接",
-};
-
 /**
- * 属性栏（FR-PROP-1/2/9/10）：**两个态**——
- * 换值态（默认；文档预览态同样是它）：值以文本呈现、链接可点，点值就地换成控件，
- *   改完即存收起；属性的定义、增删一律不可见。
- * 编辑态：在换值态之上露出类型/候选定义、每行尾部靠右的删除按钮、底部添加按钮。
+ * 属性区（FR-PROP-1/2/9/10）：**不再分「换值态 / 编辑态」两态**——
+ * · 值就地改：点值换成控件，回车或失焦即存、Esc 还原；
+ * · 定义在行尾 ⋯：键名、显示名、类型、候选值、删除都在这一层的浮层里；
+ * · 添加走 + 属性浮层：搜索 → 分组预设 → 新建，一次只做一件事。
+ * 布局默认双列，链接与多行文本整行跨列；栏宽不足由 CSS 容器查询回落单列。
  * 预设模板只作「添加属性」的模板库（FR-PROP-9）：加进文档即成为该文档自己的设定。
  */
 export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mode, setMode] = useState<"value" | "edit">("value");
-  const [adding, setAdding] = useState(false);
-  const [templates, setTemplates] = useState<PropertyTemplate[]>([]);
   const rows = useMemo(() => readPropRows(markdown, PROPS_KEY), [markdown]);
+  const [templates, setTemplates] = useState<PropertyTemplate[]>([]);
+  const [adding, setAdding] = useState<HTMLElement | null>(null);
+  const [settings, setSettings] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const [optionPick, setOptionPick] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [undo, setUndo] = useState<{ text: string; restore: string; index: number } | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [columns, setColumns] = useState<1 | 2>(2);
+
+  /* 双列与否看「文档栏宽」而不是窗口宽度：ResizeObserver 盯住属性区自身，跨过阈值才写 data-columns */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      setColumns(width > 0 && width < PROPS_TWO_COLUMN_MIN ? 1 : 2);
+    });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,326 +55,303 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
     return () => { cancelled = true; };
   }, [userId]);
 
-  const onWrite = (row: PropRow, value: string | boolean | string[]) => onSave(writeValue(markdown, row.key, value));
-  const onRemove = (row: PropRow) => onSave(removePropDef(markdown, PROPS_KEY, row.key));
-  const onDefine = (name: string, def: PropertyDef) => onSave(writeDef(markdown, PROPS_KEY, name, def));
-  /** 新增属性：定义与默认值一次写回（先写定义再写值，避免互相覆盖）。 */
-  const onAdd = (name: string, def: PropertyDef, value?: string | boolean | string[]) => {
+  useEffect(() => {
+    if (!undo) return;
+    const timer = window.setTimeout(() => setUndo(null), 6_000);
+    return () => window.clearTimeout(timer);
+  }, [undo]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlash(null), 1_400);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
+
+  const existing = useMemo(() => new Set(rows.map((row) => row.key)), [rows]);
+
+  const writeCell = (row: PropRow, value: string | boolean | string[]) => {
+    const next = writeValue(markdown, row.key, value);
+    if (next !== markdown) onSave(next);
+  };
+
+  const defineRow = (row: PropRow, def: PropertyDef) => onSave(writeDef(markdown, PROPS_KEY, row.key, def));
+
+  const addTemplate = (template: PropertyTemplate) => {
+    const def: PropertyDef = {
+      type: template.type,
+      ...(template.label ? { label: template.label } : {}),
+      ...(template.options?.length ? { options: template.options } : {}),
+    };
+    let next = writeDef(markdown, PROPS_KEY, template.name, def);
+    if (template.value !== undefined && template.value !== "") next = writeValue(next, template.name, template.value);
+    onSave(next);
+    setAdding(null);
+    setFlash(template.name);
+  };
+
+  const createProperty = (name: string, def: PropertyDef, value?: string | boolean | string[]) => {
     let next = writeDef(markdown, PROPS_KEY, name, def);
     if (value !== undefined && value !== "") next = writeValue(next, name, value);
     onSave(next);
+    setAdding(null);
+    setFlash(name);
   };
 
-  if (rows.length === 0 && !adding) {
-    return (
-      <button type="button" className="mn-propbar-add" onClick={() => { setMode("edit"); setAdding(true); }}>
-        <Plus /> 添加属性
-      </button>
-    );
-  }
+  const removeRow = (row: PropRow) => {
+    const index = rows.findIndex((entry) => entry.key === row.key);
+    onSave(removePropDef(markdown, PROPS_KEY, row.key));
+    setSettings(null);
+    setUndo({ text: `已删除「${row.def?.label ?? row.key}」`, restore: markdown, index });
+  };
+
+  const settingsRow = settings ? rows.find((row) => row.key === settings.key) ?? null : null;
+  const optionRow = optionPick ? rows.find((row) => row.key === optionPick.key) ?? null : null;
 
   return (
-    <section className="mn-propbar" aria-label="属性区">
-      <div className="mn-propbar-headrow">
-        <button type="button" className="mn-propbar-head" aria-expanded={!collapsed} onClick={() => setCollapsed((value) => !value)}>
-          <ChevronDown className={collapsed ? "closed" : ""} />
-          <span className="mn-seclabel-text">属性（{rows.length}）</span>
+    <section ref={sectionRef} className="mn-props" data-columns={columns} aria-label="属性区">
+      <div className="mn-props-head">
+        <span className="mn-props-title">属性</span>
+        <span className="mn-props-count">{rows.length}</span>
+        <button
+          type="button" className="mn-props-add" data-panel-trigger
+          aria-expanded={adding !== null} title="添加属性"
+          onClick={(event) => setAdding(adding ? null : event.currentTarget)}
+        >
+          <Plus aria-hidden />属性
         </button>
-        {rows.length > 0 && (
-          <button type="button" className="mn-textbtn" title="编辑属性的定义，可添加与删除属性"
-            onClick={() => { setCollapsed(false); setMode(mode === "edit" ? "value" : "edit"); }}>
-            {mode === "edit" ? "完成" : "编辑属性"}
+      </div>
+
+      <div className="mn-props-list">
+        {rows.length === 0 && (
+          <button type="button" className="mn-props-empty" data-panel-trigger onClick={(event) => setAdding(event.currentTarget)}>
+            <Plus aria-hidden />添加属性
           </button>
         )}
+        {rows.map((row, index) => {
+          const type = row.def?.type ?? inferType(row);
+          return (
+            <Fragment key={row.key}>
+              {undo?.index === index && (
+                <div className="mn-props-undo" role="status">
+                  <span>{undo.text}</span>
+                  <button type="button" onClick={() => { onSave(undo.restore); setUndo(null); }}>撤销</button>
+                </div>
+              )}
+              <div className={`mn-props-row${SPAN_TYPES.has(type) ? " span" : ""}${flash === row.key ? " flash" : ""}`}>
+                <span className="mn-props-key" title={row.key}>{row.def?.label ?? row.key}</span>
+                <div className="mn-props-value">
+                  <PropertyValue
+                    row={row} type={type} editing={editing === row.key}
+                    onStartEdit={() => { setEditing(row.key); setSettings(null); }}
+                    onCommit={(value) => { setEditing(null); writeCell(row, value); }}
+                    onCancel={() => setEditing(null)}
+                    onPickOptions={(anchor) => setOptionPick({ key: row.key, anchor })}
+                  />
+                </div>
+                <button
+                  type="button" className="mn-props-more" data-panel-trigger
+                  aria-expanded={settings?.key === row.key} aria-label={`属性设置：${row.def?.label ?? row.key}`}
+                  title="属性设置"
+                  onClick={(event) => {
+                    const anchor = event.currentTarget;
+                    setEditing(null);
+                    setSettings((current) => (current?.key === row.key ? null : { key: row.key, anchor }));
+                  }}
+                >
+                  <MoreHorizontal aria-hidden />
+                </button>
+              </div>
+            </Fragment>
+          );
+        })}
+        {undo && undo.index >= rows.length && (
+          <div className="mn-props-undo" role="status">
+            <span>{undo.text}</span>
+            <button type="button" onClick={() => { onSave(undo.restore); setUndo(null); }}>撤销</button>
+          </div>
+        )}
       </div>
-      {!collapsed && (
-        <dl className="mn-proplist">
-          {rows.map((row) => (
-            <div key={row.key} className="mn-proprow">
-              <dt className="mn-propkey" title={row.key}>{row.def?.label ?? row.key}</dt>
-              <dd className={mode === "edit" ? "mn-propvalue editing" : "mn-propvalue"}>
-                <PropertyValueCell row={row} onWrite={(value) => onWrite(row, value)} />
-                {mode === "edit" && <PropertyTypeEditor row={row} onDefine={(def) => onDefine(row.key, def)} />}
-                {mode === "edit" && (
-                  <button type="button" className="mn-iconbtn mn-propdel" aria-label={`删除属性 ${row.def?.label ?? row.key}`} onClick={() => onRemove(row)}>
-                    <X />
-                  </button>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {!collapsed && mode === "edit" && !adding && (
-        <button type="button" className="mn-propbar-add" onClick={() => setAdding(true)}>
-          <Plus /> 添加属性
-        </button>
-      )}
+
       {adding && (
-        <AddPropertyRow
-          templates={templates}
-          onCancel={() => setAdding(false)}
-          onAdd={(name, def, value) => { onAdd(name, def, value); setAdding(false); }}
+        <AddPropertyPopover
+          anchor={adding} templates={templates} existing={existing}
+          onAdd={addTemplate} onCreate={createProperty} onClose={() => setAdding(null)}
+        />
+      )}
+
+      {settingsRow && settings && (
+        <PropertySettingsPopover
+          row={settingsRow} anchor={settings.anchor} existingKeys={rows.map((row) => row.key)}
+          onDefine={(def) => defineRow(settingsRow, def)}
+          onRename={(name) => { onSave(renameProp(markdown, PROPS_KEY, settingsRow.key, name)); setSettings(null); }}
+          onRemove={() => removeRow(settingsRow)}
+          onClose={() => setSettings(null)}
+        />
+      )}
+
+      {optionRow && optionPick && (
+        <OptionPicker
+          row={optionRow} anchor={optionPick.anchor}
+          onChange={(next) => writeCell(optionRow, next)}
+          onClose={() => setOptionPick(null)}
         />
       )}
     </section>
   );
 }
 
-/** 只把 http(s) 当链接，避免把其它字符串做成可点地址。 */
-function isHttpUrl(value: string): boolean {
-  return /^https?:\/\/\S+$/.test(value);
-}
+/** 值单元格：默认以文本呈现，点一下就地换控件；复选框与多选直接在原地操作。 */
+function PropertyValue({ row, type, editing, onStartEdit, onCommit, onCancel, onPickOptions }: {
+  row: PropRow;
+  type: PropertyType;
+  editing: boolean;
+  onStartEdit: () => void;
+  onCommit: (value: string | boolean | string[]) => void;
+  onCancel: () => void;
+  onPickOptions: (anchor: HTMLElement) => void;
+}) {
+  if (editing) return <ValueEditor row={row} type={type} onCommit={onCommit} onCancel={onCancel} />;
 
-/**
- * 值槽（FR-PROP-2/10）：默认以文本呈现——链接可点；点值就地换成控件，改完即存收起。
- * 链接型的文本就是链接（点它跳转），改值走编辑态里的控件。
- */
-function PropertyValueCell({ row, onWrite }: { row: PropRow; onWrite: (value: string | boolean | string[]) => void }) {
-  const [editing, setEditing] = useState(false);
-  const type: PropertyType = row.def?.type ?? inferType(row);
-  if (editing) {
-    return <PropertyValueControl row={row} onWrite={onWrite} onClose={() => setEditing(false)} />;
-  }
-  if (type === "link") {
-    // 链接型的文本就是链接（点它跳转），另给一个「改」入口换值——链接与换值两件事不互相顶掉。
+  if (type === "checkbox") {
+    const on = row.raw === "true";
     return (
-      <span className="mn-propvalue-link">
-        <PropertyValueRead row={row} />
-        <button type="button" className="mn-statuslink" aria-label={`修改属性 ${row.def?.label ?? row.key}`}
-          onClick={() => setEditing(true)}>改</button>
+      <label className="mn-props-check">
+        <input type="checkbox" checked={on} onChange={(event) => onCommit(event.target.checked)} />
+        <span>{on ? "是" : "否"}</span>
+      </label>
+    );
+  }
+
+  if (type === "multiselect" || row.isArray) {
+    const values = row.arrayValues;
+    return (
+      <span className="mn-props-chips">
+        {values.map((option) => (
+          <span key={option} className="mn-props-chip">
+            {option}
+            <button
+              type="button" aria-label={`移除 ${option}`} title={`移除 ${option}`}
+              onClick={() => onCommit(values.filter((entry) => entry !== option))}
+            >
+              <X aria-hidden />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button" className="mn-props-chipadd" data-panel-trigger aria-label="添加候选值" title="添加候选值"
+          onClick={(event) => onPickOptions(event.currentTarget)}
+        >
+          <Plus aria-hidden />
+        </button>
       </span>
     );
   }
+
+  const text = row.raw.trim();
+  if (type === "link" && text) {
+    return (
+      <span className="mn-props-link">
+        <a href={text} target="_blank" rel="noreferrer">{text}</a>
+        <button type="button" className="mn-props-relink" onClick={onStartEdit} title="修改链接">改</button>
+      </span>
+    );
+  }
+
   return (
-    <button type="button" className="mn-propopen" onClick={() => setEditing(true)} aria-label={`修改属性 ${row.def?.label ?? row.key}`}>
-      <PropertyValueRead row={row} />
+    <button type="button" className="mn-props-open" onClick={onStartEdit} title={text || "设置值"}>
+      {text
+        ? (isHttpUrl(text) ? <a href={text} target="_blank" rel="noreferrer">{text}</a> : <span>{text}</span>)
+        : <span className="mn-props-emptyvalue">—</span>}
     </button>
   );
 }
 
-function PropertyValueRead({ row }: { row: PropRow }) {
-  const type: PropertyType = row.def?.type ?? inferType(row);
-  if (type === "checkbox" || row.isBoolean) {
-    return <span className="mn-proptext">{row.raw === "true" ? "是" : "否"}</span>;
-  }
-  if (type === "multiselect" || row.isArray) {
-    if (row.arrayValues.length === 0) return <span className="mn-proptext mn-propempty">—</span>;
-    return <span className="mn-proptext">{row.arrayValues.join("、")}</span>;
-  }
-  const value = row.raw.trim();
-  if (!value) return <span className="mn-proptext mn-propempty">—</span>;
-  if (isHttpUrl(value)) {
-    return <span className="mn-proptext"><a href={value} target="_blank" rel="noreferrer">{value}</a></span>;
-  }
-  return <span className="mn-proptext">{value}</span>;
-}
-
-/** FR-PROP-6 安全推断：仅当控件可无损写回原值时启用对应控件，否则文本。 */
-function inferType(row: PropRow): PropertyType {
-  if (row.isBoolean) return "checkbox";
-  if (row.isArray) return "multiselect";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(row.raw)) return "date";
-  if (/^[+-]?\d+(\.\d+)?$/.test(row.raw)) return "number";
-  if (isHttpUrl(row.raw)) return "link";
-  return "text";
-}
-
-/** 值编辑控件（就地换）：改完即存并收起。 */
-function PropertyValueControl({ row, onWrite, onClose }: {
+/** 就地控件：本地存草稿，回车 / 失焦提交，Esc 还原。 */
+function ValueEditor({ row, type, onCommit, onCancel }: {
   row: PropRow;
-  onWrite: (value: string | boolean | string[]) => void;
-  onClose: () => void;
+  type: PropertyType;
+  onCommit: (value: string | boolean | string[]) => void;
+  onCancel: () => void;
 }) {
   const [text, setText] = useState(row.raw);
-  const [multi, setMulti] = useState<string[]>(row.arrayValues);
-  const type: PropertyType = row.def?.type ?? inferType(row);
 
   if (type === "select") {
     const options = row.def?.options ?? [];
     return (
-      <select className="mn-propselect" value={row.raw} aria-label={row.key} autoFocus
-        onChange={(event) => { onWrite(event.target.value); onClose(); }}
-        onBlur={onClose}>
-        {!row.raw && <option value="">请选择…</option>}
-        {row.raw && !options.includes(row.raw) && <option value={row.raw}>{row.raw}（未在候选中）</option>}
+      <select
+        className="mn-props-ctrl" value={row.raw} autoFocus aria-label={row.def?.label ?? row.key}
+        onChange={(event) => onCommit(event.target.value)}
+        onBlur={onCancel}
+      >
+        <option value="">请选择…</option>
+        {row.raw && !options.includes(row.raw) && <option value={row.raw}>{row.raw}（不在候选中）</option>}
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     );
   }
-  if (type === "multiselect") {
-    const options = row.def?.options ?? [...new Set([...multi, ...row.arrayValues])];
-    return (
-      <span className="mn-propmulti" role="group" aria-label={row.key}>
-        {options.map((option) => (
-          <label key={option} className="mn-propmulti-option">
-            <input
-              type="checkbox" checked={multi.includes(option)}
-              onChange={(event) => {
-                const next = event.target.checked ? [...multi, option] : multi.filter((value) => value !== option);
-                setMulti(next);
-                onWrite(next);
-              }}
-            />
-            {option}
-          </label>
-        ))}
-        <button type="button" className="mn-textbtn" onClick={onClose}>完成</button>
-      </span>
-    );
-  }
-  if (type === "checkbox") {
-    return (
-      <input
-        type="checkbox" checked={row.raw === "true"} aria-label={row.key} autoFocus
-        onChange={(event) => { onWrite(event.target.checked); onClose(); }}
-      />
-    );
-  }
+
   if (type === "multiline") {
     return (
       <textarea
-        className="mn-propinput" value={text} rows={2} aria-label={row.key} autoFocus
+        className="mn-props-ctrl mn-props-ctrl-area" rows={3} value={text} autoFocus
+        aria-label={row.def?.label ?? row.key}
         onChange={(event) => setText(event.target.value)}
-        onBlur={() => { if (text !== row.raw) onWrite(text); onClose(); }}
+        onBlur={() => onCommit(text)}
+        onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }}
       />
     );
   }
-  const inputType = type === "number" ? "number" : type === "date" ? "date" : type === "link" ? "url" : "text";
+
+  const dateTyped = type === "date" && /^\d{4}-\d{2}-\d{2}$/.test(row.raw);
+  const numberTyped = type === "number" && /^[+-]?\d+(\.\d+)?$/.test(row.raw);
+  const inputType = type === "date" && dateTyped ? "date"
+    : type === "number" && numberTyped ? "number"
+      : type === "link" ? "url" : "text";
   return (
     <input
-      type={inputType} className="mn-propinput" value={text} aria-label={row.key} autoFocus
+      type={inputType} className="mn-props-ctrl" value={text} autoFocus
+      aria-label={row.def?.label ?? row.key}
       onChange={(event) => setText(event.target.value)}
-      onBlur={() => { if (text !== row.raw) onWrite(text); onClose(); }}
-      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+      onBlur={() => onCommit(text)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+        if (event.key === "Escape") { event.preventDefault(); onCancel(); }
+      }}
     />
   );
 }
 
-function keptDef(row: PropRow, type: PropertyType, options?: string[]): PropertyDef {
-  return {
-    type,
-    ...(row.def?.label ? { label: row.def.label } : {}),
-    ...(options ? { options } : {}),
-  };
-}
-
-/** 编辑态修改已有属性的类型；单选/多选没有候选时先不写入。改类型不改已有值。 */
-function PropertyTypeEditor({ row, onDefine }: { row: PropRow; onDefine: (def: PropertyDef) => void }) {
-  const current = row.def?.type ?? inferType(row);
-  const [pending, setPending] = useState<PropertyType | null>(null);
-  const [optionsText, setOptionsText] = useState((row.def?.options ?? row.arrayValues).join("\n"));
-  const shown = pending ?? current;
-  const needsOptions = shown === "select" || shown === "multiselect";
-  const apply = (type: PropertyType, options: string[] | undefined) => {
-    if ((type === "select" || type === "multiselect") && (!options || options.length === 0)) return;
-    onDefine(keptDef(row, type, options));
-    setPending(null);
-  };
-  return (
-    <span className="mn-proptype">
-      <select
-        className="mn-propselect" aria-label={`${row.def?.label ?? row.key} 的类型`} value={shown}
-        onChange={(event) => {
-          const next = event.target.value as PropertyType;
-          const options = row.def?.options;
-          if ((next === "select" || next === "multiselect") && (!options || options.length === 0)) {
-            setPending(next);
-            return;
-          }
-          apply(next, next === "select" || next === "multiselect" ? options : undefined);
-        }}
-      >
-        {PROPERTY_TYPES.map((option) => <option key={option} value={option}>{TYPE_LABELS[option]}</option>)}
-      </select>
-      {needsOptions && (
-        <textarea
-          className="mn-proptextarea" rows={3} placeholder="候选值：每行一个，或用分号分隔"
-          aria-label={`${row.key} 的候选值`} value={optionsText}
-          onChange={(event) => setOptionsText(event.target.value)}
-          onBlur={() => {
-            apply(shown, parseOptionList(optionsText));
-          }}
-        />
-      )}
-    </span>
-  );
-}
-
-/** 按组归拢预设（组内保持原顺序；无组的排在最后）。 */
-function groupTemplates(templates: PropertyTemplate[]): Array<{ group: string; items: PropertyTemplate[] }> {
-  const groups = new Map<string, PropertyTemplate[]>();
-  for (const template of templates) {
-    const key = template.group ?? "其它";
-    const list = groups.get(key) ?? [];
-    list.push(template);
-    groups.set(key, list);
-  }
-  return [...groups.entries()].map(([group, items]) => ({ group, items }));
-}
-
-/** 新增属性：先列预设模板（点一下即加，带默认值），再给自定义表单（FR-PROP-9）。 */
-function AddPropertyRow({ templates, onAdd, onCancel }: {
-  templates: PropertyTemplate[];
-  onAdd: (name: string, def: PropertyDef, value?: string | boolean | string[]) => void;
-  onCancel: () => void;
+/** 多选候选：勾选即时写回，浮层不关，可以连着勾。 */
+function OptionPicker({ row, anchor, onChange, onClose }: {
+  row: PropRow;
+  anchor: HTMLElement;
+  onChange: (value: string[]) => void;
+  onClose: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<PropertyType>("text");
-  const [label, setLabel] = useState("");
-  const [optionsText, setOptionsText] = useState("");
-  const needsOptions = type === "select" || type === "multiselect";
+  const options = row.def?.options ?? [];
+  const selected = row.arrayValues;
   return (
-    <div className="mn-proprow mn-proprow-add">
-      {templates.length > 0 && (
-        <div className="mn-proptemplates" role="group" aria-label="默认属性预设">
-          <span className="mn-proptemplates-label">预设</span>
-          {groupTemplates(templates).map(({ group, items }) => (
-            <span key={group} className="mn-proptemplates-group">
-              <span className="mn-proptemplates-groupname">{group}</span>
-              {items.map((template) => (
-                <button key={template.id} type="button" className="mn-proptemplate"
-                  onClick={() => onAdd(template.name, {
-                    type: template.type,
-                    ...(template.label ? { label: template.label } : {}),
-                    ...(template.options ? { options: template.options } : {}),
-                  }, template.value)}>
-                  <span className="mn-proptemplate-name">{template.label ?? template.name}</span>
-                  <span className="mn-proptemplate-type">{TYPE_LABELS[template.type]}</span>
-                </button>
-              ))}
-            </span>
-          ))}
-        </div>
-      )}
-      <input className="mn-propinput" placeholder="属性名" aria-label="属性名" value={name}
-        onChange={(event) => setName(event.target.value)} />
-      <select className="mn-propselect" aria-label="属性类型" value={type} onChange={(event) => setType(event.target.value as PropertyType)}>
-        {PROPERTY_TYPES.map((option) => <option key={option} value={option}>{TYPE_LABELS[option]}</option>)}
-      </select>
-      <input className="mn-propinput" placeholder="显示名（可选）" aria-label="显示名" value={label}
-        onChange={(event) => setLabel(event.target.value)} />
-      {needsOptions && (
-        <textarea
-          className="mn-proptextarea" rows={3} placeholder="候选值：每行一个，或用分号分隔（必填）"
-          aria-label="候选值" value={optionsText}
-          onChange={(event) => setOptionsText(event.target.value)}
-        />
-      )}
-      <div className="mn-proprow-actions">
-        <button type="button" className="mn-textbtn" onClick={() => {
-          const clean = name.trim();
-          if (!clean) return;
-          const options = needsOptions ? parseOptionList(optionsText) : undefined;
-          if (needsOptions && (options === undefined || options.length === 0)) return;
-          onAdd(clean, {
-            type,
-            ...(label.trim() ? { label: label.trim() } : {}),
-            ...(options ? { options } : {}),
-          });
-        }}>保存定义</button>
-        <button type="button" className="mn-textbtn" onClick={onCancel}>取消</button>
+    <AnchoredPanel className="mn-proppop mn-proppop-options" anchor={anchor} align="right" label="选择候选值" onClose={onClose}>
+      <p className="mn-propadd-groupname">候选值</p>
+      <div className="mn-proppop-list">
+        {options.length === 0 && <p className="mn-propadd-empty">这个属性还没有候选值，先在 ⋯ 里填。</p>}
+        {options.map((option) => {
+          const on = selected.includes(option);
+          return (
+            <button
+              key={option} type="button" className={on ? "mn-proppop-opt on" : "mn-proppop-opt"}
+              aria-pressed={on}
+              onClick={() => onChange(on ? selected.filter((entry) => entry !== option) : [...selected, option])}
+            >
+              <span className="mn-proppop-box">{on && <Check aria-hidden />}</span>
+              {option}
+            </button>
+          );
+        })}
       </div>
-    </div>
+      <div className="mn-proppop-actions">
+        <button type="button" className="mn-propbtn" onClick={onClose}>完成</button>
+      </div>
+    </AnchoredPanel>
   );
 }

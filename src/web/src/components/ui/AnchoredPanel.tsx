@@ -6,6 +6,10 @@ interface AnchoredPanelProps {
   label: string;
   /** 内容高度变化时重算位置（类型切换、候选值、错误文案）。 */
   layoutKey?: string;
+  /** 面板上的类名由调用方给：表格列菜单与属性浮层是两套外观。 */
+  className?: string;
+  /** 与锚点左对齐还是右对齐（属性浮层贴右，避免超出文档栏）。 */
+  align?: "left" | "right";
   onClose: () => void;
   children: ReactNode;
 }
@@ -13,8 +17,19 @@ interface AnchoredPanelProps {
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 4;
 
-/** 挂到 document.body 的列菜单。表格滚动容器是 overflow:auto，浮层留在里面会被裁成一条缝。 */
-export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: AnchoredPanelProps) {
+/** 找到最近的纵向滚动容器：锚点滚出可视区时面板要跟着藏起来。 */
+function scrollParentOf(element: HTMLElement): HTMLElement | null {
+  let node = element.parentElement;
+  while (node && node !== document.body) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (overflow === "auto" || overflow === "scroll") return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/** 挂到 document.body 的锚定浮层。容器是 overflow:auto 时，浮层留在里面会被裁成一条缝。 */
+export function AnchoredPanel({ anchor, label, layoutKey, className = "mn-anchored-panel", align = "left", onClose, children }: AnchoredPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -26,7 +41,7 @@ export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: A
         return;
       }
       const rect = anchor.getBoundingClientRect();
-      const scrollParent = anchor.closest(".mn-tabledoc-scroll");
+      const scrollParent = scrollParentOf(anchor);
       let inView = true;
       if (scrollParent) {
         const view = scrollParent.getBoundingClientRect();
@@ -40,7 +55,7 @@ export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: A
       panel.style.maxHeight = "";
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
-      let left = rect.left;
+      let left = align === "right" ? rect.right - width : rect.left;
       if (left + width > window.innerWidth - VIEWPORT_MARGIN) {
         left = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN);
       }
@@ -69,7 +84,7 @@ export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: A
       document.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", place);
     };
-  }, [anchor, layoutKey]);
+  }, [anchor, layoutKey, align]);
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -77,8 +92,8 @@ export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: A
       if (!(target instanceof Node)) return;
       if (panelRef.current?.contains(target)) return;
       if (anchor.contains(target)) return;
-      // 工具条/脚手架的「添加字段」自己会 toggle；这里若先关掉，紧接着的 click 会把它重新打开。
-      if (target instanceof Element && target.closest("[data-table-add-trigger]")) return;
+      // 触发按钮自己会 toggle；这里若先关掉，紧接着的 click 会把它重新打开。
+      if (target instanceof Element && target.closest("[data-panel-trigger]")) return;
       onClose();
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -95,7 +110,7 @@ export function AnchoredPanel({ anchor, label, layoutKey, onClose, children }: A
   return createPortal(
     <div
       ref={panelRef}
-      className="mn-tabledoc-hmenu"
+      className={className}
       role="dialog"
       aria-label={label}
       onPointerDown={(event) => event.stopPropagation()}

@@ -5,7 +5,7 @@ import {
   type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, renderTable, replaceTable, type ParsedTable } from "../../lib/gfmTable";
-import { AnchoredPanel } from "./AnchoredPanel";
+import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { TableCellEditor } from "./TableCellEditor";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
 
@@ -364,7 +364,7 @@ function ColumnHeaderCell({ name, draft, type, def, menuOpen, error, onDraft, on
         {FIELD_TYPE_LABELS[type]}
       </button>
       {menuOpen && anchor && (
-        <AnchoredPanel anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${error ?? ""}`} onClose={onClose}>
+        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${error ?? ""}`} onClose={onClose}>
           {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
           <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
           {def && (def.type === "select" || def.type === "multiselect") && (
@@ -411,7 +411,7 @@ function AddColumnForm({ onConfirm, onCancel, onEdit, taken, error }: {
         />
       </div>
       {anchor && (
-        <AnchoredPanel anchor={anchor} label="添加字段" layoutKey={`${type}:${message ?? ""}`} onClose={onCancel}>
+        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label="添加字段" layoutKey={`${type}:${message ?? ""}`} onClose={onCancel}>
           {message && <p className="mn-tabledoc-error" role="alert">{message}</p>}
           <FieldTypeMenu value={type} onPick={setType} />
           <div className="mn-tabledoc-addform-actions">

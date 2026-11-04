@@ -107,3 +107,32 @@ test("候选值分隔：换行与中英文分号、逗号都认，空格不作�
   // 空项与重复项
   assert.deepEqual(fm.parseOptionList("A;;B\n\nA"), ["A", "B"]);
 });
+
+test("renameProp moves value and definition together (FR-PROP-2)", () => {
+  let markdown = fm.writeDef("正文", fm.PROPS_KEY, "status", { type: "select", label: "状态", options: ["未开始", "已完成"] });
+  markdown = fm.writeValue(markdown, "status", "已完成");
+  const next = fm.renameProp(markdown, fm.PROPS_KEY, "status", "state");
+  const data = fm.parseFrontmatterData(next);
+  assert.equal(data.state, "已完成");
+  assert.equal(data.status, undefined);
+  const defs = fm.readDefs(next, fm.PROPS_KEY);
+  assert.equal(defs.state.label, "状态");
+  assert.deepEqual(defs.state.options, ["未开始", "已完成"]);
+  assert.equal(defs.status, undefined);
+});
+
+test("renameProp keeps arrays/booleans and refuses to overwrite an existing key", () => {
+  let markdown = fm.writeValue("正文", "tags", ["材质", "光照"]);
+  markdown = fm.writeDef(markdown, fm.PROPS_KEY, "tags", { type: "multiselect", options: ["材质", "光照"] });
+  const moved = fm.renameProp(markdown, fm.PROPS_KEY, "tags", "labels");
+  assert.deepEqual(fm.parseFrontmatterData(moved).labels, ["材质", "光照"]);
+  assert.equal(fm.parseFrontmatterData(moved).tags, undefined);
+
+  // 目标键已存在：原样返回，不吞掉任何一边
+  const clash = fm.renameProp(fm.writeValue(markdown, "labels", ["旧"]), fm.PROPS_KEY, "tags", "labels");
+  assert.deepEqual(fm.parseFrontmatterData(clash).labels, ["旧"]);
+  assert.deepEqual(fm.parseFrontmatterData(clash).tags, ["材质", "光照"]);
+
+  // 源键不存在：不动
+  assert.equal(fm.renameProp("正文", fm.PROPS_KEY, "nope", "other"), "正文");
+});
