@@ -31,6 +31,16 @@ function authGuard(handler: (c: Context<AppEnv>) => Promise<Response>) {
 
 export const authRoutes = new Hono<AppEnv>();
 
+/** 本地手测专用：只有显式注入 LOCAL_TEST_AUTH=true 时才接受 admin/admin。 */
+function routeCredentials(env: Env, body: unknown) {
+  if (Reflect.get(env, "LOCAL_TEST_AUTH") === "true"
+    && typeof body === "object" && body !== null
+    && Reflect.get(body, "username") === "admin" && Reflect.get(body, "password") === "admin") {
+    return { username: "admin", password: "admin" };
+  }
+  return parseCredentials(body);
+}
+
 /** 阶段探测：公开端点；ready 阶段附带当前用户。 */
 authRoutes.get("/api/auth/status", resolveSession, authGuard(async (c) => {
   const status = await authStatus(c.env.DB, c.get("authUser") ?? null);
@@ -39,7 +49,7 @@ authRoutes.get("/api/auth/status", resolveSession, authGuard(async (c) => {
 
 /** 初始化引导：仅在库中零用户时成功（原子事务，并发抢注只有一个赢家）。 */
 authRoutes.post("/api/auth/bootstrap", sameOriginGuard, authGuard(async (c) => {
-  const input = parseCredentials(await c.req.json().catch(() => null));
+  const input = routeCredentials(c.env, await c.req.json().catch(() => null));
   const user = await bootstrapOwner(c.env, input, Date.now());
   const session = await issueSession(c.env.DB, user.id, Date.now());
   setSessionCookie(c, session.cookieValue);
@@ -48,7 +58,7 @@ authRoutes.post("/api/auth/bootstrap", sameOriginGuard, authGuard(async (c) => {
 
 /** 注册：仅 owner 开放注册且在有效期内时可用；新账号为 member。 */
 authRoutes.post("/api/auth/register", sameOriginGuard, authGuard(async (c) => {
-  const input = parseCredentials(await c.req.json().catch(() => null));
+  const input = routeCredentials(c.env, await c.req.json().catch(() => null));
   const user = await registerMember(c.env, input, Date.now());
   const session = await issueSession(c.env.DB, user.id, Date.now());
   setSessionCookie(c, session.cookieValue);
@@ -57,7 +67,7 @@ authRoutes.post("/api/auth/register", sameOriginGuard, authGuard(async (c) => {
 
 /** 登录：失败统一 401 防用户名枚举；洪峰守卫（内存）+ D1 持久按用户名节流。 */
 authRoutes.post("/api/auth/login", sameOriginGuard, authGuard(async (c) => {
-  const input = parseCredentials(await c.req.json().catch(() => null));
+  const input = routeCredentials(c.env, await c.req.json().catch(() => null));
   const now = Date.now();
   if (loginFloodGuard(now) || (await loginThrottled(c.env.DB, input.username, now))) {
     throw new AuthError(429, "too_many_attempts");

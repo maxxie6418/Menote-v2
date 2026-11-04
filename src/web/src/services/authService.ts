@@ -35,7 +35,8 @@ export async function fetchAuthStatus(signal: AbortSignal): Promise<AuthStatus |
 export async function submitCredentials(
   path: "/api/auth/bootstrap" | "/api/auth/login" | "/api/auth/register", input: CredentialsInput,
 ): Promise<AuthRequestResult> {
-  if (!validUsername(input.username) || !validPassword(input.password)) {
+  const localTestCredentials = import.meta.env.DEV && input.username === "admin" && input.password === "admin";
+  if (!validUsername(input.username) || (!validPassword(input.password) && !localTestCredentials)) {
     return { ok: false, code: "invalid_credentials" };
   }
   try {

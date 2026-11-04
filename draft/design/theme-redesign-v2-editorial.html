@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Menote · 暖纸·编辑（v2 精修稿）</title>
+<style>
+/* ============================================================================
+   Menote · 暖纸 · 编辑 / Warm Editorial · v2
+   基于 v1 的 C 方向精修。保留：暖中性纸面、内容按块组织、悬停操作。
+   替换：所有 Notion 品牌签名（emoji 页图标 / cover / workspace switcher /
+   Favorites-Private-Teamspaces / 彩色 pill / slash hint / 拖拽手柄）。
+   改为编辑设计语汇：细线图标、双线规则、目录式侧栏、页边注、页码、
+   日期刻度、块类型标记、等宽计数。
+   独立探索稿，不改动任何定稿与实现。设计尺寸 1440 × 900。
+   ============================================================================ */
+
+/* ---------- 0 · 读稿外壳 ---------- */
+:root{
+  --g-bg:#111315;--g-panel:#191C1F;--g-panel2:#202428;--g-line:#2C3237;--g-line2:#23282C;
+  --g-fg:#EEF0F1;--g-2:#A8AFB5;--g-3:#767E85;--g-hl:#D08B5E;--g-ok:#8FBBA0;
+  --g-font:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --g-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--g-bg)}
+body{font-family:var(--g-font);color:var(--g-fg);background:var(--g-bg);-webkit-font-smoothing:antialiased;padding:0 0 80px}
+.wrap{max-width:1520px;margin:0 auto;padding:0 30px}
+.head{padding:34px 0 22px;border-bottom:1px solid var(--g-line)}
+.head .eyebrow{font-family:var(--g-mono);font-size:10.5px;letter-spacing:.16em;color:var(--g-hl);text-transform:uppercase}
+.head h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:11px 0 10px}
+.head h1 small{font-size:13px;font-weight:400;color:var(--g-3);margin-left:12px;letter-spacing:0}
+.head p{font-size:12.5px;line-height:1.9;color:var(--g-2);max-width:1000px}
+.head p b{color:var(--g-fg);font-weight:600}
+.head code{font-family:var(--g-mono);font-size:11px;color:#EFC093}
+.head .meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
+.head .meta span{font-family:var(--g-mono);font-size:10.5px;color:var(--g-3)}
+.head .meta b{color:var(--g-2);font-weight:400}
+.bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:16px 0 18px;border-bottom:1px solid var(--g-line2)}
+.grp{display:flex;align-items:center;gap:8px}
+.grp>label{font-size:10.5px;color:var(--g-3);letter-spacing:.05em}
+.sg{display:flex;gap:2px;padding:3px;border:1px solid var(--g-line);border-radius:8px;background:var(--g-panel)}
+.sg button{border:0;background:none;color:var(--g-2);font-family:inherit;font-size:11.5px;padding:6px 12px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.sg button:hover{background:var(--g-panel2);color:var(--g-fg)}
+.sg button.on{background:#343A3F;color:var(--g-fg);font-weight:600}
+.bar .note{margin-left:auto;font-size:11px;color:var(--g-3)}
+.sec-h{display:flex;align-items:baseline;gap:11px;margin:26px 0 13px}
+.sec-h b{font-size:13.5px;font-weight:600}
+.sec-h span{font-size:11.5px;color:var(--g-3)}
+.stage{border:1px solid var(--g-line);border-radius:12px;background:var(--g-panel);overflow:hidden}
+.stage-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--g-line);background:var(--g-panel2)}
+.dots{display:flex;gap:5px}
+.dots i{width:8px;height:8px;border-radius:50%;background:#3A4147;display:block}
+.stage-bar .addr{font-family:var(--g-mono);font-size:10.5px;color:var(--g-3);margin-left:8px}
+.stage-bar .rt{margin-left:auto;font-family:var(--g-mono);font-size:10.5px;color:var(--g-3)}
+.viewport{position:relative;--s:1;width:100%;overflow:hidden;background:#E6E4DE}
+.viewport>.app{position:absolute;top:0;left:0;transform:scale(var(--s));transform-origin:top left}
+.viewport.native{overflow-x:auto}
+.viewport.native>.app{position:relative;transform:none}
+
+/* ---------- 通用 app ---------- */
+.app{width:1440px;height:900px;overflow:hidden;position:relative;display:grid;font-size:14px}
+.app *{box-sizing:border-box}
+.app svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.app button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.app .mono{font-family:var(--g-mono);font-variant-numeric:tabular-nums}
+
+/* ============================================================================
+   1 · 暖纸·编辑 —— 令牌
+   ============================================================================ */
+.e-app{
+  --e-paper:#FBFAF7;--e-side:#F4F2ED;--e-card:#FFFFFF;--e-sunk:#F0EEE8;
+  --e-hair:#E4E1D9;--e-line:#CDC9BE;--e-rule:#B6B1A4;
+  --e-ink:#26251F;--e-2:#5F5C53;--e-3:#8B877C;--e-4:#ABA79B;
+  --e-brand:#35594A;--e-brand-s:#E9F0EA;--e-sig:#B4653A;--e-sig-s:#F6ECE4;
+  --e-warn:#9A5B48;--e-code:#F3F1EB;
+  --e-double:1px solid var(--e-line);
+  grid-template-columns:268px minmax(0,1fr);
+  background:var(--e-paper);color:var(--e-ink);
+  font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+.e-app[data-v="notes"]{grid-template-columns:268px 300px minmax(0,1fr)}
+.e-app[data-mode="dark"]{
+  --e-paper:#1A1A18;--e-side:#20201D;--e-card:#222220;--e-sunk:#282825;
+  --e-hair:#30302B;--e-line:#3D3D36;--e-rule:#4A4A42;
+  --e-ink:#EDEBE4;--e-2:#B0ADA3;--e-3:#86837A;--e-4:#6E6B63;
+  --e-brand:#8FBBA0;--e-brand-s:#24332A;--e-sig:#DE9A6C;--e-sig-s:#33261C;
+  --e-warn:#E0937B;--e-code:#232320;
+}
+
+/* ---------- 1.1 侧栏：目录式 ---------- */
+.e-nav{background:var(--e-side);border-right:1px solid var(--e-line);position:relative;display:flex;flex-direction:column;min-height:0;padding:0 0 12px}
+.e-nav::after{content:"";position:absolute;right:3px;top:0;bottom:0;width:1px;background:var(--e-hair)}
+.e-mast{padding:22px 20px 16px;border-bottom:1px solid var(--e-line);box-shadow:0 3px 0 -2px var(--e-line)}
+.e-mast .row{display:flex;align-items:center;gap:10px}
+.e-mark{width:26px;height:26px;border:1.5px solid var(--e-ink);border-radius:3px;position:relative;flex:none}
+.e-mark::before,.e-mark::after{content:"";position:absolute;left:5px;right:5px;height:1px;background:var(--e-ink)}
+.e-mark::before{top:9px}.e-mark::after{top:15px}
+.e-mark i{position:absolute;left:5px;top:9px;width:6px;height:6px;background:var(--e-sig);border-radius:1px}
+.e-mast .nm{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.e-mast .ver{margin-left:auto;font-family:var(--g-mono);font-size:9.5px;color:var(--e-4)}
+.e-mast .tag{font-size:10.5px;color:var(--e-3);margin-top:9px;letter-spacing:.02em}
+.e-quick{display:flex;align-items:center;gap:9px;height:38px;margin:14px 16px 4px;padding:0 11px;border:1px solid var(--e-line);background:var(--e-paper);border-radius:3px;font-size:12px;color:var(--e-3)}
+.e-quick:hover{border-color:var(--e-rule)}
+.e-quick svg{width:14px;height:14px}
+.e-quick .kbd{margin-left:auto;font-family:var(--g-mono);font-size:9.5px;border:1px solid var(--e-hair);padding:2px 5px;border-radius:2px;color:var(--e-4)}
+.e-cap{display:flex;align-items:center;gap:9px;padding:20px 20px 7px;font-family:var(--g-mono);font-size:9px;letter-spacing:.18em;color:var(--e-4);text-transform:uppercase}
+.e-cap i{flex:1;height:1px;background:var(--e-hair)}
+.e-cap b{font-weight:400;color:var(--e-3)}
+.e-ni{position:relative;display:flex;align-items:center;gap:10px;height:34px;padding:0 20px;font-size:12.5px;color:var(--e-2)}
+.e-ni .no{font-family:var(--g-mono);font-size:10px;color:var(--e-4);width:20px;flex:none}
+.e-ni .tx{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-ni .ct{font-family:var(--g-mono);font-size:10px;color:var(--e-4);font-variant-numeric:tabular-nums}
+.e-ni .lk{font-family:var(--g-mono);font-size:8.5px;letter-spacing:.06em;color:var(--e-sig);border:1px solid var(--e-sig);padding:1px 4px;border-radius:2px}
+.e-ni::after{content:"";position:absolute;left:20px;right:20px;bottom:4px;height:1px;background:var(--e-sig);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+.e-ni:hover{background:var(--e-sunk)}
+.e-ni:hover::after{transform:scaleX(1)}
+.e-ni.on{color:var(--e-ink);font-weight:600;background:var(--e-sunk)}
+.e-ni.on::before{content:"";position:absolute;left:0;top:5px;bottom:5px;width:2px;background:var(--e-sig)}
+.e-ni.on .no{color:var(--e-sig)}
+.e-ni.on::after{display:none}
+.e-tree{margin:2px 0 0}
+.e-tn{position:relative;display:flex;align-items:center;gap:9px;height:29px;padding:0 20px 0 30px;font-size:12px;color:var(--e-2)}
+.e-tn .cv{font-size:8px;color:var(--e-4);width:10px}
+.e-tn .ct{margin-left:auto;font-family:var(--g-mono);font-size:9.5px;color:var(--e-4)}
+.e-tn .guide{position:absolute;left:22px;top:0;bottom:0;width:1px;background:var(--e-hair)}
+.e-tn:hover{background:var(--e-sunk)}
+.e-tn.ch{padding-left:46px;font-size:11.5px;color:var(--e-3);height:26px}
+.e-tn.ch .guide{left:34px}
+.e-tn.ch .arm{position:absolute;left:34px;top:13px;width:8px;height:1px;background:var(--e-hair)}
+.e-tn.on{color:var(--e-ink);font-weight:600}
+.e-tn.on .cv{color:var(--e-sig)}
+.e-nav .sp{flex:1;min-height:12px}
+.e-navfoot{margin:0 20px;border-top:1px solid var(--e-line);box-shadow:0 3px 0 -2px var(--e-line);padding-top:13px}
+.e-status{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--e-3);margin-bottom:9px}
+.e-status i{width:5px;height:5px;background:var(--e-brand);border-radius:1px}
+.e-status .mono{margin-left:auto;font-size:9.5px;color:var(--e-4)}
+.e-user{display:flex;align-items:center;gap:9px}
+.e-user .av{width:24px;height:24px;border:1px solid var(--e-line);display:grid;place-items:center;font-family:var(--g-mono);font-size:10px;color:var(--e-2);border-radius:2px}
+.e-user b{font-size:11.5px;font-weight:600}
+.e-user span{font-size:10px;color:var(--e-4);margin-left:auto;font-family:var(--g-mono)}
+
+/* ---------- 1.2 首页 ---------- */
+.e-home{display:grid;grid-template-columns:minmax(0,1fr) 174px;grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0;overflow:hidden}
+.e-head{grid-column:1/-1;padding:26px 40px 0 44px}
+.e-rule2{height:4px;border-top:1px solid var(--e-line);border-bottom:1px solid var(--e-line);margin-bottom:18px}
+.e-headtop{display:flex;align-items:center;gap:14px;font-family:var(--g-mono);font-size:9.5px;letter-spacing:.16em;color:var(--e-3);text-transform:uppercase}
+.e-headtop .sq{width:7px;height:7px;background:var(--e-sig)}
+.e-headtop .pn{margin-left:auto;color:var(--e-4)}
+.e-title{display:flex;align-items:flex-end;gap:24px;margin-top:14px}
+.e-title h1{font-size:42px;font-weight:600;letter-spacing:-.032em;line-height:1.12}
+.e-title .sub{font-size:11.5px;color:var(--e-3);line-height:1.9;text-align:right;margin-left:auto;padding-bottom:5px}
+.e-title .sub i{display:inline-block;width:5px;height:5px;background:var(--e-brand);border-radius:1px;margin-right:5px;vertical-align:1px}
+.e-week{display:flex;align-items:flex-start;gap:14px;margin:18px 0 0}
+.e-week .lb{font-family:var(--g-mono);font-size:9px;letter-spacing:.14em;color:var(--e-4);padding-top:1px;white-space:nowrap}
+.e-week .cal{display:flex;gap:3px}
+.e-week .col{display:flex;flex-direction:column;align-items:center;gap:6px;width:22px}
+.e-week .col i{width:22px;height:5px;background:var(--e-hair);border-radius:1px;display:block}
+.e-week .col i.done{background:var(--e-rule)}
+.e-week .col i.now{background:var(--e-sig)}
+.e-week .col span{font-family:var(--g-mono);font-size:9px;color:var(--e-4)}
+.e-week .col span.now{color:var(--e-sig)}
+.e-head .lede{font-size:12px;line-height:1.8;color:var(--e-2);margin:16px 0 0;padding-left:13px;border-left:2px solid var(--e-sig);max-width:720px}
+.e-head .lede b{color:var(--e-ink);font-weight:600}
+.e-body{padding:22px 34px 20px 44px;min-height:0;overflow:hidden}
+.e-margin{border-left:1px solid var(--e-line);padding:22px 18px 16px 16px;display:flex;flex-direction:column;gap:20px;min-height:0;overflow:hidden}
+.e-sec{display:flex;align-items:center;gap:10px;margin:0 0 11px}
+.e-sec b{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--e-ink)}
+.e-sec .no{font-family:var(--g-mono);font-size:9.5px;color:var(--e-sig)}
+.e-sec i{flex:1;height:1px;background:var(--e-hair)}
+.e-sec a{font-size:10.5px;color:var(--e-3);text-decoration:none;white-space:nowrap}
+.e-sec a:hover{color:var(--e-sig)}
+.e-entries{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--e-line);border-bottom:1px solid var(--e-line);margin-bottom:26px}
+.e-entry{position:relative;padding:15px 16px 17px 0;display:flex;flex-direction:column;gap:0;min-height:118px;transition:background .16s}
+.e-entry+.e-entry{padding-left:18px;border-left:1px solid var(--e-hair)}
+.e-entry::before{content:"";position:absolute;top:-1px;left:0;right:14px;height:2px;background:var(--e-sig);transform:scaleX(0);transform-origin:left;transition:transform .22s}
+.e-entry:hover::before{transform:scaleX(1)}
+.e-entry:hover{background:var(--e-sunk)}
+.e-entry .eh{display:flex;align-items:center;gap:8px;color:var(--e-3)}
+.e-entry .eh svg{width:17px;height:17px}
+.e-entry .eh .no{margin-left:auto;font-family:var(--g-mono);font-size:10px;color:var(--e-sig)}
+.e-entry h3{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:14px 0 5px}
+.e-entry p{font-size:11.5px;line-height:1.7;color:var(--e-3);max-width:210px}
+.e-entry .go{position:absolute;right:14px;bottom:14px;font-size:13px;color:var(--e-4);opacity:0;transition:opacity .16s}
+.e-entry:hover .go{opacity:1}
+.e-stat{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--e-line);border-bottom:3px double var(--e-line);margin-bottom:24px}
+.e-stat .st{padding:13px 0 12px 18px;border-left:1px solid var(--e-hair)}
+.e-stat .st:first-child{border-left:0;padding-left:0}
+.e-stat .st .k{font-size:10px;letter-spacing:.1em;color:var(--e-3);text-transform:uppercase}
+.e-stat .st b{display:block;font-family:var(--g-mono);font-size:30px;font-weight:400;line-height:1.1;letter-spacing:-.04em;margin:7px 0 3px;font-variant-numeric:tabular-nums}
+.e-stat .st:first-child b{color:var(--e-sig)}
+.e-stat .st .u{font-size:10px;color:var(--e-4)}
+.e-rl{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr) 190px 66px 20px;align-items:center;gap:0;height:38px;border-bottom:1px solid var(--e-hair);font-size:12.5px}
+.e-sec+.e-rl{border-top:1px solid var(--e-hair)}
+.e-rl:hover{background:var(--e-sunk)}
+.e-rl .mk{width:14px;height:14px;border:1px solid var(--e-line);border-radius:2px;display:grid;place-items:center;font-family:var(--g-mono);font-size:8px;color:var(--e-4)}
+.e-rl:hover .mk{border-color:var(--e-sig);color:var(--e-sig)}
+.e-rl .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:12px}
+.e-rl .p{font-size:11px;color:var(--e-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-rl .d{font-family:var(--g-mono);font-size:10.5px;color:var(--e-4);text-align:right;font-variant-numeric:tabular-nums}
+.e-rl .ar{text-align:right;color:var(--e-4);font-size:12px;opacity:0}
+.e-rl:hover .ar{opacity:1;color:var(--e-sig)}
+.e-tline{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--e-hair);padding-top:11px}
+.e-tline span{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--e-2);padding-right:22px}
+.e-tline b{font-family:var(--g-mono);font-size:10px;color:var(--e-4);font-weight:400}
+.e-tline i{width:4px;height:4px;background:var(--e-brand);border-radius:1px}
+.e-foot{display:flex;align-items:center;gap:14px;margin-top:20px;padding-top:11px;border-top:1px solid var(--e-line);box-shadow:0 3px 0 -2px var(--e-line)}
+.e-foot a{font-size:11px;color:var(--e-3);text-decoration:none}
+.e-foot a:hover{color:var(--e-sig)}
+.e-foot .pg{margin-left:auto;font-family:var(--g-mono);font-size:9.5px;letter-spacing:.1em;color:var(--e-4)}
+/* 页边注 */
+.e-mnote h4{font-family:var(--g-mono);font-size:9px;letter-spacing:.16em;color:var(--e-4);text-transform:uppercase;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--e-hair)}
+.e-mnote .big{font-family:var(--g-mono);font-size:24px;font-weight:400;letter-spacing:-.04em;line-height:1.1}
+.e-mnote .sm{font-size:10.5px;line-height:1.75;color:var(--e-3);margin-top:6px}
+.e-mnote .bar7{display:flex;gap:2px;margin-top:10px}
+.e-mnote .bar7 i{height:12px;flex:1;background:var(--e-hair);border-radius:1px}
+.e-mnote .bar7 i.on{background:var(--e-brand)}
+.e-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.e-tag{font-size:10px;padding:3px 7px;border:1px solid var(--e-line);border-radius:2px;color:var(--e-2)}
+.e-tag.on{border-color:var(--e-sig);color:var(--e-sig);background:var(--e-sig-s)}
+.e-kv{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--e-3);height:24px;border-bottom:1px solid var(--e-hair)}
+.e-kv kbd{font-family:var(--g-mono);font-size:9.5px;border:1px solid var(--e-line);padding:1px 5px;border-radius:2px;color:var(--e-2);margin-left:auto}
+.e-margin .vsign{margin-top:auto;font-family:var(--g-mono);font-size:8.5px;letter-spacing:.14em;color:var(--e-4);line-height:1.9}
+
+/* ---------- 1.3 三栏 ---------- */
+.e-app[data-v="home"] .e-listcol,.e-app[data-v="home"] .e-doc{display:none}
+.e-app[data-v="notes"] .e-home{display:none}
+.e-listcol{background:var(--e-side);border-right:1px solid var(--e-line);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.e-lh{height:52px;flex:none;display:flex;align-items:center;gap:9px;padding:0 18px;border-bottom:1px solid var(--e-line)}
+.e-lh b{font-size:12px;font-weight:700;letter-spacing:.08em}
+.e-lh .n{font-family:var(--g-mono);font-size:10px;color:var(--e-4)}
+.e-lh .r{margin-left:auto;display:flex;gap:9px;color:var(--e-3)}
+.e-lh .r svg{width:14px;height:14px}
+.e-grp{display:flex;align-items:center;gap:9px;padding:17px 18px 7px;font-family:var(--g-mono);font-size:9px;letter-spacing:.16em;color:var(--e-4);text-transform:uppercase}
+.e-grp i{flex:1;height:1px;background:var(--e-hair)}
+.e-nr{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:7px;padding:10px 16px 10px 14px;border-bottom:1px solid var(--e-hair)}
+.e-nr .no{font-family:var(--g-mono);font-size:9.5px;color:var(--e-4);grid-row:1/3;padding-top:2px}
+.e-nr .t{font-size:12.5px;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-nr .s{font-size:10.5px;color:var(--e-3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-nr:hover{background:var(--e-sunk)}
+.e-nr.on{background:var(--e-sunk)}
+.e-nr.on::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--e-sig)}
+.e-nr.on .no{color:var(--e-sig)}
+.e-doc{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--e-paper)}
+.e-docbar{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 28px;border-bottom:1px solid var(--e-line);font-size:11.5px;color:var(--e-3)}
+.e-cr{display:flex;align-items:center;gap:7px}
+.e-cr svg{width:12px;height:12px}
+.e-cr .sl{color:var(--e-4)}
+.e-docbar .r{margin-left:auto;display:flex;align-items:center;gap:4px}
+.e-ib{width:30px;height:30px;border-radius:3px;display:grid;place-items:center;color:var(--e-3)}
+.e-ib:hover{background:var(--e-sunk);color:var(--e-ink)}
+.e-ib svg{width:15px;height:15px}
+.e-docwrap{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 158px}
+.e-docin{padding:30px 34px 0 44px;min-height:0;overflow:hidden}
+.e-dochd{border-bottom:3px double var(--e-line);padding-bottom:17px;margin-bottom:18px}
+.e-docin .kick{font-family:var(--g-mono);font-size:9.5px;letter-spacing:.16em;color:var(--e-3);text-transform:uppercase}
+.e-docin h1{font-size:36px;font-weight:600;letter-spacing:-.03em;line-height:1.18;margin:11px 0 13px}
+.e-docin .sig{width:30px;height:2px;background:var(--e-sig);margin-bottom:13px}
+.e-docin .byline{display:flex;gap:18px;font-size:10.5px;color:var(--e-3)}
+.e-docin .byline b{color:var(--e-2);font-weight:500}
+.e-props{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;margin-bottom:22px}
+.e-prop{display:flex;align-items:center;gap:10px;height:32px;border-bottom:1px solid var(--e-hair);font-size:11.5px}
+.e-prop .k{width:56px;color:var(--e-4);font-size:10.5px;flex:none}
+.e-prop .v{display:flex;align-items:center;gap:5px;color:var(--e-ink)}
+.e-pill{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border:1px solid var(--e-line);border-radius:2px;font-size:10.5px;color:var(--e-2)}
+.e-pill i{width:4px;height:4px;border-radius:1px;background:var(--e-brand)}
+.e-pill.s i{background:var(--e-sig)}
+.e-pill.plain i{display:none}
+.e-blk{position:relative;padding:4px 6px;border-radius:3px;font-size:14.5px;line-height:1.82;color:var(--e-ink)}
+.e-blk:hover{background:var(--e-sunk)}
+.e-blk .bm{position:absolute;left:-30px;top:7px;width:20px;height:20px;display:none;place-items:center;font-family:var(--g-mono);font-size:9px;color:var(--e-4);border-right:1px solid var(--e-line)}
+.e-blk:hover .bm{display:grid}
+.e-blk p{margin:0}
+.e-h2{display:flex;align-items:center;gap:10px;margin:22px 0 9px;padding-bottom:7px;border-bottom:1px solid var(--e-hair);font-size:15px;font-weight:600}
+.e-h2 .no{font-family:var(--g-mono);font-size:10px;color:var(--e-sig)}
+.e-quote{border-left:2px solid var(--e-sig);padding:4px 0 4px 15px;margin:14px 0;font-size:13px;line-height:1.8;color:var(--e-2)}
+.e-note{display:flex;gap:12px;border:1px solid var(--e-line);border-left:2px solid var(--e-brand);background:var(--e-brand-s);border-radius:2px;padding:12px 14px;margin:15px 0;font-size:12.5px;line-height:1.75;color:var(--e-2)}
+.e-note .lb{font-family:var(--g-mono);font-size:9px;letter-spacing:.12em;color:var(--e-brand);flex:none;padding-top:3px}
+.e-todo{display:flex;align-items:flex-start;gap:9px;padding:5px 6px;font-size:13.5px;line-height:1.7;border-radius:3px}
+.e-todo:hover{background:var(--e-sunk)}
+.e-cb{width:14px;height:14px;border:1.5px solid var(--e-rule);border-radius:2px;flex:none;margin-top:5px;display:grid;place-items:center}
+.e-cb.on{background:var(--e-brand);border-color:var(--e-brand)}
+.e-cb.on::after{content:"✓";color:var(--e-paper);font-size:10px;line-height:1}
+.e-todo.done{color:var(--e-4);text-decoration:line-through}
+.e-code{background:var(--e-code);border:1px solid var(--e-hair);border-radius:3px;padding:10px 13px;font-family:var(--g-mono);font-size:11px;line-height:1.85;color:var(--e-2);margin:12px 0}
+.e-docmargin{border-left:1px solid var(--e-line);padding:30px 16px 18px 14px;display:flex;flex-direction:column;gap:20px;min-height:0;overflow:hidden}
+.e-docmargin .pg{margin-top:auto;font-family:var(--g-mono);font-size:9.5px;letter-spacing:.1em;color:var(--e-4);border-top:1px solid var(--e-hair);padding-top:9px}
+
+/* ---------- 2 · 细节剖面（1:1，恒定浅底） ---------- */
+.spec{padding:20px;background:#EFEDE7;border:1px solid var(--g-line);border-radius:12px;
+  --e-paper:#FBFAF7;--e-side:#F4F2ED;--e-card:#FFFFFF;--e-sunk:#F0EEE8;
+  --e-hair:#E4E1D9;--e-line:#CDC9BE;--e-rule:#B6B1A4;
+  --e-ink:#26251F;--e-2:#5F5C53;--e-3:#8B877C;--e-4:#ABA79B;
+  --e-brand:#35594A;--e-brand-s:#E9F0EA;--e-sig:#B4653A;--e-sig-s:#F6ECE4;--e-code:#F3F1EB}
+.spec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:1180px){.spec-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.spec-grid{grid-template-columns:1fr}}
+.spec-cell{background:var(--e-card);color:var(--e-ink);border:1px solid var(--e-line);border-radius:3px;padding:15px 16px 17px;min-height:164px;font-size:12px}
+.spec-cell>h4{font-family:var(--g-mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--e-4);font-weight:500;margin-bottom:14px}
+.spec-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.spec-row:last-child{margin-bottom:0}
+.spec-note{font-size:10.5px;color:var(--e-4);margin-top:9px;line-height:1.65}
+.spec svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* 全部加 .spec 作用域：这些类名与应用内组件同名，不能反向覆盖 app 内的样式 */
+.spec .e-b{height:31px;padding:0 13px;border-radius:2px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--e-line);background:var(--e-card);color:var(--e-ink)}
+.spec .e-b.f{background:var(--e-brand);border-color:var(--e-brand);color:#fff}
+.spec .e-b.s{background:var(--e-sig);border-color:var(--e-sig);color:#fff}
+.spec .e-b.o{background:transparent}
+.spec .e-b.x{border-color:transparent;color:var(--e-2)}
+.spec .e-b.d{opacity:.4}
+.spec .e-in{height:32px;border:1px solid var(--e-line);border-radius:2px;background:var(--e-card);display:flex;align-items:center;gap:7px;padding:0 9px;font-size:11.5px;color:var(--e-4);width:100%}
+.spec .e-in.foc{border-color:var(--e-brand);box-shadow:0 0 0 2px rgba(53,89,74,.13);color:var(--e-ink)}
+.spec .e-in.err{border-color:#9A5B48;box-shadow:0 0 0 2px rgba(154,91,72,.12)}
+.spec .e-ni{height:29px;padding:0 9px;font-size:11.5px;color:var(--e-2);display:flex;align-items:center;gap:9px;border-radius:2px;position:relative}
+.spec .e-ni .no{font-family:var(--g-mono);font-size:9.5px;color:var(--e-4);width:16px}
+.spec .e-ni .ct{margin-left:auto;font-family:var(--g-mono);font-size:9.5px;color:var(--e-4)}
+.spec .e-ni:hover{background:var(--e-sunk)}
+.spec .e-ni.on{background:var(--e-sunk);color:var(--e-ink);font-weight:600}
+.spec .e-ni.on::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:2px;background:var(--e-sig)}
+.spec .e-ni.on .no{color:var(--e-sig)}
+.spec .e-cb{width:14px;height:14px;border:1.5px solid var(--e-rule);border-radius:2px;display:grid;place-items:center;flex:none}
+.spec .e-cb.on{background:var(--e-brand);border-color:var(--e-brand)}
+.spec .e-cb.on::after{content:"✓";color:#fff;font-size:10px;line-height:1}
+.spec .e-rd{width:14px;height:14px;border:1.5px solid var(--e-rule);border-radius:50%;display:grid;place-items:center;flex:none}
+.spec .e-rd.on{border-color:var(--e-brand)}
+.spec .e-rd.on::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--e-brand)}
+.spec .e-sw{width:28px;height:16px;border:1px solid var(--e-line);border-radius:2px;position:relative;flex:none;background:var(--e-sunk)}
+.spec .e-sw::after{content:"";position:absolute;left:2px;top:2px;width:10px;height:10px;background:var(--e-4);border-radius:1px}
+.spec .e-sw.on{background:var(--e-brand-s);border-color:var(--e-brand)}
+.spec .e-sw.on::after{left:14px;background:var(--e-brand)}
+.spec .e-pill{height:20px;padding:0 7px;border:1px solid var(--e-line);border-radius:2px;display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--e-2)}
+.spec .e-pill i{width:4px;height:4px;border-radius:1px;background:var(--e-brand)}
+.spec .e-pill.s i{background:var(--e-sig)}
+.spec .e-men{border:1px solid var(--e-line);border-radius:2px;background:var(--e-card);padding:4px;box-shadow:0 6px 16px rgba(40,36,28,.09)}
+.spec .e-men div{display:flex;align-items:center;gap:8px;height:24px;padding:0 8px;border-radius:2px;font-size:11px;color:var(--e-ink)}
+.spec .e-men div.on{background:var(--e-sunk)}
+.spec .e-men div span{margin-left:auto;font-family:var(--g-mono);font-size:9px;color:var(--e-4)}
+
+/* ---------- 3 · 对照表 / 说明 ---------- */
+.panels{margin-top:26px;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+@media(max-width:1080px){.panels{grid-template-columns:1fr}}
+.panel{border:1px solid var(--g-line);border-radius:12px;background:var(--g-panel);padding:19px 21px 22px}
+.panel h3{font-size:13px;font-weight:600;margin-bottom:14px}
+.panel h3:not(:first-child){margin-top:22px;padding-top:18px;border-top:1px solid var(--g-line2)}
+.panel p{font-size:12px;line-height:1.9;color:var(--g-2)}
+.panel ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.panel li{font-size:12px;line-height:1.8;color:var(--g-2);padding-left:15px;position:relative}
+.panel li::before{content:"";position:absolute;left:0;top:9px;width:4px;height:4px;border-radius:50%;background:#5B636A}
+.panel li b{color:var(--g-fg);font-weight:600}
+.panel code{font-family:var(--g-mono);font-size:11px;color:#EFC093}
+.diff{width:100%;border-collapse:collapse;font-size:11.5px}
+.diff th{text-align:left;font-family:var(--g-mono);font-size:9.5px;letter-spacing:.12em;color:var(--g-3);text-transform:uppercase;font-weight:500;padding:0 12px 9px 0;border-bottom:1px solid var(--g-line)}
+.diff td{padding:9px 12px 9px 0;border-bottom:1px solid var(--g-line2);color:var(--g-2);line-height:1.7;vertical-align:top}
+.diff td:first-child{color:#C89A85;width:31%;white-space:nowrap}
+.diff td:nth-child(2){color:var(--g-fg);width:38%}
+.diff td:last-child{color:var(--g-3);font-size:11px}
+.kv{width:100%;border-collapse:collapse;font-family:var(--g-mono);font-size:10.5px}
+.kv td{padding:7px 0;border-bottom:1px solid var(--g-line2);color:var(--g-2)}
+.kv td:first-child{color:var(--g-3)}
+.kv td:last-child{text-align:right;color:var(--g-fg)}
+.call{margin-top:18px;border-left:2px solid var(--g-hl);background:rgba(208,139,94,.055);padding:14px 17px;border-radius:0 8px 8px 0}
+.call b{font-size:12.5px}
+.call p{font-size:11.8px;line-height:1.9;color:var(--g-2);margin-top:8px}
+html.focus-spec .head,html.focus-spec .bar,html.focus-spec .stage,
+html.focus-spec .sec-h,html.focus-spec .panels{display:none}
+html.focus-spec body{padding-top:22px}
+html.focus-spec .spec{max-width:1520px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">v2 · refinement of direction C · 2026-11-04</div>
+    <h1>暖纸 · 编辑 <small>Warm Editorial</small></h1>
+    <p>保留 v1 里 C 的三件内核：<b>暖中性纸面、内容按块组织、悬停才浮出的操作</b>；把「太还原 Notion」的部分整套换掉。做法不是加装饰，而是换视觉语汇——<b>emoji 页图标 → 自绘细线图标，cover → 双线报头 + 日期刻度，workspace switcher / Favorites-Private-Teamspaces → 目录式侧栏，彩色 pill → 细边框标签，<code>/</code> 命令与 <code>⠿</code> 手柄 → 块类型标记</b>，并补上 Notion 没有的<b>页边注、页码、规则线、等宽计数</b>。细节密度不降反升。</p>
+    <div class="meta"><span>DESIGN SIZE <b>1440 × 900</b></span><span>VIEWS <b>首页 / 三栏</b></span><span>MODES <b>浅 / 深</b></span><span>ICON SET <b>自绘 · 1.5px</b></span><span>STATUS <b>独立探索稿 · 未落地</b></span></div>
+  </header>
+
+  <div class="bar">
+    <div class="grp"><label>视图</label><div class="sg" id="viewSeg"><button data-v="home" class="on">首页</button><button data-v="notes">三栏主界面</button></div></div>
+    <div class="grp"><label>明暗</label><div class="sg" id="modeSeg"><button data-m="light" class="on">浅色</button><button data-m="dark">深色</button></div></div>
+    <div class="grp"><label>缩放</label><div class="sg" id="zoomSeg"><button data-z="fit" class="on">适配窗口</button><button data-z="native">1:1 原尺寸</button></div></div>
+    <div class="note">下方细节剖面恒为 1:1 浅底，用于核对微件密度</div>
+  </div>
+
+  <div class="sec-h"><b>应用预览</b><span id="stageHint">—</span></div>
+  <div class="stage">
+    <div class="stage-bar"><div class="dots"><i></i><i></i><i></i></div><span class="addr" id="stageAddr">menote.local / home</span><span class="rt" id="stageMeta">—</span></div>
+    <div class="viewport" id="viewport"></div>
+  </div>
+
+  <div class="sec-h"><b>细节剖面 · 1:1</b><span>新的视觉语汇：图标、规则线、标签、块标记、页码</span></div>
+  <div id="spec"></div>
+
+  <div class="panels" id="panels"></div>
+</div>
+
+<script>
+/* ========== 自绘细线图标（统一 24 viewBox / 1.5px / 圆角端点） ========== */
+const S=p=>'<svg viewBox="0 0 24 24">'+p+'</svg>';
+const I={
+  home:S('<path d="M3 10.6 12 3.5l9 7.1"/><path d="M5.6 9.4V20h12.8V9.4"/><path d="M9.6 20v-5.6h4.8V20"/>'),
+  note:S('<rect x="4.5" y="3.5" width="15" height="17" rx="1.5"/><path d="M8 8.5h8M8 12.5h8M8 16.5h5"/>'),
+  memo:S('<path d="M4 6.5h16M4 11.5h16M4 16.5h10"/>'),
+  star:S('<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8z"/>'),
+  trash:S('<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.9 13h9.2l.9-13"/>'),
+  inbox:S('<path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M4.5 5h15l1.5 8v6H3v-6z"/>'),
+  draft:S('<path d="M5.5 3.5h8l5 5v12h-13z"/><path d="M13.5 3.5v5h5M8.5 13h7M8.5 17h5"/>'),
+  lock:S('<rect x="4.5" y="10" width="15" height="10.5" rx="1.8"/><path d="M8 10V7.2a4 4 0 0 1 8 0V10"/><circle cx="12" cy="15" r="1"/>'),
+  search:S('<circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.4 15.4 4.4 4.4"/>'),
+  settings:S('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/>'),
+  plus:S('<path d="M12 5v14M5 12h14"/>'),
+  chevron:S('<path d="m9.5 6 6 6-6 6"/>'),
+  more:S('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'),
+  share:S('<circle cx="18" cy="5.5" r="2.3"/><circle cx="6" cy="12" r="2.3"/><circle cx="18" cy="18.5" r="2.3"/><path d="m8.1 10.9 7.8-4.2M8.1 13.1l7.8 4.2"/>'),
+  tag:S('<path d="M3.5 12V4.5h7.5L21 14.5l-7.5 7.5z"/><circle cx="7.5" cy="8" r="1"/>'),
+  cal:S('<rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/>'),
+  user:S('<circle cx="12" cy="8" r="3.8"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/>'),
+  check:S('<path d="m5 12.5 4.5 4.5L19 7"/>'),
+  bolt:S('<path d="M13 2.5 4.5 14h6.8l-1 7.5L19 10h-6.8z"/>'),
+  layers:S('<path d="m12 3 8.5 4.6L12 12.2 3.5 7.6z"/><path d="m3.5 12.4 8.5 4.6 8.5-4.6M3.5 16.9l8.5 4.6 8.5-4.6"/>'),
+  grid:S('<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>'),
+  eye:S('<path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.4"/>'),
+  link:S('<path d="M10 13a4.8 4.8 0 0 0 6.8 0l2-2a4.8 4.8 0 0 0-6.8-6.8l-1 1"/><path d="M14 11a4.8 4.8 0 0 0-6.8 0l-2 2a4.8 4.8 0 0 0 6.8 6.8l1-1"/>'),
+  bell:S('<path d="M18 9a6 6 0 0 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
+  sync:S('<path d="M20 7a8 8 0 0 0-14-2L4 7"/><path d="M4 3v4h4"/><path d="M4 17a8 8 0 0 0 14 2l2-2"/><path d="M20 21v-4h-4"/>'),
+  filter:S('<path d="M3.5 5h17l-6.8 8v6l-3.4 1.8V13z"/>'),
+  pen:S('<path d="m4 20 4.5-1 10-10-3.5-3.5-10 10z"/><path d="m13.5 6.5 3.5 3.5"/>'),
+  clock:S('<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.2l3.2 2"/>'),
+  bookmark:S('<path d="M6 3.5h12v17l-6-4-6 4z"/>'),
+  arrow:S('<path d="M6 18 18 6M9 6h9v9"/>')
+};
+
+/* ========== 内容数据 ========== */
+const D={
+  recent:[['材质工作流','设计 / 视觉规范','14:02'],['Menote V2 视觉规范','设计 / 定稿','11:26'],['Unreal 光照笔记','工程 / 渲染','昨天'],['11 月读书清单','阅读 / 计划','11.02'],['周会纪要 · 第 44 周','工作 / 会议','10.31']],
+  notes:[['材质工作流','把 PBR 的分层原则写清楚…'],['视觉规范 v1.9','字体统一为界面字体…'],['Unreal 光照笔记','Lumen 与烘焙的取舍…'],['属性区双列重做','栏宽 ≥560 时两两并排…'],['剪藏扩展弹窗','360×560 独立令牌…'],['11 月读书清单','待补两本…']],
+  topics:[['设计',24],['工程',18],['阅读',9],['生活',6]]
+};
+
+/* ========== 侧栏 ========== */
+function nav(mode){
+  const ni=(no,tx,ct,on,locked)=>`<div class="e-ni${on?' on':''}"><span class="no">${no}</span>${I[tx[0]]||''}<span class="tx">${tx[1]}</span>${locked?'<span class="lk">LOCKED</span>':`<span class="ct">${ct}</span>`}</div>`;
+  const tn=(cv,tx,ct,on,ch)=>`<div class="e-tn${on?' on':''}${ch?' ch':''}">${ch?'<span class="arm"></span>':'<span class="guide"></span>'}<span class="cv">${cv}</span><span>${tx}</span><span class="ct">${ct||''}</span></div>`;
+  return `<aside class="e-nav">
+    <div class="e-mast"><div class="row"><span class="e-mark"><i></i></span><span class="nm">Menote</span><span class="ver">V2</span></div><div class="tag">本地优先的笔记与随记</div></div>
+    <div class="e-quick">${I.search}<span>搜索一切</span><span class="kbd">⌘K</span></div>
+    <div class="e-cap">目录 <i></i><b>CONTENTS</b></div>
+    ${ni('01',['home','首页'],'',true)}
+    ${ni('02',['note','全部笔记'],'128')}
+    ${ni('03',['memo','Memo 时间线'],'1076')}
+    ${ni('04',['star','收藏'],'18')}
+    ${ni('05',['trash','回收站'],'—')}
+    <div class="e-cap">采集 <i></i><b>CAPTURE</b></div>
+    ${ni('06',['inbox','收件箱'],'03')}
+    ${ni('07',['draft','草稿箱'],'02')}
+    ${ni('08',['lock','加密空间'],'',false,true)}
+    <div class="e-cap">主题 <i></i><b>TOPICS</b></div>
+    <div class="e-tree">
+      ${tn('▾','设计','24',true)}
+      ${tn('','视觉规范','',false,true)}
+      ${tn('','组件清单','',false,true)}
+      ${tn('▸','工程','18')}
+      ${tn('▸','阅读','09')}
+      ${tn('▸','生活','06')}
+    </div>
+    <div class="sp"></div>
+    <div class="e-navfoot">
+      <div class="e-status"><i></i>已同步 · 本地优先<span class="mono">14:02</span></div>
+      <div class="e-user"><span class="av">M</span><b>maxxi</b><span>v0.2.2</span></div>
+    </div>
+  </aside>`;
+}
+
+/* ========== 首页 ========== */
+function home(){
+  const entry=(ico,no,h,p)=>`<div class="e-entry"><div class="eh">${I[ico]}<span class="no">${no}</span></div><h3>${h}</h3><p>${p}</p><span class="go">↗</span></div>`;
+  const rl=(r,i)=>`<div class="e-rl"><span class="mk">${String(i+1).padStart(2,'0')}</span><span class="t">${r[0]}</span><span class="p">${r[1]}</span><span class="d">${r[2]}</span><span class="ar">↗</span></div>`;
+  return `<main class="e-home">
+    <div class="e-head">
+      <div class="e-rule2"></div>
+      <div class="e-headtop"><span class="sq"></span>WEDNESDAY · 04 NOV 2026 · VOL. 44<span class="pn">— 001 —</span></div>
+      <div class="e-title"><h1>11 月 4 日，星期三</h1><div class="sub"><i></i>已同步 · 本地优先<br>128 篇笔记 · 1,076 条 Memo</div></div>
+      <div class="e-week"><span class="lb">WEEK 44</span><div class="cal">
+        <div class="col"><i class="done"></i><span>一</span></div><div class="col"><i class="done"></i><span>二</span></div>
+        <div class="col"><i class="now"></i><span class="now">三</span></div><div class="col"><i></i><span>四</span></div>
+        <div class="col"><i></i><span>五</span></div><div class="col"><i></i><span>六</span></div><div class="col"><i></i><span>日</span></div>
+      </div></div>
+      <div class="lede"><b>编者按</b> &nbsp;把散落的想法收进同一页。所有入口都在下面，剩下的时间留给写。</div>
+    </div>
+    <section class="e-body">
+      <div class="e-sec"><span class="no">§ 01</span><b>今日入口</b><i></i><a href="#">三个动作 ›</a></div>
+      <div class="e-entries">${entry('bolt','01','记一条 Memo','想法先落地，再归类。不打断当前的阅读位置。')}${entry('pen','02','新建笔记','长文写作，属性、标签与表格从第一行就位。')}${entry('search','03','搜索一切','标题、正文、标签与附件内容，一次命中。')}</div>
+      <div class="e-sec"><span class="no">§ 02</span><b>工作区状态</b><i></i><a href="#">明细 ›</a></div>
+      <div class="e-stat">
+        <div class="st"><div class="k">收件箱 / Inbox</div><b>03</b><div class="u">条待整理</div></div>
+        <div class="st"><div class="k">草稿箱 / Drafts</div><b>02</b><div class="u">篇未完成</div></div>
+        <div class="st"><div class="k">收藏 / Starred</div><b>18</b><div class="u">篇</div></div>
+        <div class="st"><div class="k">Memo 待办 / Todo</div><b>05</b><div class="u">条</div></div>
+      </div>
+      <div class="e-sec"><span class="no">§ 03</span><b>最近编辑</b><i></i><a href="#">全部 128 篇 ›</a></div>
+      ${D.recent.map(rl).join('')}
+      <div class="e-sec" style="margin-top:20px"><span class="no">§ 04</span><b>主题速览</b><i></i><a href="#">全部主题 ›</a></div>
+      <div class="e-tline">${D.topics.map(t=>`<span><i></i>${t[0]}<b>${String(t[1]).padStart(2,'0')}</b></span>`).join('')}</div>
+      <div class="e-foot"><a href="#">按标签浏览</a><a href="#">回顾与随机漫步</a><a href="#">全部 Memo</a><a href="#">回收站</a><span class="pg">MENOTE · VOL.44 · 001 / 128</span></div>
+    </section>
+    <aside class="e-margin">
+      <div class="e-mnote"><h4>本周 / WEEK 44</h4><div class="big">4 / 7</div><div class="sm">天有记录 · 12 条 Memo<br>比上周多 3 条</div><div class="bar7"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div></div>
+      <div class="e-mnote"><h4>最近标签 / TAGS</h4><div class="e-tags"><span class="e-tag on">PBR</span><span class="e-tag">视觉规范</span><span class="e-tag">待整理</span><span class="e-tag">灵感</span></div></div>
+      <div class="e-mnote"><h4>快捷 / SHORTCUTS</h4><div class="e-kv">搜索一切<kbd>⌘ K</kbd></div><div class="e-kv">记一条 Memo<kbd>⌘ ↵</kbd></div><div class="e-kv">新建笔记<kbd>⌘ N</kbd></div><div class="e-kv">切换主题<kbd>⌘ T</kbd></div></div>
+      <div class="e-mnote"><h4>页边注 / MARGIN</h4><div class="sm">这一栏不随正文滚动。放进度、标签与快捷键，把主区留给内容。</div></div>
+      <div class="vsign">MENOTE · LOCAL FIRST<br>NO CLOUD COPY OF CONTENT</div>
+    </aside>
+  </main>`;
+}
+
+/* ========== 三栏 ========== */
+function columns(){
+  const nr=(r,i)=>`<div class="e-nr${i===0?' on':''}"><span class="no">${String(i+1).padStart(2,'0')}</span><span class="t">${r[0]}</span><span class="s">${r[1]}</span></div>`;
+  const blk=(mk,t)=>`<div class="e-blk"><span class="bm">${mk}</span><p>${t}</p></div>`;
+  return `<section class="e-listcol">
+    <div class="e-lh"><b>全部笔记</b><span class="n">128</span><span class="r">${I.filter}${I.more}</span></div>
+    <div class="e-grp">今天 <i></i> 03</div>${D.notes.slice(0,3).map(nr).join('')}
+    <div class="e-grp">本周 <i></i> 03</div>${D.notes.slice(3).map((r,i)=>nr(r,i+3)).join('')}
+    <div class="e-grp" style="margin-top:auto">页脚 / FOOTER</div>
+    <div style="padding:0 18px 18px;font-size:10.5px;color:var(--e-4);line-height:1.8">按最后编辑时间排序<br>本地索引 · 已加密</div>
+  </section>
+  <section class="e-doc">
+    <div class="e-docbar"><div class="e-cr">${I.home}<span class="sl">/</span>设计<span class="sl">/</span>视觉规范<span class="sl">/</span><span style="color:var(--e-ink)">材质工作流</span></div>
+      <div class="r"><div class="e-ib">${I.share}</div><div class="e-ib">${I.star}</div><div class="e-ib">${I.bookmark}</div><div class="e-ib">${I.more}</div></div></div>
+    <div class="e-docwrap">
+      <div class="e-docin">
+        <div class="e-dochd"><div class="kick">NOTE 024 · DESIGN · VOL.44</div><h1>材质工作流</h1><div class="sig"></div>
+          <div class="byline"><span>作者 <b>maxxi</b></span><span>更新 <b>2026-11-04 14:02</b></span><span>阅读 <b>约 6 分钟</b></span><span>字数 <b>2,140</b></span></div></div>
+        <div class="e-props">
+          <div class="e-prop"><span class="k">主题</span><span class="v"><span class="e-pill plain">设计</span><span class="e-pill plain">视觉规范</span></span></div>
+          <div class="e-prop"><span class="k">状态</span><span class="v"><span class="e-pill"><i></i>进行中</span></span></div>
+          <div class="e-prop"><span class="k">标签</span><span class="v"><span class="e-pill s"><i></i>PBR</span><span class="e-pill plain">工作流</span></span></div>
+          <div class="e-prop"><span class="k">更新</span><span class="v mono" style="font-size:11px">2026-11-04 14:02</span></div>
+        </div>
+        ${blk('P','把材质拆成可复用的层，而不是每次从零调参。BaseColor、Roughness、Normal 三类信息各自独立，任何一层替换都不影响其它层的取值口径。')}
+        <div class="e-h2"><span class="no">01 /</span>分层原则<span class="bm"></span></div>
+        ${blk('P','先定结构与职责，再定表现。三层之间只通过明确的接口交互，不在层内复制上一层的假设——这与界面里「令牌管取值、组件管结构」是同一个道理。')}
+        <div class="e-quote">内容由块组成。界面给每个块一个类型标记，但不替内容决定形态。</div>
+        <div class="e-note"><span class="lb">NOTE</span><div><b>表面与交互分开</b><br>纸张的层级用发丝线与双线规则表达，悬停用 2px 竖线与极淡底表达，两者不叠在同一个边界上。</div></div>
+        <div class="e-h2"><span class="no">02 /</span>校验清单</div>
+        <div class="e-todo"><span class="e-cb on"></span><span class="done">拆出 BaseColor / Roughness / Normal 三层</span></div>
+        <div class="e-todo"><span class="e-cb"></span><span>写清每层的输入与输出</span></div>
+        <div class="e-todo"><span class="e-cb"></span><span>复核剪藏扩展的令牌边界</span></div>
+        <div class="e-code">layer.baseColor = srgb(texture)<br>layer.roughness = linear(texture)<br>assert(layer.normal.space === 'tangent')</div>
+        ${blk('P','校验不通过时直接拒绝，不做静默降级。所有默认值集中在一处声明，便于整组替换。')}
+      </div>
+      <aside class="e-docmargin">
+        <div class="e-mnote"><h4>本节要点 / §</h4><div class="sm">01 分层原则 · 三层独立<br>02 校验清单 · fail-closed<br>03 默认值集中声明</div></div>
+        <div class="e-mnote"><h4>关联 / LINKS</h4><div class="sm" style="line-height:2">↗ 视觉规范 v1.9<br>↗ 属性区双列重做<br>↗ 剪藏扩展弹窗</div></div>
+        <div class="e-mnote"><h4>标签 / TAGS</h4><div class="e-tags"><span class="e-tag on">PBR</span><span class="e-tag">工作流</span></div></div>
+        <div class="e-mnote"><h4>块标记 / MARK</h4><div class="sm">悬停时左侧出现 P / H / L / Q 类型字母，替代拖拽手柄。</div></div>
+        <div class="pg">024 / 128 &nbsp;·&nbsp; VOL.44</div>
+      </aside>
+    </div>
+  </section>`;
+}
+
+function appHTML(v,mode){
+  return `<div class="app e-app" data-v="${v}" data-mode="${mode}">${nav(mode)}${home()}${columns()}</div>`;
+}
+
+/* ========== 细节剖面 ========== */
+function specHTML(){
+  const cell=(t,body,note)=>`<div class="spec-cell"><h4>${t}</h4>${body}${note?`<div class="spec-note">${note}</div>`:''}</div>`;
+  const icons=['home','note','memo','star','inbox','draft','lock','search','settings','plus','tag','cal','user','check','bolt','layers','grid','eye','link','bell','sync','filter','pen','clock','bookmark','arrow'];
+  return `<div class="spec"><div class="spec-grid">
+    ${cell('Icon set · 26 drawn',`<div style="display:grid;grid-template-columns:repeat(9,1fr);gap:9px 4px;color:var(--e-2)">${icons.map(k=>`<span title="${k}">${I[k]}</span>`).join('')}</div>`,'全部 24 viewBox / 1.5px stroke / 圆角端点；无 emoji，跨平台不漂移')}
+    ${cell('Buttons · 5 states',`<div class="spec-row"><button class="e-b f">${I.plus} 新建</button><button class="e-b">次要</button><button class="e-b o">描边</button></div><div class="spec-row"><button class="e-b s">信号</button><button class="e-b x">文字按钮</button><button class="e-b d">禁用</button></div>`,'2px 圆角；主色深松绿，信号陶土橙只用于极小面积')}
+    ${cell('Field · 3 states',`<div class="e-in">${I.search} 输入内容</div><div class="e-in foc" style="margin-top:8px">${I.search} 聚焦 · 2px 柔环</div><div class="e-in err" style="margin-top:8px">${I.search} 错误态</div>`,'1px 边框 + 聚焦 2px rgba 柔环；无填充面')}
+    ${cell('Nav row · 3 states',`<div class="e-ni"><span class="no">01</span>普通行<span class="ct">128</span></div><div class="e-ni" style="background:var(--e-sunk);margin-top:4px"><span class="no">02</span>悬停<span class="ct">18</span></div><div class="e-ni on" style="margin-top:4px"><span class="no">03</span>选中 · 2px 竖线<span class="ct">24</span></div>`,'目录式：等宽序号 + 延展线 + tabular 计数，选中靠竖线而非色块')}
+    ${cell('Tags · 3 kinds',`<div class="spec-row"><span class="e-pill"><i></i>进行中</span><span class="e-pill s"><i></i>PBR</span><span class="e-pill"><i style="background:var(--e-4)"></i>草稿</span></div><div class="spec-row"><span class="e-pill">工作流</span><span class="e-pill">视觉规范</span></div>`,'细边框 + 4px 状态方块，取代彩色胶囊；颜色只在方块上')}
+    ${cell('Check · Radio · Switch',`<div class="spec-row"><span class="e-cb"></span><span class="e-cb on"></span><span class="e-rd"></span><span class="e-rd on"></span><span class="e-sw"></span><span class="e-sw on"></span></div><div style="margin-top:13px;font-size:10.5px;color:var(--e-3);line-height:1.7">☑ 拆出三层<br>☐ 写清输入输出<br>☐ 复核令牌边界</div>`,'方形勾选框；完成态用深松绿，不用蓝')}
+    ${cell('Rules · 4 weights',`<div style="display:flex;flex-direction:column;gap:12px"><div style="height:4px;border-top:1px solid var(--e-line);border-bottom:1px solid var(--e-line)"></div><div style="height:1px;background:var(--e-line)"></div><div style="height:1px;background:var(--e-hair)"></div><div style="display:flex;align-items:center;gap:8px;font-family:var(--g-mono);font-size:9px;letter-spacing:.14em;color:var(--e-4)">§ 02 <i style="flex:1;height:1px;background:var(--e-hair)"></i> 24</div></div>`,'双线 / 1px 结构线 / 1px 发丝 / 延展线，四种线各管一件事')}
+    ${cell('Menu · Block mark',`<div class="e-men"><div>重命名 <span>⌘R</span></div><div class="on">复制链接 <span>⌘L</span></div><div>移动到… <span>⌘⇧M</span></div></div><div style="margin-top:11px;display:flex;gap:7px;align-items:center;font-size:10.5px;color:var(--e-3)"><span style="font-family:var(--g-mono);border-right:1px solid var(--e-line);padding-right:6px">P</span>悬停块标记</div>`,'块用 P / H / L / Q 标类型，不用 ＋ 与 ⠿')}
+    ${cell('Week scale · date',`<div style="display:flex;align-items:center;gap:3px"><span style="font-family:var(--g-mono);font-size:9px;color:var(--e-4);margin-right:8px">W44</span><i style="width:18px;height:5px;background:var(--e-rule)"></i><i style="width:18px;height:5px;background:var(--e-rule)"></i><i style="width:18px;height:7px;background:var(--e-sig)"></i><i style="width:18px;height:5px;background:var(--e-hair)"></i><i style="width:18px;height:5px;background:var(--e-hair)"></i><i style="width:18px;height:5px;background:var(--e-hair)"></i><i style="width:18px;height:5px;background:var(--e-hair)"></i></div><div style="margin-top:13px;font-family:var(--g-mono);font-size:9.5px;color:var(--e-4);letter-spacing:.1em">— 001 / 128 — &nbsp; VOL.44</div>`,'日期刻度与页码：报纸式报头，取代 cover 图')}
+    ${cell('Margin note',`<div style="border-left:1px solid var(--e-line);padding-left:11px"><div style="font-family:var(--g-mono);font-size:9px;letter-spacing:.14em;color:var(--e-4)">本周 / WEEK 44</div><div style="font-family:var(--g-mono);font-size:22px;margin:6px 0">4 / 7</div><div style="font-size:10px;color:var(--e-3);line-height:1.6">天有记录 · 12 条 Memo</div></div>`,'页边注是新增的信息层，Notion 没有对应物')}
+    ${cell('Typography ladder',`<div style="line-height:1.35"><div style="font-size:22px;font-weight:600;letter-spacing:-.03em">页面标题 42 / 600</div><div style="font-size:13px;font-weight:600;margin-top:7px">节标 15 / 600</div><div style="font-size:12px;color:var(--e-2);margin-top:6px">正文 14.5 / 1.82</div><div style="font-family:var(--g-mono);font-size:9px;letter-spacing:.16em;color:var(--e-4);margin-top:8px">KICKER 9.5 / .16EM</div></div>`,'六级阶梯；等宽只用于可数的量与标签')}
+    ${cell('Empty · hint',`<div style="border:1px dashed var(--e-line);border-radius:2px;padding:13px;text-align:center;font-size:11px;color:var(--e-4)">还没有内容</div><div style="margin-top:10px;font-size:10.5px;color:var(--e-3)">从 <kbd style="font-family:var(--g-mono);border:1px solid var(--e-line);padding:1px 4px">⌘ N</kbd> 新建，或点右上角的铅笔</div>`,'空状态只给下一步动作，不写斜杠命令提示')}
+  </div></div>`;
+}
+
+/* ========== 对照与说明 ========== */
+const DIFF=[
+  ['Emoji 页图标 🌤 / 🎨','自绘几何标记 + 细线图标','emoji 跨平台渲染不可控、颜色不可控；是 Notion 最强的视觉签名'],
+  ['Cover 封面图 + 更换封面','双线报头 + 日期刻度 + 期号','把装饰位换成信息位，纸质刊物的报头逻辑'],
+  ['Workspace switcher','字标 + V2 + 一行定位语','去掉团队/空间切换的 SaaS 感，回到单机笔记'],
+  ['Favorites / Private / Teamspaces','目录式分组：目录 / 采集 / 主题','按内容职责分区，不按产品对象分区'],
+  ['侧栏搜索 / 更新 / 设置三行','一个搜索框 + 底部状态行','减少重复入口，状态信息归到页脚'],
+  ['彩色胶囊 pill','细边框标签 + 4px 状态方块','颜色只留在方块上，整行保持中性'],
+  ['输入 / 呼出命令','空状态里给具体快捷键','去掉 Notion 最有辨识度的交互文案'],
+  ['＋ / ⠿ 块拖拽手柄','P / H / L / Q 块类型标记','保留悬停操作，但换成编辑校样的标记语言'],
+  ['Callout 💡 + 底色块','NOTE 标签 + 细边框 + 2px 绿线','同一功能，改用注释框而非提示卡'],
+  ['面包屑 + 分享/评论/收藏','面包屑 + 细线图标组 + 文档署名行','弱化协作，强化「一篇文档」的语义'],
+  ['蓝色强调 #2383E2','深松绿 #35594A + 陶土橙 #B4653A','冷暖双色分别承担状态与标记，脱离 Notion 蓝'],
+  ['整屏纯白 #FFFFFF','暖纸 #FBFAF7 + 四级发丝线','保留暖感，但用线而非色块建层级']
+];
+function panelsHTML(){
+  return `<div class="panel">
+    <h3>与 Notion 的 12 处脱钩</h3>
+    <table class="diff"><thead><tr><th>Notion 语汇（去掉）</th><th>本方案（换成）</th><th>理由</th></tr></thead><tbody>
+    ${DIFF.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
+    </tbody></table>
+    <h3>保留了什么，为什么</h3>
+    <ul>
+      <li><b>暖中性纸面</b>：这是你说「比较接近」的部分，是气质的底，不动。</li>
+      <li><b>内容按块组织</b>：块级丰富度本身就是细节密度，去掉会退回「粗糙」。</li>
+      <li><b>悬停才浮出的操作</b>：保留安静的默认态，但把符号从 Notion 的 ＋/⠿ 换成校样标记。</li>
+      <li><b>深浅两套独立色阶</b>：深色不是反色，暖灰与松绿都重新配过。</li>
+    </ul>
+    <div class="call"><b>一个判断：美化 ≠ 加装饰</b><p>如果只是把 emoji 换得更好看、给卡片加圆角和阴影，它仍然是 Notion。真正让它变成 Menote 的是<b>换一套组织信息的语法</b>——目录式侧栏、页边注、页码、期号、块标记、双线规则。这些既是装饰也是信息层，所以细节变多了但界面更安静。</p></div>
+  </div>
+  <div class="panel">
+    <h3>关键取值</h3>
+    <table class="kv"><tbody>
+      <tr><td>纸面 / 侧栏</td><td>#FBFAF7 / #F4F2ED</td></tr>
+      <tr><td>墨色</td><td>#26251F</td></tr>
+      <tr><td>主色 · 深松绿</td><td>#35594A</td></tr>
+      <tr><td>标记 · 陶土橙</td><td>#B4653A</td></tr>
+      <tr><td>发丝 / 结构线</td><td>#E4E1D9 / #CDC9BE</td></tr>
+      <tr><td>页面标题</td><td>42 / 600 / -.032em</td></tr>
+      <tr><td>文档标题</td><td>36 / 600 / -.03em</td></tr>
+      <tr><td>正文</td><td>14.5 / 1.82</td></tr>
+      <tr><td>圆角</td><td>2–3px</td></tr>
+      <tr><td>图标</td><td>26 个 · 1.5px</td></tr>
+    </tbody></table>
+    <h3>本稿包含</h3>
+    <ul>
+      <li><b>2 视图</b>：首页（含页边注栏）/ 三栏主界面（文档含页边注栏）</li>
+      <li><b>2 套明暗</b>：深色独立配色</li>
+      <li><b>12 组 1:1 细节剖面</b>：图标全集、按钮 5 态、输入框 3 态、导航 3 态、标签、勾选族、四级规则线、菜单与块标记、日期刻度、页边注、排版阶梯、空状态</li>
+      <li><b>12 处脱钩对照</b>：逐条写明去掉什么、换成什么、为什么</li>
+    </ul>
+    <p style="margin-top:16px;font-size:11.5px">v1 的三套探索稿保留在 <code>draft/design/theme-redesign-v1.html</code>，本稿只深耕 C 方向。未改动任何定稿与实现。</p>
+  </div>`;
+}
+
+/* ========== 状态与渲染 ========== */
+const state={v:'home',m:'light',z:'fit'};
+(function(){
+  const q=new URLSearchParams(location.search);
+  if(['home','notes'].includes(q.get('v')))state.v=q.get('v');
+  if(['light','dark'].includes(q.get('m')))state.m=q.get('m');
+  if(['fit','native'].includes(q.get('z')))state.z=q.get('z');
+  if(q.get('focus')==='spec')document.documentElement.classList.add('focus-spec');
+})();
+function fit(){
+  const vp=document.getElementById('viewport');
+  if(state.z==='native'){vp.style.height='900px';vp.style.setProperty('--s',1);return}
+  const w=vp.clientWidth;if(!w)return;
+  const s=Math.min(w/1440,1);
+  vp.style.setProperty('--s',s);vp.style.height=(900*s)+'px';
+}
+function meta(){
+  return (state.v==='home'?'HOME':'NOTES / 3-COL')+' · '+(state.m==='light'?'LIGHT':'DARK')+' · '+(state.z==='fit'?'FIT':'1:1');
+}
+function renderStage(){
+  const vp=document.getElementById('viewport');
+  vp.innerHTML=appHTML(state.v,state.m);
+  vp.classList.toggle('native',state.z==='native');
+  vp.style.background=state.m==='dark'?'#171715':'#E6E4DE';
+  document.getElementById('stageHint').textContent='暖纸 · 编辑 / Warm Editorial';
+  document.getElementById('stageAddr').textContent='menote.local / '+(state.v==='home'?'home':'notes/024');
+  document.getElementById('stageMeta').textContent=meta();
+  fit();
+}
+function renderAll(){
+  renderStage();
+  document.getElementById('spec').innerHTML=specHTML();
+  document.getElementById('panels').innerHTML=panelsHTML();
+  document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v===state.v));
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m===state.m));
+  document.querySelectorAll('#zoomSeg button').forEach(x=>x.classList.toggle('on',x.dataset.z===state.z));
+}
+document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.v=b.dataset.v;renderStage();document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.toggle('on',x===b))});
+document.getElementById('modeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.m=b.dataset.m;renderStage();document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b))});
+document.getElementById('zoomSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.z=b.dataset.z;document.querySelectorAll('#zoomSeg button').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('viewport').classList.toggle('native',state.z==='native');document.getElementById('stageMeta').textContent=meta();fit()});
+window.addEventListener('resize',fit);
+renderAll();
+</script>
+</body>
+</html>
