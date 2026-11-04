@@ -1,6 +1,6 @@
 import {
   RAINDROP_PUSH_CONFIRM_MIN, RAINDROP_SETTING_KEY, RAINDROP_SNAPSHOT_KEEP, normalizeRaindropSettings,
-  type Item, type RaindropBindingView, type RaindropMappedFields, type RaindropPullOutcome,
+  type Item, type RaindropBindingView, type RaindropCollectionOption, type RaindropMappedFields, type RaindropPullOutcome,
   type RaindropPushOutcome, type RaindropPushPreview, type RaindropSettings, type RaindropStatusView,
 } from "@menote/shared";
 import { openMcpToken, sealMcpToken } from "./mcpTokenCrypto";
@@ -70,6 +70,7 @@ export async function readStatus(db: D1Database, userId: string): Promise<Raindr
   ]);
   return {
     settings,
+    hasToken: token !== null,
     binding: binding ? bindingView(binding, token !== null) : null,
     runs,
   };
@@ -81,17 +82,38 @@ function pepper(env: Env): string {
   return value;
 }
 
-/** 保存令牌：先真实调用收藏夹接口验证，再 AES-GCM 密封入库（不回显、不进日志）。 */
-export async function saveToken(env: Env, userId: string, token: string, now = Date.now()): Promise<void> {
+function tokenApiError(error: unknown): RaindropServiceError {
+  if (error instanceof RaindropApiError && error.status === 401) {
+    return new RaindropServiceError("raindrop_token_unauthorized", 401);
+  }
+  if (error instanceof RaindropApiError && (error.status === 0 || error.status >= 500)) {
+    return new RaindropServiceError("raindrop_unreachable", 502);
+  }
+  return new RaindropServiceError("raindrop_token_invalid", 400);
+}
+
+/** 保存令牌：先真实调用收藏夹接口验证，再 AES-GCM 密封入库；返回收藏夹以供 UI 选择。 */
+export async function saveToken(env: Env, userId: string, token: string, now = Date.now()): Promise<RaindropCollectionOption[]> {
+  let collections: RaindropCollectionOption[];
   try {
-    await listCollections(token);
+    collections = await listCollections(token);
   } catch (error) {
-    if (error instanceof RaindropApiError && error.status === 401) {
-      throw new RaindropServiceError("raindrop_token_invalid", 400);
-    }
-    throw new RaindropServiceError("raindrop_unreachable", 502);
+    throw tokenApiError(error);
   }
   await upsertAccountToken(env.DB, userId, await sealMcpToken(pepper(env), token), now);
+  return collections;
+}
+
+/** 读取已保存令牌可访问的收藏夹；令牌不回传到前端。 */
+export async function readCollections(env: Env, userId: string): Promise<RaindropCollectionOption[]> {
+  const cipher = await readAccountTokenCipher(env.DB, userId);
+  if (!cipher) throw new RaindropServiceError("raindrop_token_missing", 409);
+  const token = await openMcpToken(pepper(env), cipher);
+  try {
+    return await listCollections(token);
+  } catch (error) {
+    throw tokenApiError(error);
+  }
 }
 
 export async function clearToken(db: D1Database, userId: string): Promise<void> {

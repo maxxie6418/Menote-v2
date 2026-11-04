@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { RAINDROP_INTERVAL_HOURS, resolveItemId, type Item, type RaindropPushPreview, type RaindropStatusView, type TopicNode } from "@menote/shared";
+import { useEffect, useMemo, useState, type ClipboardEvent } from "react";
+import { RAINDROP_INTERVAL_HOURS, resolveItemId, type Item, type RaindropCollectionOption, type RaindropPushPreview, type RaindropStatusView, type TopicNode } from "@menote/shared";
 import { useHomeSnapshot } from "../../services/contentHooks";
 import { flushSync } from "../../services/syncEngine";
 import {
-  bindRaindropTable, clearRaindropToken, previewRaindropPush, pullRaindropNow, pushRaindropNow,
+  bindRaindropTable, clearRaindropToken, previewRaindropPush, pullRaindropNow, pushRaindropNow, readRaindropCollections,
   readRaindropStatus, saveRaindropToken, unbindRaindropTable,
 } from "../../services/raindropService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
@@ -67,6 +67,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
+  const [collections, setCollections] = useState<RaindropCollectionOption[]>([]);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [seeded, setSeeded] = useState(false);
@@ -80,6 +81,14 @@ export function RaindropPanel({ userId }: { userId: string }) {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  useEffect(() => {
+    if (!status?.hasToken) return;
+    void readRaindropCollections().then(setCollections).catch((error) => {
+      setCollections([]);
+      setMessage(error instanceof Error ? error.message : "收藏夹读取失败");
+    });
+  }, [status?.hasToken]);
 
   const binding = status?.binding ?? null;
 
@@ -101,13 +110,28 @@ export function RaindropPanel({ userId }: { userId: string }) {
     setMessage("");
     try {
       await action();
-      setMessage(successText);
+      if (successText) setMessage(successText);
       refresh(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "操作失败");
     } finally {
       setBusy(false);
     }
+  };
+
+  const validateAndSaveToken = (token: string) => void run(async () => {
+    const available = await saveRaindropToken(token);
+    setCollections(available);
+    setTokenDraft("");
+    setMessage(`令牌验证成功并已保存${available.length ? `，已读取 ${available.length} 个收藏夹` : ""}`);
+  }, "");
+
+  const handleTokenPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text").trim();
+    if (!pasted) return;
+    event.preventDefault();
+    setTokenDraft("");
+    validateAndSaveToken(pasted);
   };
 
   const runs = status?.runs ?? [];
@@ -131,7 +155,14 @@ export function RaindropPanel({ userId }: { userId: string }) {
         pullIntervalHours: intervalDraft,
       });
       setQuery("");
-    }, binding ? "绑定已更新" : "绑定成功，可在下方手动拉取或等待定时执行");
+      setPulling(true);
+      try {
+        const outcome = await pullRaindropNow();
+        setMessage(`连接成功并完成首次拉取：新增 ${outcome.pulledNew}、更新 ${outcome.pulledUpdated}、冲突 ${outcome.conflicts}`);
+      } finally {
+        setPulling(false);
+      }
+    }, "");
   };
 
   return (
@@ -142,21 +173,21 @@ export function RaindropPanel({ userId }: { userId: string }) {
         <div>
           <p className="mn-setlabel">Raindrop 访问令牌</p>
           <p className="mn-sethint">
-            在 Raindrop 设置 → Integrations → For Developer 创建 Test Token 后粘贴；加密存储、默认不显示，可清除后重填。
+            粘贴 Test Token 后自动验证并加密保存；也可手动输入后点“验证并保存”。令牌不会显示或回传。
           </p>
         </div>
-        {binding?.hasToken
+        {status?.hasToken
           ? <button type="button" className="mn-statuslink" disabled={busy}
-              onClick={() => void run(() => clearRaindropToken(), "令牌已清除")}>清除令牌</button>
+              onClick={() => void run(async () => { await clearRaindropToken(); setCollections([]); }, "令牌已清除")}>清除令牌</button>
           : null}
       </div>
       <div className="mn-setrow">
         <input type="password" className="mn-propselect" aria-label="Raindrop 访问令牌" autoComplete="off"
-          placeholder={binding?.hasToken ? "已保存（粘贴新值可覆盖）" : "粘贴 Raindrop Test Token"}
-          value={tokenDraft} onChange={(event) => setTokenDraft(event.target.value)} />
+          placeholder={status?.hasToken ? "已验证（粘贴新令牌可替换）" : "粘贴 Raindrop Test Token"}
+          value={tokenDraft} onChange={(event) => setTokenDraft(event.target.value)} onPaste={handleTokenPaste} />
         <button type="button" className="app-button" disabled={busy || !tokenDraft.trim()}
-          onClick={() => void run(async () => { await saveRaindropToken(tokenDraft.trim()); setTokenDraft(""); }, "令牌已保存（已通过远端验证）")}>
-          保存令牌
+          onClick={() => validateAndSaveToken(tokenDraft.trim())}>
+          验证并保存
         </button>
       </div>
 
@@ -165,7 +196,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
           <p className="mn-setlabel">绑定中间件表格</p>
           <p className="mn-sethint">
             搜索并点选一张明文多维表格。也可以把复制的 /n/ 链接贴进搜索框，会自动对上那张表。
-            绑定时会先同步，再补「行 ID」列并回填存量行。收藏范围填收藏夹 ID（0 = 全部）。
+            选择后点“连接并拉取”；系统会补齐「行 ID」列并自动完成首轮拉取。
           </p>
         </div>
       </div>
@@ -190,18 +221,26 @@ export function RaindropPanel({ userId }: { userId: string }) {
         </div>
       </div>
       <div className="mn-setrow">
-        <input type="number" className="mn-propselect" aria-label="收藏夹 ID" min={0} value={collectionDraft}
-          onChange={(event) => setCollectionDraft(event.target.value)} />
-        <select className="mn-propselect" aria-label="拉取频率" value={intervalDraft}
-          onChange={(event) => setIntervalDraft(Number(event.target.value))}>
-          {RAINDROP_INTERVAL_HOURS.map((hours) => (
-            <option key={hours} value={hours}>{INTERVAL_LABELS[hours] ?? `${hours} 小时`}</option>
-          ))}
+        <select className="mn-propselect" aria-label="Raindrop 收藏范围" value={collectionDraft}
+          onChange={(event) => setCollectionDraft(event.target.value)}>
+          <option value="0">全部收藏（默认）</option>
+          {collectionDraft !== "0" && !collections.some((entry) => String(entry.id) === collectionDraft)
+            ? <option value={collectionDraft}>当前收藏夹（{collectionDraft}）</option> : null}
+          {collections.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
         </select>
+        <details className="mn-raindrop-advanced">
+          <summary>自动拉取频率：{INTERVAL_LABELS[intervalDraft]}</summary>
+          <select className="mn-propselect" aria-label="拉取频率" value={intervalDraft}
+            onChange={(event) => setIntervalDraft(Number(event.target.value))}>
+            {RAINDROP_INTERVAL_HOURS.map((hours) => (
+              <option key={hours} value={hours}>{INTERVAL_LABELS[hours] ?? `${hours} 小时`}</option>
+            ))}
+          </select>
+        </details>
       </div>
       <div className="mn-setrow">
-        <button type="button" className="app-button" disabled={busy || !selectedId} onClick={submitBind}>
-          {binding ? "更新绑定" : "绑定"}
+        <button type="button" className="app-button" disabled={busy || !selectedId || !status?.hasToken} onClick={submitBind}>
+          {pulling ? "正在连接并拉取…" : binding ? "保存并拉取" : "连接并拉取"}
         </button>
         {binding
           ? <>

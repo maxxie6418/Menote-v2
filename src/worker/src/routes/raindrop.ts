@@ -4,7 +4,7 @@ import { RAINDROP_INTERVAL_HOURS, resolveItemId } from "@menote/shared";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
-import { RaindropServiceError, bindTable, clearToken, previewPush, readStatus, runPull, runPush, saveToken, unbindTable } from "../services/raindropService";
+import { RaindropServiceError, bindTable, clearToken, previewPush, readCollections, readStatus, runPull, runPush, saveToken, unbindTable } from "../services/raindropService";
 
 /** Raindrop 连接器端点（FR-EXT-3，TP9）：状态/令牌/绑定/手动拉取；插件开关本身随 user_settings 同步不经 REST。 */
 export const raindropRoutes = new Hono<AppEnv>();
@@ -17,15 +17,26 @@ raindropRoutes.get("/api/raindrop/status", requireSession, async (c) => {
   return c.json({ status }, { headers: { "Cache-Control": "no-store" } });
 });
 
+raindropRoutes.get("/api/raindrop/collections", requireSession, async (c) => {
+  if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
+  try {
+    const collections = await readCollections(c.env, c.get("authUser")!.id);
+    return c.json({ collections }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof RaindropServiceError) return c.json({ error: error.message }, error.status as ContentfulStatusCode);
+    return c.json({ error: "收藏夹读取失败" }, 502);
+  }
+});
+
 raindropRoutes.put("/api/raindrop/token", requireSession, sameOriginGuard, async (c) => {
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
   const body: unknown = await c.req.json().catch(() => null);
   const token = typeof (body as Record<string, unknown> | null)?.token === "string"
-    ? (body as { token: string }).token.trim() : "";
+    ? (body as { token: string }).token.trim().replace(/^Bearer\s+/i, "") : "";
   if (!token || token.length > 512) return c.json({ error: "invalid_request" }, 400);
   try {
-    await saveToken(c.env, c.get("authUser")!.id, token);
-    return c.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    const collections = await saveToken(c.env, c.get("authUser")!.id, token);
+    return c.json({ ok: true, collections }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof RaindropServiceError) return c.json({ error: error.message }, error.status as ContentfulStatusCode);
     return c.json({ error: "令牌保存失败" }, 500);

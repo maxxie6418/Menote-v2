@@ -1,4 +1,4 @@
-import type { RaindropBindingView, RaindropPullOutcome, RaindropPushOutcome, RaindropPushPreview, RaindropStatusView } from "@menote/shared";
+import type { RaindropBindingView, RaindropCollectionOption, RaindropPullOutcome, RaindropPushOutcome, RaindropPushPreview, RaindropStatusView } from "@menote/shared";
 
 /** Raindrop 连接器 REST 客户端（TP9）：状态、令牌、绑定与手动拉取。错误码译成中文。 */
 
@@ -6,7 +6,7 @@ const RAINDROP_ERROR_TEXT: Record<string, string> = {
   raindrop_token_missing: "还没有保存 Raindrop 令牌",
   raindrop_target_unavailable: "这张表格不能绑定：需要是已同步的明文表格，且不在私人空间",
   raindrop_bind_conflict: "绑定冲突，请先解绑再试",
-  raindrop_token_invalid: "Raindrop 令牌无效，请重新粘贴",
+  raindrop_token_invalid: "Raindrop 未接受此令牌，请确认它来自当前账号的开发者设置",
   raindrop_token_unauthorized: "Raindrop 拒绝了读取请求，请重新生成 Test Token 并保存",
   raindrop_unreachable: "连不上 Raindrop，请稍后再试",
   raindrop_not_bound: "还没有绑定表格",
@@ -33,7 +33,7 @@ async function errorFrom(response: Response, fallback: string): Promise<string> 
 function validStatus(value: unknown): value is RaindropStatusView {
   if (typeof value !== "object" || value === null) return false;
   const status = value as Partial<RaindropStatusView>;
-  return typeof status.settings === "object" && (status.runs ?? null) !== null
+  return typeof status.settings === "object" && typeof status.hasToken === "boolean" && (status.runs ?? null) !== null
     && (status.binding === null || typeof status.binding === "object");
 }
 
@@ -45,12 +45,28 @@ export async function readRaindropStatus(signal?: AbortSignal): Promise<Raindrop
   return validStatus(status) ? status : null;
 }
 
-export async function saveRaindropToken(token: string): Promise<void> {
+function collectionOptions(value: unknown): value is RaindropCollectionOption[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "object" && entry !== null
+    && typeof Reflect.get(entry, "id") === "number" && typeof Reflect.get(entry, "title") === "string");
+}
+
+export async function saveRaindropToken(token: string): Promise<RaindropCollectionOption[]> {
   const response = await fetch("/api/raindrop/token", {
     method: "PUT", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token }), cache: "no-store",
   });
   if (!response.ok) throw new Error(await errorFrom(response, "令牌保存失败"));
+  const body: unknown = await response.json().catch(() => null);
+  const collections = typeof body === "object" && body !== null ? Reflect.get(body, "collections") : undefined;
+  return collectionOptions(collections) ? collections : [];
+}
+
+export async function readRaindropCollections(): Promise<RaindropCollectionOption[]> {
+  const response = await fetch("/api/raindrop/collections", { cache: "no-store" });
+  if (!response.ok) throw new Error(await errorFrom(response, "收藏夹读取失败"));
+  const body: unknown = await response.json().catch(() => null);
+  const collections = typeof body === "object" && body !== null ? Reflect.get(body, "collections") : undefined;
+  return collectionOptions(collections) ? collections : [];
 }
 
 export async function clearRaindropToken(): Promise<void> {

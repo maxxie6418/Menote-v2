@@ -1,4 +1,4 @@
-import { RAINDROP_MAX_REMOTE_ITEMS, type RaindropMappedFields } from "@menote/shared";
+import { RAINDROP_MAX_REMOTE_ITEMS, type RaindropCollectionOption, type RaindropMappedFields } from "@menote/shared";
 
 /** Raindrop REST 客户端（TP9，阶段 A 仅读）：分页拉取与收藏夹列表；令牌只在调用参数中传递，不落日志。 */
 
@@ -69,12 +69,7 @@ export async function listAllRaindrops(token: string, collectionId: number): Pro
   throw new RaindropApiError("raindrop_pagination_overflow", 0);
 }
 
-export interface RaindropCollection {
-  id: number;
-  title: string;
-}
-
-export async function listCollections(token: string): Promise<RaindropCollection[]> {
+export async function listCollections(token: string): Promise<RaindropCollectionOption[]> {
   const body = await call<{ items: Array<{ _id: number; title: string }> }>(token, "/collections");
   return (Array.isArray(body.items) ? body.items : []).map((item) => ({ id: item._id, title: item.title }));
 }

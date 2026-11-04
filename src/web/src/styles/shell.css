@@ -684,6 +684,8 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-raindrop-progress-track::before { position: absolute; inset-block: var(--app-zero); inline-size: var(--app-field-width); max-inline-size: var(--app-full-size); border-radius: var(--app-radius-pill); background: var(--app-accent); content: ""; animation: mn-raindrop-indeterminate var(--app-motion-loop) var(--app-ease) infinite; }
 @keyframes mn-raindrop-indeterminate { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
 @media (prefers-reduced-motion: reduce) { .mn-raindrop-progress-track::before { animation: none; } }
+.mn-raindrop-advanced { display: grid; gap: var(--app-space-6); }
+.mn-raindrop-advanced summary { color: var(--app-fg-muted); cursor: pointer; font-size: var(--app-size-chip); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
 .mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-10); margin: var(--app-space-10) var(--app-zero); }

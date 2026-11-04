@@ -39,7 +39,7 @@ export {
   RAINDROP_SNAPSHOT_KEEP, RAINDROP_MAX_REMOTE_ITEMS, RAINDROP_PUSH_CONFIRM_MIN,
 } from "./contracts/raindrop";
 export type {
-  RaindropSettings, BookmarkColumnDef, RaindropMappedFields,
+  RaindropSettings, RaindropCollectionOption, BookmarkColumnDef, RaindropMappedFields,
   RaindropBindingView, RaindropRunStatus, RaindropSyncRunView, RaindropStatusView,
   RaindropPullOutcome, RaindropPushOutcome, RaindropPushPreview, RaindropPushPreviewCreate,
   RaindropPushPreviewUpdate, RaindropPushPreviewMissing,

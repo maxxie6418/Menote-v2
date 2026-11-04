@@ -8,6 +8,12 @@ export interface RaindropSettings {
   enabled: boolean;
 }
 
+/** Raindrop 收藏夹选项：API 响应归一后供设置页下拉选择。 */
+export interface RaindropCollectionOption {
+  id: number;
+  title: string;
+}
+
 export const DEFAULT_RAINDROP_SETTINGS: Readonly<RaindropSettings> = { enabled: false };
 
 /** 双端共用的设置归一：非法值回退默认（不抛出，设置面不可信）。 */
@@ -97,6 +103,7 @@ export interface RaindropSyncRunView {
 
 export interface RaindropStatusView {
   settings: RaindropSettings;
+  hasToken: boolean;
   binding: RaindropBindingView | null;
   runs: RaindropSyncRunView[];
 }
