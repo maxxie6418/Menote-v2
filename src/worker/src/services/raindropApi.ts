@@ -2,7 +2,7 @@ import { RAINDROP_MAX_REMOTE_ITEMS, type RaindropCollectionOption, type Raindrop
 
 /** Raindrop REST 客户端（TP9，阶段 A 仅读）：分页拉取与收藏夹列表；令牌只在调用参数中传递，不落日志。 */
 
-const API_BASE = "https://api.raindrop.io/v1";
+const API_BASE = "https://api.raindrop.io/rest/v1";
 const PAGE_SIZE = 50;
 
 export class RaindropApiError extends Error {
