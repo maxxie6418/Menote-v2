@@ -6,6 +6,7 @@ import { enqueueWrite, outboxTopic, outboxUpsert, requireItem } from "./contentS
 import { archiveVersionBeforeSave } from "./versionService";
 import { FIELDS_KEY, splitFrontmatter, writeDef } from "../lib/frontmatter";
 import { findTables, renderTable } from "../lib/gfmTable";
+import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { toOutboxRow } from "../db/outboxRepo";
@@ -177,7 +178,9 @@ async function setItemFormInner(userId: string, id: string, to: "note" | "table"
   const next: Item = {
     ...current,
     type: to,
-    ...(contentChanged ? { rev: current.rev + 1, contentHash, content: { scope: "plain" as const, markdown } } : {}),
+    ...(contentChanged
+      ? { rev: current.rev + 1, contentHash, attachmentHashes: attachmentHashesOf(markdown), content: { scope: "plain" as const, markdown } }
+      : {}),
     metaRev: current.metaRev + 1,
     updatedAt: Date.now(),
   };
@@ -221,6 +224,8 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
   if (contentHash === current.contentHash && current.content.markdown === markdown) return current;
   const next: Item = {
     ...current, rev: current.rev + 1, contentHash, updatedAt: Date.now(),
+    // 附件引用随正文重算：服务端引用计数与备份收录都以这份列表为准（FR-SYNC-7）。
+    attachmentHashes: attachmentHashesOf(markdown),
     content: { scope: "plain", markdown },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {

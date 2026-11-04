@@ -41,7 +41,7 @@ function topicOp(topicId) {
   return { operationId: crypto.randomUUID(), userId: "ignored", entityId: topicId, entity: "topic", action: "upsert", baseRev: 0, baseMetaRev: 0, payload: { topic: { id: topicId, userId: "ignored", parentId: null, name: "工作", depth: 0, isEncSpace: false, deletedAt: null } } };
 }
 
-function itemOp(id, { rev, baseRev = rev - 1, markdown = "正文", title = "笔记", metaRev = rev, baseMetaRev = metaRev - 1, hashes = [] } = {}) {
+function itemOp(id, { rev, baseRev = rev - 1, markdown = "正文", title = "笔记", metaRev = rev, baseMetaRev = metaRev - 1, hashes = [], conflictOf = null } = {}) {
   return {
     operationId: crypto.randomUUID(), userId: "ignored", entityId: id, entity: "item", action: "upsert",
     baseRev, baseMetaRev, contentHash: "hash-" + markdown,
@@ -50,7 +50,7 @@ function itemOp(id, { rev, baseRev = rev - 1, markdown = "正文", title = "笔�
       id, userId: "ignored", type: "note", topicId: null, groupId: null, title, tags: [], status: null,
       attachmentHashes: hashes, source: "manual", rev, metaRev, contentHash: "hash-" + markdown,
       pinned: false, starred: false, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_000_000 + rev, deletedAt: null,
-      content: { scope: "plain", markdown },
+      content: { scope: "plain", markdown }, ...(conflictOf ? { conflictOf } : {}),
     } },
   };
 }
@@ -81,6 +81,118 @@ test("push applies operations atomically per operation with idempotent replay (G
     assert.equal((await response.json()).results[0].result, "duplicate");
     const database = await mf.getD1Database("DB");
     assert.equal((await database.prepare("SELECT rev FROM items WHERE id = 'i1'").first()).rev, 2);
+  });
+});
+
+/** 元数据操作（改标题/标签/归属）：操作层不带 contentHash（G2 §3：正文操作必带 contentHash）。 */
+function metaItemOp(id, { rev, baseRev, baseMetaRev, metaRev, title = "笔记", markdown = "正文", tags = [] } = {}) {
+  const op = itemOp(id, { rev, baseRev, baseMetaRev, metaRev, title, markdown });
+  delete op.contentHash;
+  op.payload.item.tags = tags;
+  return op;
+}
+
+test("two content saves in one batch both apply; content write leaves meta_rev alone (G2 §1/§5-1)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i30", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1 })]);
+    // 连续两次自动保存落进同一批：本地 rev 1→2→3，metaRev 始终 1（G2 §1：正文写只推进 rev）
+    const first = itemOp("i30", { rev: 2, baseRev: 1, baseMetaRev: 1, metaRev: 1, markdown: "第二次保存" });
+    const second = itemOp("i30", { rev: 3, baseRev: 2, baseMetaRev: 1, metaRev: 1, markdown: "第三次保存" });
+    const results = (await (await post(mf, cookie, [first, second])).json()).results;
+    assert.equal(results[0].result, "applied");
+    assert.equal(results[1].result, "applied");
+    const row = await (await mf.getD1Database("DB")).prepare("SELECT rev, meta_rev, content_markdown FROM items WHERE id = 'i30'").first();
+    assert.equal(row.rev, 3);
+    assert.equal(row.meta_rev, 1);
+    assert.equal(row.content_markdown, "第三次保存");
+  });
+});
+
+test("meta write leaves content rev alone; meta then content in one batch both apply (G2 §1/§5-3)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i31", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1 })]);
+    // 改标题：只推进元数据版本，正文版本不动（G2 §1）
+    const rename = metaItemOp("i31", { rev: 1, baseRev: 1, baseMetaRev: 1, metaRev: 2, title: "新标题" });
+    assert.equal((await (await post(mf, cookie, [rename])).json()).results[0].result, "applied");
+    const renamed = await (await mf.getD1Database("DB")).prepare("SELECT rev, meta_rev, title, content_markdown FROM items WHERE id = 'i31'").first();
+    assert.equal(renamed.rev, 1);
+    assert.equal(renamed.meta_rev, 2);
+    assert.equal(renamed.title, "新标题");
+    assert.equal(renamed.content_markdown, "正文");
+    // 随后改正文：baseRev 仍是 1（正文版本没动过），不该被判成冲突
+    const body = itemOp("i31", { rev: 2, baseRev: 1, baseMetaRev: 2, metaRev: 2, markdown: "正文一改" });
+    assert.equal((await (await post(mf, cookie, [body])).json()).results[0].result, "applied");
+    const after = await (await mf.getD1Database("DB")).prepare("SELECT rev, meta_rev, content_markdown FROM items WHERE id = 'i31'").first();
+    assert.equal(after.rev, 2);
+    assert.equal(after.meta_rev, 2);
+    assert.equal(after.content_markdown, "正文一改");
+  });
+});
+
+test("stale meta write loses to the server and never advances content rev (G2 §5-3)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i32", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1 })]);
+    // 另一端改了标题：meta_rev 推到 2
+    await post(mf, cookie, [metaItemOp("i32", { rev: 1, baseRev: 1, baseMetaRev: 1, metaRev: 2, title: "他端标题" })]);
+    // 本端拿着过期 meta_rev 再改标题 → conflict，服务端胜出（不生成副本）
+    const stale = metaItemOp("i32", { rev: 1, baseRev: 1, baseMetaRev: 1, metaRev: 2, title: "本端标题" });
+    const result = (await (await post(mf, cookie, [stale])).json()).results[0];
+    assert.equal(result.result, "conflict");
+    assert.equal(result.detail.metaRev, 2);
+    const row = await (await mf.getD1Database("DB")).prepare("SELECT rev, meta_rev, title FROM items WHERE id = 'i32'").first();
+    assert.equal(row.title, "他端标题");
+    assert.equal(row.rev, 1);
+  });
+});
+
+test("conflict reaches the client through pull so the item converges (G2 §4/§5-2)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i33", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1 })]);
+    // 过期正文版本 + 不同正文 → 真冲突
+    const stale = itemOp("i33", { rev: 2, baseRev: 0, baseMetaRev: 1, metaRev: 2, markdown: "冲突分支" });
+    const result = (await (await post(mf, cookie, [stale])).json()).results[0];
+    assert.equal(result.result, "conflict");
+    assert.equal(result.detail.rev, 1);
+    // 冲突也要落 sync_log：客户端拉得到服务端当前版本，条目才能收敛；
+    // 否则本地版本号停在旧值，下次保存又撞同一条前置条件，冲突副本会反复出现。
+    const response = await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } });
+    const page = await response.json();
+    const pulled = page.items.find((item) => item.id === "i33");
+    assert.equal(pulled.rev, 1);
+    assert.equal(pulled.content.markdown, "正文");
+  });
+});
+
+test("content write from a metadata-stale client keeps the server-side metadata (G2 §5-3)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i40", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1 })]);
+    // 另一端改了标题：服务端 meta_rev 推到 2
+    await post(mf, cookie, [metaItemOp("i40", { rev: 1, baseRev: 1, baseMetaRev: 1, metaRev: 2, title: "他端标题" })]);
+    // 本端元数据版本落后（base_meta_rev=1）却写了正文：正文照落，标题保持服务端值
+    const body = itemOp("i40", { rev: 2, baseRev: 1, baseMetaRev: 1, metaRev: 1, markdown: "本地正文" });
+    const result = (await (await post(mf, cookie, [body])).json()).results[0];
+    assert.equal(result.result, "applied");
+    const row = await (await mf.getD1Database("DB")).prepare("SELECT rev, meta_rev, title, content_markdown FROM items WHERE id = 'i40'").first();
+    assert.equal(row.content_markdown, "本地正文");
+    assert.equal(row.title, "他端标题");
+    assert.equal(row.rev, 2);
+    assert.equal(row.meta_rev, 2);
+  });
+});
+
+test("conflict copies keep their link to the source item (G2 §5-2)", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [itemOp("i41", { rev: 1, baseRev: 0, baseMetaRev: 0, metaRev: 1, conflictOf: "orig-1" })]);
+    const response = await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } });
+    const page = await response.json();
+    const pulled = page.items.find((item) => item.id === "i41");
+    assert.equal(pulled.conflictOf, "orig-1");
   });
 });
 
@@ -117,7 +229,7 @@ test("attachment reference counts realign from the authoritative item table (FR-
     await post(mf, cookie, [itemOp("i3", { rev: 1, hashes: [hash] }), itemOp("i4", { rev: 1, hashes: [hash] })]);
     const database = await mf.getD1Database("DB");
     assert.equal((await database.prepare("SELECT ref_count FROM attachments WHERE sha256 = ?", ).bind(hash).first()).ref_count, 2);
-    await post(mf, cookie, [itemOp("i4", { rev: 2, baseRev: 1, hashes: [] })]);
+    await post(mf, cookie, [itemOp("i4", { rev: 2, baseRev: 1, markdown: "正文二", hashes: [] })]);
     assert.equal((await database.prepare("SELECT ref_count FROM attachments WHERE sha256 = ?").bind(hash).first()).ref_count, 1);
   });
 });

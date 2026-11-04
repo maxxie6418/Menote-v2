@@ -2,18 +2,11 @@ import type { Attachment, Item } from "@menote/shared";
 import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
 import { appRoutePath } from "../app/appRoutes";
+import { extractAttachmentRefs } from "../lib/attachmentRefs";
 
 /** 附件与导出（G5）：上传走鉴权接口；渲染经 MarkdownView 将相对引用解析为鉴权 URL（FR-SYNC-7）。 */
 
-const REF_PATTERN = /attachments\/([0-9a-f]{64})--([^\s)\\]+)/g;
-
-export function extractAttachmentRefs(markdown: string): Array<{ sha256: string; name: string }> {
-  const refs: Array<{ sha256: string; name: string }> = [];
-  for (const match of markdown.matchAll(REF_PATTERN)) {
-    refs.push({ sha256: match[1]!, name: match[2]! });
-  }
-  return refs;
-}
+export { extractAttachmentRefs };
 
 export function attachmentUrl(sha256: string): string {
   return `/api/attachments/${sha256}`;

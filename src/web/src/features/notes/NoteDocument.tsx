@@ -40,6 +40,9 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; messag
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
 export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
+  // 冲突副本：记录它顶掉了哪一条目（G2 §5-2），文档区给出回溯入口供人工裁决。
+  const conflictOf = item?.conflictOf ?? null;
+  const conflictSource = useItem(userId, conflictOf);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const [draft, setDraft] = useState<string | null>(null);
@@ -291,6 +294,12 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
+        {conflictOf && (
+          <p className="mn-conflictnote">
+            <span>同步冲突副本：原条目与这份正文各有一版，保留哪一份由你决定。</span>
+            <a href={itemRoutePath(conflictOf)}>打开原条目{conflictSource?.title ? `《${conflictSource.title}》` : ""}</a>
+          </p>
+        )}
         {plain && (
           <PropertyPanel
             markdown={draft ?? plain.markdown}

@@ -5,6 +5,7 @@ import { sha256Hex } from "../lib/hash";
 import { enqueueWrite, outboxUpsert, requireItem } from "./contentShared";
 import { getContentKey } from "./keyringService";
 import { encryptMarkdown } from "./cryptoService";
+import { attachmentHashesOf } from "../lib/attachmentRefs";
 
 /** 版本历史与回收站（G8，FR-VER-1~7；G10 整理自 contentService）。 */
 
@@ -73,7 +74,8 @@ export async function restoreVersion(userId: string, itemId: string, versionId: 
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+    // 恢复的是历史正文：按正文操作上报（带 contentHash），正文版本号随之推进。
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
   });
   notifyLocalChange();
   return next;
@@ -85,6 +87,7 @@ async function applyContentMarkdown(userId: string, id: string, markdown: string
   const contentHash = await sha256Hex(markdown);
   const next: Item = {
     ...current, rev: current.rev + 1, contentHash, updatedAt: Date.now(),
+    attachmentHashes: attachmentHashesOf(markdown),
     content: { scope: "plain", markdown },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
@@ -95,11 +98,12 @@ async function applyContentMarkdown(userId: string, id: string, markdown: string
   return next;
 }
 
-/** 回收站恢复（FR-VER-6）：清除墓碑并以 upsert 传播。 */
+/** 回收站恢复（FR-VER-6）：清除墓碑并以 upsert 传播。
+ *  正文没变，属元数据写：本地与服务端同步推进 meta_rev，版本号才不会错位。 */
 export async function restoreFromTrash(userId: string, id: string): Promise<void> {
   const current = await requireItem(userId, id);
   if (current.deletedAt === null) return;
-  const next: Item = { ...current, deletedAt: null };
+  const next: Item = { ...current, deletedAt: null, metaRev: current.metaRev + 1 };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));

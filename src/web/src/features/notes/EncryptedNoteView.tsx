@@ -12,6 +12,7 @@ import { isNoteUnlocked, lockItem, lockOnLeave, openSpaceNote, readPlain, unlock
 import { lockPrivateSpace, unlockPrivateSpace } from "../../services/privateSpaceService";
 import { UnlockPanel } from "../encryption";
 import { DocTitle } from "./DocTitle";
+import { itemRoutePath } from "../../app/appRoutes";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -154,6 +155,12 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       </div>
       <div className="mn-docbody">
         <DocTitle value={item.title ?? ""} readOnly />
+        {item.conflictOf && (
+          <p className="mn-conflictnote">
+            <span>同步冲突副本：原条目与这份正文各有一版，保留哪一份由你决定。</span>
+            <a href={itemRoutePath(item.conflictOf)}>打开原条目</a>
+          </p>
+        )}
         {!unlocked && (
           <UnlockPanel
             onUnlock={onUnlock}

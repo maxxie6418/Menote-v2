@@ -21,6 +21,8 @@ interface ItemFields {
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+  /** 冲突副本关联：指向被顶掉的原条目（G2 §5-2「记录与原条目关联」）；普通条目为 null。 */
+  conflictOf?: string | null;
 }
 
 /** Immutable source snapshot attached to a quote Memo (FR-MEMO-8). */

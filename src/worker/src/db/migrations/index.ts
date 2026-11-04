@@ -35,6 +35,7 @@ import clipTemplates from "./0033_clip_templates.sql";
 import memoInteractions from "./0034_memo_interactions.sql";
 import ai from "./0035_ai.sql";
 import raindrop from "./0036_raindrop.sql";
+import itemConflictOf from "./0037_item_conflict_of.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -74,4 +75,5 @@ export const migrations = [
   { version: 34, name: "0034_memo_interactions", statements: [memoInteractions] },
   { version: 35, name: "0035_ai", statements: [ai] },
   { version: 36, name: "0036_raindrop", statements: [raindrop] },
+  { version: 37, name: "0037_item_conflict_of", statements: [itemConflictOf] },
 ] as const satisfies readonly SchemaMigration[];

@@ -42,6 +42,7 @@ export function rowToItem(row: Record<string, unknown>): Item {
     contentHash: String(row.content_hash), pinned: Number(row.pinned) === 1, starred: Number(row.starred) === 1,
     createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
     deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+    conflictOf: row.conflict_of === null || row.conflict_of === undefined ? null : String(row.conflict_of),
   };
   const title = row.title === null || row.title === undefined ? null : String(row.title);
   if (base.type === "memo") {
@@ -226,9 +227,9 @@ export async function upsertItemRow(
   await db.prepare(
     `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
-       enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device,
+       enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
        memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
@@ -236,6 +237,7 @@ export async function upsertItemRow(
        source = excluded.source, rev = MAX(rev, excluded.rev), meta_rev = MAX(meta_rev, excluded.meta_rev),
        content_hash = excluded.content_hash, pinned = excluded.pinned, starred = excluded.starred,
        updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device,
+       conflict_of = excluded.conflict_of,
        memo_quote_source_id = excluded.memo_quote_source_id,
        memo_quote_source_created_at = excluded.memo_quote_source_created_at, memo_quote_snapshot = excluded.memo_quote_snapshot`,
   ).bind(
@@ -245,10 +247,56 @@ export async function upsertItemRow(
     JSON.stringify(item.tags), JSON.stringify(item.attachmentHashes), item.status, item.source,
     rev, metaRev, item.contentHash, item.pinned ? 1 : 0, item.starred ? 1 : 0,
     item.content.scope === "self" ? 1 : 0, item.content.scope === "private_space" ? 1 : 0,
-    item.createdAt, item.updatedAt, item.deletedAt, deviceId,
+    item.createdAt, item.updatedAt, item.deletedAt, deviceId, item.conflictOf ?? null,
     item.type === "memo" ? item.memoQuote?.sourceMemoId ?? null : null,
     item.type === "memo" ? item.memoQuote?.sourceCreatedAt ?? null : null,
     item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
+  ).run();
+}
+
+/**
+ * 正文写（窄写）：只动正文列与正文版本 rev，
+ * 元数据列（标题/标签/归属/状态/形态）与 meta_rev 一律保持服务端原值。
+ * 用于「客户端元数据版本落后」的正文写——元数据冲突服务端胜出（G2 §5-3），
+ * 正文照常落地，不连带覆盖服务端更新的元数据。
+ */
+export async function updateItemContent(
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number,
+): Promise<void> {
+  await db.prepare(
+    `UPDATE items SET content_markdown = ?, content_ciphertext = ?, content_hash = ?,
+       attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?
+     WHERE id = ? AND user_id = ?`,
+  ).bind(
+    item.content.scope === "plain" ? item.content.markdown : null,
+    item.content.scope === "plain" ? null : item.content.ciphertext,
+    item.contentHash, JSON.stringify(item.attachmentHashes), rev,
+    item.updatedAt, item.deletedAt, deviceId,
+    item.id, userId,
+  ).run();
+}
+
+/**
+ * 元数据写（标题/标签/归属/状态/形态）：只动元数据列与 meta_rev，
+ * 正文列与正文版本 rev 一律不动（G2 §1：两个版本通道互不推进）。
+ */
+export async function updateItemMeta(
+  db: D1Database, userId: string, deviceId: string, item: Item, metaRev: number,
+): Promise<void> {
+  await db.prepare(
+    `UPDATE items SET type = ?, topic_id = ?, group_id = ?, title = ?, tags_json = ?, status = ?, source = ?,
+       pinned = ?, starred = ?, memo_quote_source_id = ?, memo_quote_source_created_at = ?, memo_quote_snapshot = ?,
+       meta_rev = MAX(meta_rev, ?), updated_at = ?, deleted_at = ?, last_device = ?
+     WHERE id = ? AND user_id = ?`,
+  ).bind(
+    item.type, item.topicId, item.groupId, item.title,
+    JSON.stringify(item.tags), item.status, item.source,
+    item.pinned ? 1 : 0, item.starred ? 1 : 0,
+    item.type === "memo" ? item.memoQuote?.sourceMemoId ?? null : null,
+    item.type === "memo" ? item.memoQuote?.sourceCreatedAt ?? null : null,
+    item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
+    metaRev, item.updatedAt, item.deletedAt, deviceId,
+    item.id, userId,
   ).run();
 }
 

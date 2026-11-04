@@ -5,6 +5,7 @@ import { encryptMarkdown, generateContentKey, generateRecoveryCode, wrapContentK
 import { getContentKey } from "./keyringService";
 import { archiveVersionBeforeSave } from "./versionService";
 import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope } from "./contentShared";
+import { attachmentHashesOf } from "../lib/attachmentRefs";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
 /** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
@@ -27,12 +28,15 @@ export async function enableItemEncryption(
   const envelope = await encryptMarkdown(markdown, key);
   const next: Item = {
     ...current, rev: current.rev + 1, contentHash: "enc-" + envelope.ciphertext.slice(0, 16),
+    // 密文正文里看不到引用，但附件清单要跟着内容走：引用计数与备份仍认这份列表（FR-SYNC-7）。
+    attachmentHashes: attachmentHashesOf(markdown),
     updatedAt: Date.now(), content: { scope: "self", ciphertext: packEnvelope(envelope.iv, envelope.ciphertext) },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.wraps, async () => {
     await localDb.items.put(next);
     await localDb.wraps.put({ itemId: id, wraps });
-    await localDb.outbox.add({ ...outboxUpsert(next, current.rev, current.metaRev), wraps });
+    // 正文变了（明文→密文）：必须带 contentHash，否则服务端按元数据写处理，正文版本号不推进。
+    await localDb.outbox.add({ ...outboxUpsert(next, current.rev, current.metaRev, next.contentHash), wraps });
   });
   notifyLocalChange();
   return { item: next, recoveryCode: code, key };
@@ -55,11 +59,13 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
     }
     const next: Item = {
       ...current, rev: current.rev + 1, contentHash: "enc-" + envelope.ciphertext.slice(0, 16),
+      attachmentHashes: attachmentHashesOf(markdown),
       updatedAt: Date.now(), content: { scope: current.content.scope, ciphertext: sealed },
     };
     await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
       await localDb.items.put(next);
-      await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+      // 重加密后正文哈希变了：按正文操作上报，正文版本号随之推进。
+      await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
     });
     notifyLocalChange();
     return next;
@@ -75,6 +81,7 @@ export async function decryptToPlain(userId: string, id: string, markdown: strin
       const { sha256Hex } = await import("../lib/hash");
       return sha256Hex(markdown);
     })(),
+    attachmentHashes: attachmentHashesOf(markdown),
     updatedAt: Date.now(), content: { scope: "plain", markdown },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.wraps, async () => {

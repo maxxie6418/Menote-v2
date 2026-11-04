@@ -9,6 +9,7 @@ import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
 import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
+import { outboxUpsert } from "./contentShared";
 
 /**
  * 同步引擎（G6，按 G2 定稿 §3/§4/§8）：单轮 = 推送排水 + 拉取推进；
@@ -71,22 +72,60 @@ async function postPush(deviceId: string, operations: OutboxRow[]): Promise<Sync
   }
 }
 
-/** Note 正文冲突（G2 §5-2）：本地稿另存冲突副本，原条目等待拉取采纳服务端版本。 */
-async function saveConflictCopy(row: OutboxRow): Promise<void> {
+/**
+ * Note 正文冲突（G2 §5-2）：本地稿另存冲突副本，原条目等待拉取采纳服务端版本。
+ * 副本必须一并入队上传：只落本地的话，一次全量重同步或换设备就会把用户仅存的那份正文清掉。
+ * 加密条目同样留副本（连同密钥包装块）：否则被顶掉的编辑会被静默丢掉。
+ */
+async function saveConflictCopy(row: OutboxRow, deviceId: string): Promise<void> {
   const localItem = await localDb.items.get(row.entityId);
   const payloadItem = localItem ?? (row.payload as { item?: Item } | null)?.item;
-  if (!payloadItem || payloadItem.content.scope !== "plain") return;
+  if (!payloadItem) return;
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
   const copy: Item = {
     ...payloadItem,
     id: newId(),
-    title: `${payloadItem.title}（冲突副本 ${new Date().toLocaleString()}）`,
+    title: `${payloadItem.title}（冲突副本 ${stamp} · ${deviceId.slice(0, 6)}）`,
     rev: 1, metaRev: 1, createdAt: Date.now(), updatedAt: Date.now(), deletedAt: null,
+    // 记下与原条目的关联：人工裁决时要能回溯这份稿子顶掉了哪一篇（G2 §5-2）。
+    conflictOf: row.entityId,
   };
-  await localDb.items.put(copy);
+  const wraps = await localDb.wraps.get(row.entityId);
+  await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.wraps, async () => {
+    await localDb.items.put(copy);
+    if (wraps?.wraps.length) await localDb.wraps.put({ itemId: copy.id, wraps: wraps.wraps });
+    await localDb.outbox.add(outboxUpsert(copy, 0, 0, copy.contentHash));
+  });
+}
+
+/**
+ * 版本号与服务端对齐（只增不减）：本地已推进的版本不能被回退，
+ * 否则待推操作的版本链（baseRev）会断，下一轮推送又撞同一条前置条件。
+ */
+async function alignItemVersionUp(entityId: string, rev: number, metaRev: number): Promise<void> {
+  const local = await localDb.items.get(entityId);
+  if (!local) return;
+  if (local.rev >= rev && local.metaRev >= metaRev) return;
+  await localDb.items.put({ ...local, rev: Math.max(local.rev, rev), metaRev: Math.max(local.metaRev, metaRev) });
+}
+
+/**
+ * 冲突后把本地版本号落到服务端当前值：冲突副本已另存，本地正文等待拉取覆盖。
+ * keepRev=true 用于元数据冲突——正文版本与元数据冲突无关，不能动（待推正文操作还指着它）。
+ */
+async function alignItemVersionToServer(entityId: string, rev: number, metaRev: number, keepRev: boolean): Promise<void> {
+  const local = await localDb.items.get(entityId);
+  if (!local) return;
+  const nextRev = keepRev ? local.rev : rev;
+  if (local.rev === nextRev && local.metaRev === metaRev) return;
+  await localDb.items.put({ ...local, rev: nextRev, metaRev });
 }
 
 async function handleResult(row: OutboxRow, result: SyncOperationResult): Promise<void> {
-  if (result.result === "applied") return deleteOutboxRows([row.seq!]);
+  if (result.result === "applied") {
+    if (row.entity === "item") await alignItemVersionUp(row.entityId, result.rev, result.metaRev);
+    return deleteOutboxRows([row.seq!]);
+  }
   if (row.entity === "setting") {
     // 设置行：本地 rev 对齐服务端防乐观漂移；服务端无记录（rev 0）的冲突重推一次，
     // 让已拨开的开关真正落库（否则 UI 显示已开启、推理仍 409）。
@@ -96,23 +135,20 @@ async function handleResult(row: OutboxRow, result: SyncOperationResult): Promis
   }
   if (result.result === "duplicate") {
     // 服务端已有更新版本（重放/过期 LWW）：本地对齐版本号，条目内容随拉取收敛。
-    if (row.entity === "item") {
-      const local = await localDb.items.get(row.entityId);
-      if (local && (local.rev < result.rev || local.metaRev < result.metaRev)) {
-        await localDb.items.put({ ...local, rev: Math.max(local.rev, result.rev), metaRev: Math.max(local.metaRev, result.metaRev) });
-      }
-    }
+    if (row.entity === "item") await alignItemVersionUp(row.entityId, result.rev, result.metaRev);
     return deleteOutboxRows([row.seq!]);
   }
   if (result.result === "rejected") {
     return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);
   }
-  // conflict：正文操作保存冲突副本后交由拉取收敛；元数据操作服务端胜，直接落队。
-  if (row.entity === "item" && row.contentHash !== undefined) await saveConflictCopy(row);
+  // conflict：元数据冲突服务端胜（G2 §5-3），对齐版本号后落队，正文冲突由 drainOutbox 另存副本。
+  if (row.entity === "item") await alignItemVersionToServer(row.entityId, result.detail.rev, result.detail.metaRev, true);
   return deleteOutboxRows([row.seq!]);
 }
 
 async function drainOutbox(userId: string, deviceId: string): Promise<void> {
+  // 一轮同步内同一条目只留一份冲突副本（G2 §5-1：只保留最新本地稿一份）。
+  const conflictedItems = new Set<string>();
   for (;;) {
     const pending = await listPendingOutbox(userId, PUSH_BATCH);
     if (pending.length === 0) return;
@@ -132,15 +168,16 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
       for (const row of pending) await markOutboxError(row.seq!, "network", backoffMs(row.retries));
       return;
     }
-    const conflictedItems = new Set<string>();
     for (const row of pending) {
       if (row.entity === "item" && conflictedItems.has(row.entityId)) continue;
       const result = results.find((entry) => entry.operationId === row.operationId);
       if (result?.result === "conflict" && row.entity === "item" && row.contentHash !== undefined) {
         // 多个自动保存版本可能同时排队；保留一份最新本地稿并清掉该条目的旧快照，避免每条都造副本。
-        await saveConflictCopy(row);
+        await saveConflictCopy(row, deviceId);
         const entityRows = await localDb.outbox.where("entityId").equals(row.entityId).and((entry) => entry.userId === userId).toArray();
         await deleteOutboxRows(entityRows.map((entityRow) => entityRow.seq!).filter((seq) => seq !== undefined));
+        // 版本号落到服务端当前值：否则本地停在旧版本号上，下次保存又撞同一条前置条件，冲突副本反复出现。
+        await alignItemVersionToServer(row.entityId, result.detail.rev, result.detail.metaRev, false);
         conflictedItems.add(row.entityId);
       }
       else if (result) await handleResult(row, result);
@@ -168,6 +205,9 @@ async function pendingEntityIds(userId: string): Promise<Set<string>> {
 }
 
 async function pullUpdates(userId: string): Promise<void> {
+  // 本地仍有待推操作的条目不覆盖（G2 §4 同款保护）：拉取拿服务端版本回写会把还没上传的正文
+  // 与版本号一起退回去，下一轮推送就带着过期版本号去撞前置条件——冲突副本反复出现的第二条来源。
+  const keep = await pendingEntityIds(userId);
   for (let page = 0; page < PULL_MAX_PAGES; page += 1) {
     const cursor = (await getMeta<number>(SYNC_CURSOR_KEY)) ?? 0;
     const response = await fetch(`/api/sync/pull?cursor=${cursor}`, { cache: "no-store" });
@@ -187,7 +227,6 @@ async function pullUpdates(userId: string): Promise<void> {
       await localDb.topicWraps.put({ topicId: group.topicId, wraps: group.wraps });
     }
     if (fullResync) {
-      const keep = await pendingEntityIds(userId);
       const allItems = await localDb.items.toArray();
       await localDb.items.bulkDelete(allItems.filter((row) => row.userId === userId && !keep.has(row.id)).map((row) => row.id));
       const allTopics = await localDb.topics.toArray();
@@ -195,11 +234,12 @@ async function pullUpdates(userId: string): Promise<void> {
       const allComments = await localDb.memoComments.toArray();
       await deleteMemoComments(allComments.filter((row) => row.userId === userId && !keep.has(row.id)).map((row) => row.id));
     }
-    // 落库顺序：先墓碑、再条目/主题（G2 §4）。
+    // 落库顺序：先墓碑、再条目/主题（G2 §4）。待推条目跳过回写，等推送成功后由下一轮拉取收敛。
     for (const tombstone of tombstones ?? []) {
       await applyTombstone({ entityId: tombstone.id, entity: tombstone.entity });
     }
-    if (items && items.length > 0) await bulkPutItems(items);
+    const incoming = (items ?? []).filter((item) => !keep.has(item.id));
+    if (incoming.length > 0) await bulkPutItems(incoming);
     if (memoComments && memoComments.length > 0) await bulkPutMemoComments(memoComments);
     for (const topic of topics ?? []) {
       await localDb.topics.put(topic);
