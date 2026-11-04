@@ -70,8 +70,17 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;
 
+  /** 源码模式只做原样读写；WYSIWYG 才映射附件引用到可显示 URL。 */
+  const toVisibleMarkdown = (markdown: string) => kind === "source"
+    ? markdown
+    : toEditorMarkdown(markdown, namesRef.current);
+
+  const readMarkdown = (markdown: string) => kind === "source"
+    ? markdown
+    : fromEditorMarkdown(markdown, namesRef.current);
+
   /** 脏信号：只报「正文变了」，不携带正文（FR-EDT-10）。
-   *  每次键入整篇序列化是长文档卡顿的主因，正文统一在落盘出口（registerGetMarkdown）取全量。 */
+   *  每次键入整篇序列化是长文档卡顿的主因，落盘出口再取完整 Markdown。 */
   const emit = () => {
     dirtyRef.current = true;
     onInputRef.current();
@@ -79,6 +88,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
 
   /** 持久化用的正文（FR-EDT-8）：所见即所得走「保留原文」版本，源码态就是用户输入。 */
   const persistedMarkdown = (adapter: EditorAdapter): string => {
+    if (kind === "source") return adapter.getMarkdown();
     const raw = adapter.getPreservedMarkdown?.() ?? adapter.getMarkdown();
     return fromEditorMarkdown(raw, namesRef.current);
   };
@@ -98,7 +108,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (mode !== "edit" || !hostRef.current) return;
     let cancelled = false;
     const host = hostRef.current;
-    const initial = toEditorMarkdown(externalMarkdown, namesRef.current);
+    const initial = toVisibleMarkdown(externalMarkdown);
 
     if (kind === "source") {
       const adapter = new TextareaSourceAdapter(host, {
@@ -109,7 +119,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       registerGetMarkdown(() => persistedMarkdown(adapter));
       registerApplyExternal((markdown) => keepScroll(() => {
         dirtyRef.current = false;
-        adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
+        adapter.loadMarkdown(markdown);
       }));
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
@@ -123,7 +133,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         registerGetMarkdown(() => persistedMarkdown(adapter));
         registerApplyExternal((markdown) => keepScroll(() => {
           dirtyRef.current = false;
-          adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
+          adapter.loadMarkdown(toVisibleMarkdown(markdown));
         }));
       }).catch((cause) => {
         console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
@@ -136,7 +146,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         registerGetMarkdown(() => fromEditorMarkdown(fallback.getMarkdown(), namesRef.current));
         registerApplyExternal((markdown) => {
           dirtyRef.current = false;
-          fallback.loadMarkdown(toEditorMarkdown(markdown, namesRef.current));
+          fallback.loadMarkdown(toVisibleMarkdown(markdown));
         });
       });
     }
@@ -158,7 +168,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (!adapter) return;
     dirtyRef.current = true;
     // 本地改动：基线沿用「保留原文」的结果，未触碰块继续保留原始字节（FR-EDT-8）。
-    adapter.loadMarkdown(toEditorMarkdown(markdown, namesRef.current), { keepBaseline: true });
+    adapter.loadMarkdown(toVisibleMarkdown(markdown), { keepBaseline: true });
     adapter.setSelection(start, end);
     onInputRef.current();
   };
@@ -184,7 +194,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       return;
     }
     // 源码态才需要整篇文本（textarea 读 value 是 O(1)，不是序列化开销）。
-    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const markdown = readMarkdown(adapter.getMarkdown());
     const { start, end } = adapter.getSelection();
     const context = fromSlash && slash ? { from: slash.from, query: slash.query } : slashContext(markdown, start);
     const result = context
@@ -200,7 +210,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const placeFiles = async (files: File[], cursor: number) => {
     const adapter = adapterRef.current;
     if (!adapter || !uploadFile) return;
-    let markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    let markdown = readMarkdown(adapter.getMarkdown());
     let caret = cursor;
     const tasks: UploadTask[] = files.map((file, index) => ({
       id: `${Date.now()}-${index}`, name: file.name, percent: 0,
@@ -233,7 +243,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (kind === "source") {
       // 源码态：textarea 读 value 是 O(1)，不算整篇序列化，上下文仍按文本算。
       // 源码态不弹「/」菜单（方向键/回车必须留给 textarea 本身），保持既有行为不变。
-      const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+      const markdown = readMarkdown(adapter.getMarkdown());
       const { start, end } = adapter.getSelection();
       const next = activeInline(markdown, start, end);
       setActive((previous) => (sameActions(previous, next) ? previous : next));
@@ -294,7 +304,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       setSelectionMenu(null);
       return;
     }
-    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const markdown = readMarkdown(adapter.getMarkdown());
     const { start, end } = adapter.getSelection();
     const result = applyTextColor(markdown, start, end, color);
     if (!result) return;
@@ -306,12 +316,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
-    const visible = toEditorMarkdown(externalMarkdown, namesRef.current);
+    const visible = toVisibleMarkdown(externalMarkdown);
     // 「我刚写进去的内容」也会从外部回声回来（FR-EDT-8 的保留原文版本与编辑态文本不同），
     // 用适配器的等价判断避免把本地内容当成他端变更整篇重载。
     const same = adapter.isSameContent
       ? adapter.isSameContent(visible)
-      : fromEditorMarkdown(adapter.getMarkdown(), namesRef.current) === externalMarkdown;
+      : readMarkdown(adapter.getMarkdown()) === externalMarkdown;
     if (same) {
       dirtyRef.current = false;
       return;

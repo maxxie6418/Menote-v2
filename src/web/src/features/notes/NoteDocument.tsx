@@ -54,6 +54,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const conflictSource = useItem(userId, conflictOf);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
+  const editorKindRef = useRef(editorKind);
+  editorKindRef.current = editorKind;
   const [draft, setDraft] = useState<string | null>(null);
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   // 用计数递增触发自动保存，正文在保存时从编辑器取全量。
@@ -93,13 +95,15 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode]);
-  // AI 面板用的正文：打开面板时取一次**编辑器里的最新正文**。
-  // 键入不再实时更新 draft（FR-EDT-10），直接用 draft 会把未保存的编辑漏给模型。
+  // AI 面板用打开时的最新完整 Markdown；源码模式取完整 textarea，WYSIWYG 再拼回属性区。
   const [aiMarkdown, setAiMarkdown] = useState<string | null>(null);
   const latestFullMarkdown = (): string => {
     const base = draft ?? (item?.content.scope === "plain" ? item.content.markdown : "");
-    const body = getMarkdownRef.current?.();
-    return body === undefined || body === null ? base : joinFrontmatter(splitFrontmatter(base).frontText, body);
+    const editorValue = getMarkdownRef.current?.();
+    if (editorValue === undefined || editorValue === null) return base;
+    return editorKindRef.current === "source"
+      ? editorValue
+      : joinFrontmatter(splitFrontmatter(base).frontText, editorValue);
   };
   useEffect(() => {
     if (!openSummaryToken) return;
@@ -120,12 +124,14 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     const savingTick = dirtyTickRef.current;
     setSaveState({ kind: "saving" });
     try {
-      // 正文以编辑器最新内容为准；frontmatter 取 next 中属性区刚写入的版本。
+      // WYSIWYG 正文以编辑器最新内容为准；源码模式的 next 已是完整原文。
       // 放在 try 内，序列化异常也能显示保存失败，不会让添加属性操作静默无效。
-      const editorBody = getMarkdownRef.current?.();
-      const value = editorBody === undefined || editorBody === null
+      const editorValue = getMarkdownRef.current?.();
+      const value = editorValue === undefined || editorValue === null
         ? next
-        : joinFrontmatter(splitFrontmatter(next).frontText, editorBody);
+        : editorKind === "source"
+          ? next
+          : joinFrontmatter(splitFrontmatter(next).frontText, editorValue);
       setDraft(value);
       const saved = await saveItemContent(userId, item.id, value);
       const savedMarkdown = saved.content.scope === "plain" ? saved.content.markdown : "";
@@ -138,7 +144,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       setSaveState({ kind: "error", message: String(cause) });
       return false;
     }
-  }, [item, userId]);
+  }, [editorKind, item, userId]);
 
   // noteId 变化时初始化（父组件以 key 重挂载，这里兜底异步到达）。
   useEffect(() => {
@@ -164,11 +170,15 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const flush = useCallback(async (overrideMarkdown?: string) => {
     if (!item || item.content.scope !== "plain") return false;
     const savingTick = dirtyTickRef.current;
-    // 编辑器/预览只处理正文（FR-PROP-1：YAML 由属性区管理）；保存前把正文拼回 frontmatter。
+    // WYSIWYG 只处理正文，由属性区管理 YAML；源码模式直接保存完整 Markdown。
     const currentFull = draft ?? item.content.markdown;
     const editorValue = overrideMarkdown ?? getMarkdownRef.current?.() ?? null;
     const { frontText } = splitFrontmatter(currentFull);
-    const value = editorValue === null ? currentFull : joinFrontmatter(frontText, editorValue);
+    const value = editorValue === null
+      ? currentFull
+      : editorKind === "source"
+        ? editorValue
+        : joinFrontmatter(frontText, editorValue);
     if (value === null || value === item.content.markdown) {
       setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
@@ -185,7 +195,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       setSaveState({ kind: "error", message: String(cause) });
       return false;
     }
-  }, [item, userId, draft]);
+  }, [draft, editorKind, item, userId]);
 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
   // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
@@ -198,12 +208,14 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   }, [dirtyTick, savedTick, flush, item]);
 
   // 卸载前尽力落盘（异步保存不阻塞返回；失败保留本地草稿，本地库本就是权威）。
-  // 编辑器只持有正文，必须拼回 frontmatter，否则有属性的笔记离开时会把 YAML 写丢。
+  // WYSIWYG 只持有正文，需要拼回 frontmatter；源码模式已持有完整 Markdown。
   useEffect(() => () => {
     const currentItem = latestItemRef.current;
-    const body = getMarkdownRef.current?.();
-    if (!currentItem || body === null || body === undefined || currentItem.content.scope !== "plain") return;
-    const value = joinFrontmatter(splitFrontmatter(currentItem.content.markdown).frontText, body);
+    const editorValue = getMarkdownRef.current?.();
+    if (!currentItem || editorValue === null || editorValue === undefined || currentItem.content.scope !== "plain") return;
+    const value = editorKindRef.current === "source"
+      ? editorValue
+      : joinFrontmatter(splitFrontmatter(currentItem.content.markdown).frontText, editorValue);
     if (value !== currentItem.content.markdown) void saveItemContent(userId, currentItem.id, value).catch(() => {});
   }, [noteId, userId]);
 
@@ -247,6 +259,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setMode(next);
   };
 
+  const toggleEditorKind = async () => {
+    if (!(await flush())) return;
+    setEditorKind((current) => current === "source" ? "wysiwyg" : "source");
+    setMoreOpen(false);
+  };
+
   const addTag = async (raw: string) => {
     const tag = raw.trim().replace(/^#/, "");
     if (!item || !tag || item.tags.includes(tag)) return;
@@ -263,8 +281,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         setSaveState({ kind: "error", message: result.error });
         return;
       }
-      const latest = getMarkdownRef.current?.() ?? splitFrontmatter(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).body;
-      const next = joinFrontmatter(splitFrontmatter(draft ?? "").frontText, `${latest.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`);
+      const current = draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
+      const editorValue = getMarkdownRef.current?.();
+      const full = editorKind === "source"
+        ? editorValue ?? current
+        : joinFrontmatter(splitFrontmatter(current).frontText, editorValue ?? splitFrontmatter(current).body);
+      const { frontText, body } = splitFrontmatter(full);
+      const next = joinFrontmatter(frontText, `${body.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`);
       await saveFullMarkdown(next);
     } finally {
       setUploading(false);
@@ -387,7 +410,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                   }}>
                     <Copy />{linkCopied ? "链接已复制" : "复制文档链接"}
                   </button>
-                  <button type="button" role="menuitem" onClick={() => { setEditorKind(editorKind === "source" ? "wysiwyg" : "source"); setMoreOpen(false); }}>
+                  <button type="button" role="menuitem" onClick={() => void toggleEditorKind()}>
                     <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
                   </button>
                   <button type="button" role="menuitem" onClick={() => { setHistory(true); setMoreOpen(false); }}>
@@ -430,7 +453,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <a href={itemRoutePath(conflictOf)}>打开原条目{conflictSource?.title ? `《${conflictSource.title}》` : ""}</a>
           </p>
         )}
-        {plain && propsPos === "top" && (
+        {plain && editorKind !== "source" && propsPos === "top" && (
           <PropertyPanel
             userId={userId}
             markdown={draft ?? plain.markdown}
@@ -477,18 +500,22 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             kind={editorKind}
             paperMode={paperMode}
             formatDock={formatDock}
-            externalMarkdown={splitFrontmatter(plain.markdown).body}
+            externalMarkdown={editorKind === "source"
+              ? draft ?? plain.markdown
+              : splitFrontmatter(draft ?? plain.markdown).body}
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             uploadFile={uploadAttachment}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
-              if (apply) applyExternalRef.current = (markdown: string) => apply(splitFrontmatter(markdown).body);
+              if (apply) applyExternalRef.current = (markdown: string) => apply(
+                editorKind === "source" ? markdown : splitFrontmatter(markdown).body,
+              );
               else applyExternalRef.current = null;
             }}
           />
         )}
         </div>
-        {plain && propsPos === "side" && (
+        {plain && editorKind !== "source" && propsPos === "side" && (
           <aside className="mn-doc-aside" aria-label="属性">
             <PropertyPanel
               userId={userId}
@@ -498,7 +525,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </aside>
         )}
       </div>
-      {toolbarPos === "bottom" && mode === "edit" && !isTableDoc && (
+      {toolbarPos === "bottom" && mode === "edit" && editorKind === "wysiwyg" && !isTableDoc && (
         <div className="mn-formatdock" ref={setFormatDock} role="presentation" />
       )}
       <div className="mn-doc-foot">
@@ -536,8 +563,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         <EncryptSetupDialog
           onCancel={() => setEncrypting(false)}
           onConfirm={async (password, code) => {
-            const body = getMarkdownRef.current?.() ?? splitFrontmatter(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).body;
-            const latest = joinFrontmatter(splitFrontmatter(draft ?? "").frontText, body);
+            const current = draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
+            const editorValue = getMarkdownRef.current?.();
+            const latest = editorValue === undefined || editorValue === null
+              ? current
+              : editorKind === "source"
+                ? editorValue
+                : joinFrontmatter(splitFrontmatter(current).frontText, editorValue);
             const result = await enableItemEncryption(userId, item.id, latest, password, code);
             setSessionKey(item.id, result.key);
             setPlainDraftAfterEncryption();
