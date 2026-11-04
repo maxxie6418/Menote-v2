@@ -550,10 +550,13 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-proptext-multi { white-space: pre-wrap; }
 .mn-proptext a { color: var(--app-link); }
 .mn-propempty { color: var(--app-fg-faint); }
-.mn-proptype { display: flex; align-items: center; gap: var(--app-space-4); flex: 1 1 auto; min-width: var(--app-prop-key-width); }
+.mn-proptype { display: flex; align-items: center; gap: var(--app-space-4); flex: 1 1 auto; min-width: var(--app-prop-key-width); flex-wrap: wrap; }
 .mn-proptype .mn-propselect { flex: none; width: var(--app-prop-key-width); }
 .mn-propinput { flex: 1; min-width: var(--app-zero); height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
 .mn-propinput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+/* 候选值编辑器：多行，回车即可另起一行（与表格列设置的候选编辑一致） */
+.mn-proptextarea { flex: 1 1 var(--app-full-size); min-width: var(--app-zero); min-height: var(--app-prop-height); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); line-height: var(--app-leading-nav); padding: var(--app-space-4) var(--app-space-6); resize: vertical; }
+.mn-proptextarea:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 /* 全局 input/select 有四边的内边距（app.css），select 再定高就会把文字压到只剩十几像素、底部被裁掉；
    这里显式给纵向 0、横向与 .mn-propinput 对齐的间距。 */
 .mn-propselect { height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); flex: 1; }

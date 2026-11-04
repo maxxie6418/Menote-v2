@@ -92,3 +92,18 @@ test("GFM table parser handles escaped backslash parity around pipes", () => {
   assert.deepEqual(table.splitRow("| a\\\\|b | c |"), ["a\\", "b", "c"]);
   assert.deepEqual(table.splitRow("| a\\\\\\|b | c |"), ["a\\|b", "c"]);
 });
+
+test("候选值分隔：换行与中英文分号、逗号都认，空格不作分隔符", () => {
+  // 回车换行：每个候选一行
+  assert.deepEqual(fm.parseOptionList("待办\n进行中\n已完成"), ["待办", "进行中", "已完成"]);
+  // 中英文分号
+  assert.deepEqual(fm.parseOptionList("待办；进行中"), ["待办", "进行中"]);
+  assert.deepEqual(fm.parseOptionList("待办;进行中"), ["待办", "进行中"]);
+  // 既有逗号写法继续认（老数据不失效）
+  assert.deepEqual(fm.parseOptionList("待办, 进行中"), ["待办", "进行中"]);
+  assert.deepEqual(fm.parseOptionList("待办，进行中"), ["待办", "进行中"]);
+  // 空格不作分隔符：值里的空格要留着
+  assert.deepEqual(fm.parseOptionList("In Progress, 待评审"), ["In Progress", "待评审"]);
+  // 空项与重复项
+  assert.deepEqual(fm.parseOptionList("A;;B\n\nA"), ["A", "B"]);
+});

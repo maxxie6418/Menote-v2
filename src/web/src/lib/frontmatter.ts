@@ -27,6 +27,24 @@ export interface PropertyDef {
   options?: string[];
 }
 
+/**
+ * 候选值输入的解析（属性区「单选/多选」候选编辑）：
+ * 换行、中英文分号、中英文逗号都算分隔符；首尾空格去掉、重复项去重。
+ * 空格**不作**分隔符——候选值本身常带空格（"In Progress"、"待评审 重要"），
+ * 按空格拆会把值切碎；分号既能一次键入，又与值内可能出现的逗号区分得开。
+ */
+export function parseOptionList(text: string): string[] {
+  const seen = new Set<string>();
+  const options: string[] = [];
+  for (const part of text.split(/[\n;；,，]+/)) {
+    const option = part.trim();
+    if (!option || seen.has(option)) continue;
+    seen.add(option);
+    options.push(option);
+  }
+  return options;
+}
+
 export function splitFrontmatter(markdown: string): { frontText: string | null; body: string } {
   if (!markdown.startsWith("---")) return { frontText: null, body: markdown };
   const end = markdown.indexOf("\n---", 3);

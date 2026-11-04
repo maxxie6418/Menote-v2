@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>属性区候选值编辑 · 静态核对</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css" />
+<link rel="stylesheet" href="../src/web/src/styles/app.css" />
+<link rel="stylesheet" href="../src/web/src/styles/shell.css" />
+<link rel="stylesheet" href="../src/web/src/styles/markdown.css" />
+<style>
+  body { padding: 24px; }
+  .preview-note { font-size: 12px; color: var(--app-fg-faint); margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<p class="preview-note">属性区 · 编辑态：单选类型的候选值编辑器（多行，回车换行；分号 / 逗号也认）</p>
+<section class="mn-propbar" aria-label="属性区">
+  <div class="mn-propbar-headrow">
+    <button type="button" class="mn-propbar-head"><span class="mn-seclabel-text">属性（2）</span></button>
+    <button type="button" class="mn-textbtn">完成</button>
+  </div>
+  <dl class="mn-proplist">
+    <div class="mn-proprow">
+      <dt class="mn-propkey">状态</dt>
+      <dd class="mn-propvalue editing">
+        <span class="mn-propselect" style="display:inline-block;padding:0 6px;border:1px solid var(--app-border-subtle);border-radius:var(--app-radius-sm);">待办</span>
+        <span class="mn-proptype">
+          <select class="mn-propselect"><option>单选</option></select>
+          <textarea class="mn-proptextarea" rows="3" placeholder="候选值：每行一个，或用分号分隔">待办
+进行中
+已完成</textarea>
+        </span>
+        <button type="button" class="mn-iconbtn" aria-label="删除属性">✕</button>
+      </dd>
+    </div>
+    <div class="mn-proprow">
+      <dt class="mn-propkey">负责人</dt>
+      <dd class="mn-propvalue editing">
+        <input class="mn-propinput" value="小林" aria-label="负责人" />
+        <span class="mn-proptype">
+          <select class="mn-propselect"><option>文本</option></select>
+        </span>
+        <button type="button" class="mn-iconbtn" aria-label="删除属性">✕</button>
+      </dd>
+    </div>
+  </dl>
+</section>
+
+<p class="preview-note" style="margin-top:24px;">添加属性行（候选值同样多行）</p>
+<div class="mn-proprow mn-proprow-add">
+  <input class="mn-propinput" placeholder="属性名" aria-label="属性名" />
+  <select class="mn-propselect"><option>单选</option></select>
+  <input class="mn-propinput" placeholder="显示名（可选）" aria-label="显示名" />
+  <textarea class="mn-proptextarea" rows="3" placeholder="候选值：每行一个，或用分号分隔（必填）">高
+中
+低</textarea>
+  <div class="mn-proprow-actions">
+    <button type="button" class="mn-textbtn">保存定义</button>
+    <button type="button" class="mn-textbtn">取消</button>
+  </div>
+</div>
+</body>
+</html>

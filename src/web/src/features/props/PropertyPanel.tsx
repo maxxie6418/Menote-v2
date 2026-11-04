@@ -3,7 +3,7 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import type { PropertyType } from "../../lib/frontmatter";
 import {
   PROPS_KEY, type PropRow, type PropertyDef, PROPERTY_TYPES,
-  readPropRows, removeProp, writeDef, writeValue,
+  parseOptionList, readPropRows, removeProp, writeDef, writeValue,
 } from "../../lib/frontmatter";
 
 interface PropertyPanelProps {
@@ -207,7 +207,7 @@ function keptDef(row: PropRow, type: PropertyType, options?: string[]): Property
 function PropertyTypeEditor({ row, onDefine }: { row: PropRow; onDefine: (def: PropertyDef) => void }) {
   const current = row.def?.type ?? inferType(row);
   const [pending, setPending] = useState<PropertyType | null>(null);
-  const [optionsText, setOptionsText] = useState((row.def?.options ?? row.arrayValues).join(", "));
+  const [optionsText, setOptionsText] = useState((row.def?.options ?? row.arrayValues).join("\n"));
   const shown = pending ?? current;
   const needsOptions = shown === "select" || shown === "multiselect";
   const apply = (type: PropertyType, options: string[] | undefined) => {
@@ -232,12 +232,12 @@ function PropertyTypeEditor({ row, onDefine }: { row: PropRow; onDefine: (def: P
         {PROPERTY_TYPES.map((option) => <option key={option} value={option}>{TYPE_LABELS[option]}</option>)}
       </select>
       {needsOptions && (
-        <input
-          className="mn-propinput" placeholder="候选值，逗号分隔" aria-label={`${row.key} 的候选值`} value={optionsText}
+        <textarea
+          className="mn-proptextarea" rows={3} placeholder="候选值：每行一个，或用分号分隔"
+          aria-label={`${row.key} 的候选值`} value={optionsText}
           onChange={(event) => setOptionsText(event.target.value)}
           onBlur={() => {
-            const options = optionsText.split(",").map((option) => option.trim()).filter(Boolean);
-            apply(shown, options);
+            apply(shown, parseOptionList(optionsText));
           }}
         />
       )}
@@ -261,16 +261,17 @@ function AddPropertyRow({ onAdd, onCancel }: { onAdd: (name: string, def: Proper
       <input className="mn-propinput" placeholder="显示名（可选）" aria-label="显示名" value={label}
         onChange={(event) => setLabel(event.target.value)} />
       {needsOptions && (
-        <input className="mn-propinput" placeholder="候选值，逗号分隔（必填）" aria-label="候选值" value={optionsText}
-          onChange={(event) => setOptionsText(event.target.value)} />
+        <textarea
+          className="mn-proptextarea" rows={3} placeholder="候选值：每行一个，或用分号分隔（必填）"
+          aria-label="候选值" value={optionsText}
+          onChange={(event) => setOptionsText(event.target.value)}
+        />
       )}
       <div className="mn-proprow-actions">
         <button type="button" className="mn-textbtn" onClick={() => {
           const clean = name.trim();
           if (!clean) return;
-          const options = needsOptions
-            ? optionsText.split(",").map((option) => option.trim()).filter(Boolean)
-            : undefined;
+          const options = needsOptions ? parseOptionList(optionsText) : undefined;
           if (needsOptions && (options === undefined || options.length === 0)) return;
           onAdd(clean, {
             type,
