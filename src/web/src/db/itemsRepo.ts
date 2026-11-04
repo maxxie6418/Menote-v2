@@ -25,7 +25,10 @@ export async function listItemsInSubtree(userId: string, topicIds: string[]): Pr
   const ids = new Set(topicIds);
   return localDb.items
     .where("userId").equals(userId)
-    .filter((row) => row.deletedAt === null && row.topicId !== null && ids.has(row.topicId))
+    .filter((row) => row.deletedAt === null && (
+      (row.topicId !== null && ids.has(row.topicId))
+      || (row.groupId !== null && ids.has(row.groupId))
+    ))
     .toArray();
 }
 
