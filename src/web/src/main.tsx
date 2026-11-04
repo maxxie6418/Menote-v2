@@ -12,6 +12,7 @@ import "./styles/paper.css";
 import "./styles/app.css";
 import "./styles/shell.css";
 import "./styles/doc.css";
+import "./styles/table.css";
 import "./styles/markdown.css";
 import "./styles/memo.css";
 import "./styles/home.css";

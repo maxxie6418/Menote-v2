@@ -37,6 +37,15 @@ async function call<T>(token: string, path: string, init?: RequestInit): Promise
     throw new RaindropApiError(`raindrop_unreachable: ${String(error)}`, 0);
   }
   const body: unknown = await response.json().catch(() => null);
+  // Raindrop 的错误响应可能带 result:false。某些 API 边缘响应仍返回 HTTP 200；
+  // 只看 response.ok 会把缺少 items 的鉴权错误当成“空收藏夹”，并记成成功拉取 0 条。
+  if (typeof body === "object" && body !== null && Reflect.get(body, "result") === false) {
+    const detail = [Reflect.get(body, "errorMessage"), Reflect.get(body, "error")]
+      .find((value): value is string => typeof value === "string" && value.length > 0);
+    const reportedStatus = Reflect.get(body, "status");
+    const status = typeof reportedStatus === "number" && reportedStatus >= 400 ? reportedStatus : response.status;
+    throw new RaindropApiError(detail ?? `raindrop_http_${status}`, status);
+  }
   if (!response.ok) {
     const message = typeof body === "object" && body !== null && typeof Reflect.get(body, "error") === "string"
       ? String(Reflect.get(body, "error")) : `raindrop_http_${response.status}`;
