@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { joinMultiCell, splitMultiCell } from "../../lib/gfmTable";
-import type { PropertyDef, PropertyType } from "../../lib/frontmatter";
+import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
 
 interface TableCellEditorProps {
   value: string;
@@ -20,15 +20,7 @@ export function TableCellEditor({ value, type, def, onChange }: TableCellEditorP
     const options = def?.options ?? [];
     // 候选必须显式定义（FR-PROP-4）；未定义候选时按文本编辑，候选在列设置中维护。
     if (options.length === 0) return <input className="mn-tcell-input" type="text" value={value} aria-label="单选单元格" onChange={(e) => onChange(e.target.value)} />;
-    const known = options.includes(value);
-    return (
-      <select className="mn-tcell-input" value={known ? value : ""} aria-label="单选单元格"
-        onChange={(e) => onChange(e.target.value)}>
-        {!known && value !== "" && <option value="">{value}（候选外）</option>}
-        <option value="">（空）</option>
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
-    );
+    return <SingleSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
   }
   if (type === "multiselect") {
     const options = def?.options ?? [];
@@ -38,7 +30,7 @@ export function TableCellEditor({ value, type, def, onChange }: TableCellEditorP
           onChange={(e) => onChange(joinMultiCell(splitMultiCell(e.target.value)))} />
       );
     }
-    return <MultiSelectCell value={value} options={options} onChange={onChange} />;
+    return <MultiSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
   }
   if (type === "date") {
     // 日期控件只接受 ISO 形态；历史自由文本保留原样，清空或改正后回到日期控件。
@@ -72,8 +64,52 @@ function CheckboxCell({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
+function SingleSelectCell({ value, options, colors, onChange }: {
+  value: string; options: string[]; colors: Record<string, OptionColor>; onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div className="mn-tcell-single" ref={rootRef}>
+      <button type="button" className="mn-tcell-single-trigger" aria-label="单选单元格" aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}>
+        <span className="mn-tcell-pill mn-tcell-pill-single" data-tone={colors[value] ?? "neutral"}>{value || "（空）"}</span>
+      </button>
+      {open && (
+        <div className="mn-tcell-pop" role="listbox" aria-label="单选候选">
+          <button type="button" className="mn-tcell-pickrow" role="option" aria-selected={value === ""}
+            onClick={() => { onChange(""); setOpen(false); }}>
+            <span className="mn-tcell-pill mn-tcell-pill-single" data-tone="neutral">（空）</span>
+          </button>
+          {options.map((option) => (
+            <button type="button" className="mn-tcell-pickrow" key={option} role="option" aria-selected={value === option}
+              onClick={() => { onChange(option); setOpen(false); }}>
+              <span className="mn-tcell-pill mn-tcell-pill-single" data-tone={colors[option] ?? "neutral"}>{option}</span>
+            </button>
+          ))}
+          {value && !options.includes(value) && (
+            <span className="mn-tcell-pickrow"><span className="mn-tcell-pill mn-tcell-pill-single" data-tone="neutral">{value}（候选外）</span></span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 多选候选标签勾选（FR-TBL-6 写回契约 joinMultiCell）；候选外的历史值保留展示、可移除。 */
-function MultiSelectCell({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
+function MultiSelectCell({ value, options, colors, onChange }: {
+  value: string; options: string[]; colors: Record<string, OptionColor>; onChange: (value: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = splitMultiCell(value);
@@ -96,20 +132,22 @@ function MultiSelectCell({ value, options, onChange }: { value: string; options:
     <div className="mn-tcell-multi" ref={rootRef}>
       <button type="button" className="mn-tcell-multibtn" aria-label="多选单元格" aria-expanded={open}
         onClick={() => setOpen((v) => !v)}>
-        {value || "（空）"}
+        {selected.length === 0
+          ? <span className="mn-tcell-pill mn-tcell-pill-multi" data-tone="neutral">（空）</span>
+          : selected.map((item) => <span className="mn-tcell-pill mn-tcell-pill-multi" data-tone={colors[item] ?? "neutral"} key={item}>{item}</span>)}
       </button>
       {open && (
         <div className="mn-tcell-pop" role="group" aria-label="多选候选">
           {options.map((option) => (
             <label key={option} className="mn-tcell-poprow">
               <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} />
-              {option}
+              <span className="mn-tcell-pill mn-tcell-pill-multi" data-tone={colors[option] ?? "neutral"}>{option}</span>
             </label>
           ))}
           {extras.map((option) => (
             <label key={option} className="mn-tcell-poprow">
               <input type="checkbox" checked onChange={() => toggle(option)} />
-              {option}（候选外）
+              <span className="mn-tcell-pill mn-tcell-pill-multi" data-tone="neutral">{option}（候选外）</span>
             </label>
           ))}
           {options.length === 0 && extras.length === 0 && <span className="mn-tcell-pophint">暂无候选</span>}

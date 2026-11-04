@@ -108,6 +108,8 @@ export interface McpMemoRequest {
   text: string;
   sourceUrl?: string;
   sourceTitle?: string;
+  /** Structured Memo labels, stored on Item.tags. */
+  tags?: string[];
 }
 
 export interface McpMemoResult {

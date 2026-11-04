@@ -1,7 +1,7 @@
-# Menote V2 工程结构与组件设计（v0.10）
+# Menote V2 工程结构与组件设计（v0.12）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
@@ -125,14 +125,15 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
 **editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
-**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑；字段创建落在表尾新列，类型菜单 portal 到视口以免被滚动容器裁切，2026-11-03）。
+**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段创建落在表尾新列，类型菜单 portal 到视口以免被滚动容器裁切，2026-11-04）。
 **memo/**：`Timeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoDetailDialog`（评论列表与编辑）、`MemoQuoteDialog`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：本地检索查询在 `services/searchService.ts`。入口是首页与清单顶部搜索框，不另建命令面板（负责人 2026-11-02）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「MCP 接入」「剪藏模板」与「插件」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「同步日志」「MCP 接入」「剪藏模板」与「插件」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`SyncLogSection`（FR-SYNC-11：本机同步诊断日志查询/复制/导出）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
+**同步诊断**：`services/syncDiagnosticsService.ts` 异步写入本机 IndexedDB `syncDiagnostics` 表，按账号隔离、每账号最多 2,000 条；同步引擎只记结构化阶段/回执字段，UI 经服务读取。不得写入正文、标题、附件名、完整内容哈希或密钥；诊断落库失败不可影响业务流程。
 **ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 

@@ -45,6 +45,8 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; messag
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
 export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
+  const latestItemRef = useRef(item);
+  latestItemRef.current = item;
   // 冲突副本：记录它顶掉了哪一条目（G2 §5-2），文档区给出回溯入口供人工裁决。
   const conflictOf = item?.conflictOf ?? null;
   const conflictSource = useItem(userId, conflictOf);
@@ -122,6 +124,21 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (item && title === null) setTitle(item.title);
   }, [item, draft, title]);
 
+  // 兼容曾落库为空正文的旧表格草稿；按当前默认值补成一列一行。
+  useEffect(() => {
+    if (!item || item.type !== "table" || !isConvertibleBlankDraft(item)) return;
+    let cancelled = false;
+    void setItemForm(userId, item.id, "table").then((seeded) => {
+      if (cancelled) return;
+      setDraft(seeded.content.scope === "plain" ? seeded.content.markdown : "");
+      setSavedTick(dirtyTickRef.current);
+      setSaveState({ kind: "idle" });
+    }).catch((cause) => {
+      if (!cancelled) setSaveState({ kind: "error", message: String(cause) });
+    });
+    return () => { cancelled = true; };
+  }, [userId, item?.id, item?.type, item?.rev, item?.metaRev]);
+
   const flush = useCallback(async (overrideMarkdown?: string) => {
     if (!item || item.content.scope !== "plain") return false;
     const savingTick = dirtyTickRef.current;
@@ -151,19 +168,22 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
   // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
   useEffect(() => {
-    if (draft === null || !item) return;
+    if (draft === null || !item || dirtyTick <= savedTick) return;
+    // 旧版/异常空表格由下面的修复 effect 补种子；不要用切换前的空 draft 把它再写空。
+    if (item.type === "table" && isConvertibleBlankDraft(item)) return;
     const timer = setTimeout(() => { void flush(); }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dirtyTick, flush, item]);
+  }, [dirtyTick, savedTick, flush, item]);
 
   // 卸载前尽力落盘（异步保存不阻塞返回；失败保留本地草稿，本地库本就是权威）。
   // 编辑器只持有正文，必须拼回 frontmatter，否则有属性的笔记离开时会把 YAML 写丢。
   useEffect(() => () => {
+    const currentItem = latestItemRef.current;
     const body = getMarkdownRef.current?.();
-    if (!item || body === null || body === undefined || item.content.scope !== "plain") return;
-    const value = joinFrontmatter(splitFrontmatter(item.content.markdown).frontText, body);
-    if (value !== item.content.markdown) void saveItemContent(userId, item.id, value).catch(() => {});
-  }, [item, userId]);
+    if (!currentItem || body === null || body === undefined || currentItem.content.scope !== "plain") return;
+    const value = joinFrontmatter(splitFrontmatter(currentItem.content.markdown).frontText, body);
+    if (value !== currentItem.content.markdown) void saveItemContent(userId, currentItem.id, value).catch(() => {});
+  }, [noteId, userId]);
 
   const flushTitle = useCallback(async (nextTitle: string) => {
     if (!item) return;
@@ -250,7 +270,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
   /** 形态选择（FR-TBL-9）：转换守卫在 setItemForm（仅空白期可切）。 */
   const pickTableForm = () => {
-    setItemForm(userId, item.id, "table").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+    void setItemForm(userId, item.id, "table").then((converted) => {
+      setDraft(converted.content.scope === "plain" ? converted.content.markdown : "");
+      setSavedTick(dirtyTickRef.current);
+      setSaveState({ kind: "idle" });
+    }).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
   };
   /** 点选模板：先收起方块，普通笔记保持原样，多维表格切形态。 */
   const pickTemplate = (id: string) => {
@@ -258,7 +282,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (id === "table") pickTableForm();
   };
   const switchToNoteForm = () => {
-    setItemForm(userId, item.id, "note").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+    void setItemForm(userId, item.id, "note").then((converted) => {
+      setDraft(converted.content.scope === "plain" ? converted.content.markdown : "");
+      setSavedTick(dirtyTickRef.current);
+      setSaveState({ kind: "idle" });
+    }).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
   };
   const degradeDoc = () => {
     degradeTableToNote(userId, item.id).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));

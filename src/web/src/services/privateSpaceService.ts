@@ -6,6 +6,7 @@ import { newId, sha256Hex } from "../lib/hash";
 import { encryptMarkdown, generateContentKey, unwrapContentKey, wrapContentKey, wrapKeyWithRaw } from "./cryptoService";
 import { createNote } from "./contentService";
 import { outboxTopic, outboxUpsert } from "./contentShared";
+import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 import {
   getTopicKey, isTopicUnlocked, lockTopic, rememberSpaceNote, setSessionKey, setTopicKey, unlockTopic,
 } from "./keyringService";
@@ -152,6 +153,10 @@ export async function createPrivateNote(userId: string, placeId: string): Promis
     await localDb.items.put(created);
     await localDb.wraps.put({ itemId: created.id, wraps });
     await localDb.outbox.add({ ...outboxUpsert(created, 0, 0, contentHash), wraps });
+  });
+  recordSyncDiagnostic(userId, {
+    category: "local", event: "note_created_locally", entity: "item", entityId: created.id,
+    action: "upsert", baseRev: 0, baseMetaRev: 0,
   });
   setSessionKey(created.id, key);
   rememberSpaceNote(created.id, root.id);

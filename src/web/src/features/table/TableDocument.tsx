@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
-  FIELDS_KEY, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
-  type PropertyDef, type PropertyType,
+  FIELDS_KEY, OPTION_COLORS, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
+  type OptionColor, type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, renderTable, replaceTable, type ParsedTable } from "../../lib/gfmTable";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
@@ -25,6 +25,9 @@ interface Grid {
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
+const OPTION_COLOR_LABELS: Record<OptionColor, string> = {
+  neutral: "默认", red: "红", orange: "橙", yellow: "黄", green: "绿", teal: "青", blue: "蓝", purple: "紫", pink: "粉",
+};
 
 function removeFirstTable(body: string): string {
   const table = findTables(body)[0];
@@ -171,6 +174,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
       type,
       ...(existing?.label ? { label: existing.label } : {}),
       ...(existing?.options ? { options: existing.options } : {}),
+      ...(existing?.optionColors && (type === "select" || type === "multiselect") ? { optionColors: existing.optionColors } : {}),
     };
     // 类型是增强信息：不迁移既有值（FR-TBL-4 精神），仅影响后续编辑控件。
     // 单选/多选留着菜单，方便接着改候选；其余类型选完即关。
@@ -188,7 +192,25 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
       return;
     }
     setError(null);
-    onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, { type: existing.type, options }));
+    const optionColors = Object.fromEntries(Object.entries(existing.optionColors ?? {}).filter(([option]) => options.includes(option)));
+    onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, {
+      type: existing.type, options, ...(Object.keys(optionColors).length ? { optionColors } : {}),
+    }));
+  };
+
+  const setColumnOptionColor = (col: number, option: string, color: OptionColor | null) => {
+    const name = (table?.header[col] ?? scaffoldHeader?.[col] ?? "").trim();
+    const existing = fieldDefs[name];
+    if (!existing || (existing.type !== "select" && existing.type !== "multiselect")) return;
+    const optionColors = { ...(existing.optionColors ?? {}) };
+    if (color) optionColors[option] = color;
+    else delete optionColors[option];
+    onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, {
+      type: existing.type,
+      ...(existing.label ? { label: existing.label } : {}),
+      ...(existing.options ? { options: existing.options } : {}),
+      ...(Object.keys(optionColors).length ? { optionColors } : {}),
+    }));
   };
 
   const removeColumn = (col: number) => {
@@ -270,6 +292,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                   draft={renames[col]}
                   type={columnType(col)}
                   def={fieldDefs[name.trim()]}
+                  optionColors={fieldDefs[name.trim()]?.optionColors ?? {}}
                   menuOpen={menuCol === col}
                   error={menuCol === col ? error : null}
                   onDraft={(value) => setRenames((prev) => ({ ...prev, [col]: value }))}
@@ -278,6 +301,7 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
                   onClose={() => setMenuCol(null)}
                   onPick={(picked) => changeColumnType(col, picked)}
                   onOptions={(raw) => setColumnOptions(col, raw)}
+                  onColor={(option, color) => setColumnOptionColor(col, option, color)}
                   onDelete={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}
                 />
               ))}
@@ -334,11 +358,12 @@ export function TableDocument({ markdown, onChangeMarkdown, onDegrade, onSwitchT
 }
 
 /** 已有字段的表头：名称就地改，类型菜单挂到该列下方（portal，不被滚动容器裁切）。 */
-function ColumnHeaderCell({ name, draft, type, def, menuOpen, error, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onDelete }: {
+function ColumnHeaderCell({ name, draft, type, def, optionColors, menuOpen, error, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onDelete }: {
   name: string;
   draft: string | undefined;
   type: PropertyType;
   def: PropertyDef | undefined;
+  optionColors: Record<string, OptionColor>;
   menuOpen: boolean;
   error: string | null;
   onDraft: (value: string) => void;
@@ -347,6 +372,7 @@ function ColumnHeaderCell({ name, draft, type, def, menuOpen, error, onDraft, on
   onClose: () => void;
   onPick: (type: PropertyType) => void;
   onOptions: (raw: string) => void;
+  onColor: (option: string, color: OptionColor | null) => void;
   onDelete: () => void;
 }) {
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
@@ -364,14 +390,34 @@ function ColumnHeaderCell({ name, draft, type, def, menuOpen, error, onDraft, on
         {FIELD_TYPE_LABELS[type]}
       </button>
       {menuOpen && anchor && (
-        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${error ?? ""}`} onClose={onClose}>
+        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${JSON.stringify(optionColors)}:${error ?? ""}`} onClose={onClose}>
           {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
           <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
           {def && (def.type === "select" || def.type === "multiselect") && (
-            <label className="mn-tabledoc-optedit">
-              候选值（每行一个，禁含逗号）
-              <textarea rows={4} value={options} onChange={(event) => onOptions(event.target.value)} />
-            </label>
+            <>
+              <label className="mn-tabledoc-optedit">
+                候选值（每行一个，禁含逗号）
+                <textarea rows={4} value={options} onChange={(event) => onOptions(event.target.value)} />
+              </label>
+              {(def.options ?? []).length > 0 && (
+                <div className="mn-tabledoc-colors">
+                  <span className="mn-tabledoc-colors-title">候选值颜色</span>
+                  {(def.options ?? []).map((option, index) => (
+                    <div className="mn-tabledoc-color-row" key={`${option}-${index}`}>
+                      <span className="mn-tcell-pill" data-tone={optionColors[option] ?? "neutral"}>{option}</span>
+                      <div className="mn-tabledoc-color-palette" role="group" aria-label={`${option} 的颜色`}>
+                        {OPTION_COLORS.map((color) => (
+                          <button key={color} type="button" className="mn-tabledoc-colorswatch"
+                            data-tone={color} aria-label={`${option}：${OPTION_COLOR_LABELS[color]}`}
+                            aria-pressed={(optionColors[option] ?? "neutral") === color}
+                            onClick={() => onColor(option, color === "neutral" ? null : color)} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
           <button type="button" className="mn-tabledoc-hdel" onClick={onDelete}>删除字段</button>
         </AnchoredPanel>

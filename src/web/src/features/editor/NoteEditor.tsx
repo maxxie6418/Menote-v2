@@ -7,7 +7,9 @@ import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
 import { FormatBar } from "./FormatBar";
 import { SlashMenu } from "./SlashMenu";
 import { TableBlockToolbar } from "./TableBlockToolbar";
-import { filterActions, type FormatAction } from "./formatActions";
+import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
+import { SelectionFormatBar } from "./SelectionFormatBar";
+import { filterActions, FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
 
 export type EditorKind = "wysiwyg" | "source";
@@ -51,6 +53,8 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
   const [active, setActive] = useState<InlineAction[]>([]);
+  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number } | null>(null);
+  const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
   // from：触发「/」菜单的那个斜杠在正文中的位置。所见即所得走原生选区用不到它，
   // 源码态按文本算上下文时要用（applySlash 靠它剥掉「/过滤词」）。
   const [slash, setSlash] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
@@ -153,11 +157,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     onInputRef.current();
   };
 
-  const runAction = (action: FormatAction) => {
+  const runAction = (action: FormatAction, fromSlash = false) => {
     const adapter = adapterRef.current;
     if (!adapter) return;
     if (action.id === "image") {
-      if (kind === "wysiwyg" && slash && adapter instanceof MilkdownWysiwygAdapter) {
+      if (fromSlash && kind === "wysiwyg" && slash && adapter instanceof MilkdownWysiwygAdapter) {
         adapter.applyFormat("image", slash.query.length + 1);
       }
       setSlash(null);
@@ -166,15 +170,17 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     }
     if (kind === "wysiwyg" && adapter instanceof MilkdownWysiwygAdapter) {
       // 所见即所得走编辑器原生选区，**不取整篇正文**（FR-EDT-10）。
-      const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], slash ? slash.query.length + 1 : 0);
+      const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], fromSlash && slash ? slash.query.length + 1 : 0);
       setSlash(null);
+      setSelectionBar(null);
+      setSelectionMenu(null);
       if (applied) requestAnimationFrame(refreshSlash);
       return;
     }
     // 源码态才需要整篇文本（textarea 读 value 是 O(1)，不是序列化开销）。
     const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
     const { start, end } = adapter.getSelection();
-    const context = slash ? { from: slash.from, query: slash.query } : slashContext(markdown, start);
+    const context = fromSlash && slash ? { from: slash.from, query: slash.query } : slashContext(markdown, start);
     const result = context
       ? applySlash(markdown, context, start, action.id as Parameters<typeof applySlash>[3])
       : action.group === "inline"
@@ -246,6 +252,33 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     setSlash({ query: context.query, from: start, index: 0, top, left });
   };
 
+  const refreshSelectionBar = () => {
+    if (mode !== "edit" || kind !== "wysiwyg") { setSelectionBar(null); return; }
+    const host = hostRef.current;
+    const selection = window.getSelection();
+    if (!host || !selection || selection.isCollapsed || selection.rangeCount === 0
+      || !selection.anchorNode || !selection.focusNode
+      || !host.contains(selection.anchorNode) || !host.contains(selection.focusNode)) {
+      setSelectionBar(null);
+      return;
+    }
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) { setSelectionBar(null); return; }
+    const next = { x: rect.left + rect.width / 2, y: rect.top - 6 };
+    setSelectionBar((previous) => previous?.x === next.x && previous.y === next.y ? previous : next);
+    const adapter = adapterRef.current;
+    if (adapter instanceof MilkdownWysiwygAdapter) {
+      const marks = adapter.activeMarks();
+      setActive((previous) => sameActions(previous, marks) ? previous : marks);
+    }
+  };
+
+  const selectionMenuActions: ContextMenuAction[] = FORMAT_ACTIONS.map((action, index) => ({
+    label: action.label,
+    separatorBefore: index === 5,
+    onSelect: () => runAction(action),
+  }));
+
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
@@ -264,21 +297,39 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
 
   return (
     <div className="mn-editor-wrap" data-dragging={dragging || undefined}>
-      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={runAction} />}
+      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} />}
+      {selectionBar && mode === "edit" && kind === "wysiwyg" && (
+        <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
+          actions={FORMAT_ACTIONS.filter((action) => action.group === "inline")}
+          onAction={(action) => runAction(action)} />
+      )}
       {/* 表格块操作（FR-EDT-9）：浮出工具条 + 右键菜单，同一套命令。 */}
       {mode === "edit" && kind === "wysiwyg" && (
         <TableBlockToolbar getAdapter={() => adapterRef.current} hostRef={hostRef} />
       )}
       <div
         ref={hostRef} className="mn-editor-host" data-mode={mode} data-kind={kind}
-        onKeyUp={refreshSlash} onMouseUp={refreshSlash}
+        onKeyUp={() => { refreshSlash(); refreshSelectionBar(); }}
+        onMouseUp={() => { refreshSlash(); refreshSelectionBar(); }}
+        onContextMenu={(event) => {
+          if (kind !== "wysiwyg" || mode !== "edit") return;
+          const selection = window.getSelection();
+          const host = hostRef.current;
+          if (!host || !selection || selection.isCollapsed || selection.rangeCount === 0
+            || !selection.anchorNode || !selection.focusNode
+            || !host.contains(selection.anchorNode) || !host.contains(selection.focusNode)) return;
+          event.preventDefault();
+          setSelectionBar(null);
+          setSelectionMenu({ x: event.clientX, y: event.clientY });
+        }}
+        onMouseDown={(event) => { if (event.button === 0) setSelectionMenu(null); }}
         onKeyDown={(event) => {
           if (!slash) return;
           const actions = filterActions(slash.query);
           if (actions.length === 0) return;
           if (event.key === "ArrowDown") { event.preventDefault(); setSlash({ ...slash, index: (slash.index + 1) % actions.length }); }
           if (event.key === "ArrowUp") { event.preventDefault(); setSlash({ ...slash, index: (slash.index - 1 + actions.length) % actions.length }); }
-          if (event.key === "Enter" && actions[slash.index]) { event.preventDefault(); runAction(actions[slash.index]!); }
+          if (event.key === "Enter" && actions[slash.index]) { event.preventDefault(); runAction(actions[slash.index]!, true); }
           if (event.key === "Escape") setSlash(null);
         }}
         onPaste={(event) => {
@@ -324,8 +375,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       {slash && (
         <SlashMenu
           query={slash.query} activeIndex={slash.index} position={{ top: slash.top, left: slash.left }} onHover={(index) => setSlash({ ...slash, index })}
-          onPick={(action) => runAction(action)}
+          onPick={(action) => runAction(action, true)}
         />
+      )}
+      {selectionMenu && (
+        <ContextMenu x={selectionMenu.x} y={selectionMenu.y} label="文字格式"
+          actions={selectionMenuActions} onClose={() => setSelectionMenu(null)} returnFocus={hostRef.current} />
       )}
       <input ref={fileInputRef} type="file" accept="image/*" hidden aria-hidden="true"
         onChange={(event) => {

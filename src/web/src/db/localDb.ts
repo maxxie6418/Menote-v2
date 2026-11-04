@@ -30,6 +30,31 @@ export interface MetaRow {
   value: unknown;
 }
 
+/** 本机同步诊断事件：只含操作元数据，不写笔记内容、标题、附件名或密钥。 */
+export interface SyncDiagnosticRow {
+  id?: number;
+  userId: string;
+  at: number;
+  category: "local" | "cycle" | "push" | "pull" | "conflict" | "error";
+  event: string;
+  entity?: string;
+  entityId?: string;
+  action?: string;
+  operationId?: string;
+  baseRev?: number;
+  baseMetaRev?: number;
+  serverRev?: number;
+  serverMetaRev?: number;
+  result?: string;
+  code?: string;
+  cursor?: number;
+  nextCursor?: number;
+  count?: number;
+  durationMs?: number;
+  retryCount?: number;
+  deviceId?: string;
+}
+
 export interface WrapRow {
   itemId: string;
   wraps: KeyWrap[];
@@ -66,6 +91,7 @@ class MenoteLocalDb extends Dexie {
   topicWraps!: Table<TopicWrapRow, string>;
   versions!: Table<VersionRow, number>;
   meta!: Table<MetaRow, string>;
+  syncDiagnostics!: Table<SyncDiagnosticRow, number>;
 
   constructor() {
     super("menote-local");
@@ -111,6 +137,18 @@ class MenoteLocalDb extends Dexie {
       topicWraps: "topicId",
       versions: "++id, itemId, createdAt, userId",
       meta: "key",
+    });
+    this.version(5).stores({
+      topics: "id, userId, parentId, [userId+deletedAt]",
+      items: "id, userId, topicId, groupId, [userId+type], [userId+deletedAt], updatedAt",
+      memoComments: "id, userId, memoId, [userId+memoId+createdAt], [userId+deletedAt]",
+      settings: "[userId+key], userId",
+      outbox: "++seq, userId, entityId, nextRetryAt",
+      wraps: "itemId",
+      topicWraps: "topicId",
+      versions: "++id, itemId, createdAt, userId",
+      meta: "key",
+      syncDiagnostics: "++id, userId, at, [userId+at]",
     });
   }
 }

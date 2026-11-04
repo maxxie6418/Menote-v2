@@ -43,6 +43,7 @@ const bookmarkInput = z.object({
 const memoInput = z.object({
   schemaVersion: z.literal(1), operationId: z.string().uuid(), text: z.string().min(1).max(20_000),
   sourceUrl: z.string().url().max(4_096).optional(), sourceTitle: z.string().max(500).optional(),
+  tags: z.array(z.string().trim().min(1).max(200)).max(100).optional(),
 });
 
 function decodeBase64(value: string): ArrayBuffer {

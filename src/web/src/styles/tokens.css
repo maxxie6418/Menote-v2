@@ -28,6 +28,16 @@
   --app-link: #0051c3;
   --app-success: #5f8b3f;
   --app-danger: #b3261e;
+  /* 多维表格单选/多选胶囊颜色（值与文字按主题提供足够对比）。 */
+  --app-pill-neutral-bg: #f0f0ed; --app-pill-neutral-fg: #4e504d; --app-pill-neutral-border: #deded9;
+  --app-pill-red-bg: #fde8e7; --app-pill-red-fg: #8d1a16; --app-pill-red-border: #f4b6b1;
+  --app-pill-orange-bg: #fff0df; --app-pill-orange-fg: #8a3b00; --app-pill-orange-border: #f5c28d;
+  --app-pill-yellow-bg: #fff7d6; --app-pill-yellow-fg: #715400; --app-pill-yellow-border: #e9d37c;
+  --app-pill-green-bg: #e8f4e5; --app-pill-green-fg: #315b29; --app-pill-green-border: #b7d6ad;
+  --app-pill-teal-bg: #e1f4f1; --app-pill-teal-fg: #155b54; --app-pill-teal-border: #a5d8d1;
+  --app-pill-blue-bg: #e6efff; --app-pill-blue-fg: #254a90; --app-pill-blue-border: #b4c9f3;
+  --app-pill-purple-bg: #f0eaff; --app-pill-purple-fg: #563e92; --app-pill-purple-border: #cdbcf2;
+  --app-pill-pink-bg: #ffebf2; --app-pill-pink-fg: #8a3559; --app-pill-pink-border: #efbad0;
   /* 字体栈（应用界面及品牌/标题统一跟随“界面字体”设置；等宽仅用于元数据与代码）。
      界面默认字体为自托管 Noto Sans SC（@fontsource，main.tsx 按需引入字重）；
      设置·外观可切回系统字体栈（data-font 由 lib/fontPreference 写入，缺省即 Noto）。 */
@@ -446,6 +456,15 @@
   --app-link: #7fa8ff;
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
+  --app-pill-neutral-bg: #303437; --app-pill-neutral-fg: #d1d5d7; --app-pill-neutral-border: #454b4f;
+  --app-pill-red-bg: #482524; --app-pill-red-fg: #ffd9d7; --app-pill-red-border: #70413f;
+  --app-pill-orange-bg: #4a3020; --app-pill-orange-fg: #ffdfbd; --app-pill-orange-border: #765033;
+  --app-pill-yellow-bg: #453a1b; --app-pill-yellow-fg: #f6e5a2; --app-pill-yellow-border: #70602b;
+  --app-pill-green-bg: #293c27; --app-pill-green-fg: #d0ebc8; --app-pill-green-border: #466340;
+  --app-pill-teal-bg: #203d3a; --app-pill-teal-fg: #c1e8e2; --app-pill-teal-border: #3d6963;
+  --app-pill-blue-bg: #263650; --app-pill-blue-fg: #d0e0ff; --app-pill-blue-border: #465e86;
+  --app-pill-purple-bg: #342b4d; --app-pill-purple-fg: #e2d6ff; --app-pill-purple-border: #594879;
+  --app-pill-pink-bg: #462b37; --app-pill-pink-fg: #ffd6e6; --app-pill-pink-border: #704157;
   /* 分段选中项的抬升阴影：深色下槽底与纸面差小，靠阴影把选中项托起来 */
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, 0.42);
   /* 滚动条深色：常态 1.88:1 保持克制，悬停 3.46:1 保证可发现 */

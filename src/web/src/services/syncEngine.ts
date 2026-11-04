@@ -11,6 +11,7 @@ import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
 import { applyPulledPropertyTemplates } from "./propertyTemplateService";
 import { outboxUpsert } from "./contentShared";
+import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
 /**
  * 同步引擎（G6，按 G2 定稿 §3/§4/§8）：单轮 = 推送排水 + 拉取推进；
@@ -57,19 +58,21 @@ function backoffMs(retries: number): number {
   return Math.round(base - jitter + Math.random() * jitter * 2);
 }
 
-async function postPush(deviceId: string, operations: OutboxRow[]): Promise<SyncOperationResult[] | null> {
+async function postPush(deviceId: string, operations: OutboxRow[]): Promise<{ results: SyncOperationResult[] | null; errorCode: string | null }> {
   try {
     const response = await fetch("/api/sync/push", {
       method: "POST", cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceId, operations }),
     });
-    if (!response.ok) throw new Error(`http_${response.status}`);
+    if (!response.ok) return { results: null, errorCode: `http_${response.status}` };
     const body: unknown = await response.json();
     const results = (body as { results?: unknown }).results;
-    return Array.isArray(results) ? (results as SyncOperationResult[]) : null;
+    return Array.isArray(results)
+      ? { results: results as SyncOperationResult[], errorCode: null }
+      : { results: null, errorCode: "invalid_response_shape" };
   } catch {
-    return null;
+    return { results: null, errorCode: "network_or_parse_error" };
   }
 }
 
@@ -163,18 +166,49 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
         if (stored) row.wraps = stored.wraps;
       }
     }
-    const results = await postPush(deviceId, pending);
-    if (results === null) {
+    const pushStartedAt = Date.now();
+    for (const row of pending) recordSyncDiagnostic(userId, {
+      category: "push", event: "operation_queued_for_push", entity: row.entity, entityId: row.entityId,
+      action: row.action, operationId: row.operationId, baseRev: row.baseRev, baseMetaRev: row.baseMetaRev,
+      retryCount: row.retries, deviceId,
+    });
+    const response = await postPush(deviceId, pending);
+    if (response.results === null) {
       // 网络/服务端不可用：整批指数退避。
-      for (const row of pending) await markOutboxError(row.seq!, "network", backoffMs(row.retries));
+      for (const row of pending) {
+        recordSyncDiagnostic(userId, {
+          category: "error", event: "push_request_failed", entity: row.entity, entityId: row.entityId,
+          action: row.action, operationId: row.operationId, baseRev: row.baseRev,
+          baseMetaRev: row.baseMetaRev, code: response.errorCode ?? "push_failed", durationMs: Date.now() - pushStartedAt, deviceId,
+        });
+        await markOutboxError(row.seq!, response.errorCode ?? "network", backoffMs(row.retries));
+      }
       return;
     }
     for (const row of pending) {
       if (row.entity === "item" && conflictedItems.has(row.entityId)) continue;
-      const result = results.find((entry) => entry.operationId === row.operationId);
+      const result = response.results.find((entry) => entry.operationId === row.operationId);
+      if (result) {
+        const conflict = result.result === "conflict";
+        recordSyncDiagnostic(userId, {
+          category: conflict ? "conflict" : result.result === "rejected" ? "error" : "push",
+          event: conflict ? "server_conflict" : `push_${result.result}`,
+          entity: row.entity, entityId: row.entityId, action: row.action, operationId: row.operationId,
+          baseRev: row.baseRev, baseMetaRev: row.baseMetaRev,
+          serverRev: "detail" in result ? result.detail.rev : "rev" in result ? result.rev : undefined,
+          serverMetaRev: "detail" in result ? result.detail.metaRev : "metaRev" in result ? result.metaRev : undefined,
+          result: result.result, code: result.result === "rejected" ? result.code : undefined,
+          durationMs: Date.now() - pushStartedAt, deviceId,
+        });
+      }
       if (result?.result === "conflict" && row.entity === "item" && row.contentHash !== undefined) {
         // 多个自动保存版本可能同时排队；保留一份最新本地稿并清掉该条目的旧快照，避免每条都造副本。
         await saveConflictCopy(row, deviceId);
+        recordSyncDiagnostic(userId, {
+          category: "conflict", event: "conflict_copy_created", entity: row.entity,
+          entityId: row.entityId, operationId: row.operationId, baseRev: row.baseRev,
+          baseMetaRev: row.baseMetaRev, serverRev: result.detail.rev, serverMetaRev: result.detail.metaRev, deviceId,
+        });
         const entityRows = await localDb.outbox.where("entityId").equals(row.entityId).and((entry) => entry.userId === userId).toArray();
         await deleteOutboxRows(entityRows.map((entityRow) => entityRow.seq!).filter((seq) => seq !== undefined));
         // 版本号落到服务端当前值：否则本地停在旧版本号上，下次保存又撞同一条前置条件，冲突副本反复出现。
@@ -182,7 +216,14 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
         conflictedItems.add(row.entityId);
       }
       else if (result) await handleResult(row, result);
-      else await markOutboxError(row.seq!, "missing_result", backoffMs(row.retries));
+      else {
+        recordSyncDiagnostic(userId, {
+          category: "error", event: "push_result_missing", entity: row.entity, entityId: row.entityId,
+          operationId: row.operationId, baseRev: row.baseRev, baseMetaRev: row.baseMetaRev,
+          code: "missing_operation_result", durationMs: Date.now() - pushStartedAt, deviceId,
+        });
+        await markOutboxError(row.seq!, "missing_result", backoffMs(row.retries));
+      }
     }
     if (pending.length < PUSH_BATCH) {
       // 结果处理可能重排了设置操作（冲突重推），队列仍有到期行则继续排空，
@@ -211,8 +252,12 @@ async function pullUpdates(userId: string): Promise<void> {
   const keep = await pendingEntityIds(userId);
   for (let page = 0; page < PULL_MAX_PAGES; page += 1) {
     const cursor = (await getMeta<number>(SYNC_CURSOR_KEY)) ?? 0;
+    const pullStartedAt = Date.now();
     const response = await fetch(`/api/sync/pull?cursor=${cursor}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`pull_${response.status}`);
+    if (!response.ok) {
+      recordSyncDiagnostic(userId, { category: "error", event: "pull_request_failed", cursor, code: `http_${response.status}`, durationMs: Date.now() - pullStartedAt });
+      throw new Error(`pull_${response.status}`);
+    }
     const body: unknown = await response.json();
     if (typeof body !== "object" || body === null) throw new Error("pull_shape");
     const { items, topics, memoComments, tombstones, nextCursor, hasMore, fullResync } = body as {
@@ -220,6 +265,12 @@ async function pullUpdates(userId: string): Promise<void> {
       settings?: import("@menote/shared").UserSetting[];
       nextCursor?: unknown; hasMore?: boolean; fullResync?: boolean;
     };
+    recordSyncDiagnostic(userId, {
+      category: "pull", event: fullResync ? "full_resync_page_received" : "pull_page_received", cursor,
+      nextCursor: Number(nextCursor ?? cursor) || cursor,
+      count: (items?.length ?? 0) + (topics?.length ?? 0) + (memoComments?.length ?? 0) + (tombstones?.length ?? 0),
+      durationMs: Date.now() - pullStartedAt,
+    });
     // 包装块随页落库（G7：加密条目他端解锁的依据）。
     for (const group of (body as { wraps?: Array<{ itemId: string; wraps: KeyWrap[] }> }).wraps ?? []) {
       await localDb.wraps.put({ itemId: group.itemId, wraps: group.wraps });
@@ -256,6 +307,8 @@ async function pullUpdates(userId: string): Promise<void> {
 
 /** 单轮同步；由调度器（主锁持有者）调用。 */
 export async function runSyncCycle(userId: string): Promise<void> {
+  const cycleStartedAt = Date.now();
+  recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_started" });
   setPhase("syncing");
   try {
     const deviceId = await getDeviceId();
@@ -263,9 +316,15 @@ export async function runSyncCycle(userId: string): Promise<void> {
     await drainOutbox(userId, deviceId);
     await pullUpdates(userId);
     setPhase("idle");
+    recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_completed", durationMs: Date.now() - cycleStartedAt });
     notifyLocalChange();
     void userId;
-  } catch {
+  } catch (error) {
+    recordSyncDiagnostic(userId, {
+      category: "error", event: "sync_cycle_failed",
+      code: error instanceof Error ? error.message.slice(0, 100) : "unknown",
+      durationMs: Date.now() - cycleStartedAt,
+    });
     setPhase("error");
   }
 }

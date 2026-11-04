@@ -6,6 +6,7 @@ import { getContentKey } from "./keyringService";
 import { archiveVersionBeforeSave } from "./versionService";
 import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope } from "./contentShared";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
+import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
 /** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
@@ -66,6 +67,10 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
       await localDb.items.put(next);
       // 重加密后正文哈希变了：按正文操作上报，正文版本号随之推进。
       await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
+    });
+    recordSyncDiagnostic(userId, {
+      category: "local", event: "encrypted_note_content_saved_locally", entity: "item", entityId: id,
+      action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
     });
     notifyLocalChange();
     return next;

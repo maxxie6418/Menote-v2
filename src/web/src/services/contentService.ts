@@ -10,6 +10,7 @@ import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { toOutboxRow } from "../db/outboxRepo";
+import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
 /**
  * 内容统一命令链路（E1 骨架，G10 整理拆分）：读一律以本地库为源；写 = 本地变更 + outbox 入队
@@ -100,6 +101,10 @@ export async function createNote(
     await localDb.items.put(createdItem);
     await localDb.outbox.add(outboxUpsert(createdItem, 0, 0, createdItem.contentHash));
   });
+  recordSyncDiagnostic(userId, {
+    category: "local", event: "note_created_locally", entity: "item", entityId: createdItem.id,
+    action: "upsert", baseRev: 0, baseMetaRev: 0,
+  });
   notifyLocalChange();
   return createdItem;
 }
@@ -174,7 +179,9 @@ export function isDefaultTableSeed(item: Item): boolean {
 async function setItemFormInner(userId: string, id: string, to: "note" | "table"): Promise<Item> {
   const current = await requireItem(userId, id);
   if (current.type === "memo") throw new Error("Memo 不参与形态切换");
-  if (current.type === to) return current;
+  // 新建表格若曾以旧版空脚手架落库，打开/再次选择表格时补齐默认种子。
+  // 这也让空白表格统一收敛为一列一行的可填写表格。
+  if (current.type === to && (to !== "table" || !isConvertibleBlankDraft(current))) return current;
   const blankNow = isConvertibleBlankDraft(current);
   const seededNow = isDefaultTableSeed(current);
   if ((!blankNow && !seededNow) || current.content.scope !== "plain") {
@@ -243,6 +250,10 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash));
   });
+  recordSyncDiagnostic(userId, {
+    category: "local", event: "note_content_saved_locally", entity: "item", entityId: id,
+    action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
+  });
   notifyLocalChange();
   return next;
 }
@@ -273,6 +284,10 @@ async function saveItemMetaInner(userId: string, id: string, patch: ItemMetaPatc
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+  });
+  recordSyncDiagnostic(userId, {
+    category: "local", event: "note_metadata_saved_locally", entity: "item", entityId: id,
+    action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
   });
   notifyLocalChange();
   return next;

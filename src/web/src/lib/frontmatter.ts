@@ -25,7 +25,11 @@ export interface PropertyDef {
   type: PropertyType;
   label?: string;
   options?: string[];
+  optionColors?: Record<string, OptionColor>;
 }
+
+export const OPTION_COLORS = ["neutral", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"] as const;
+export type OptionColor = (typeof OPTION_COLORS)[number];
 
 /**
  * 默认属性模板（FR-PROP-9）：设置里可配的「添加属性」模板库。
@@ -100,6 +104,7 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
       type: spec.type as PropertyType,
       label: typeof spec.label === "string" ? spec.label : undefined,
       options: Array.isArray(spec.options) ? spec.options.filter((o): o is string => typeof o === "string") : undefined,
+      optionColors: readOptionColors(spec.optionColors),
     };
   }
   return defs;
@@ -124,7 +129,15 @@ function defNode(def: PropertyDef): Record<string, unknown> {
   const spec: Record<string, unknown> = { type: def.type };
   if (def.label) spec.label = def.label;
   if (def.options) spec.options = def.options;
+  if (def.optionColors && Object.keys(def.optionColors).length > 0) spec.optionColors = def.optionColors;
   return spec;
+}
+
+function readOptionColors(raw: unknown): Record<string, OptionColor> | undefined {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+  const colors = Object.fromEntries(Object.entries(raw as Record<string, unknown>)
+    .filter((entry): entry is [string, OptionColor] => typeof entry[1] === "string" && OPTION_COLORS.includes(entry[1] as OptionColor)));
+  return Object.keys(colors).length ? colors : undefined;
 }
 
 /** 在既有 frontmatter 中写入命名空间定义；无 frontmatter 时新建。 */

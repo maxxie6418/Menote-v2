@@ -30,7 +30,9 @@ export async function createMcpMemo(ctx: McpMemoContext, input: McpMemoRequest):
   const sourceTitle = input.sourceTitle?.trim() ?? "";
   if (input.schemaVersion !== 1 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.operationId) ||
       !text || text.length > MAX_TEXT_LENGTH ||
-      (sourceUrl && (!isWebUrl(sourceUrl) || sourceUrl.length > 4_096)) || sourceTitle.length > MAX_SOURCE_TITLE_LENGTH) {
+      (sourceUrl && (!isWebUrl(sourceUrl) || sourceUrl.length > 4_096)) || sourceTitle.length > MAX_SOURCE_TITLE_LENGTH ||
+      (input.tags !== undefined && (!Array.isArray(input.tags) || input.tags.length > 100 ||
+        input.tags.some((tag) => typeof tag !== "string" || !tag.trim() || tag.length > 200)))) {
     throw new Error("invalid_memo_payload");
   }
   const markdown = buildMemoMarkdown({ text, ...(sourceUrl ? { sourceUrl } : {}), ...(sourceTitle ? { sourceTitle } : {}) });
@@ -38,7 +40,7 @@ export async function createMcpMemo(ctx: McpMemoContext, input: McpMemoRequest):
   // 与剪藏一致：operationId 直接作 item id，重试天然幂等，无需额外去重表。
   const item: Item = {
     id: input.operationId, userId: ctx.userId, type: "memo", topicId: null, groupId: null,
-    title: null, tags: [], status: null, attachmentHashes: [], source: "clipper", rev: 1, metaRev: 1,
+    title: null, tags: [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))], status: null, attachmentHashes: [], source: "clipper", rev: 1, metaRev: 1,
     contentHash, pinned: false, starred: false, createdAt: ctx.now, updatedAt: ctx.now, deletedAt: null,
     content: { scope: "plain", markdown },
   };
