@@ -10,6 +10,7 @@ import { applyPulledSettings } from "./appearanceSettingsService";
 import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
 import { applyPulledPropertyTemplates } from "./propertyTemplateService";
+import { applyPulledTableViewSettings } from "./tableViewSettingsService";
 import { applyPulledWorkspaceSettings } from "./workspaceSettingsService";
 import { outboxUpsert } from "./contentShared";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
@@ -302,6 +303,7 @@ async function pullUpdates(userId: string): Promise<void> {
     await applyPulledAiSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledRaindropSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledPropertyTemplates(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
+    await applyPulledTableViewSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await setMeta(SYNC_CURSOR_KEY, Number(nextCursor ?? cursor) || cursor);
     if (!hasMore) return;
   }

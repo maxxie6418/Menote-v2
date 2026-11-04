@@ -105,6 +105,7 @@
 .mn-tabledoc-detail-head { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-6); }
 .mn-tabledoc-detail-head h2 { margin: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-list-title); font-weight: var(--app-weight-medium); }
 .mn-tabledoc-detail-cover { display: block; width: var(--app-full-size); max-height: var(--app-tabledoc-max-height); object-fit: contain; object-position: center; margin-block: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
+.mn-tabledoc-detail-cover-fallback { display: block; margin-block: var(--app-space-10); padding: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); color: var(--app-link); font-size: var(--app-size-chip); }
 .mn-tabledoc-detail-fields { display: grid; gap: var(--app-space-6); margin: var(--app-space-10) var(--app-zero) var(--app-zero); }
 .mn-tabledoc-detail-fields > div { min-width: var(--app-zero); padding-bottom: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-tabledoc-detail-fields dt { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }

@@ -4,7 +4,7 @@ interface TableColumnVisibilityProps {
   onChange: (column: string, visible: boolean) => void;
 }
 
-/** Local view control: hiding a field never removes it from the table document. */
+/** View control: hiding a field never removes it from the table document. */
 export function TableColumnVisibility({ columns, hidden, onChange }: TableColumnVisibilityProps) {
   const visibleCount = columns.filter((column) => !hidden.includes(column)).length;
   return (

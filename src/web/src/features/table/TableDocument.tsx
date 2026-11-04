@@ -10,6 +10,7 @@ import { TableCellEditor } from "./TableCellEditor";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
 import { compareGridValues, matchesGridFilter, parseGridClipboard, validateGridPaste } from "./tableGrid";
 import { readHiddenTableColumns, readTableColumnWidths, writeHiddenTableColumns, writeTableColumnWidths } from "../../services/tablePreferencesService";
+import { readHiddenColumnsSetting, updateHiddenColumnsSetting } from "../../services/tableViewSettingsService";
 import { TableColumnVisibility } from "./TableColumnVisibility";
 import { TableRowDetailsPanel } from "./TableRowDetailsPanel";
 
@@ -71,16 +72,37 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const touchDrag = useRef<{ source: number; target: number; rows: number[] } | null>(null);
   const pendingColumnFocus = useRef<number | null>(null);
   const pendingRowFocus = useRef<{ row: number; col: number } | null>(null);
+  const hiddenColumnsLoad = useRef(0);
 
   useEffect(() => {
     const widths = readTableColumnWidths(userId, itemId);
     columnWidthsRef.current = widths;
     setColumnWidths(widths);
-    setHiddenColumns(readHiddenTableColumns(userId, itemId));
+    const cachedHidden = readHiddenTableColumns(userId, itemId);
+    setHiddenColumns(cachedHidden);
     setDetailRow(null);
     setSelectedRows(new Set());
     setSortCol(null);
     setFilterValue("");
+    const generation = ++hiddenColumnsLoad.current;
+    let active = true;
+    const loadSyncedColumns = async (expectedGeneration: number, migrateLocal = false) => {
+      const synced = await readHiddenColumnsSetting(userId, itemId);
+      if (!active || expectedGeneration !== hiddenColumnsLoad.current) return;
+      const next = synced ?? cachedHidden;
+      setHiddenColumns(next);
+      writeHiddenTableColumns(userId, itemId, next);
+      if (synced === null && migrateLocal && cachedHidden.length) {
+        void updateHiddenColumnsSetting(userId, itemId, cachedHidden);
+      }
+    };
+    const onSynced = () => { void loadSyncedColumns(hiddenColumnsLoad.current); };
+    void loadSyncedColumns(generation, true);
+    window.addEventListener("menote:table-view-settings", onSynced);
+    return () => {
+      active = false;
+      window.removeEventListener("menote:table-view-settings", onSynced);
+    };
   }, [userId, itemId]);
 
   useEffect(() => {
@@ -135,8 +157,10 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   const toggleColumnVisibility = (column: string, visible: boolean) => {
     const next = visible ? hiddenColumns.filter((name) => name !== column) : [...new Set([...hiddenColumns, column])];
+    hiddenColumnsLoad.current += 1;
     setHiddenColumns(next);
     writeHiddenTableColumns(userId, itemId, next);
+    void updateHiddenColumnsSetting(userId, itemId, next);
   };
 
   const applyGrid = (header: string[], rows: string[][]) => {

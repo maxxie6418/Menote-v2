@@ -28,7 +28,7 @@ export function writeTableColumnWidths(userId: string, itemId: string, widths: n
   }
 }
 
-/** Hidden fields are view-only preferences and never alter Markdown or sync data. */
+/** Local cache for synced hidden-column preferences; never changes Markdown content. */
 export function readHiddenTableColumns(userId: string, itemId: string): string[] {
   try {
     const raw = localStorage.getItem(hiddenColumnsStorageKey(userId, itemId));

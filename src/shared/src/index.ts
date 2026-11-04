@@ -34,6 +34,10 @@ export type { ClipTemplateV1, ClipTemplateField, StoredClipTemplate } from "./ty
 export { resolveItemId } from "./itemId";
 export { PROPERTY_TEMPLATES_SETTING_KEY } from "./contracts/propertyTemplates";
 export {
+  TABLE_VIEW_SETTING_KEY, DEFAULT_TABLE_VIEW_SETTINGS, normalizeTableViewSettings,
+} from "./contracts/tableView";
+export type { TableViewSettings } from "./contracts/tableView";
+export {
   RAINDROP_SETTING_KEY, DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings,
   BOOKMARK_ROW_ID_COLUMN, BOOKMARK_COLUMNS, RAINDROP_INTERVAL_HOURS,
   RAINDROP_SNAPSHOT_KEEP, RAINDROP_MAX_REMOTE_ITEMS, RAINDROP_PUSH_CONFIRM_MIN,

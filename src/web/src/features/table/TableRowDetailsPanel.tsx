@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { X } from "lucide-react";
 
 interface TableRowDetailsPanelProps {
@@ -16,6 +17,12 @@ function safeWebUrl(value: string): string | null {
   }
 }
 
+function CoverPreview({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <a className="mn-tabledoc-detail-cover-fallback" href={src} target="_blank" rel="noreferrer">封面无法直接加载，打开图片链接</a>;
+  return <img className="mn-tabledoc-detail-cover" src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+}
+
 /** Row detail side panel, with a large preview for Raindrop cover URLs. */
 export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: TableRowDetailsPanelProps) {
   const coverIndex = columns.findIndex((column) => /^(cover|封面)$/i.test(column.trim()));
@@ -29,7 +36,7 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: Tab
           <h2>第 {rowNumber} 行</h2>
           <button type="button" className="mn-iconbtn" aria-label="关闭详情" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
-        {coverUrl && <img className="mn-tabledoc-detail-cover" src={coverUrl} alt={cells[columns.findIndex((column) => /^(title|标题)$/i.test(column.trim()))] || "收藏封面"} loading="lazy" />}
+        {coverUrl && <CoverPreview key={coverUrl} src={coverUrl} alt={cells[columns.findIndex((column) => /^(title|标题)$/i.test(column.trim()))] || "收藏封面"} />}
         <dl className="mn-tabledoc-detail-fields">
           {columns.map((column, index) => {
             const value = cells[index] ?? "";
