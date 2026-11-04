@@ -108,8 +108,8 @@
 .m-mobile-document .mn-docbar-right { gap: var(--app-space-2); }
 .m-mobile-document .mn-docbar .mn-iconbtn { min-width: var(--app-mobile-row-min-height); min-height: var(--app-mobile-row-min-height); }
 .m-mobile-document .mn-docbody { padding: var(--app-mobile-content-pad); }
-.m-mobile-document .mn-docbody > * + * { margin-top: var(--app-space-xs); }
-.m-mobile-document .mn-docbody > * { max-width: var(--app-full-size); }
+.m-mobile-document .mn-doc-main > * + * { margin-top: var(--app-space-xs); }
+.m-mobile-document .mn-doc-main > * { max-width: var(--app-full-size); }
 /* 移动端格式栏：单行横向滚动，按钮保持 44 像素触控目标 */
 [data-layout="mobile"] .mn-formatbar { flex-wrap: nowrap; overflow-x: auto; }
 [data-layout="mobile"] .mn-formatbar .mn-formatbtn { flex: none; width: var(--app-touch-target); height: var(--app-touch-target); }
@@ -278,6 +278,6 @@
 [data-layout="mobile"] .mn-tabledoc-filter select,
 [data-layout="mobile"] .mn-tabledoc-filter input { flex: 1; min-width: var(--app-zero); max-width: var(--app-full-size); }
 [data-layout="mobile"] .mn-tabledoc-selection-hint { flex-basis: var(--app-full-size); }
-[data-layout="mobile"] .mn-tcell-input:focus { max-width: calc(100vw - var(--app-mobile-content-pad) - var(--app-mobile-content-pad)); }
+[data-layout="mobile"] .mn-tcell-input:focus { max-width: calc(var(--app-viewport-width) - var(--app-mobile-content-pad) - var(--app-mobile-content-pad)); }
 
 @media (prefers-reduced-motion: reduce) { .m-record { transition: none; } }

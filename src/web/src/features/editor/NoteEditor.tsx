@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
@@ -47,10 +48,12 @@ interface NoteEditorProps {
   /** 上传一个文件并返回内容寻址结果；失败时返回错误文案，由底栏显示。 */
   uploadFile?: (file: File, onProgress?: (percent: number) => void) => Promise<{ sha256: string; name: string } | { error: string }>;
   paperMode?: boolean;
+  /** 底部浮动坞容器（设置·外观）：非空时格式栏 portal 到纸面底部，否则留在正文顶部。 */
+  formatDock?: HTMLElement | null;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, paperMode = false }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, paperMode = false, formatDock = null }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<EditorAdapter | null>(null);
   const dirtyRef = useRef(false);
@@ -316,10 +319,14 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (!dirtyRef.current) adapter.loadMarkdown(visible);
   }, [externalMarkdown, mode]);
 
+  const formatBar = mode === "edit" && kind === "wysiwyg"
+    ? <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />
+    : null;
+
   return (
     <div className="mn-editor-wrap" data-dragging={dragging || undefined} data-paper={paperMode || undefined}>
       <OutlinePanel hostRef={hostRef} kind={kind} />
-      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />}
+      {formatBar && (formatDock ? createPortal(formatBar, formatDock) : formatBar)}
       {selectionBar && mode === "edit" && kind === "wysiwyg" && (
         <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
           actions={FORMAT_ACTIONS.filter((action) => action.group === "inline")}

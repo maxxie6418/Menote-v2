@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Maximize2, Minimize2, ScrollText, FilePlus2 } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, ScrollText, FilePlus2 } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -20,6 +20,7 @@ import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
 import { setSessionKey } from "../../services/keyringService";
 import { itemRoutePath } from "../../app/appRoutes";
+import { getPropsPlacement, resolveToolbar, subscribeDocLayout } from "../../lib/docLayout";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -75,27 +76,23 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [paperMode, setPaperMode] = useState(false);
-  const [immersive, setImmersive] = useState(false);
-  const docRef = useRef<HTMLElement>(null);
+  // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
+  const [propsPos, setPropsPos] = useState(getPropsPlacement);
+  const [toolbarPos, setToolbarPos] = useState(resolveToolbar);
+  const [formatDock, setFormatDock] = useState<HTMLDivElement | null>(null);
+  useEffect(() => subscribeDocLayout(() => {
+    setPropsPos(getPropsPlacement());
+    setToolbarPos(resolveToolbar());
+  }), []);
+  const [focusMode, setFocusMode] = useState(false);
   const [aiAssist, setAiAssist] = useState(false);
   const [autoSummary, setAutoSummary] = useState(false);
   useEffect(() => {
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement) setImmersive(false);
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
-  const toggleImmersive = async () => {
-    const doc = docRef.current;
-    if (immersive) {
-      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
-      setImmersive(false);
-      return;
-    }
-    setImmersive(true);
-    if (doc?.requestFullscreen) await doc.requestFullscreen().catch(() => {});
-  };
+    if (!focusMode) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setFocusMode(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusMode]);
   // AI 面板用的正文：打开面板时取一次**编辑器里的最新正文**。
   // 键入不再实时更新 draft（FR-EDT-10），直接用 draft 会把未保存的编辑漏给模型。
   const [aiMarkdown, setAiMarkdown] = useState<string | null>(null);
@@ -118,26 +115,28 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   function setPlainDraftAfterEncryption(): void { /* EncryptedNoteView 接管 */ }
 
   /** 统一文档更新链路（FR-PROP-3）：属性区/表格写回与正文草稿合并后保存，并回灌编辑器。 */
-  const saveFullMarkdown = useCallback(async (next: string) => {
-    if (!item) return;
-    // 正文以**编辑器的最新内容**为准（FR-EDT-10 的连带影响）：
-    // 键入不再实时更新 draft，属性区与 AI 面板回传的 next 是基于「上次保存的正文」拼的，
-    // 直接落盘会把用户尚未保存的正文编辑覆盖掉。frontmatter 仍取 next 里的那份（属性区管 YAML）。
-    // 编辑器没挂载时（整页表格形态）没有取值器，就用 next 原样保存。
-    const editorBody = getMarkdownRef.current?.();
-    const value = editorBody === undefined || editorBody === null
-      ? next
-      : joinFrontmatter(splitFrontmatter(next).frontText, editorBody);
-    setDraft(value);
+  const saveFullMarkdown = useCallback(async (next: string): Promise<boolean> => {
+    if (!item) return false;
+    const savingTick = dirtyTickRef.current;
     setSaveState({ kind: "saving" });
     try {
+      // 正文以编辑器最新内容为准；frontmatter 取 next 中属性区刚写入的版本。
+      // 放在 try 内，序列化异常也能显示保存失败，不会让添加属性操作静默无效。
+      const editorBody = getMarkdownRef.current?.();
+      const value = editorBody === undefined || editorBody === null
+        ? next
+        : joinFrontmatter(splitFrontmatter(next).frontText, editorBody);
+      setDraft(value);
       const saved = await saveItemContent(userId, item.id, value);
       const savedMarkdown = saved.content.scope === "plain" ? saved.content.markdown : "";
       setDraft(savedMarkdown);
       applyExternalRef.current?.(savedMarkdown);
+      setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
+      return true;
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
+      return false;
     }
   }, [item, userId]);
 
@@ -325,8 +324,17 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         const target = index === 0
           ? item
           : await createNote(userId, { title, topicId: item.topicId, groupId: item.groupId });
-        if (index === 0) await saveItemMeta(userId, target.id, { title });
+        if (index === 0) {
+          await saveItemMeta(userId, target.id, { title });
+          setTitle(title);
+        }
         await saveItemContent(userId, target.id, content);
+        if (index === 0) {
+          // Keep the local draft in step with the imported item. An initialized empty draft
+          // otherwise wins over plain.markdown in the property panel and hides its frontmatter.
+          setDraft(content);
+          setSavedTick(dirtyTickRef.current);
+        }
       }
       const rejected = files.length - markdownFiles.length;
       setImportMessage(`已导入 ${markdownFiles.length} 篇 Markdown 笔记${rejected ? `，已跳过 ${rejected} 个非 .md 文件` : ""}`);
@@ -349,13 +357,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
 
   return (
-    <article ref={docRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-immersive={immersive || undefined}>
+    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-focus={focusMode || undefined}>
       <DocBar
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
           <>
             {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
-            <button type="button" className="mn-iconbtn" aria-label={immersive ? "退出沉浸模式" : "沉浸模式"} title={immersive ? "退出沉浸模式" : "沉浸模式（全屏）"} aria-pressed={immersive} onClick={() => void toggleImmersive()}>{immersive ? <Minimize2 /> : <Maximize2 />}</button>
+            <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
             <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
             </button>
@@ -403,6 +411,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         )}
       />
       <div className="mn-docbody">
+        <div className="mn-doc-main">
         <p className="mn-doc-path" aria-label="笔记存放路径">
           存放路径：{item.topicId
             ? `${topics.find((row) => row.id === item.topicId)?.name ?? "主题"}${item.groupId ? ` / ${topics.find((row) => row.id === item.groupId)?.name ?? "分类"}` : ""}`
@@ -421,11 +430,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <a href={itemRoutePath(conflictOf)}>打开原条目{conflictSource?.title ? `《${conflictSource.title}》` : ""}</a>
           </p>
         )}
-        {plain && (
+        {plain && propsPos === "top" && (
           <PropertyPanel
             userId={userId}
             markdown={draft ?? plain.markdown}
-            onSave={(next) => void saveFullMarkdown(next)}
+            onSave={saveFullMarkdown}
           />
         )}
         <div className="mn-doc-tags" aria-label="标签">
@@ -467,6 +476,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             mode="edit"
             kind={editorKind}
             paperMode={paperMode}
+            formatDock={formatDock}
             externalMarkdown={splitFrontmatter(plain.markdown).body}
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
@@ -477,7 +487,20 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             }}
           />
         )}
+        </div>
+        {plain && propsPos === "side" && (
+          <aside className="mn-doc-aside" aria-label="属性">
+            <PropertyPanel
+              userId={userId}
+              markdown={draft ?? plain.markdown}
+              onSave={saveFullMarkdown}
+            />
+          </aside>
+        )}
       </div>
+      {toolbarPos === "bottom" && mode === "edit" && !isTableDoc && (
+        <div className="mn-formatdock" ref={setFormatDock} role="presentation" />
+      )}
       <div className="mn-doc-foot">
         {/* 字数口径：正文改成「保存时取全量」后，这里显示的是**上次保存**的字符数，
             输入过程中不实时跳动——这是 FR-EDT-10 的有意取舍（省掉键入热路径上的整篇序列化）。 */}

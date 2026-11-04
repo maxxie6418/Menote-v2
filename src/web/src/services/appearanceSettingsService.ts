@@ -5,23 +5,38 @@ import { newId } from "../lib/hash";
 import { getThemeMode, setThemeMode, type ThemeMode } from "../lib/theme";
 import { getFontPreference, setFontPreference, type FontPreference } from "../lib/fontPreference";
 import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../lib/measurePreference";
+import { getThemeSkin, setThemeSkin, type ThemeSkin } from "../lib/themeSkin";
+import { getPropsPlacement, getToolbarPlacement, setPropsPlacement, setToolbarPlacement, type PropsPlacement, type ToolbarPlacement } from "../lib/docLayout";
 import { getDocStyle, setDocStyle, type DocStyleVars } from "../lib/docStyle";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
+  /** 皮肤：default = 纸白（现状），paper = 柔纸模式。 */
+  skin: ThemeSkin;
   font: FontPreference;
   measure: MeasurePreference;
+  /** 属性显示位置：top = 标题与正文之间，side = 纸面右侧页边注。 */
+  propsPos: PropsPlacement;
+  /** 编辑工具栏位置：auto = 跟随主题，top / bottom 强制。 */
+  toolbar: ToolbarPlacement;
   docStyle: DocStyleVars;
 }
 
 const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
-const DEFAULT_APPEARANCE: AppearanceSettings = { theme: "system", font: "noto", measure: "narrow", docStyle: {} };
+const DEFAULT_APPEARANCE: AppearanceSettings = {
+  theme: "system", skin: "default", font: "noto", measure: "narrow",
+  propsPos: "top", toolbar: "auto", docStyle: {},
+};
 
 export function applyAppearance(value: AppearanceSettings): void {
   setThemeMode(value.theme);
+  // 皮肤先落定：工具栏的 auto 解析依赖当前皮肤。
+  setThemeSkin(value.skin ?? "default");
   setFontPreference(value.font);
   setMeasurePreference(value.measure);
+  setPropsPlacement(value.propsPos ?? "top");
+  setToolbarPlacement(value.toolbar ?? "auto");
   setDocStyle(value.docStyle);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("menote:appearance"));
 }
@@ -66,7 +81,8 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
 
   // Import old browser-only preferences once, into the first account that signs in on this device.
   const legacy: AppearanceSettings = {
-    theme: getThemeMode(), font: getFontPreference(), measure: getMeasurePreference(), docStyle: getDocStyle(),
+    theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
+    propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), docStyle: getDocStyle(),
   };
   await saveAppearance(userId, legacy);
   await setMeta(LEGACY_IMPORTED_KEY, true);
@@ -76,7 +92,10 @@ export async function updateAppearance(userId: string, patch: Partial<Appearance
   const current = await localDb.settings.get([userId, SETTING_KEY]);
   const base: AppearanceSettings = current?.sensitivity === "ordinary"
     ? current.value as AppearanceSettings
-    : { theme: getThemeMode(), font: getFontPreference(), measure: getMeasurePreference(), docStyle: getDocStyle() };
+    : {
+        theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
+        propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), docStyle: getDocStyle(),
+      };
   await saveAppearance(userId, { ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle });
 }
 

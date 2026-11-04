@@ -13,6 +13,7 @@ interface AddPropertyPopoverProps {
   onAdd: (template: PropertyTemplate) => void;
   onCreate: (name: string, def: PropertyDef, value?: string | boolean | string[]) => void;
   onClose: () => void;
+  saveError?: string | null;
 }
 
 interface Draft {
@@ -30,7 +31,7 @@ const EMPTY_DRAFT: Draft = { name: "", label: "", type: "text", options: "", val
  * 预设只作模板库，点一下写「定义 + 默认值」；新建表单与改定义、设置里的预设共用同一套字段语义。
  */
 export function AddPropertyPopover({
-  anchor, templates, existing, onAdd, onCreate, onClose,
+  anchor, templates, existing, onAdd, onCreate, onClose, saveError,
 }: AddPropertyPopoverProps) {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -137,6 +138,7 @@ export function AddPropertyPopover({
             </label>
           )}
           {error && <p className="mn-proppop-error" role="alert">{error}</p>}
+          {saveError && <p className="mn-proppop-error" role="alert">{saveError}</p>}
         </div>
         <div className="mn-proppop-actions">
           <button type="button" className="mn-propbtn" onClick={() => setCreating(false)}>取消</button>
@@ -200,6 +202,7 @@ export function AddPropertyPopover({
         ))}
       </div>
       <div className="mn-propadd-foot">
+        {saveError && <p className="mn-proppop-error" role="alert">{saveError}</p>}
         <button type="button" className="mn-propadd-new" onClick={startCreate}>
           <Plus aria-hidden />
           新建属性{query.trim() ? `「${query.trim()}」` : ""}

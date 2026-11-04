@@ -8,8 +8,10 @@ import "@fontsource/noto-sans-sc/500.css";
 import "@fontsource/noto-sans-sc/600.css";
 import "@fontsource/noto-sans-sc/700.css";
 import "./styles/tokens.css";
+import "./styles/paper.css";
 import "./styles/app.css";
 import "./styles/shell.css";
+import "./styles/doc.css";
 import "./styles/markdown.css";
 import "./styles/memo.css";
 import "./styles/home.css";
@@ -17,8 +19,13 @@ import "./styles/mobile.css";
 // 滚动条：全局接管所有原生滚动容器（DESIGN §4.4），须在 tokens.css 之后引入以取到令牌。
 import "./styles/scrollbar.css";
 import { applyDocStyle } from "./lib/docStyle";
+import { getThemeSkin } from "./lib/themeSkin";
+import { applyDocLayout } from "./lib/docLayout";
 
 // 文档样式偏好（FR-STYLE-2）：index.html 已按存储值写过一次，这里兜底重放（热更新/早期异常时两者不会打架）。
 applyDocStyle();
+// 皮肤与文档区布局（属性位置 / 工具栏位置）在首屏即落属性，避免切换时闪一版默认形态。
+getThemeSkin();
+applyDocLayout();
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

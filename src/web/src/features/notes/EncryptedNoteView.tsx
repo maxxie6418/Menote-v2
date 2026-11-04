@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Maximize2, Minimize2, ScrollText } from "lucide-react";
+import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus, ScrollText } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -43,25 +43,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [paperMode, setPaperMode] = useState(false);
-  const [immersive, setImmersive] = useState(false);
-  const docRef = useRef<HTMLElement>(null);
+  const [focusMode, setFocusMode] = useState(false);
   const unlocked = isNoteUnlocked(item.id);
   const inSpace = item.content.scope === "private_space";
 
   useEffect(() => {
-    const onFullscreenChange = () => { if (!document.fullscreenElement) setImmersive(false); };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
-  const toggleImmersive = async () => {
-    if (immersive) {
-      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
-      setImmersive(false);
-      return;
-    }
-    setImmersive(true);
-    if (docRef.current?.requestFullscreen) await docRef.current.requestFullscreen().catch(() => {});
-  };
+    if (!focusMode) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setFocusMode(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusMode]);
 
   useEffect(() => {
     if (!inSpace || unlocked) return;
@@ -128,7 +119,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const plainFlow = plain !== null && unlocked;
 
   return (
-    <article ref={docRef} className="mn-doc" aria-label="文档区" data-immersive={immersive || undefined}>
+    <article className="mn-doc" aria-label="文档区" data-focus={focusMode || undefined}>
       <div className="mn-docbar">
         <span className="mn-docbar-left">
           {showBack && (
@@ -140,7 +131,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         </span>
         <span className="mn-docbar-right">
           {item.type !== "table" && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
-          <button type="button" className="mn-iconbtn" aria-label={immersive ? "退出沉浸模式" : "沉浸模式"} title={immersive ? "退出沉浸模式" : "沉浸模式（全屏）"} aria-pressed={immersive} onClick={() => void toggleImmersive()}>{immersive ? <Minimize2 /> : <Maximize2 />}</button>
+          <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
           {saveState.kind === "saving" && <span className="mn-savestate">保存中…</span>}
           {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(getMarkdownRef.current?.() ?? plain ?? "")}>保存失败 · 重试</button>}
           {unlocked && (

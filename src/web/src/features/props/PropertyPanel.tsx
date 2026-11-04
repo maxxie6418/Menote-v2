@@ -14,7 +14,7 @@ interface PropertyPanelProps {
   markdown: string;
   userId: string;
   /** 写回经统一文档更新链路（FR-PROP-3）：产出新 markdown，由上层走 saveItemContent 保存。 */
-  onSave: (next: string) => void;
+  onSave: (next: string) => Promise<boolean> | boolean | void;
 }
 
 /**
@@ -33,6 +33,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   const [optionPick, setOptionPick] = useState<{ key: string; anchor: HTMLElement } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ text: string; restore: string; index: number } | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const [columns, setColumns] = useState<1 | 2>(2);
@@ -76,6 +77,21 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
 
   const defineRow = (row: PropRow, def: PropertyDef) => onSave(writeDef(markdown, PROPS_KEY, row.key, def));
 
+  const persistAddedProperty = async (next: string, name: string) => {
+    setSaveError(null);
+    try {
+      const saved = await onSave(next);
+      if (saved === false) {
+        setSaveError("属性未能保存，请检查文档底部的保存状态后重试。");
+        return;
+      }
+      setAdding(null);
+      setFlash(name);
+    } catch {
+      setSaveError("属性未能保存，请重试。");
+    }
+  };
+
   const addTemplate = (template: PropertyTemplate) => {
     const def: PropertyDef = {
       type: template.type,
@@ -84,17 +100,13 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
     };
     let next = writeDef(markdown, PROPS_KEY, template.name, def);
     if (template.value !== undefined && template.value !== "") next = writeValue(next, template.name, template.value);
-    onSave(next);
-    setAdding(null);
-    setFlash(template.name);
+    void persistAddedProperty(next, template.name);
   };
 
   const createProperty = (name: string, def: PropertyDef, value?: string | boolean | string[]) => {
     let next = writeDef(markdown, PROPS_KEY, name, def);
     if (value !== undefined && value !== "") next = writeValue(next, name, value);
-    onSave(next);
-    setAdding(null);
-    setFlash(name);
+    void persistAddedProperty(next, name);
   };
 
   const removeRow = (row: PropRow) => {
@@ -175,7 +187,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
       {adding && (
         <AddPropertyPopover
           anchor={adding} templates={templates} existing={existing}
-          onAdd={addTemplate} onCreate={createProperty} onClose={() => setAdding(null)}
+          onAdd={addTemplate} onCreate={createProperty} onClose={() => setAdding(null)} saveError={saveError}
         />
       )}
 

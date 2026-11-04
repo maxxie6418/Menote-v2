@@ -38,7 +38,10 @@
   --app-text-color-gray: #6c6f6b;
   --app-paper-bg: #fffdf8;
   --app-paper-fg: #1a1a18;
+  --app-paper-border: #dedbd2;
   --app-paper-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.12);
+  --app-paper-width: 49.625rem;
+  --app-paper-min-height: 70.25rem;
   /* 多维表格单选/多选胶囊颜色（值与文字按主题提供足够对比）。 */
   --app-pill-neutral-bg: #f0f0ed; --app-pill-neutral-fg: #4e504d; --app-pill-neutral-border: #deded9;
   --app-pill-red-bg: #fde8e7; --app-pill-red-fg: #8d1a16; --app-pill-red-border: #f4b6b1;
@@ -479,6 +482,7 @@
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
   --app-paper-bg: #f4f0e6;
+  --app-paper-border: #d0c8b7;
   --app-paper-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.35);
   --app-pill-neutral-bg: #303437; --app-pill-neutral-fg: #d1d5d7; --app-pill-neutral-border: #454b4f;
   --app-pill-red-bg: #482524; --app-pill-red-fg: #ffd9d7; --app-pill-red-border: #70413f;
@@ -508,4 +512,106 @@
 }
 :root[data-measure="full"] {
   --app-doc-measure: var(--app-full-size);
+}
+
+/* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。 */
+:root {
+  --app-doc-side-width: 9.25rem;   /* 148px 页边注 */
+  --app-dock-left: 50%;
+  --app-dock-shift: translateX(-50%);
+  --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
+}
+:root[data-theme="dark"] {
+  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
+}
+
+/* ---------- 柔纸模式（设置·外观，负责人 2026-11-04） ----------
+   皮肤与深色/浅色正交：data-skin="paper" 只换令牌取值，结构覆盖在 styles/paper.css。
+   不切到柔纸时以下规则一条都不命中，默认主题不受影响。
+   版心固定 520（32.5rem）：柔纸的页边注需要右侧余量，故不受「阅读宽度」三档影响——
+   本块位于 data-measure 之后，同特异性下后者被覆盖。 */
+:root[data-skin="paper"] {
+  /* 四层表面：侧栏 → 清单 → 纸面 → 案头（缝） */
+  --app-bg-side: #efebde;
+  --app-bg-list: #f7f5ec;
+  --app-bg-desk: #e9e5d9;
+  --app-surface: #fcfbf6;
+  --app-surface-sunken: #f5f2e8;
+  --app-raised-on-side: #fcfbf6;
+  --app-seg-active: #fcfbf6;
+  --app-selected: #e7eee8;
+  --app-hover: #f3f0e5;
+  --app-border: #e4dfd0;
+  --app-border-subtle: #ede8da;
+  /* 墨四档 */
+  --app-fg: #1a1b18;
+  --app-fg-muted: #4f5249;
+  --app-fg-subtle: #6c6f64;
+  --app-fg-faint: #8b8d82;
+  /* 强调：松烟绿；朱砂仍只给危险态 */
+  --app-accent: #2e5b4c;
+  --app-accent-hover: #264c40;
+  --app-accent-text: #f7f5ec;
+  --app-accent-fg: #22483c;
+  --app-accent-subtle: #e7eee8;
+  --app-link: #2c4a73;
+  /* 字体：标题走衬线（系统栈，未额外分发字包） */
+  --app-font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, Georgia, serif;
+  /* 版面 */
+  --app-doc-measure: 32.5rem;
+  --app-doc-title-size: 2.5rem;
+  --app-paper-radius: 0.8125rem;
+  --app-paper-inset: 0.625rem;
+  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 1px 2px rgba(26, 27, 24, 0.04), 0 18px 40px -32px rgba(26, 27, 24, 0.5);
+  --app-doc-side-gap: 0.75rem;
+  --app-doc-side-top: 0.25rem;
+  --app-dock-bottom: 1.125rem;
+  --app-dock-pad: 0.3125rem;
+  --app-dock-clear: 4.5rem;
+  --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
+  /* 正文与标记（编辑态与预览态共用 --md-*） */
+  --md-body-size: 1.0625rem;
+  --md-body-leading: 1.85;
+  --md-body-color: var(--app-fg);
+  --md-h1-size: 1.4375rem;
+  --md-h1-weight: 600;
+  --md-h2-size: 1.4375rem;
+  --md-h2-weight: 600;
+  --md-h3-size: 1.0625rem;
+  --md-h3-weight: 700;
+  --md-list-indent: 1.25rem;
+  --md-list-gap: 0.875rem;
+  --md-quote-color: var(--app-accent);
+  --md-quote-padding: 1.125rem;
+  --md-quote-padding-tight: 1.125rem;
+  --md-code-bg: var(--app-surface-sunken);
+  --md-code-size: 0.875rem;
+  --md-table-head-bg: var(--app-surface-sunken);
+  --md-table-padding: 0.5rem 0.75rem;
+}
+
+:root[data-skin="paper"][data-theme="dark"] {
+  --app-bg-side: #1b1b1a;
+  --app-bg-list: #20201e;
+  --app-bg-desk: #161615;
+  --app-surface: #262624;
+  --app-surface-sunken: #2e2e2b;
+  --app-raised-on-side: #262624;
+  --app-seg-active: #33332f;
+  --app-selected: #2e2f2b;
+  --app-hover: #2c2c2a;
+  --app-border: #363634;
+  --app-border-subtle: #2c2c2a;
+  --app-fg: #eaeae7;
+  --app-fg-muted: #b6b6b1;
+  --app-fg-subtle: #8e8e89;
+  --app-fg-faint: #6c6c67;
+  --app-accent: #9acbb4;
+  --app-accent-hover: #aed8c3;
+  --app-accent-text: #11231a;
+  --app-accent-fg: #cde7da;
+  --app-accent-subtle: #2e2f2b;
+  --app-link: #9db6da;
+  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -34px #000;
+  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
 }
