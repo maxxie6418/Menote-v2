@@ -316,6 +316,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         )}
         {plain && (
           <PropertyPanel
+            userId={userId}
             markdown={draft ?? plain.markdown}
             onSave={(next) => void saveFullMarkdown(next)}
           />

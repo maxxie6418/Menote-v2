@@ -28,6 +28,21 @@ export interface PropertyDef {
 }
 
 /**
+ * 默认属性模板（FR-PROP-9）：设置里可配的「添加属性」模板库。
+ * 与属性定义同源，另带一个默认值（加进文档时写入的值）。
+ */
+export interface PropertyTemplate {
+  id: string;
+  /** 键名（写进 YAML 的键）。 */
+  name: string;
+  type: PropertyType;
+  label?: string;
+  options?: string[];
+  /** 加进文档时写入的默认值（文本/数字/日期/链接为字符串，复选框为布尔，多选为数组）。 */
+  value?: string | boolean | string[];
+}
+
+/**
  * 候选值输入的解析（属性区「单选/多选」候选编辑）：
  * 换行、中英文分号、中英文逗号都算分隔符；首尾空格去掉、重复项去重。
  * 空格**不作**分隔符——候选值本身常带空格（"In Progress"、"待评审 重要"），
@@ -188,7 +203,7 @@ export interface PropRow {
 export function readPropRows(markdown: string, namespace: string): PropRow[] {
   const data = parseFrontmatterData(markdown);
   const defs = readDefs(markdown, namespace);
-  return Object.entries(data)
+  const rows = Object.entries(data)
     .filter(([key]) => key !== PROPS_KEY && key !== FIELDS_KEY)
     .map(([key, value]) => ({
       key,
@@ -198,11 +213,22 @@ export function readPropRows(markdown: string, namespace: string): PropRow[] {
       arrayValues: Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [],
       def: defs[key],
     }));
+  // 只有定义没有值的属性（如从默认属性预设加进来的空属性）也要列出来，否则加了却看不见。
+  for (const [key, def] of Object.entries(defs)) {
+    if (rows.some((row) => row.key === key)) continue;
+    rows.push({ key, raw: "", isBoolean: false, isArray: false, arrayValues: [], def });
+  }
+  return rows;
 }
 
 /** 删除一个数据键（用户明确操作）。 */
 export function removeProp(markdown: string, key: string): string {
   return writeValue(markdown, key, null);
+}
+
+/** 删除一个属性：连同它的定义一起去掉（只删值会留下看不见的定义残渣）。 */
+export function removePropDef(markdown: string, namespace: string, key: string): string {
+  return removeDef(removeProp(markdown, key), namespace, key);
 }
 
 /** 确认保存的 AI 概述（FR-AI-1）：数据键 `summary`，属性区显示名「概述」。先写值再补定义，避免定义写入把已有值清成空串。 */

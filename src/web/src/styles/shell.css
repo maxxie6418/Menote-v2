@@ -563,6 +563,23 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-propmulti { display: flex; flex-wrap: wrap; gap: var(--app-space-6); }
 .mn-propmulti-option { display: flex; align-items: center; gap: var(--app-space-2); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
 .mn-proprow-add { flex-wrap: wrap; gap: var(--app-space-6); }
+/* 换值态：值以文本呈现，点一下就地换（FR-PROP-2/10） */
+.mn-propopen { flex: 1; min-width: var(--app-zero); display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-2) var(--app-space-2); margin: calc(var(--app-space-2) * -1); border-radius: var(--app-radius-sm); cursor: text; }
+.mn-propopen:hover { background: var(--app-hover); }
+.mn-propopen:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-propopen .mn-proptext { flex: 1; min-width: var(--app-zero); }
+/* 链接型：链接本身可点跳转，「改」入口悬停才显形（换值与跳转不互相顶掉） */
+.mn-propvalue-link { flex: 1; min-width: var(--app-zero); display: flex; align-items: baseline; gap: var(--app-space-6); }
+.mn-propvalue-link .mn-statuslink { opacity: 0; }
+.mn-propvalue-link:hover .mn-statuslink, .mn-propvalue-link:focus-within .mn-statuslink { opacity: 1; }
+/* 编辑态：删除按钮推到行尾靠右 */
+.mn-propdel { margin-left: auto; flex: none; }
+/* 添加属性：预设模板行（FR-PROP-9） */
+.mn-proptemplates { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); flex: 1 1 var(--app-full-size); }
+.mn-proptemplates-label { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-proptemplate { display: inline-flex; align-items: baseline; gap: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); cursor: pointer; }
+.mn-proptemplate:hover { background: var(--app-hover); border-color: var(--app-accent); }
+.mn-proptemplate-type { color: var(--app-fg-faint); font-size: var(--app-size-micro); }
 .mn-proprow-actions { display: flex; gap: var(--app-space-6); }
 
 /* ---------- E3 表格结构化编辑 ---------- */
@@ -725,6 +742,14 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-setrow:last-child { border-bottom: var(--app-zero); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+/* 设置 · 默认属性预设（FR-PROP-9） */
+.mn-templatelist { display: flex; flex-direction: column; margin-block: var(--app-space-8); }
+.mn-templaterow { display: flex; align-items: center; gap: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); padding-block: var(--app-space-4); font-size: var(--app-size-chip); }
+.mn-templaterow-name { color: var(--app-fg); }
+.mn-templaterow-key { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); }
+.mn-templaterow-type { color: var(--app-fg-subtle); }
+.mn-templaterow-options { flex: 1; min-width: var(--app-zero); color: var(--app-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-templateform { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); }
 .mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
 .mn-cliptemplate-section { display: flex; flex-direction: column; gap: var(--app-space-sm); margin-block: var(--app-space-md); }
 .mn-cliptemplate-import { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr); gap: var(--app-space-xs); width: var(--app-full-size); }

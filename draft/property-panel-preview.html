@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>属性栏两态 · 实现稿</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css" />
+<link rel="stylesheet" href="../src/web/src/styles/app.css" />
+<link rel="stylesheet" href="../src/web/src/styles/shell.css" />
+<style>
+  body { padding: var(--app-space-18) var(--app-space-14); }
+  .mk-head { max-width: var(--app-doc-measure); margin: 0 auto var(--app-space-14); }
+  .mk-title { font-family: var(--app-font-title); font-size: var(--app-size-title); color: var(--app-fg); margin: 0 0 var(--app-space-6); }
+  .mk-sub { color: var(--app-fg-subtle); font-size: var(--app-size-chip); margin: 0 0 var(--app-space-8); line-height: var(--app-leading-meta); }
+  .mk-rules { margin: 0; padding-left: var(--app-space-18); color: var(--app-fg-muted); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
+  .mk-rules li { margin-bottom: var(--app-space-4); }
+  .mk-state { margin: 0 auto var(--app-space-14); max-width: 54rem; }
+  .mk-state-label { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); margin-bottom: var(--app-space-6); }
+  .mk-frame { border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); padding: var(--app-space-10); }
+  .mk-note { color: var(--app-fg-faint); font-size: var(--app-size-chip); margin: var(--app-space-6) 0 0; }
+</style>
+</head>
+<body>
+<header class="mk-head">
+  <h1 class="mk-title">属性栏：换值态与编辑态</h1>
+  <p class="mk-sub">同一块区域，两个态。预览态就是换值态——链接可点、值可换，但不能改定义。</p>
+  <ul class="mk-rules">
+    <li><b>换值态（默认）</b>：值以文本呈现，点一下就地换成控件，改完即存收起。不进任何模式也能改值。</li>
+    <li><b>编辑态</b>：点属性栏头的「编辑属性」进入——露出类型与候选定义、每行尾部靠右的删除按钮、底部的添加按钮；值仍然可改。</li>
+    <li><b>默认属性预设</b>：添加属性时先列预设（点击即加、带默认值），旁边保留自定义表单；预设可在设置里配，随账号同步。</li>
+  </ul>
+</header>
+
+<section class="mk-state">
+  <p class="mk-state-label">状态 A · 换值态（值是文本，点它才变成控件）</p>
+  <div class="mk-frame">
+    <section class="mn-propbar" aria-label="属性区">
+      <div class="mn-propbar-headrow">
+        <button type="button" class="mn-propbar-head"><span class="mn-seclabel-text">属性（4）</span></button>
+        <button type="button" class="mn-textbtn" title="编辑属性的定义，可添加与删除属性">编辑属性</button>
+      </div>
+      <dl class="mn-proplist">
+        <div class="mn-proprow">
+          <dt class="mn-propkey">状态</dt>
+          <dd class="mn-propvalue">
+            <button type="button" class="mn-propopen"><span class="mn-proptext">进行中</span></button>
+          </dd>
+        </div>
+        <div class="mn-proprow">
+          <dt class="mn-propkey">作者</dt>
+          <dd class="mn-propvalue">
+            <button type="button" class="mn-propopen"><span class="mn-proptext">小林</span></button>
+          </dd>
+        </div>
+        <div class="mn-proprow">
+          <dt class="mn-propkey">来源</dt>
+          <dd class="mn-propvalue">
+            <span class="mn-propvalue-link">
+              <span class="mn-proptext"><a href="https://example.com/post">https://example.com/post</a></span>
+              <button type="button" class="mn-statuslink">改</button>
+            </span>
+          </dd>
+        </div>
+        <div class="mn-proprow">
+          <dt class="mn-propkey">标签</dt>
+          <dd class="mn-propvalue">
+            <button type="button" class="mn-propopen"><span class="mn-proptext">产品、调研</span></button>
+          </dd>
+        </div>
+      </dl>
+    </section>
+    <p class="mk-note">链接可点跳转；换值走同一格里点开的控件。</p>
+  </div>
+</section>
+
+<section class="mk-state">
+  <p class="mk-state-label">状态 B · 编辑态（定义与增删在这里，值照旧可改）</p>
+  <div class="mk-frame">
+    <section class="mn-propbar" aria-label="属性区">
+      <div class="mn-propbar-headrow">
+        <button type="button" class="mn-propbar-head"><span class="mn-seclabel-text">属性（4）</span></button>
+        <button type="button" class="mn-textbtn">完成</button>
+      </div>
+      <dl class="mn-proplist">
+        <div class="mn-proprow">
+          <dt class="mn-propkey">状态</dt>
+          <dd class="mn-propvalue editing">
+            <button type="button" class="mn-propopen"><span class="mn-proptext">进行中</span></button>
+            <span class="mn-proptype">
+              <select class="mn-propselect"><option>单选</option></select>
+              <textarea class="mn-proptextarea" rows="2">未开始
+进行中
+已完成</textarea>
+            </span>
+            <button type="button" class="mn-iconbtn mn-propdel">✕</button>
+          </dd>
+        </div>
+        <div class="mn-proprow">
+          <dt class="mn-propkey">作者</dt>
+          <dd class="mn-propvalue editing">
+            <button type="button" class="mn-propopen"><span class="mn-proptext">小林</span></button>
+            <span class="mn-proptype">
+              <select class="mn-propselect"><option>文本</option></select>
+            </span>
+            <button type="button" class="mn-iconbtn mn-propdel">✕</button>
+          </dd>
+        </div>
+      </dl>
+      <button type="button" class="mn-propbar-add">＋ 添加属性</button>
+    </section>
+  </div>
+</section>
+
+<section class="mk-state">
+  <p class="mk-state-label">状态 C · 添加属性（先列预设，再给自定义）</p>
+  <div class="mk-frame">
+    <div class="mn-proprow mn-proprow-add">
+      <div class="mn-proptemplates" role="group" aria-label="默认属性预设">
+        <span class="mn-proptemplates-label">预设</span>
+        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">状态</span><span class="mn-proptemplate-type">单选</span></button>
+        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">作者</span><span class="mn-proptemplate-type">文本</span></button>
+        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">来源</span><span class="mn-proptemplate-type">链接</span></button>
+        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">收藏类型</span><span class="mn-proptemplate-type">单选</span></button>
+      </div>
+      <input class="mn-propinput" placeholder="属性名" />
+      <select class="mn-propselect"><option>文本</option></select>
+      <input class="mn-propinput" placeholder="显示名（可选）" />
+      <div class="mn-proprow-actions">
+        <button type="button" class="mn-textbtn">保存定义</button>
+        <button type="button" class="mn-textbtn">取消</button>
+      </div>
+    </div>
+  </div>
+</section>
+</body>
+</html>

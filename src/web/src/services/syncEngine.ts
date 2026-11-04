@@ -9,6 +9,7 @@ import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
 import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
+import { applyPulledPropertyTemplates } from "./propertyTemplateService";
 import { outboxUpsert } from "./contentShared";
 
 /**
@@ -247,6 +248,7 @@ async function pullUpdates(userId: string): Promise<void> {
     await applyPulledSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledAiSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledRaindropSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
+    await applyPulledPropertyTemplates(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await setMeta(SYNC_CURSOR_KEY, Number(nextCursor ?? cursor) || cursor);
     if (!hasMore) return;
   }

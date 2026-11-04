@@ -32,6 +32,7 @@ export type { UserSetting, MonitorSample } from "./types/settings";
 export { isClipTemplateV1 } from "./types/clipTemplate";
 export type { ClipTemplateV1, ClipTemplateField, StoredClipTemplate } from "./types/clipTemplate";
 export { resolveItemId } from "./itemId";
+export { PROPERTY_TEMPLATES_SETTING_KEY } from "./contracts/propertyTemplates";
 export {
   RAINDROP_SETTING_KEY, DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings,
   BOOKMARK_ROW_ID_COLUMN, BOOKMARK_COLUMNS, RAINDROP_INTERVAL_HOURS,
