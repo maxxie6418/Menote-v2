@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Menu, Search } from "lucide-react";
+import { LayoutGrid, List, Menu, Plus, Search } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Item } from "@menote/shared";
 import type { LayoutMode, MobilePane, ViewMode } from "../lib/layout";
@@ -17,6 +17,7 @@ interface MainLayoutProps {
   onToggleStar?: (item: Item) => void | Promise<unknown>;
   onTrashNote?: (item: Item) => void | Promise<unknown>;
   onAiSummary?: (item: Item) => void;
+  onCreateNote?: () => void;
   emptyTitle: string;
   emptyDetail: string;
   document: ReactNode;
@@ -27,7 +28,7 @@ interface MainLayoutProps {
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const filtering = query.trim().length > 0;
@@ -60,6 +61,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
               <span className="mn-listhead-title">{title}</span>
             </span>
             {headerExtra}
+            {onCreateNote && <button type="button" className="mn-iconbtn" aria-label="在当前主题或分类中新建笔记" title="新建笔记" onClick={onCreateNote}><Plus /></button>}
             <span className="mn-vt" role="group" aria-label="视图切换">
               <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
                 <List />

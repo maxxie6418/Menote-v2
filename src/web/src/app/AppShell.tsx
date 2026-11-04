@@ -507,6 +507,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(section, id ?? undefined));
         }}
         onMoveNote={moveNote}
+        onCreateNote={section.kind === "topic" ? () => { void openNewNote(); } : undefined}
         onToggleStar={toggleNoteStar}
         onTrashNote={trashNote}
         onAiSummary={openAiSummary}
@@ -521,7 +522,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             userId={userId}
             noteId={noteId}
             topics={topics}
-            unfiled={section.kind === "inbox" || section.kind === "drafts"}
             onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
             showBack={layout === "tablet"}
             crumb={title}

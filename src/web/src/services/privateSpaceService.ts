@@ -162,14 +162,21 @@ export async function createPrivateNote(userId: string, placeId: string): Promis
 /** 当前若在已解锁的私人空间里，新建笔记直接进该空间；否则仍进草稿箱。 */
 export async function createNoteForPlace(
   userId: string,
-  topicId: string | null,
+  placeId: string | null,
 ): Promise<{ item: Item; section: { kind: "drafts" } | { kind: "topic"; id: string } }> {
-  if (topicId) {
-    const root = await privateRootOf(userId, topicId);
+  if (placeId) {
+    const place = await getTopic(userId, placeId);
+    if (!place || place.deletedAt !== null) throw new Error("笔记存放位置不可用");
+    const rootId = place.depth === 0 ? place.id : place.parentId;
+    const root = rootId ? await privateRootOf(userId, rootId) : undefined;
     if (root) {
       if (!getTopicKey(root.id)) throw new Error("private_space_locked");
-      return { item: await createPrivateNote(userId, topicId), section: { kind: "topic", id: topicId } };
+      return { item: await createPrivateNote(userId, placeId), section: { kind: "topic", id: placeId } };
     }
+    const topicId = place.depth === 0 ? place.id : place.parentId;
+    const groupId = place.depth === 1 ? place.id : null;
+    if (!topicId) throw new Error("分组缺少所属主题");
+    return { item: await createNote(userId, { topicId, groupId }), section: { kind: "topic", id: placeId } };
   }
   return { item: await createNote(userId), section: { kind: "drafts" } };
 }

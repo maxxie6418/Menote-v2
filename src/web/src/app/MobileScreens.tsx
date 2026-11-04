@@ -158,7 +158,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
     : section.kind === "tag" ? `#${section.tag}` : ({ recent: "最近", inbox: "收件箱", drafts: "草稿箱", starred: "收藏", trash: "回收站" }[section.kind]);
 
   if (selected) return <div className="m-mobile-document"><NoteDocument key={selected.id} userId={userId} noteId={selected.id} topics={topics}
-    unfiled={section.kind === "inbox" || section.kind === "drafts"} onBack={() => onSelect(null)} showBack crumb={selected.title ?? "无标题"}
+    onBack={() => onSelect(null)} showBack crumb={selected.title ?? "无标题"}
     /></div>;
 
   return <div className="m-screen m-notes-screen">

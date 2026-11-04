@@ -231,6 +231,8 @@
 .mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-space-14) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-docbar-left { display: flex; align-items: center; gap: var(--app-space-sm); min-width: 0; }
 .mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-doc-path { display: flex; align-items: center; gap: var(--app-space-6); margin: var(--app-zero) var(--app-doc-pad); color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-doc-path .mn-textbtn { padding: var(--app-zero) var(--app-space-4); font-size: var(--app-size-kicker); }
 
 /* ---------- 空状态（DESIGN §8.3：一句说明 + 快捷键提示，不放插画） ---------- */
 .mn-empty { display: grid; place-items: center; flex: 1; padding: var(--app-space-lg); text-align: center; min-height: 0; }

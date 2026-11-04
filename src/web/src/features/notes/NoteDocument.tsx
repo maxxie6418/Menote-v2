@@ -33,7 +33,6 @@ interface NoteDocumentProps {
   userId: string;
   noteId: string;
   topics: TopicNode[];
-  unfiled: boolean;
   onBack: () => void;
   showBack: boolean;
   crumb: string;
@@ -44,7 +43,7 @@ interface NoteDocumentProps {
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; message: string };
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
-export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
+export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   // 冲突副本：记录它顶掉了哪一条目（G2 §5-2），文档区给出回溯入口供人工裁决。
   const conflictOf = item?.conflictOf ?? null;
@@ -55,6 +54,10 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   // 用计数递增触发自动保存，正文在保存时从编辑器取全量。
   const [dirtyTick, setDirtyTick] = useState(0);
+  const dirtyTickRef = useRef(dirtyTick);
+  dirtyTickRef.current = dirtyTick;
+  const [savedTick, setSavedTick] = useState(0);
+  const [shortcutAck, setShortcutAck] = useState(false);
   // 模板选择块是否已被点选（点过就收起；直接开写也由 dirtyTick 收起）。
   const [templatePicked, setTemplatePicked] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
@@ -120,20 +123,28 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   }, [item, draft, title]);
 
   const flush = useCallback(async (overrideMarkdown?: string) => {
-    if (!item || item.content.scope !== "plain") return;
+    if (!item || item.content.scope !== "plain") return false;
+    const savingTick = dirtyTickRef.current;
     // 编辑器/预览只处理正文（FR-PROP-1：YAML 由属性区管理）；保存前把正文拼回 frontmatter。
     const currentFull = draft ?? item.content.markdown;
     const editorValue = overrideMarkdown ?? getMarkdownRef.current?.() ?? null;
     const { frontText } = splitFrontmatter(currentFull);
     const value = editorValue === null ? currentFull : joinFrontmatter(frontText, editorValue);
-    if (value === null || value === item.content.markdown) return;
+    if (value === null || value === item.content.markdown) {
+      setSavedTick(savingTick);
+      setSaveState({ kind: "idle" });
+      return true;
+    }
     setSaveState({ kind: "saving" });
     try {
       const saved = await saveItemContent(userId, item.id, value);
       setDraft(saved.content.scope === "plain" ? saved.content.markdown : "");
+      setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
+      return true;
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
+      return false;
     }
   }, [item, userId, draft]);
 
@@ -176,7 +187,13 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void flush();
+        setSaveState({ kind: "saving" });
+        void flush().then((saved) => {
+          if (saved) {
+            setShortcutAck(true);
+            window.setTimeout(() => setShortcutAck(false), 1_500);
+          }
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -290,11 +307,9 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
                   <button type="button" role="menuitem" onClick={() => { setEncrypting(true); setMoreOpen(false); }}>
                     <Shield />启用单篇加密
                   </button>
-                  {unfiled && (
-                    <button type="button" role="menuitem" onClick={() => { setOrganizing(true); setMoreOpen(false); }}>
-                      <FolderInput />整理到主题
-                    </button>
-                  )}
+                  <button type="button" role="menuitem" onClick={() => { setOrganizing(true); setMoreOpen(false); }}>
+                    <FolderInput />修改存放路径
+                  </button>
                 </span>
               )}
             </span>
@@ -302,6 +317,12 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
         )}
       />
       <div className="mn-docbody">
+        <p className="mn-doc-path" aria-label="笔记存放路径">
+          存放路径：{item.topicId
+            ? `${topics.find((row) => row.id === item.topicId)?.name ?? "主题"}${item.groupId ? ` / ${topics.find((row) => row.id === item.groupId)?.name ?? "分类"}` : ""}`
+            : item.source === "manual" ? "草稿箱" : "收件箱"}
+          <button type="button" className="mn-textbtn" onClick={() => setOrganizing(true)}>修改</button>
+        </p>
         <DocTitle
           key={item.id}
           value={title ?? item.title ?? ""}
@@ -376,7 +397,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
           {saveState.kind === "error" && (
             <button type="button" className="mn-savestate err" onClick={() => { void flush(); }}>保存失败 · 重试</button>
           )}
-          {saveState.kind === "idle" && "已保存"}
+          {saveState.kind === "idle" && (dirtyTick > savedTick ? "尚未保存" : shortcutAck ? "已保存（Ctrl+S）" : "已保存")}
         </span>
       </div>
       {history && item && (
@@ -438,7 +459,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
       <input ref={fileInputRef} type="file" hidden aria-hidden="true" onChange={(event) => void onUploadPicked(event.target.files?.[0])} />
       {organizing && (
         <OrganizeDialog
-          item={item} topics={topics} onDone={() => { setOrganizing(false); onBack(); }}
+          item={item} topics={topics} onDone={() => { setOrganizing(false); }}
           onMove={async (topicId, groupId) => { await saveItemMeta(userId, item.id, { topicId, groupId }); }}
           onDelete={async () => { await softDeleteItem(userId, item.id); }}
         />
