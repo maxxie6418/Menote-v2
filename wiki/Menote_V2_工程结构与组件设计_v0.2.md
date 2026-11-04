@@ -1,7 +1,7 @@
-# Menote V2 工程结构与组件设计（v0.12）
+# Menote V2 工程结构与组件设计（v0.13）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）。
+- **修订记录**：v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）；v0.13 登记 `workspaceSettingsService`：侧栏宽度与主题树顺序按账号设置写入 IndexedDB settings/outbox，经 Worker 同步到 `user_settings`；树节点内容移动继续由 `contentService` 写入本地库与 outbox。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
@@ -94,7 +94,7 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `sync` | 同步引擎与状态指示 | FR-SYNC |
 | `versions` | 版本历史、回收站 | FR-VER |
 | `search` | 本地检索（M2）、FTS5 客户端（M4） | FR-IA-10 |
-| `settings` | 备份目标、令牌管理、账号级外观/样式编辑、凭据复显；偏好经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步至 D1 `user_settings` | FR-BAK/FR-MCP/FR-STYLE |
+| `settings` | 备份目标、令牌管理、账号级外观/样式与工作区偏好编辑、凭据复显；外观经 `appearanceSettingsService`、侧栏宽度/目录顺序经 `workspaceSettingsService` → IndexedDB settings/outbox → Worker 同步至 D1 `user_settings` | FR-BAK/FR-MCP/FR-STYLE/FR-IA-14 |
 | `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
 | `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
 | `backup` | 备份目标管理面板（逐条添加、连接测试、推送调度、远端快照浏览/删除、保留数量）（G9） | FR-BAK-1/2/4/8 |
@@ -120,7 +120,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
 **app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/系统状态/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/同步/资源监控，在主界面右侧内容区显示，M2）。
-**tree/**：`TopicTree`（仅主题+分组）、`TreeNode`、`LockBadge`。
+**tree/**：`TopicTree`（仅主题+分组，支持节点拖动排序、分组跨主题移动及笔记拖入目录）、`TreeNode`、`LockBadge`。树顺序与侧栏宽度经 `workspaceSettingsService` 按账号同步；笔记路径通过 `contentService.saveItemMeta` 持久化。
 **notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）；`BlankFormChooser`（空白种子期形态选择条，FR-TBL-9，TP2）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
 **editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。

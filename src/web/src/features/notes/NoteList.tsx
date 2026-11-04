@@ -27,10 +27,17 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
       {items.map((item) => (
         <button
           key={item.id} type="button" role="listitem"
+          draggable={item.type !== "memo"}
           className={item.id === selectedId ? "mn-note-row on" : "mn-note-row"}
           aria-haspopup={onMove && onToggleStar && onTrash ? "menu" : undefined}
           aria-expanded={contextMenu?.item.id === item.id}
           onClick={() => onSelect(item.id)}
+          onDragStart={(event) => {
+            if (item.type === "memo") { event.preventDefault(); return; }
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("application/x-menote-item", item.id);
+            if (item.content.scope === "private_space") event.dataTransfer.setData("application/x-menote-private-item", item.id);
+          }}
           onContextMenu={(event) => {
             if (!onMove || !onToggleStar || !onTrash) return;
             event.preventDefault();

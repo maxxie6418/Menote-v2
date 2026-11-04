@@ -1,29 +1,41 @@
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
-import { ChevronDown, Lock, Plus } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { ChevronDown, GripVertical, Lock, Plus } from "lucide-react";
 import { useLockVersion, useTopics, type BrowseSection } from "../../services/contentHooks";
-import { createTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
+import { createTopic, moveGroupToTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
 import { isTopicUnlocked } from "../../services/keyringService";
 import { lockPrivateSpace } from "../../services/privateSpaceService";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 import { SectionHead } from "../../components/ui/SectionHead";
+import { DEFAULT_WORKSPACE_SETTINGS, orderIds, readWorkspaceSettings, updateWorkspaceSettings, type WorkspaceSettings } from "../../services/workspaceSettingsService";
 
 interface TopicTreeProps {
   userId: string;
   selected: BrowseSection;
   onSelect: (section: BrowseSection) => void;
   onOpenPrivate: () => void;
+  onDropItem: (itemId: string, topicId: string, groupId: string | null) => void | Promise<unknown>;
 }
 
 /** 主题树（FR-IA-1/3：主题与分组，分组最多一层）。
     2026-11-03 定稿：加密空间是「空间」不是「分类」，独立成行放在主题段之上；
     「新建主题」收进段标题行，内联输入贴在标题正下方，列表底部不再常驻创建入口。 */
-export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTreeProps) {
+export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropItem }: TopicTreeProps) {
   useLockVersion();
   const topics = useTopics(userId);
   const active = topics.filter((row) => row.deletedAt === null);
   const space = active.find((row) => row.depth === 0 && row.isEncSpace);
   const spaceOpen = space ? isTopicUnlocked(space.id) : false;
   const roots = active.filter((row) => row.depth === 0 && !row.isEncSpace);
+  const [workspace, setWorkspace] = useState<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
+  const [treeDragId, setTreeDragId] = useState<string | null>(null);
+  useEffect(() => {
+    const refresh = () => { void readWorkspaceSettings(userId).then(setWorkspace); };
+    refresh();
+    window.addEventListener("menote:workspace-settings", refresh);
+    return () => window.removeEventListener("menote:workspace-settings", refresh);
+  }, [userId]);
+  const orderedRoots = orderIds(roots.map((row) => row.id), workspace.topicOrder)
+    .map((id) => roots.find((row) => row.id === id)!).filter(Boolean);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
 
@@ -43,6 +55,7 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTr
             userId={userId} topic={space} fixed
             groups={active.filter((row) => row.depth === 1 && row.parentId === space.id)}
             selected={selected} onSelect={onSelect}
+            onDropItem={onDropItem}
             onLock={() => { void lockPrivateSpace(userId); onSelect({ kind: "recent" }); }}
           />
         </ul>
@@ -77,11 +90,36 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate }: TopicTr
       )}
       <div className="mn-tree">
         <ul className="mn-tree-list">
-          {roots.map((topic) => (
+          {orderedRoots.map((topic) => (
             <TopicNodeView
               key={topic.id} userId={userId} topic={topic}
-              groups={active.filter((row) => row.depth === 1 && row.parentId === topic.id)}
-              selected={selected} onSelect={onSelect}
+              groups={orderIds(active.filter((row) => row.depth === 1 && row.parentId === topic.id).map((row) => row.id), workspace.groupOrder[topic.id] ?? [])
+                .map((id) => active.find((row) => row.id === id)!).filter(Boolean)}
+              selected={selected} onSelect={onSelect} onDropItem={onDropItem}
+              draggingId={treeDragId} onDragStart={(id) => { setTreeDragId(id); }} onDragEnd={() => setTreeDragId(null)}
+              onTreeDrop={async (sourceId, targetId, after = false) => {
+                const source = active.find((row) => row.id === sourceId);
+                const target = active.find((row) => row.id === targetId);
+                if (!source || !target || sourceId === targetId || source.isEncSpace || target.isEncSpace) return;
+                if (source.depth === 0 && target.depth === 0) {
+                  const ids = orderedRoots.map((row) => row.id).filter((id) => id !== sourceId);
+                  const index = ids.indexOf(targetId);
+                  ids.splice(index < 0 ? ids.length : index + (after ? 1 : 0), 0, sourceId);
+                  const next = { ...workspace, topicOrder: ids };
+                  setWorkspace(next); await updateWorkspaceSettings(userId, { topicOrder: ids });
+                  return;
+                }
+                if (source.depth !== 1) return;
+                const newParentId = target.depth === 0 ? target.id : target.parentId;
+                if (!newParentId) return;
+                if (source.parentId !== newParentId) await moveGroupToTopic(userId, sourceId, newParentId);
+                const siblings = active.filter((row) => row.depth === 1 && row.parentId === newParentId).map((row) => row.id).filter((id) => id !== sourceId);
+                const targetIndex = target.depth === 1 && target.parentId === newParentId ? siblings.indexOf(targetId) : siblings.length;
+                siblings.splice(targetIndex < 0 ? siblings.length : targetIndex + (after ? 1 : 0), 0, sourceId);
+                const nextOrder = { ...workspace.groupOrder, [newParentId]: siblings };
+                setWorkspace({ ...workspace, groupOrder: nextOrder });
+                await updateWorkspaceSettings(userId, { groupOrder: nextOrder });
+              }}
             />
           ))}
           {roots.length === 0 && !creating && <li className="mn-tree-empty">暂无主题</li>}
@@ -97,11 +135,16 @@ interface TopicNodeViewProps {
   groups: Array<{ id: string; name: string; depth: 0 | 1 }>;
   selected: BrowseSection;
   onSelect: (section: BrowseSection) => void;
+  onDropItem: (itemId: string, topicId: string, groupId: string | null) => void | Promise<unknown>;
+  draggingId?: string | null;
+  onDragStart?: (id: string) => void;
+  onDragEnd?: () => void;
+  onTreeDrop?: (sourceId: string, targetId: string, after?: boolean) => void | Promise<void>;
   fixed?: boolean;
   onLock?: () => void;
 }
 
-function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = false, onLock }: TopicNodeViewProps) {
+function TopicNodeView({ userId, topic, groups, selected, onSelect, onDropItem, fixed = false, onLock, draggingId, onDragStart, onDragEnd, onTreeDrop }: TopicNodeViewProps) {
   const [addingGroup, setAddingGroup] = useState(false);
   const [open, setOpen] = useState(true);
   const [name, setName] = useState("");
@@ -166,7 +209,24 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = fals
   return (
     <li>
       <div
-        className={isSelected ? `mn-treerow on${fixed ? " priv" : ""}` : `mn-treerow${fixed ? " priv" : ""}`}
+        className={`${isSelected ? `mn-treerow on${fixed ? " priv" : ""}` : `mn-treerow${fixed ? " priv" : ""}`} ${draggingId === topic.id ? "dragging" : ""}`}
+        onDragOver={(event) => {
+          const itemDrag = event.dataTransfer.types.includes("application/x-menote-item");
+          const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
+          const treeDrag = event.dataTransfer.types.includes("application/x-menote-topic");
+          if ((itemDrag && (fixed === privateItem)) || (!fixed && treeDrag)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }
+        }}
+        onDrop={(event) => {
+          const itemId = event.dataTransfer.getData("application/x-menote-item");
+          const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
+          if (itemId && fixed === privateItem) { event.preventDefault(); event.stopPropagation(); void onDropItem(itemId, topic.id, null); return; }
+          const sourceId = event.dataTransfer.getData("application/x-menote-topic");
+          if (sourceId && !fixed) {
+            event.preventDefault(); event.stopPropagation();
+            const bounds = event.currentTarget.getBoundingClientRect();
+            void onTreeDrop?.(sourceId, topic.id, event.clientY >= bounds.top + bounds.height / 2);
+          }
+        }}
         onContextMenu={(event) => openPointerMenu(event, topic)}
         onKeyDown={(event) => openKeyboardMenu(event, topic)}
       >
@@ -184,6 +244,8 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = fals
         <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
           {fixed && <Lock />}{topic.name}
         </button>
+        {!fixed && <button type="button" className="mn-tree-drag" draggable aria-label={`拖动「${topic.name}」调整目录位置`} title="拖动调整位置"
+          onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", topic.id); onDragStart?.(topic.id); }} onDragEnd={onDragEnd}><GripVertical aria-hidden="true" /></button>}
         {fixed && onLock && (
           <button type="button" className="mn-minibtn" aria-label="锁定加密空间" title="锁定" onClick={onLock}><Lock /></button>
         )}
@@ -208,8 +270,28 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, fixed = fals
             <li key={group.id}>
               <button
                 type="button"
-                className={selected.kind === "topic" && selected.id === group.id ? "mn-treerow on" : "mn-treerow"}
+                className={`${selected.kind === "topic" && selected.id === group.id ? "mn-treerow on" : "mn-treerow"} ${draggingId === group.id ? "dragging" : ""}`}
                 aria-haspopup="menu"
+                draggable={!fixed}
+                onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", group.id); onDragStart?.(group.id); }}
+                onDragEnd={onDragEnd}
+                onDragOver={(event) => {
+                  const itemDrag = event.dataTransfer.types.includes("application/x-menote-item");
+                  const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
+                  const treeDrag = event.dataTransfer.types.includes("application/x-menote-topic");
+                  if ((itemDrag && (fixed === privateItem)) || (!fixed && treeDrag)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }
+                }}
+                onDrop={(event) => {
+                  const itemId = event.dataTransfer.getData("application/x-menote-item");
+                  const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
+                  if (itemId && fixed === privateItem) { event.preventDefault(); event.stopPropagation(); void onDropItem(itemId, topic.id, group.id); return; }
+                  const sourceId = event.dataTransfer.getData("application/x-menote-topic");
+                  if (sourceId && !fixed) {
+                    event.preventDefault(); event.stopPropagation();
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    void onTreeDrop?.(sourceId, group.id, event.clientY >= bounds.top + bounds.height / 2);
+                  }
+                }}
                 onClick={() => onSelect({ kind: "topic", id: group.id })}
                 onContextMenu={(event) => openPointerMenu(event, group)}
                 onKeyDown={(event) => openKeyboardMenu(event, group)}

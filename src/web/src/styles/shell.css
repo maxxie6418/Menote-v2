@@ -19,7 +19,9 @@
    两种度量（并排的是「格」gap 4–6，纵向的是「行」gap 1）、三级填充（无填充导航 → 凹槽或纸面 → 实心橙）。
    线的预算：横线只分区（工作区｜内容区、内容区｜个人区两条），竖线只表层级（树连接线一条），
    同一职责只出现一次。 */
-.mn-sidebar { display: flex; flex-direction: column; width: var(--app-sidebar-width); flex: none; padding: var(--app-space-md) var(--app-space-10) var(--app-space-10); background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); min-width: 0; overflow-y: auto; }
+.mn-sidebar { position: relative; display: flex; flex-direction: column; width: var(--mn-sidebar-width, var(--app-sidebar-width)); flex: none; padding: var(--app-space-md) var(--app-space-10) var(--app-space-10); background: var(--app-bg-side); border-right: var(--app-line) solid var(--app-border); min-width: 0; overflow-y: auto; }
+.mn-sidebar-resize { position: absolute; z-index: var(--app-mobile-z-nav); top: var(--app-zero); right: var(--app-zero); bottom: var(--app-zero); width: var(--app-space-2); cursor: col-resize; touch-action: none; }
+.mn-sidebar-resize:hover, .mn-sidebar-resize:focus-visible { background: var(--app-selected); outline: none; }
 .mn-sb-top { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-2); height: var(--app-nav-height); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-10); }
 .mn-brand { display: flex; align-items: center; gap: var(--app-space-2); font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); line-height: var(--app-leading-nav); }
 .mn-logo { width: var(--app-logo-size); height: var(--app-logo-size); flex: none; }
@@ -161,6 +163,12 @@
 .mn-treerow:hover { background: var(--app-hover); }
 .mn-treerow.on { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-side); }
 .mn-treerow.on svg { color: var(--app-accent-fg); }
+.mn-treerow.dragging { opacity: var(--app-mobile-disabled-opacity); }
+.mn-tree-drag { display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; border: var(--app-zero); background: none; padding: var(--app-zero); color: var(--app-fg-faint); cursor: grab; opacity: 0; }
+.mn-treerow:hover .mn-tree-drag, .mn-tree-drag:focus-visible { opacity: 1; }
+.mn-tree-drag:active { cursor: grabbing; }
+.mn-tree-drag svg { width: var(--app-icon-xxs); height: var(--app-icon-xxs); }
+.mn-tree-sublist .mn-treerow[draggable="true"] { cursor: grab; }
 .mn-tree-chev { width: var(--app-icon-xxs); height: var(--app-icon-xxs); color: var(--app-fg-faint); flex: none; transition: transform var(--app-motion-fast) var(--app-ease); }
 .mn-tree-chev[data-open="false"] { transform: rotate(-90deg); }
 .mn-tree-slot { width: var(--app-icon-xxs); height: var(--app-icon-xxs); flex: none; }
@@ -229,7 +237,7 @@
 
 /* ---------- 文档区 ---------- */
 .mn-doc { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; }
-.mn-doc[data-immersive="true"], .mn-doc:fullscreen { position: fixed; inset: var(--app-zero); z-index: var(--app-immersive-z); width: var(--app-full-size); height: var(--app-full-viewport-height); background: var(--app-bg-side); }
+.mn-doc[data-focus="true"] { position: fixed; inset: var(--app-zero); z-index: var(--app-immersive-z); width: var(--app-full-size); height: var(--app-full-viewport-height); background: var(--app-bg-side); }
 .mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-space-14) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-docbar-left { display: flex; align-items: center; gap: var(--app-space-sm); min-width: 0; }
 .mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

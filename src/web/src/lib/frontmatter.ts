@@ -170,6 +170,27 @@ export function renameDef(markdown: string, namespace: string, from: string, to:
   return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
 }
 
+/** 重排命名空间内定义键；未列入 order 的定义保留在末尾且相对顺序不变。 */
+export function reorderDefs(markdown: string, namespace: string, order: string[]): string {
+  const { frontText, body } = splitFrontmatter(markdown);
+  if (!frontText) return markdown;
+  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const container = doc.get(namespace) as YAMLMap | undefined;
+  if (!container || !Array.isArray(container.items)) return markdown;
+  const rank = new Map(order.map((name, index) => [name, index]));
+  const keyName = (pair: unknown): string => {
+    const key = (pair as { key?: unknown }).key;
+    return typeof key === "object" && key !== null && "value" in key
+      ? String((key as { value: unknown }).value) : String(key ?? "");
+  };
+  container.items = [...container.items].sort((left, right) => {
+    const leftKey = keyName(left);
+    const rightKey = keyName(right);
+    return (rank.get(leftKey) ?? Number.MAX_SAFE_INTEGER) - (rank.get(rightKey) ?? Number.MAX_SAFE_INTEGER);
+  });
+  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+}
+
 /** 删除命名空间内一个定义键（表格删列）；不存在时原样返回。 */
 export function removeDef(markdown: string, namespace: string, name: string): string {
   const { frontText, body } = splitFrontmatter(markdown);

@@ -61,6 +61,23 @@ export async function renameTopic(userId: string, id: string, name: string): Pro
   return next;
 }
 
+/** 将分组移动到另一主题（目录层级仍为主题→分组），并同步更新组内笔记的 topicId。 */
+export async function moveGroupToTopic(userId: string, groupId: string, parentId: string): Promise<void> {
+  const [group, parent] = await Promise.all([getTopic(userId, groupId), getTopic(userId, parentId)]);
+  if (!group || group.depth !== 1 || group.deletedAt !== null || group.isEncSpace) throw new Error("只能移动有效分组");
+  if (!parent || parent.depth !== 0 || parent.deletedAt !== null || parent.isEncSpace) throw new Error("分组只能移动到普通主题");
+  if (group.parentId === parent.id) return;
+  const next = { ...group, parentId: parent.id };
+  await localDb.transaction("rw", localDb.topics, localDb.outbox, async () => {
+    await localDb.topics.put(next);
+    await localDb.outbox.add(outboxTopic(next, "upsert"));
+  });
+  const items = await localDb.items.where("userId").equals(userId)
+    .filter((item) => item.deletedAt === null && item.groupId === groupId).toArray();
+  for (const item of items) await saveItemMeta(userId, item.id, { topicId: parent.id, groupId });
+  notifyLocalChange();
+}
+
 export async function softDeleteTopic(userId: string, id: string): Promise<void> {
   const topic = await getTopic(userId, id);
   if (!topic) throw new Error(`topic not found: ${id}`);

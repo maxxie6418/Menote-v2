@@ -296,6 +296,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       drawerOpen={drawerOpen}
       section={section}
       onOpenPrivate={() => setPrivateGate(true)}
+      onDropItem={async (itemId, topicId, groupId) => {
+        try { await saveItemMeta(userId, itemId, { topicId, groupId }); }
+        catch (error) { window.alert(error instanceof Error ? error.message : "移动失败，请稍后重试。"); }
+      }}
       onSelectSection={(next) => {
         setView("main");
         if (next.kind === "memos" && section.kind !== "memos") setNoteReturn({ section: section.kind === "home" ? { kind: "recent" } : section, noteId });

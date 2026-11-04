@@ -188,7 +188,7 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };
 }
 
-const ORDINARY_SETTING_KEYS = new Set(["appearance", AI_SETTING_KEY, RAINDROP_SETTING_KEY, PROPERTY_TEMPLATES_SETTING_KEY]);
+const ORDINARY_SETTING_KEYS = new Set(["appearance", "workspace", AI_SETTING_KEY, RAINDROP_SETTING_KEY, PROPERTY_TEMPLATES_SETTING_KEY]);
 
 function ordinarySettingValue(key: string, value: unknown): unknown {
   if (key === AI_SETTING_KEY) return normalizeAiSettings(value);

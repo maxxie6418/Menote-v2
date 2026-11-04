@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Filter, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
-  FIELDS_KEY, OPTION_COLORS, readDefs, removeDef, renameDef, splitFrontmatter, writeDef,
+  FIELDS_KEY, OPTION_COLORS, readDefs, removeDef, renameDef, reorderDefs, splitFrontmatter, writeDef,
   type OptionColor, type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, joinMultiCell, renderTable, replaceTable, splitMultiCell, type ParsedTable } from "../../lib/gfmTable";
@@ -49,6 +49,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [renames, setRenames] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
+  const [draggingColumn, setDraggingColumn] = useState<number | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -61,6 +62,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [columnWidths, setColumnWidths] = useState<number[]>(() => readTableColumnWidths(userId, itemId));
   const columnWidthsRef = useRef(columnWidths);
   const resizeRef = useRef<{ col: number; startX: number; startLevel: number } | null>(null);
+  const touchColumnDrag = useRef<{ source: number; target: number; after: boolean } | null>(null);
+  const reorderColumnRef = useRef<(from: number, to: number, after?: boolean) => void>(() => undefined);
   const touchDrag = useRef<{ source: number; target: number; rows: number[] } | null>(null);
   const pendingColumnFocus = useRef<number | null>(null);
   const pendingRowFocus = useRef<{ row: number; col: number } | null>(null);
@@ -76,6 +79,14 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   useEffect(() => {
     const onMove = (event: PointerEvent) => {
+      if (touchColumnDrag.current && event.pointerType === "touch") {
+        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-column-index]");
+        const targetCol = Number(target?.dataset.columnIndex);
+        if (Number.isInteger(targetCol) && target) {
+          touchColumnDrag.current.target = targetCol;
+          touchColumnDrag.current.after = event.clientX >= target.getBoundingClientRect().left + target.getBoundingClientRect().width / 2;
+        }
+      }
       const resize = resizeRef.current;
       if (!resize) return;
       const nextLevel = Math.max(0, Math.min(7, resize.startLevel + Math.round((event.clientX - resize.startX) / 24)));
@@ -85,9 +96,15 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
       setColumnWidths(next);
     };
     const onUp = () => {
-      if (!resizeRef.current) return;
-      resizeRef.current = null;
-      writeTableColumnWidths(userId, itemId, columnWidthsRef.current);
+      if (touchColumnDrag.current) {
+        const drag = touchColumnDrag.current;
+        touchColumnDrag.current = null;
+        reorderColumnRef.current(drag.source, drag.target, drag.after);
+      }
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        writeTableColumnWidths(userId, itemId, columnWidthsRef.current);
+      }
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -166,6 +183,34 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const clearSort = () => { setSortCol(null); setSelectedRows(new Set()); };
+
+  const reorderColumn = (from: number, to: number, after = false) => {
+    if (from === to || from < 0 || to < 0 || from >= header.length || to >= header.length) { setDraggingColumn(null); return; }
+    const order = header.map((_, index) => index);
+    const [moved] = order.splice(from, 1);
+    const insertion = Math.max(0, Math.min(order.length, to + (after ? 1 : 0) - (from < to + (after ? 1 : 0) ? 1 : 0)));
+    order.splice(insertion, 0, moved);
+    const names = order.map((index) => header[index]);
+    let next = reorderDefs(markdown, FIELDS_KEY, names);
+    if (table) {
+      const nextBody = splitFrontmatter(next).body;
+      const currentTable = findTables(nextBody)[0];
+      if (currentTable) {
+        const rows = table.rows.map((row) => order.map((index) => row[index] ?? ""));
+        next = joinDoc(splitFrontmatter(next).frontText, replaceTable(nextBody, 0, {
+          ...currentTable, header: names, rows,
+        }));
+      }
+    }
+    saveUndoPoint("列顺序");
+    onChangeMarkdown(next);
+    setDraggingColumn(null);
+    setSelectedRows(new Set());
+    setSortCol(null);
+    setFilterCol(0);
+    setMenuCol(null);
+  };
+  reorderColumnRef.current = reorderColumn;
 
   const visibleRows = useMemo(() => {
     if (!table) return [];
@@ -609,6 +654,26 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                 <ColumnHeaderCell
                   key={col}
                   name={name}
+                  index={col}
+                  dragging={draggingColumn === col}
+                  onColumnDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-column", String(col)); setDraggingColumn(col); }}
+                  onTouchColumnDragStart={(event) => {
+                    if (event.pointerType !== "touch") return;
+                    event.preventDefault();
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    touchColumnDrag.current = { source: col, target: col, after: false };
+                    setDraggingColumn(col);
+                  }}
+                  onColumnDragEnd={() => setDraggingColumn(null)}
+                  onColumnDrop={(event) => {
+                    if (!event.dataTransfer.types.includes("application/x-menote-column")) return;
+                    const from = Number(event.dataTransfer.getData("application/x-menote-column"));
+                    if (Number.isInteger(from)) {
+                      event.preventDefault(); event.stopPropagation();
+                      const bounds = event.currentTarget.getBoundingClientRect();
+                      reorderColumn(from, col, event.clientX >= bounds.left + bounds.width / 2);
+                    }
+                  }}
                   draft={renames[col]}
                   type={columnType(col)}
                   def={fieldDefs[name.trim()]}
@@ -694,8 +759,14 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 }
 
 /** 已有字段的表头：名称就地改，类型菜单挂到该列下方（portal，不被滚动容器裁切）。 */
-function ColumnHeaderCell({ name, draft, type, def, optionColors, menuOpen, error, sortDirection, widthLevel, onSort, onResizeStart, onResize, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onDelete }: {
+function ColumnHeaderCell({ name, index, dragging, onColumnDragStart, onTouchColumnDragStart, onColumnDragEnd, onColumnDrop, draft, type, def, optionColors, menuOpen, error, sortDirection, widthLevel, onSort, onResizeStart, onResize, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onDelete }: {
   name: string;
+  index: number;
+  dragging: boolean;
+  onColumnDragStart: (event: ReactDragEvent<HTMLButtonElement>) => void;
+  onTouchColumnDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onColumnDragEnd: () => void;
+  onColumnDrop: (event: ReactDragEvent<HTMLDivElement>) => void;
   draft: string | undefined;
   type: PropertyType;
   def: PropertyDef | undefined;
@@ -719,7 +790,9 @@ function ColumnHeaderCell({ name, draft, type, def, optionColors, menuOpen, erro
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const options = (def?.options ?? []).join("\n");
   return (
-    <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}`} role="columnheader" ref={setAnchor}>
+    <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}${dragging ? " dragging" : ""}`} role="columnheader" ref={setAnchor} data-column-index={index}
+      onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-menote-column")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={onColumnDrop}>
+      <button type="button" className="mn-tabledoc-col-drag" aria-label={`拖动第 ${index + 1} 列调整顺序`} title="拖动调整列顺序" draggable onPointerDown={onTouchColumnDragStart} onDragStart={onColumnDragStart} onDragEnd={onColumnDragEnd}><GripVertical aria-hidden="true" /></button>
       <button type="button" className="mn-tabledoc-sort" aria-label={`按${name}排序${sortDirection ? `，当前${sortDirection === "asc" ? "升序" : "降序"}` : ""}`}
         title={sortDirection === "asc" ? "升序（再次点击降序）" : sortDirection === "desc" ? "降序（再次点击升序）" : "排序"} onClick={onSort}>
         {sortDirection === "desc" ? <ArrowDown aria-hidden="true" /> : sortDirection === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowUpDown aria-hidden="true" />}

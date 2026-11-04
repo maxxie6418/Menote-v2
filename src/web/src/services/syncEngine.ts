@@ -10,6 +10,7 @@ import { applyPulledSettings } from "./appearanceSettingsService";
 import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
 import { applyPulledPropertyTemplates } from "./propertyTemplateService";
+import { applyPulledWorkspaceSettings } from "./workspaceSettingsService";
 import { outboxUpsert } from "./contentShared";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
@@ -297,6 +298,7 @@ async function pullUpdates(userId: string): Promise<void> {
       await localDb.topics.put(topic);
     }
     await applyPulledSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
+    await applyPulledWorkspaceSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledAiSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledRaindropSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
     await applyPulledPropertyTemplates(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
