@@ -577,6 +577,8 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 /* 添加属性：预设模板行（FR-PROP-9） */
 .mn-proptemplates { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); flex: 1 1 var(--app-full-size); }
 .mn-proptemplates-label { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-proptemplates-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); }
+.mn-proptemplates-groupname { color: var(--app-fg-faint); font-size: var(--app-size-micro); }
 .mn-proptemplate { display: inline-flex; align-items: baseline; gap: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); cursor: pointer; }
 .mn-proptemplate:hover { background: var(--app-hover); border-color: var(--app-accent); }
 .mn-proptemplate-type { color: var(--app-fg-faint); font-size: var(--app-size-micro); }
@@ -743,13 +745,19 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
 /* 设置 · 默认属性预设（FR-PROP-9） */
-.mn-templatelist { display: flex; flex-direction: column; margin-block: var(--app-space-8); }
+.mn-templategroup { margin-block: var(--app-space-8); }
+.mn-templategroup-label { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); margin: 0 0 var(--app-space-4); }
+.mn-templatelist { display: flex; flex-direction: column; }
 .mn-templaterow { display: flex; align-items: center; gap: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); padding-block: var(--app-space-4); font-size: var(--app-size-chip); }
 .mn-templaterow-name { color: var(--app-fg); }
-.mn-templaterow-key { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); }
-.mn-templaterow-type { color: var(--app-fg-subtle); }
-.mn-templaterow-options { flex: 1; min-width: var(--app-zero); color: var(--app-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mn-templateform { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); }
+.mn-templaterow-key { font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-sm); padding: var(--app-space-1) var(--app-space-4); }
+.mn-templaterow-type { color: var(--app-fg-muted); flex: none; }
+.mn-templaterow-options { flex: 1; min-width: var(--app-zero); color: var(--app-fg-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-templaterow-del { margin-left: auto; flex: none; }
+.mn-templateform { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); margin-top: var(--app-space-8); }
+.mn-templateform-key { flex: 0 0 var(--app-note-grid-min); }
+.mn-templateform-label { flex: 1 1 var(--app-note-grid-min); }
+.mn-templateform-group { flex: 0 0 var(--app-note-grid-min); }
 .mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
 .mn-cliptemplate-section { display: flex; flex-direction: column; gap: var(--app-space-sm); margin-block: var(--app-space-md); }
 .mn-cliptemplate-import { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr); gap: var(--app-space-xs); width: var(--app-full-size); }

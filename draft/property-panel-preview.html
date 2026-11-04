@@ -116,10 +116,16 @@
     <div class="mn-proprow mn-proprow-add">
       <div class="mn-proptemplates" role="group" aria-label="默认属性预设">
         <span class="mn-proptemplates-label">预设</span>
-        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">状态</span><span class="mn-proptemplate-type">单选</span></button>
-        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">作者</span><span class="mn-proptemplate-type">文本</span></button>
-        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">来源</span><span class="mn-proptemplate-type">链接</span></button>
-        <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">收藏类型</span><span class="mn-proptemplate-type">单选</span></button>
+        <span class="mn-proptemplates-group">
+          <span class="mn-proptemplates-groupname">剪藏</span>
+          <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">来源链接</span><span class="mn-proptemplate-type">链接</span></button>
+          <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">作者</span><span class="mn-proptemplate-type">文本</span></button>
+        </span>
+        <span class="mn-proptemplates-group">
+          <span class="mn-proptemplates-groupname">通用</span>
+          <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">状态</span><span class="mn-proptemplate-type">单选</span></button>
+          <button type="button" class="mn-proptemplate"><span class="mn-proptemplate-name">项目</span><span class="mn-proptemplate-type">文本</span></button>
+        </span>
       </div>
       <input class="mn-propinput" placeholder="属性名" />
       <select class="mn-propselect"><option>文本</option></select>
@@ -127,6 +133,66 @@
       <div class="mn-proprow-actions">
         <button type="button" class="mn-textbtn">保存定义</button>
         <button type="button" class="mn-textbtn">取消</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mk-state">
+  <p class="mk-state-label">设置 · 默认属性（键名可互通，显示名中文，按组分栏）</p>
+  <div class="mk-frame">
+    <div class="mn-setrow">
+      <div>
+        <p class="mn-setlabel">默认属性预设</p>
+        <p class="mn-sethint">添加属性时可以直接挑这里的预设，省去每次手填键名、类型与候选值。预设随账号同步；改动只影响之后添加的属性，已经加进文档的属性不受影响，文档里的增删改也不会反写这里。键名是可互通的机器名（英文惯例 / Raindrop 标准列名），中文只作显示名。</p>
+      </div>
+    </div>
+    <div class="mn-templategroup">
+      <p class="mn-templategroup-label">Raindrop</p>
+      <div class="mn-templatelist">
+        <div class="mn-templaterow">
+          <span class="mn-templaterow-name">标题</span>
+          <code class="mn-templaterow-key">标题</code>
+          <span class="mn-templaterow-type">文本</span>
+          <span class="mn-templaterow-options"></span>
+          <button type="button" class="mn-iconbtn mn-templaterow-del">✕</button>
+        </div>
+        <div class="mn-templaterow">
+          <span class="mn-templaterow-name">类型</span>
+          <code class="mn-templaterow-key">类型</code>
+          <span class="mn-templaterow-type">单选</span>
+          <span class="mn-templaterow-options" title="link、article、image、video、document、audio">link、article、image、video、document、audio</span>
+          <button type="button" class="mn-iconbtn mn-templaterow-del">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="mn-templategroup">
+      <p class="mn-templategroup-label">通用</p>
+      <div class="mn-templatelist">
+        <div class="mn-templaterow">
+          <span class="mn-templaterow-name">状态</span>
+          <code class="mn-templaterow-key">status</code>
+          <span class="mn-templaterow-type">单选</span>
+          <span class="mn-templaterow-options" title="未开始、进行中、已完成、已搁置">未开始、进行中、已完成、已搁置</span>
+          <button type="button" class="mn-iconbtn mn-templaterow-del">✕</button>
+        </div>
+        <div class="mn-templaterow">
+          <span class="mn-templaterow-name">作者</span>
+          <code class="mn-templaterow-key">author</code>
+          <span class="mn-templaterow-type">文本</span>
+          <span class="mn-templaterow-options"></span>
+          <button type="button" class="mn-iconbtn mn-templaterow-del">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="mn-templateform">
+      <input class="mn-propinput mn-templateform-key" placeholder="键名（如 status）" />
+      <input class="mn-propinput mn-templateform-label" placeholder="显示名（可选）" />
+      <select class="mn-propselect"><option>文本</option></select>
+      <input class="mn-propinput mn-templateform-group" placeholder="分组（可选）" />
+      <div class="mn-proprow-actions">
+        <button type="button" class="mn-textbtn">＋ 添加预设</button>
+        <button type="button" class="mn-textbtn">恢复出厂预设</button>
       </div>
     </div>
   </div>

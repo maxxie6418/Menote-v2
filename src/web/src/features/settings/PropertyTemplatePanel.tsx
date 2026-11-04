@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import type { PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import { PROPERTY_TYPES, parseOptionList } from "../../lib/frontmatter";
@@ -17,6 +17,18 @@ const TYPE_LABELS: Record<PropertyType, string> = {
   link: "链接",
 };
 
+/** 按组归拢（组内保持原顺序；无组的排在最后）。 */
+function groupTemplates(templates: PropertyTemplate[]): Array<{ group: string; items: PropertyTemplate[] }> {
+  const groups = new Map<string, PropertyTemplate[]>();
+  for (const template of templates) {
+    const key = template.group ?? "其它";
+    const list = groups.get(key) ?? [];
+    list.push(template);
+    groups.set(key, list);
+  }
+  return [...groups.entries()].map(([group, items]) => ({ group, items }));
+}
+
 /**
  * 默认属性设置（FR-PROP-9）：这里配的预设是「添加属性」的模板库，随账号同步。
  * 预设改动只影响之后添加的属性；已经加进文档的属性就是该文档自己的设定，不受影响。
@@ -24,6 +36,7 @@ const TYPE_LABELS: Record<PropertyType, string> = {
 export function PropertyTemplatePanel({ userId }: { userId: string }) {
   const [templates, setTemplates] = useState<PropertyTemplate[] | null>(null);
   const [draft, setDraft] = useState<PropertyTemplate | null>(null);
+  const grouped = useMemo(() => (templates ? groupTemplates(templates) : []), [templates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,35 +59,47 @@ export function PropertyTemplatePanel({ userId }: { userId: string }) {
           <p className="mn-sethint">
             添加属性时可以直接挑这里的预设，省去每次手填键名、类型与候选值。预设随账号同步；
             改动只影响之后添加的属性，已经加进文档的属性不受影响，文档里的增删改也不会反写这里。
+            <br />
+            键名是可互通的机器名（英文惯例 / Raindrop 标准列名），中文只作显示名——
+            导到 Obsidian 不用改键，接 Raindrop 的表也能被连接器认出。
           </p>
         </div>
       </div>
-      <div className="mn-templatelist">
-        {templates.map((template) => (
-          <div key={template.id} className="mn-templaterow">
-            <span className="mn-templaterow-name">{template.label ?? template.name}</span>
-            <span className="mn-templaterow-key">{template.name}</span>
-            <span className="mn-templaterow-type">{TYPE_LABELS[template.type]}</span>
-            {template.options && template.options.length > 0 && (
-              <span className="mn-templaterow-options">{template.options.join("、")}</span>
-            )}
-            <button type="button" className="mn-iconbtn" aria-label={`删除预设 ${template.name}`}
-              onClick={() => persist(templates.filter((row) => row.id !== template.id))}>
-              <X />
-            </button>
+      {grouped.map(({ group, items }) => (
+        <div key={group} className="mn-templategroup">
+          <p className="mn-templategroup-label">{group}</p>
+          <div className="mn-templatelist">
+            {items.map((template) => (
+              <div key={template.id} className="mn-templaterow">
+                <span className="mn-templaterow-name">{template.label ?? template.name}</span>
+                <code className="mn-templaterow-key">{template.name}</code>
+                <span className="mn-templaterow-type">{TYPE_LABELS[template.type]}</span>
+                {template.options && template.options.length > 0 && (
+                  <span className="mn-templaterow-options" title={template.options.join("、")}>
+                    {template.options.join("、")}
+                  </span>
+                )}
+                <button type="button" className="mn-iconbtn mn-templaterow-del" aria-label={`删除预设 ${template.name}`}
+                  onClick={() => persist(templates.filter((row) => row.id !== template.id))}>
+                  <X />
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
-        {templates.length === 0 && <p className="mn-sethint">还没有预设。下面的出厂预设可以一键恢复。</p>}
-      </div>
+        </div>
+      ))}
+      {templates.length === 0 && <p className="mn-sethint">还没有预设。下面的出厂预设可以一键恢复。</p>}
       <div className="mn-templateform">
-        <input className="mn-propinput" placeholder="键名（如 status）" aria-label="预设键名" value={draft?.name ?? ""}
+        <input className="mn-propinput mn-templateform-key" placeholder="键名（如 status）" aria-label="预设键名" value={draft?.name ?? ""}
           onChange={(event) => setDraft({ ...(draft ?? { id: "", type: "text" }), name: event.target.value })} />
-        <input className="mn-propinput" placeholder="显示名（可选）" aria-label="预设显示名" value={draft?.label ?? ""}
+        <input className="mn-propinput mn-templateform-label" placeholder="显示名（可选）" aria-label="预设显示名" value={draft?.label ?? ""}
           onChange={(event) => setDraft({ ...(draft ?? { id: "", type: "text", name: "" }), label: event.target.value })} />
         <select className="mn-propselect" aria-label="预设类型" value={draft?.type ?? "text"}
           onChange={(event) => setDraft({ ...(draft ?? { id: "", name: "" }), type: event.target.value as PropertyType })}>
           {PROPERTY_TYPES.map((option) => <option key={option} value={option}>{TYPE_LABELS[option]}</option>)}
         </select>
+        <input className="mn-propinput mn-templateform-group" placeholder="分组（可选）" aria-label="预设分组" value={draft?.group ?? ""}
+          onChange={(event) => setDraft({ ...(draft ?? { id: "", name: "", type: "text" }), group: event.target.value })} />
         {(draft?.type === "select" || draft?.type === "multiselect") && (
           <textarea className="mn-proptextarea" rows={3} placeholder="候选值：每行一个，或用分号分隔" aria-label="预设候选值"
             value={(draft?.options ?? []).join("\n")}

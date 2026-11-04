@@ -1,9 +1,9 @@
 import type { UserSetting } from "@menote/shared";
-import { PROPERTY_TEMPLATES_SETTING_KEY } from "@menote/shared";
+import { BOOKMARK_COLUMNS, PROPERTY_TEMPLATES_SETTING_KEY } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { enqueueOutbox } from "../db/outboxRepo";
 import { newId } from "../lib/hash";
-import type { PropertyTemplate } from "../lib/frontmatter";
+import type { PropertyTemplate, PropertyType } from "../lib/frontmatter";
 
 /**
  * 默认属性模板库（FR-PROP-9）：设置里可配、随账号同步。
@@ -11,20 +11,33 @@ import type { PropertyTemplate } from "../lib/frontmatter";
  * 之后预设怎么改都不回写既有文档；文档里的增删改也不会反写预设。
  */
 
-/** 出厂预设：剪藏 / Raindrop / Obsidian 通用三族（用户可在设置里增删改）。 */
+/**
+ * 出厂预设：剪藏 / Raindrop / Obsidian 通用三族。
+ * 键名口径（FR-PROP-9）：**键名是可互通的机器名，显示名才是中文**——
+ *  · Raindrop 组直接用连接器写死的标准列名（标题/网址/摘要/备注/标签/类型/封面/采集时间/重要），
+ *    连接器按列名读写，换名就认不出；
+ *  · 其余用 Obsidian 社区惯例的英文键（status/author/created/source…），与 Obsidian 库里的
+ *    既有属性同名，迁移或导出过去不用改键。
+ */
 export const DEFAULT_PROPERTY_TEMPLATES: PropertyTemplate[] = [
-  { id: "clip-source", name: "来源", type: "link", label: "来源链接", value: "" },
-  { id: "clip-author", name: "作者", type: "text", value: "" },
-  { id: "clip-site", name: "站点", type: "text", value: "" },
-  { id: "clip-time", name: "采集时间", type: "date", value: "" },
-  { id: "raindrop-type", name: "收藏类型", type: "select", options: ["文章", "图片", "视频", "音频"], value: "文章" },
-  { id: "raindrop-time", name: "收藏时间", type: "date", value: "" },
-  { id: "raindrop-rating", name: "评分", type: "number", value: "" },
-  { id: "raindrop-domain", name: "域名", type: "text", value: "" },
-  { id: "obs-status", name: "状态", type: "select", options: ["未开始", "进行中", "已完成", "已搁置"], value: "未开始" },
-  { id: "obs-author", name: "作者", type: "text", value: "" },
-  { id: "obs-project", name: "项目", type: "text", value: "" },
-  { id: "obs-priority", name: "优先级", type: "select", options: ["高", "中", "低"], value: "中" },
+  // Raindrop 标准列：与连接器共享同一份定义，避免两处漂移。
+  ...BOOKMARK_COLUMNS.map((column) => ({
+    id: `raindrop-${column.name}`,
+    name: column.name,
+    type: column.type as PropertyType,
+    ...(column.options ? { options: [...column.options] } : {}),
+    group: "Raindrop",
+  })),
+  { id: "clip-source", name: "source", type: "link", label: "来源链接", group: "剪藏" },
+  { id: "clip-author", name: "author", type: "text", label: "作者", group: "剪藏" },
+  { id: "clip-site", name: "site", type: "text", label: "站点", group: "剪藏" },
+  { id: "clip-published", name: "publishedAt", type: "date", label: "发布时间", group: "剪藏" },
+  { id: "clip-captured", name: "capturedAt", type: "date", label: "采集时间", group: "剪藏" },
+  { id: "obs-status", name: "status", type: "select", label: "状态", options: ["未开始", "进行中", "已完成", "已搁置"], value: "未开始", group: "通用" },
+  { id: "obs-author", name: "author", type: "text", label: "作者", group: "通用" },
+  { id: "obs-created", name: "created", type: "date", label: "创建时间", group: "通用" },
+  { id: "obs-project", name: "project", type: "text", label: "项目", group: "通用" },
+  { id: "obs-priority", name: "priority", type: "select", label: "优先级", options: ["高", "中", "低"], value: "中", group: "通用" },
 ];
 
 /** 设置里存的值做一次清洗：丢掉结构不对的项，避免脏数据进 UI。 */
@@ -49,6 +62,7 @@ export function normalizePropertyTemplates(value: unknown): PropertyTemplate[] {
       ...(typeof item.label === "string" && item.label ? { label: item.label } : {}),
       ...(options && options.length ? { options } : {}),
       ...(value0 !== undefined ? { value: value0 } : {}),
+      ...(typeof item.group === "string" && item.group ? { group: item.group } : {}),
     });
   }
   return templates;

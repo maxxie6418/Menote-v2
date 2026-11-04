@@ -33,13 +33,15 @@ export interface PropertyDef {
  */
 export interface PropertyTemplate {
   id: string;
-  /** 键名（写进 YAML 的键）。 */
+  /** 键名（写进 YAML 的键）——机器可互通的名称（英文惯例 / Raindrop 标准列名）。 */
   name: string;
   type: PropertyType;
   label?: string;
   options?: string[];
   /** 加进文档时写入的默认值（文本/数字/日期/链接为字符串，复选框为布尔，多选为数组）。 */
   value?: string | boolean | string[];
+  /** 分组（设置里按组分栏列出）：剪藏 / Raindrop / 通用。 */
+  group?: string;
 }
 
 /**

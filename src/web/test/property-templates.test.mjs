@@ -12,7 +12,8 @@ const bundle = await build({
     contents: `export { localDb } from "./src/db/localDb";
                export { readPropertyTemplates, savePropertyTemplates, normalizePropertyTemplates, DEFAULT_PROPERTY_TEMPLATES }
                  from "./src/services/propertyTemplateService";
-               export { readPropRows, writeDef, writeValue, removeProp, removePropDef, PROPS_KEY } from "./src/lib/frontmatter";`,
+               export { readPropRows, writeDef, writeValue, removeProp, removePropDef, PROPS_KEY } from "./src/lib/frontmatter";
+               export { BOOKMARK_COLUMNS } from "@menote/shared";`,
     resolveDir: fileURLToPath(new URL("..", import.meta.url)),
   },
   bundle: true, write: false, format: "esm", platform: "browser",
@@ -20,7 +21,7 @@ const bundle = await build({
 const mod = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 const {
   localDb, readPropertyTemplates, savePropertyTemplates, normalizePropertyTemplates, DEFAULT_PROPERTY_TEMPLATES,
-  readPropRows, writeDef, writeValue, removeProp, removePropDef, PROPS_KEY,
+  readPropRows, writeDef, writeValue, removeProp, removePropDef, PROPS_KEY, BOOKMARK_COLUMNS,
 } = mod;
 
 const USER = "user-a";
@@ -46,6 +47,21 @@ test("默认属性预设：未配置时给出厂预设，保存后随账号设�
   assert.equal(rows.length, 1);
   assert.equal(rows[0].entity, "setting");
   assert.equal(rows[0].entityId, "propertyTemplates");
+});
+
+test("预设键名口径：Raindrop 组用连接器标准列名，其余用英文键 + 中文显示名", async () => {
+  await reset();
+  const presets = await readPropertyTemplates(USER);
+  // Raindrop：连接器按列名读写，键名必须与标准列一致，否则拉回的数据落错列
+  const raindrop = presets.filter((item) => item.group === "Raindrop").map((item) => item.name);
+  assert.deepEqual(raindrop, BOOKMARK_COLUMNS.map((column) => column.name));
+  // 其余：英文键（Obsidian 惯例）+ 中文显示名，导出/迁移不用改键
+  const general = presets.filter((item) => item.group === "通用");
+  assert.ok(general.length >= 4);
+  for (const item of general) {
+    assert.match(item.name, /^[a-z][a-zA-Z]*$/);
+    assert.ok(item.label, `${item.name} 应带中文显示名`);
+  }
 });
 
 test("预设清洗：丢掉结构不对的项，缺 id 的补一个", () => {

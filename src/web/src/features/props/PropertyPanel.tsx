@@ -291,6 +291,18 @@ function PropertyTypeEditor({ row, onDefine }: { row: PropRow; onDefine: (def: P
   );
 }
 
+/** 按组归拢预设（组内保持原顺序；无组的排在最后）。 */
+function groupTemplates(templates: PropertyTemplate[]): Array<{ group: string; items: PropertyTemplate[] }> {
+  const groups = new Map<string, PropertyTemplate[]>();
+  for (const template of templates) {
+    const key = template.group ?? "其它";
+    const list = groups.get(key) ?? [];
+    list.push(template);
+    groups.set(key, list);
+  }
+  return [...groups.entries()].map(([group, items]) => ({ group, items }));
+}
+
 /** 新增属性：先列预设模板（点一下即加，带默认值），再给自定义表单（FR-PROP-9）。 */
 function AddPropertyRow({ templates, onAdd, onCancel }: {
   templates: PropertyTemplate[];
@@ -307,16 +319,21 @@ function AddPropertyRow({ templates, onAdd, onCancel }: {
       {templates.length > 0 && (
         <div className="mn-proptemplates" role="group" aria-label="默认属性预设">
           <span className="mn-proptemplates-label">预设</span>
-          {templates.map((template) => (
-            <button key={template.id} type="button" className="mn-proptemplate"
-              onClick={() => onAdd(template.name, {
-                type: template.type,
-                ...(template.label ? { label: template.label } : {}),
-                ...(template.options ? { options: template.options } : {}),
-              }, template.value)}>
-              <span className="mn-proptemplate-name">{template.label ?? template.name}</span>
-              <span className="mn-proptemplate-type">{TYPE_LABELS[template.type]}</span>
-            </button>
+          {groupTemplates(templates).map(({ group, items }) => (
+            <span key={group} className="mn-proptemplates-group">
+              <span className="mn-proptemplates-groupname">{group}</span>
+              {items.map((template) => (
+                <button key={template.id} type="button" className="mn-proptemplate"
+                  onClick={() => onAdd(template.name, {
+                    type: template.type,
+                    ...(template.label ? { label: template.label } : {}),
+                    ...(template.options ? { options: template.options } : {}),
+                  }, template.value)}>
+                  <span className="mn-proptemplate-name">{template.label ?? template.name}</span>
+                  <span className="mn-proptemplate-type">{TYPE_LABELS[template.type]}</span>
+                </button>
+              ))}
+            </span>
           ))}
         </div>
       )}
