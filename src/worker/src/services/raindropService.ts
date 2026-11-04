@@ -367,11 +367,13 @@ export async function runPull(env: Env, userId: string, source: "scheduled" | "m
     });
     return counts;
   } catch (error) {
+    const unauthorized = error instanceof RaindropApiError && error.status === 401;
     await insertSyncRun(env.DB, userId, {
       direction: "pull", source, startedAt, finishedAt: Date.now(), status: "failed", ...counts,
       pushCreated: 0, pushUpdated: 0, pushFailed: 0,
-      detail: String(error).slice(0, 500),
+      detail: unauthorized ? "raindrop_token_unauthorized" : String(error).slice(0, 500),
     }).catch(() => { /* 记录失败不掩盖原错误 */ });
+    if (unauthorized) throw new RaindropServiceError("raindrop_token_unauthorized", 401);
     throw error;
   }
 }

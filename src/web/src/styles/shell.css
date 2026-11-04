@@ -679,6 +679,11 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 /* 说明文字占满剩余宽度、控件留在右侧同一行：文字长了就自己折行，不把控件挤到下一行 */
 .mn-setrow > div:first-child { flex: 1 1 var(--app-field-width); min-width: var(--app-zero); }
 .mn-setrow:last-child { border-bottom: var(--app-zero); }
+.mn-raindrop-progress { display: grid; gap: var(--app-space-6); padding-block: var(--app-space-10); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-raindrop-progress-track { position: relative; inline-size: var(--app-full-size); block-size: var(--app-space-6); overflow: hidden; border-radius: var(--app-radius-pill); background: var(--app-border); }
+.mn-raindrop-progress-track::before { position: absolute; inset-block: var(--app-zero); inline-size: var(--app-field-width); max-inline-size: var(--app-full-size); border-radius: var(--app-radius-pill); background: var(--app-accent); content: ""; animation: mn-raindrop-indeterminate var(--app-motion-loop) var(--app-ease) infinite; }
+@keyframes mn-raindrop-indeterminate { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
+@media (prefers-reduced-motion: reduce) { .mn-raindrop-progress-track::before { animation: none; } }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
 .mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-10); margin: var(--app-space-10) var(--app-zero); }

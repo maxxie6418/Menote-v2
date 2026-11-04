@@ -49,6 +49,13 @@ function runSummary(run: RaindropStatusView["runs"][number]): string {
   return `创建 ${run.pushCreated} · 更新 ${run.pushUpdated} · 失败 ${run.pushFailed}`;
 }
 
+function runDetailText(detail: string | null): string {
+  if (detail === "raindrop_token_unauthorized" || /unauthorized/i.test(detail ?? "")) {
+    return "Raindrop 拒绝了读取请求，请重新生成 Test Token 并保存";
+  }
+  return detail ?? "";
+}
+
 const STATUS_LABELS = { ok: "成功", partial: "部分完成", failed: "失败" } as const;
 
 /** Raindrop 连接器面板（TP9）：令牌、搜索选取表格、立即拉取、同步记录与快照信息。 */
@@ -58,6 +65,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
   const [status, setStatus] = useState<RaindropStatusView | null>(() => peek<RaindropStatusView | null>(SETTINGS_CACHE.raindropStatus) ?? null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pulling, setPulling] = useState(false);
   const [tokenDraft, setTokenDraft] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -201,12 +209,23 @@ export function RaindropPanel({ userId }: { userId: string }) {
                 onClick={() => void run(() => unbindRaindropTable(), "已解绑（表格内容保留）")}>解绑</button>
               <button type="button" className="app-button" disabled={busy}
                 onClick={() => void run(async () => {
-                  const outcome = await pullRaindropNow();
-                  setMessage(`拉取完成：新增 ${outcome.pulledNew}、更新 ${outcome.pulledUpdated}、冲突 ${outcome.conflicts}、远端消失 ${outcome.remoteMissing}、跳过 ${outcome.skipped}`);
-                }, "")}>立即拉取</button>
+                  setPulling(true);
+                  try {
+                    const outcome = await pullRaindropNow();
+                    setMessage(`拉取完成：新增 ${outcome.pulledNew}、更新 ${outcome.pulledUpdated}、冲突 ${outcome.conflicts}、远端消失 ${outcome.remoteMissing}、跳过 ${outcome.skipped}`);
+                  } finally {
+                    setPulling(false);
+                  }
+                }, "")}>{pulling ? "正在拉取…" : "立即拉取"}</button>
             </>
           : null}
       </div>
+
+      {pulling && <div className="mn-raindrop-progress" role="status" aria-live="polite">
+        <span>正在从 Raindrop 读取收藏并同步到表格，请稍候。</span>
+        <div className="mn-raindrop-progress-track" role="progressbar" aria-label="Raindrop 拉取进度"
+          aria-valuetext="正在读取远端收藏并更新本地表格" />
+      </div>}
 
       {binding
         ? <div className="mn-setrow">
@@ -287,7 +306,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
                   <li key={run.id} className="mn-sethint">
                     {formatTime(run.finishedAt)} · {run.direction === "pull" ? "拉取" : "推送"}
                     （{run.source === "manual" ? "手动" : "定时"}）· {STATUS_LABELS[run.status]}
-                    · {runSummary(run)}{run.detail ? ` · ${run.detail}` : ""}
+                    · {runSummary(run)}{run.detail ? ` · ${runDetailText(run.detail)}` : ""}
                   </li>
                 ))}
               </ul>}

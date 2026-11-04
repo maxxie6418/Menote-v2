@@ -7,6 +7,7 @@ const RAINDROP_ERROR_TEXT: Record<string, string> = {
   raindrop_target_unavailable: "这张表格不能绑定：需要是已同步的明文表格，且不在私人空间",
   raindrop_bind_conflict: "绑定冲突，请先解绑再试",
   raindrop_token_invalid: "Raindrop 令牌无效，请重新粘贴",
+  raindrop_token_unauthorized: "Raindrop 拒绝了读取请求，请重新生成 Test Token 并保存",
   raindrop_unreachable: "连不上 Raindrop，请稍后再试",
   raindrop_not_bound: "还没有绑定表格",
   raindrop_connector_disabled: "插件未启用",
