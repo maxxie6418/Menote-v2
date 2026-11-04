@@ -386,16 +386,16 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         extra={(
           <>
             {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
-            <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
-            <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>}
+            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
-            </button>
-            <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
+            </button>}
+            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
               <Download />
-            </button>
-            <button type="button" className="mn-iconbtn" aria-label="移入回收站" title="移入回收站" onClick={() => void softDeleteItem(userId, item.id)}>
+            </button>}
+            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="移入回收站" title="移入回收站" onClick={() => void softDeleteItem(userId, item.id)}>
               <Trash2 />
-            </button>
+            </button>}
             <span className="mn-docmore">
               <button type="button" className="mn-iconbtn" aria-label="更多" aria-expanded={moreOpen} title="更多" onClick={() => setMoreOpen((open) => !open)}>
                 <MoreHorizontal />
@@ -410,6 +410,10 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                   }}>
                     <Copy />{linkCopied ? "链接已复制" : "复制文档链接"}
                   </button>
+                  {isTableDoc && <button type="button" role="menuitem" onClick={() => { setFocusMode((value) => !value); setMoreOpen(false); }}><Focus />{focusMode ? "退出专注模式" : "专注模式"}</button>}
+                  {isTableDoc && <button type="button" role="menuitem" disabled={uploading} onClick={() => { setMoreOpen(false); fileInputRef.current?.click(); }}><Paperclip />插入附件</button>}
+                  {isTableDoc && <button type="button" role="menuitem" onClick={() => { setExporting(true); setMoreOpen(false); }}><Download />导出</button>}
+                  {isTableDoc && <button type="button" role="menuitem" onClick={() => void softDeleteItem(userId, item.id)}><Trash2 />移入回收站</button>}
                   <button type="button" role="menuitem" onClick={() => void toggleEditorKind()}>
                     <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
                   </button>

@@ -793,7 +793,7 @@ function ColumnHeaderCell({ name, index, dragging, onColumnDragStart, onTouchCol
     <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}${dragging ? " dragging" : ""}`} role="columnheader" ref={setAnchor} data-column-index={index}
       onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-menote-column")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={onColumnDrop}>
       <button type="button" className="mn-tabledoc-col-drag" aria-label={`拖动第 ${index + 1} 列调整顺序`} title="拖动调整列顺序" draggable onPointerDown={onTouchColumnDragStart} onDragStart={onColumnDragStart} onDragEnd={onColumnDragEnd}><GripVertical aria-hidden="true" /></button>
-      <button type="button" className="mn-tabledoc-sort" aria-label={`按${name}排序${sortDirection ? `，当前${sortDirection === "asc" ? "升序" : "降序"}` : ""}`}
+      <button type="button" className={`mn-tabledoc-sort${sortDirection ? " active" : ""}`} aria-label={`按${name}排序${sortDirection ? `，当前${sortDirection === "asc" ? "升序" : "降序"}` : ""}`}
         title={sortDirection === "asc" ? "升序（再次点击降序）" : sortDirection === "desc" ? "降序（再次点击升序）" : "排序"} onClick={onSort}>
         {sortDirection === "desc" ? <ArrowDown aria-hidden="true" /> : sortDirection === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowUpDown aria-hidden="true" />}
       </button>
