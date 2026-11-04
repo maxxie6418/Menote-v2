@@ -365,6 +365,7 @@
   --app-table-long-value-max: 36rem;
   --app-tabledoc-rownum-width: 6rem; /* 行选择 + 触控拖动 + 行号 + 删除操作 */
   --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
+  --app-table-detail-width: min(28rem, 40vw); /* 多维表格行详情侧栏宽度 */
   --app-tabledoc-menu-z: 16;        /* 字段菜单：高于表头 sticky(2)，低于遮罩(20) */
   --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
   --app-motion-loop: 1.4s;          /* 登录加载动画循环周期 */

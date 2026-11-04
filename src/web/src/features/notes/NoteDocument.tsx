@@ -380,7 +380,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
 
   return (
-    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-focus={focusMode || undefined}>
+    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-focus={focusMode || undefined}>
       <DocBar
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(

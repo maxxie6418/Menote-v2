@@ -9,7 +9,9 @@ import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { TableCellEditor } from "./TableCellEditor";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
 import { compareGridValues, matchesGridFilter, parseGridClipboard, validateGridPaste } from "./tableGrid";
-import { readTableColumnWidths, writeTableColumnWidths } from "../../services/tablePreferencesService";
+import { readHiddenTableColumns, readTableColumnWidths, writeHiddenTableColumns, writeTableColumnWidths } from "../../services/tablePreferencesService";
+import { TableColumnVisibility } from "./TableColumnVisibility";
+import { TableRowDetailsPanel } from "./TableRowDetailsPanel";
 
 interface TableDocumentProps {
   userId: string;
@@ -51,6 +53,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
   const [draggingColumn, setDraggingColumn] = useState<number | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => readHiddenTableColumns(userId, itemId));
+  const [detailRow, setDetailRow] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filterCol, setFilterCol] = useState(0);
@@ -72,6 +76,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     const widths = readTableColumnWidths(userId, itemId);
     columnWidthsRef.current = widths;
     setColumnWidths(widths);
+    setHiddenColumns(readHiddenTableColumns(userId, itemId));
+    setDetailRow(null);
     setSelectedRows(new Set());
     setSortCol(null);
     setFilterValue("");
@@ -124,6 +130,14 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   /* 脚手架态（正文无表格）：列由 fields: 推导；首个字段/首行写入后进入网格态。 */
   const scaffoldHeader = table ? null : Object.keys(fieldDefs);
+  const header = table?.header ?? scaffoldHeader ?? [];
+  const visibleColumnIndices = header.map((_, index) => index).filter((index) => !hiddenColumns.includes(header[index]!));
+
+  const toggleColumnVisibility = (column: string, visible: boolean) => {
+    const next = visible ? hiddenColumns.filter((name) => name !== column) : [...new Set([...hiddenColumns, column])];
+    setHiddenColumns(next);
+    writeHiddenTableColumns(userId, itemId, next);
+  };
 
   const applyGrid = (header: string[], rows: string[][]) => {
     if (table) {
@@ -330,17 +344,19 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     const row = Number(cell.dataset.rowIndex);
     const col = Number(cell.dataset.colIndex);
     const visibleIndex = visibleRows.findIndex((entry) => entry.rowIndex === row);
+    const visibleColIndex = visibleColumnIndices.indexOf(col);
+    if (visibleColIndex < 0) return;
     const focusCell = (rowIndex: number, colIndex: number) => {
       const next = document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] input, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] button`);
       next?.focus();
     };
     if (event.key === "Tab") {
-      if (event.shiftKey && col === 0 && visibleIndex === 0) return;
+      if (event.shiftKey && visibleColIndex === 0 && visibleIndex === 0) return;
       event.preventDefault();
-      const nextCol = col + (event.shiftKey ? -1 : 1);
-      if (nextCol >= 0 && nextCol < table.header.length) focusCell(row, nextCol);
-      else if (event.shiftKey && visibleIndex > 0) focusCell(visibleRows[visibleIndex - 1]!.rowIndex, table.header.length - 1);
-      else if (!event.shiftKey && visibleIndex < visibleRows.length - 1) focusCell(visibleRows[visibleIndex + 1]!.rowIndex, 0);
+      const nextVisibleCol = visibleColIndex + (event.shiftKey ? -1 : 1);
+      if (nextVisibleCol >= 0 && nextVisibleCol < visibleColumnIndices.length) focusCell(row, visibleColumnIndices[nextVisibleCol]!);
+      else if (event.shiftKey && visibleIndex > 0) focusCell(visibleRows[visibleIndex - 1]!.rowIndex, visibleColumnIndices.at(-1)!);
+      else if (!event.shiftKey && visibleIndex < visibleRows.length - 1) focusCell(visibleRows[visibleIndex + 1]!.rowIndex, visibleColumnIndices[0]!);
       else if (!event.shiftKey) {
         addRow();
       }
@@ -371,7 +387,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     setFilterValue("");
     const rows = table ? [...table.rows, header.map(() => "")] : [header.map(() => "")];
     applyGrid(header, rows);
-    pendingRowFocus.current = { row: rows.length - 1, col: 0 };
+    pendingRowFocus.current = { row: rows.length - 1, col: visibleColumnIndices[0] ?? 0 };
   };
 
   const removeRow = (row: number) => {
@@ -574,8 +590,6 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     );
   }
 
-  const header = table?.header ?? scaffoldHeader ?? [];
-
   return (
     <div className="mn-tabledoc" aria-label="多维表格">
       {error && !addingCol && menuCol === null && <p className="mn-tabledoc-error" role="alert">{error}</p>}
@@ -585,6 +599,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           <div className="mn-tabledoc-bar-actions">
             {undoLabel && <button type="button" className="mn-textbtn" onClick={undoLastBulkAction} aria-label={`撤销${undoLabel}`}><RotateCcw aria-hidden="true" />撤销{undoLabel}</button>}
             <button type="button" className="mn-textbtn" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Filter aria-hidden="true" />筛选</button>
+            <TableColumnVisibility columns={header} hidden={hiddenColumns} onChange={toggleColumnVisibility} />
             {sortCol !== null && <button type="button" className="mn-textbtn" onClick={clearSort}>清除排序</button>}
             <button type="button" className="mn-textbtn" data-table-add-trigger aria-expanded={addingCol}
               onClick={() => { setAddingCol((open) => !open); setMenuCol(null); setError(null); }}>
@@ -643,6 +658,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           </div>
         </div>
       ) : (
+        <div className="mn-tabledoc-workspace">
+        <div className="mn-tabledoc-main">
         <div className="mn-tabledoc-scroll">
       <div className="mn-tabledoc-grid" role="grid" onPaste={pasteGrid} onKeyDown={handleGridKeyDown}>
             <div className="mn-tabledoc-row head" role="row">
@@ -650,7 +667,9 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                 <input type="checkbox" aria-label="选择当前可见行" checked={visibleRows.length > 0 && visibleRows.every(({ rowIndex }) => selectedRows.has(rowIndex))}
                   onChange={(event) => selectVisibleRows(event.target.checked)} />
               </div>
-              {header.map((name, col) => (
+              {visibleColumnIndices.map((col) => {
+                const name = header[col]!;
+                return (
                 <ColumnHeaderCell
                   key={col}
                   name={name}
@@ -694,7 +713,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   onColor={(option, color) => setColumnOptionColor(col, option, color)}
                   onDelete={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}
                 />
-              ))}
+                );
+              })}
               {addingCol && (
                 <AddColumnForm
                   onConfirm={addColumn}
@@ -725,23 +745,26 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                       setDraggingRow(row);
                     }}
                     onClick={(event) => event.stopPropagation()}>⠿</button>
-                  <span>{row + 1}</span>
+                  <button type="button" className="mn-tabledoc-row-open" aria-label={`查看第 ${row + 1} 行详情`} title="查看详情" onClick={() => setDetailRow(row)}>{row + 1}</button>
                   <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}><Trash2 aria-hidden="true" /></button>
                 </div>
-                {header.map((name, col) => (
+                {visibleColumnIndices.map((col) => {
+                  const name = header[col]!;
+                  return (
                   <div className={`mn-tabledoc-cell mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="gridcell" key={col} data-row-index={row} data-col-index={col}>
                     <TableCellEditor
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]}
                       onChange={(value) => setCell(row, col, value)}
                     />
                   </div>
-                ))}
+                  );
+                })}
                 {addingCol && <AddColumnSpacer />}
               </div>
             ))}
             <div className="mn-tabledoc-row foot" role="row">
               <div className="mn-tabledoc-rownum" role="presentation" />
-                {header.map((_, col) => <div className={`mn-tabledoc-cell ghost mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="presentation" key={col} />)}
+                {visibleColumnIndices.map((col) => <div className={`mn-tabledoc-cell ghost mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="presentation" key={col} />)}
               {addingCol && <AddColumnSpacer />}
             </div>
           </div>
@@ -752,6 +775,11 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
               </button>
             </div>
           )}
+        </div>
+        </div>
+        {detailRow !== null && table?.rows[detailRow] && (
+          <TableRowDetailsPanel rowNumber={detailRow + 1} columns={table.header} cells={table.rows[detailRow]} onClose={() => setDetailRow(null)} />
+        )}
         </div>
       )}
     </div>
