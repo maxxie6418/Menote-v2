@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { attachmentUrl } from "../../services/attachmentService";
 import { perfProbe } from "../../lib/perfProbe";
+import { remarkTextColorForRender } from "../editor";
 import {
   batchCount,
   FIRST_BATCH_CHARS,
@@ -127,7 +128,7 @@ export function MarkdownView({ markdown, onToggleTask, className }: MarkdownView
       },
     };
     return (
-      <ReactMarkdown key={key} remarkPlugins={[remarkGfm]} components={chunkComponents}>{chunk.text}</ReactMarkdown>
+      <ReactMarkdown key={key} remarkPlugins={[remarkGfm, remarkTextColorForRender]} components={chunkComponents}>{chunk.text}</ReactMarkdown>
     );
   };
 
@@ -153,7 +154,7 @@ export function MarkdownView({ markdown, onToggleTask, className }: MarkdownView
 
   return (
     <div className={className ?? "md-body"}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{markdown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTextColorForRender]} components={components}>{markdown}</ReactMarkdown>
     </div>
   );
 }

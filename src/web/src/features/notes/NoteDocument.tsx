@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Maximize2, Minimize2, ScrollText } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -71,8 +71,28 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [paperMode, setPaperMode] = useState(false);
+  const [immersive, setImmersive] = useState(false);
+  const docRef = useRef<HTMLElement>(null);
   const [aiAssist, setAiAssist] = useState(false);
   const [autoSummary, setAutoSummary] = useState(false);
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setImmersive(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+  const toggleImmersive = async () => {
+    const doc = docRef.current;
+    if (immersive) {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
+      setImmersive(false);
+      return;
+    }
+    setImmersive(true);
+    if (doc?.requestFullscreen) await doc.requestFullscreen().catch(() => {});
+  };
   // AI 面板用的正文：打开面板时取一次**编辑器里的最新正文**。
   // 键入不再实时更新 draft（FR-EDT-10），直接用 draft 会把未保存的编辑漏给模型。
   const [aiMarkdown, setAiMarkdown] = useState<string | null>(null);
@@ -293,11 +313,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
 
   return (
-    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"}>
+    <article ref={docRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-immersive={immersive || undefined}>
       <DocBar
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
           <>
+            {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
+            <button type="button" className="mn-iconbtn" aria-label={immersive ? "退出沉浸模式" : "沉浸模式"} title={immersive ? "退出沉浸模式" : "沉浸模式（全屏）"} aria-pressed={immersive} onClick={() => void toggleImmersive()}>{immersive ? <Minimize2 /> : <Maximize2 />}</button>
             <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
             </button>
@@ -395,6 +417,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         )}
         {plain && mode === "edit" && isTableDoc && (
           <TableDocument
+            userId={userId}
+            itemId={item.id}
             markdown={draft ?? plain.markdown}
             onChangeMarkdown={(next) => void saveFullMarkdown(next)}
             onDegrade={degradeDoc}
@@ -405,6 +429,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           <NoteEditor
             mode="edit"
             kind={editorKind}
+            paperMode={paperMode}
             externalMarkdown={splitFrontmatter(plain.markdown).body}
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}

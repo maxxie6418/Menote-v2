@@ -9,8 +9,10 @@ import { SlashMenu } from "./SlashMenu";
 import { TableBlockToolbar } from "./TableBlockToolbar";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 import { SelectionFormatBar } from "./SelectionFormatBar";
+import { OutlinePanel } from "./OutlinePanel";
 import { filterActions, FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
+import { applyTextColor } from "./textColor";
 
 export type EditorKind = "wysiwyg" | "source";
 
@@ -44,10 +46,11 @@ interface NoteEditorProps {
   registerApplyExternal: (apply: ((markdown: string) => void) | null) => void;
   /** 上传一个文件并返回内容寻址结果；失败时返回错误文案，由底栏显示。 */
   uploadFile?: (file: File, onProgress?: (percent: number) => void) => Promise<{ sha256: string; name: string } | { error: string }>;
+  paperMode?: boolean;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, paperMode = false }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<EditorAdapter | null>(null);
   const dirtyRef = useRef(false);
@@ -279,6 +282,24 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     onSelect: () => runAction(action),
   }));
 
+  const setTextColor = (color: string | null) => {
+    const adapter = adapterRef.current;
+    if (!adapter) return;
+    if (adapter.setTextColor) {
+      adapter.setTextColor(color);
+      setSelectionBar(null);
+      setSelectionMenu(null);
+      return;
+    }
+    const markdown = fromEditorMarkdown(adapter.getMarkdown(), namesRef.current);
+    const { start, end } = adapter.getSelection();
+    const result = applyTextColor(markdown, start, end, color);
+    if (!result) return;
+    commit(result.markdown, result.start, result.end);
+    setSelectionBar(null);
+    setSelectionMenu(null);
+  };
+
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
@@ -296,12 +317,13 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   }, [externalMarkdown, mode]);
 
   return (
-    <div className="mn-editor-wrap" data-dragging={dragging || undefined}>
-      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} />}
+    <div className="mn-editor-wrap" data-dragging={dragging || undefined} data-paper={paperMode || undefined}>
+      <OutlinePanel hostRef={hostRef} kind={kind} />
+      {mode === "edit" && kind === "wysiwyg" && <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />}
       {selectionBar && mode === "edit" && kind === "wysiwyg" && (
         <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
           actions={FORMAT_ACTIONS.filter((action) => action.group === "inline")}
-          onAction={(action) => runAction(action)} />
+          onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />
       )}
       {/* 表格块操作（FR-EDT-9）：浮出工具条 + 右键菜单，同一套命令。 */}
       {mode === "edit" && kind === "wysiwyg" && (

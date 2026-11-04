@@ -1,4 +1,4 @@
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, serializerCtx } from "@milkdown/kit/core";
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, editorViewOptionsCtx, serializerCtx, schemaCtx } from "@milkdown/kit/core";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import { history } from "@milkdown/kit/plugin/history";
@@ -12,6 +12,7 @@ import { perfProbe } from "../../lib/perfProbe";
 import { RoundTripGuard } from "./roundtrip";
 import { locateTable, runTableCommand as runTableCommandOn, type TableCommandId, type TableContext } from "./tableCommands";
 import type { EditorAdapter } from "./EditorAdapter";
+import { textColorMark, textColorRemark, isAllowedTextColor } from "./textColorPlugin";
 import type { BlockAction, InlineAction } from "./markdownEdit";
 
 /**
@@ -97,6 +98,8 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       })
       .use(commonmark)
       .use(gfm)
+      .use(textColorMark)
+      .use(textColorRemark)
       .use(history)
       .use(listener)
       .create();
@@ -385,6 +388,22 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       const start = markdownPrefix(serializer, doc, from, scale);
       const end = from === to ? start : markdownPrefix(serializer, doc, to, scale);
       return { start, end };
+    });
+  }
+
+  setTextColor(color: string | null): boolean {
+    if (!this.editor || (color !== null && !isAllowedTextColor(color))) return false;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const markType = ctx.get(schemaCtx).marks.menoteTextColor;
+      const { from, to } = view.state.selection;
+      if (from === to || !markType) return false;
+      let transaction = view.state.tr;
+      transaction = color
+        ? transaction.addMark(from, to, markType.create({ color }))
+        : transaction.removeMark(from, to, markType);
+      view.dispatch(transaction.scrollIntoView());
+      return true;
     });
   }
 

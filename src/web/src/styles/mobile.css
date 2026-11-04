@@ -269,4 +269,15 @@
 [data-layout="mobile"] .mn-dialog-settings .mn-mcp-scope-list { grid-template-columns: minmax(var(--app-zero), 1fr); }
 [data-layout="mobile"] .mn-dialog-settings .mn-mcp-number .mn-propinput { width: var(--app-full-size); min-width: var(--app-zero); }
 
+/* 多维表格移动端：行操作不能依赖 hover，工具区允许换行，重排走触控手柄。 */
+[data-layout="mobile"] .mn-tabledoc-bar { align-items: flex-start; }
+[data-layout="mobile"] .mn-tabledoc-bar-actions { margin-left: var(--app-zero); }
+[data-layout="mobile"] .mn-tabledoc-rowdel { visibility: visible; min-width: var(--app-touch-target); min-height: var(--app-touch-target); }
+[data-layout="mobile"] .mn-tabledoc-filter { align-items: stretch; }
+[data-layout="mobile"] .mn-tabledoc-filter label { flex: 1 1 var(--app-context-menu-min); }
+[data-layout="mobile"] .mn-tabledoc-filter select,
+[data-layout="mobile"] .mn-tabledoc-filter input { flex: 1; min-width: var(--app-zero); max-width: var(--app-full-size); }
+[data-layout="mobile"] .mn-tabledoc-selection-hint { flex-basis: var(--app-full-size); }
+[data-layout="mobile"] .mn-tcell-input:focus { max-width: calc(100vw - var(--app-mobile-content-pad) - var(--app-mobile-content-pad)); }
+
 @media (prefers-reduced-motion: reduce) { .m-record { transition: none; } }

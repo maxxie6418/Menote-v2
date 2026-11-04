@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
 import { joinMultiCell, splitMultiCell } from "../../lib/gfmTable";
 import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
 
@@ -13,39 +13,56 @@ interface TableCellEditorProps {
 /** 类型化单元格控件（FR-TBL-7）：表格文档与 Note 内表格弹窗（双轨 FR-TBL-2）共用。
  *  写回契约见 lib/gfmTable（FR-TBL-6）；历史值不静默修正，编辑时才按类型覆盖（FR-TBL-4 精神）。 */
 export function TableCellEditor({ value, type, def, onChange }: TableCellEditorProps) {
+  let editor: ReactNode;
   if (type === "checkbox") {
-    return <CheckboxCell value={value} onChange={onChange} />;
-  }
-  if (type === "select") {
+    editor = <CheckboxCell value={value} onChange={onChange} />;
+  } else if (type === "select") {
     const options = def?.options ?? [];
     // 候选必须显式定义（FR-PROP-4）；未定义候选时按文本编辑，候选在列设置中维护。
-    if (options.length === 0) return <input className="mn-tcell-input" type="text" value={value} aria-label="单选单元格" onChange={(e) => onChange(e.target.value)} />;
-    return <SingleSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
-  }
-  if (type === "multiselect") {
+    if (options.length === 0) editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="单选单元格" onChange={(e) => onChange(e.target.value)} />;
+    else editor = <SingleSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
+  } else if (type === "multiselect") {
     const options = def?.options ?? [];
     if (options.length === 0) {
-      return (
-        <input className="mn-tcell-input" type="text" value={value} aria-label="多选单元格（逗号分隔）"
+      editor = (
+        <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="多选单元格（逗号分隔）"
           onChange={(e) => onChange(joinMultiCell(splitMultiCell(e.target.value)))} />
       );
-    }
-    return <MultiSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
-  }
-  if (type === "date") {
+    } else editor = <MultiSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
+  } else if (type === "date") {
     // 日期控件只接受 ISO 形态；历史自由文本保留原样，清空或改正后回到日期控件。
     if (value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return <input className="mn-tcell-input" type="date" value={value} aria-label="日期单元格" onChange={(e) => onChange(e.target.value)} />;
+      editor = <input className="mn-tcell-input" type="date" value={value} title={value} aria-label="日期单元格" onChange={(e) => onChange(e.target.value)} />;
+    } else {
+      editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="日期单元格（非标准格式，编辑后按日期处理）" onChange={(e) => onChange(e.target.value)} />;
     }
-    return <input className="mn-tcell-input" type="text" value={value} aria-label="日期单元格（非标准格式，编辑后按日期处理）" onChange={(e) => onChange(e.target.value)} />;
-  }
-  return (
-    <input
-      className="mn-tcell-input" type={type === "number" ? "number" : "text"} value={value}
+  } else {
+    editor = <input className="mn-tcell-input" type={type === "number" ? "number" : "text"} size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value}
       aria-label={type === "number" ? "数字单元格" : type === "link" ? "链接单元格" : "单元格"}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  );
+      onChange={(e) => onChange(e.target.value)} />;
+  }
+  return <CellEditorShell value={value} onRestore={onChange}>{editor}</CellEditorShell>;
+}
+
+function CellEditorShell({ value, onRestore, children }: { value: string; onRestore: (value: string) => void; children: ReactNode }) {
+  const original = useRef(value);
+  const focused = useRef(false);
+  const onFocus = (_event: FocusEvent<HTMLDivElement>) => {
+    if (focused.current) return;
+    original.current = value;
+    focused.current = true;
+  };
+  const onBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    focused.current = false;
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    onRestore(original.current);
+    (event.target as HTMLElement).blur();
+  };
+  return <div className="mn-tcell-editor" onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}>{children}</div>;
 }
 
 function CheckboxCell({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -81,7 +98,7 @@ function SingleSelectCell({ value, options, colors, onChange }: {
 
   return (
     <div className="mn-tcell-single" ref={rootRef}>
-      <button type="button" className="mn-tcell-single-trigger" aria-label="单选单元格" aria-expanded={open}
+      <button type="button" className="mn-tcell-single-trigger" aria-label="单选单元格" aria-expanded={open} title={value || "空单元格"}
         onClick={() => setOpen((current) => !current)}>
         <span className="mn-tcell-pill mn-tcell-pill-single" data-tone={colors[value] ?? "neutral"}>{value || "（空）"}</span>
       </button>
@@ -130,7 +147,7 @@ function MultiSelectCell({ value, options, colors, onChange }: {
 
   return (
     <div className="mn-tcell-multi" ref={rootRef}>
-      <button type="button" className="mn-tcell-multibtn" aria-label="多选单元格" aria-expanded={open}
+      <button type="button" className="mn-tcell-multibtn" aria-label="多选单元格" aria-expanded={open} title={selected.join("，") || "空单元格"}
         onClick={() => setOpen((v) => !v)}>
         {selected.length === 0
           ? <span className="mn-tcell-pill mn-tcell-pill-multi" data-tone="neutral">（空）</span>

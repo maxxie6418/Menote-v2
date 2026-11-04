@@ -9,10 +9,11 @@ interface SelectionFormatBarProps {
   active: readonly InlineAction[];
   actions: readonly FormatAction[];
   onAction: (action: FormatAction) => void;
+  onSetTextColor?: (color: string | null) => void;
 }
 
 /** 选区上方的行内样式快捷栏；按钮按下时保留编辑器原选区。 */
-export function SelectionFormatBar({ x, y, active, actions, onAction }: SelectionFormatBarProps) {
+export function SelectionFormatBar({ x, y, active, actions, onAction, onSetTextColor }: SelectionFormatBarProps) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const element = ref.current;
@@ -29,7 +30,7 @@ export function SelectionFormatBar({ x, y, active, actions, onAction }: Selectio
 
   return (
     <div ref={ref} className="mn-selection-formatbar" aria-label="选中文本格式">
-      <FormatBar active={active} disabled={false} onAction={onAction} actions={actions} />
+      <FormatBar active={active} disabled={false} onAction={onAction} actions={actions} onSetTextColor={onSetTextColor} />
     </div>
   );
 }

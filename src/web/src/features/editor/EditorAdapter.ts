@@ -39,6 +39,8 @@ export interface EditorAdapter {
   runTableCommand?(command: TableCommandId, cell: HTMLElement): boolean;
   /** 当前选区，UTF-16 偏移，与 textarea 一致。折叠时 start 等于 end。 */
   getSelection(): { start: number; end: number };
+  /** Apply or clear one of the supported text colors to the current non-collapsed selection. */
+  setTextColor?(color: string | null): boolean;
   /** 载入后把光标放到指定偏移。 */
   setSelection(start: number, end: number): void;
   /** 光标的屏幕坐标，供「/」菜单跟随。编辑器没有光标时返回 null。 */

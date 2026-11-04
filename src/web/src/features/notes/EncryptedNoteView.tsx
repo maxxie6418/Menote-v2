@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff } from "lucide-react";
+import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Maximize2, Minimize2, ScrollText } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -42,8 +42,26 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const plainRef = useRef<string | null>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+  const [paperMode, setPaperMode] = useState(false);
+  const [immersive, setImmersive] = useState(false);
+  const docRef = useRef<HTMLElement>(null);
   const unlocked = isNoteUnlocked(item.id);
   const inSpace = item.content.scope === "private_space";
+
+  useEffect(() => {
+    const onFullscreenChange = () => { if (!document.fullscreenElement) setImmersive(false); };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+  const toggleImmersive = async () => {
+    if (immersive) {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen().catch(() => {});
+      setImmersive(false);
+      return;
+    }
+    setImmersive(true);
+    if (docRef.current?.requestFullscreen) await docRef.current.requestFullscreen().catch(() => {});
+  };
 
   useEffect(() => {
     if (!inSpace || unlocked) return;
@@ -110,7 +128,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const plainFlow = plain !== null && unlocked;
 
   return (
-    <article className="mn-doc" aria-label="文档区">
+    <article ref={docRef} className="mn-doc" aria-label="文档区" data-immersive={immersive || undefined}>
       <div className="mn-docbar">
         <span className="mn-docbar-left">
           {showBack && (
@@ -121,6 +139,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           <span className="mn-crumb">{crumb}</span>
         </span>
         <span className="mn-docbar-right">
+          {item.type !== "table" && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
+          <button type="button" className="mn-iconbtn" aria-label={immersive ? "退出沉浸模式" : "沉浸模式"} title={immersive ? "退出沉浸模式" : "沉浸模式（全屏）"} aria-pressed={immersive} onClick={() => void toggleImmersive()}>{immersive ? <Minimize2 /> : <Maximize2 />}</button>
           {saveState.kind === "saving" && <span className="mn-savestate">保存中…</span>}
           {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(getMarkdownRef.current?.() ?? plain ?? "")}>保存失败 · 重试</button>}
           {unlocked && (
@@ -173,6 +193,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         {plainFlow && mode === "preview" && <MarkdownView markdown={previewText ?? plain ?? ""} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && mode === "edit" && item.type === "table" && (
           <TableDocument
+            userId={userId}
+            itemId={item.id}
             markdown={plain}
             onChangeMarkdown={(next) => { setPlain(next); setDirtyTick((n) => n + 1); }}
             onDegrade={() => { void degradeTableToNote(userId, item.id); }}
@@ -184,6 +206,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           <NoteEditor
             mode="edit"
             kind="wysiwyg"
+            paperMode={paperMode}
             externalMarkdown={plain}
             onInput={() => setDirtyTick((n) => n + 1)}
             uploadFile={uploadAttachment}

@@ -28,6 +28,17 @@
   --app-link: #0051c3;
   --app-success: #5f8b3f;
   --app-danger: #b3261e;
+  /* 编辑器字体颜色默认色板（FR-EDT-15）。 */
+  --app-text-color-red: #c2412d;
+  --app-text-color-orange: #b45309;
+  --app-text-color-yellow: #8a6d00;
+  --app-text-color-green: #287044;
+  --app-text-color-blue: #2459a6;
+  --app-text-color-purple: #7046a6;
+  --app-text-color-gray: #6c6f6b;
+  --app-paper-bg: #fffdf8;
+  --app-paper-fg: #1a1a18;
+  --app-paper-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.12);
   /* 多维表格单选/多选胶囊颜色（值与文字按主题提供足够对比）。 */
   --app-pill-neutral-bg: #f0f0ed; --app-pill-neutral-fg: #4e504d; --app-pill-neutral-border: #deded9;
   --app-pill-red-bg: #fde8e7; --app-pill-red-fg: #8d1a16; --app-pill-red-border: #f4b6b1;
@@ -148,6 +159,12 @@
   /* 布局尺寸（DESIGN §5：三栏 248/340/1fr，最小 420） */
   --app-sidebar-width: 15.5rem;    /* 248px */
   --app-sidebar-collapsed: 3.5rem; /* 56px 图标条 */
+  --app-outline-width: 15rem;
+  --app-outline-height: min(60dvh, 32rem);
+  --app-outline-top: 5rem;
+  --app-outline-z: 29;
+  --app-immersive-z: 50;
+  --app-full-viewport-height: 100dvh;
   --app-list-width: 21.25rem;      /* 340px */
   --app-list-width-compact: 20rem; /* 320px，中屏 */
   --app-doc-min: 26.25rem;         /* 420px */
@@ -312,6 +329,7 @@
   --app-viewport-height: 100vh;
   --app-viewport-width: 100vw;
   --app-line: 1px;
+  --app-line-strong: 2px;
   --app-focus-width: 2px;
   --app-main-width: 38rem;
   --app-status-content-width: 90rem;
@@ -338,7 +356,11 @@
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
   --app-formatbtn-size: 1.5rem;     /* 格式栏图标按钮 24px 见方 */
   --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
-  --app-tabledoc-rownum-width: 2.875rem; /* 46px：拖拽手柄 + 行号 + 删除按钮并排的最小宽 */
+  --app-table-colw-0: 7.5rem; --app-table-colw-1: 9rem; --app-table-colw-2: 10.5rem; --app-table-colw-3: 12rem;
+  --app-table-colw-4: 14rem; --app-table-colw-5: 17rem; --app-table-colw-6: 20rem; --app-table-colw-7: 24rem;
+  --app-table-resize-width: 0.5rem;
+  --app-table-long-value-max: 36rem;
+  --app-tabledoc-rownum-width: 6rem; /* 行选择 + 触控拖动 + 行号 + 删除操作 */
   --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
   --app-tabledoc-menu-z: 16;        /* 字段菜单：高于表头 sticky(2)，低于遮罩(20) */
   --app-authloading-logo: 6rem;     /* 登录检查屏 logo 显示尺寸 */
@@ -456,6 +478,8 @@
   --app-link: #7fa8ff;
   --app-success: #8ca86b;
   --app-danger: #f2b8b5;
+  --app-paper-bg: #f4f0e6;
+  --app-paper-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.35);
   --app-pill-neutral-bg: #303437; --app-pill-neutral-fg: #d1d5d7; --app-pill-neutral-border: #454b4f;
   --app-pill-red-bg: #482524; --app-pill-red-fg: #ffd9d7; --app-pill-red-border: #70413f;
   --app-pill-orange-bg: #4a3020; --app-pill-orange-fg: #ffdfbd; --app-pill-orange-border: #765033;

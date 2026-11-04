@@ -284,7 +284,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const account = { username: user.username, role: user.role };
   const shellProps = {
     "data-layout": layout,
-    "data-sidebar": collapsed && layout === "compact" ? "collapsed" : "expanded",
+    "data-sidebar": collapsed && (layout === "compact" || layout === "full") ? "collapsed" : "expanded",
     "data-pointer": coarsePointer ? "coarse" : "fine",
   };
   const sidebar = (
@@ -292,7 +292,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       userId={userId}
       account={account}
       layout={layout}
-      collapsed={collapsed && layout === "compact"}
+      collapsed={collapsed && (layout === "compact" || layout === "full")}
       drawerOpen={drawerOpen}
       section={section}
       onOpenPrivate={() => setPrivateGate(true)}
