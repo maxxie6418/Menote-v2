@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Tag, Trash2, FolderInput } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -14,7 +14,7 @@ import { purgeItemsPermanently } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 import { DocTitle } from "./DocTitle";
-import { BlankFormChooser } from "./BlankFormChooser";
+import { TemplatePicker, type TemplateOption } from "./TemplatePicker";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
@@ -22,6 +22,12 @@ import { setSessionKey } from "../../services/keyringService";
 import { itemRoutePath } from "../../app/appRoutes";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
+
+/** 新文档可选模板（正文区正中浮出的小方块）。加模板就往这里续，渲染按一排五个的宽度排。 */
+const TEMPLATES: TemplateOption[] = [
+  { id: "note", name: "普通笔记", hint: "直接写正文，Markdown 原文", icon: <FileText size={16} /> },
+  { id: "table", name: "多维表格", hint: "表格式整理，字段带类型", icon: <Table2 size={16} /> },
+];
 
 interface NoteDocumentProps {
   userId: string;
@@ -49,6 +55,8 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   // 用计数递增触发自动保存，正文在保存时从编辑器取全量。
   const [dirtyTick, setDirtyTick] = useState(0);
+  // 模板选择块是否已被点选（点过就收起；直接开写也由 dirtyTick 收起）。
+  const [templatePicked, setTemplatePicked] = useState(false);
   const [title, setTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
@@ -220,11 +228,17 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
 
   const plain = item.content;
   const isTableDoc = item.type === "table";
-  const showFormChooser = !isTableDoc && isConvertibleBlankDraft(item);
+  // 模板选择块：仅空白种子期浮出；落了笔（dirtyTick）或已点选就不再打扰编辑。
+  const showFormChooser = !isTableDoc && isConvertibleBlankDraft(item) && dirtyTick === 0 && !templatePicked;
 
   /** 形态选择（FR-TBL-9）：转换守卫在 setItemForm（仅空白期可切）。 */
   const pickTableForm = () => {
     setItemForm(userId, item.id, "table").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
+  };
+  /** 点选模板：先收起方块，普通笔记保持原样，多维表格切形态。 */
+  const pickTemplate = (id: string) => {
+    setTemplatePicked(true);
+    if (id === "table") pickTableForm();
   };
   const switchToNoteForm = () => {
     setItemForm(userId, item.id, "note").catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
@@ -325,7 +339,7 @@ export function NoteDocument({ userId, noteId, topics, unfiled, onBack, showBack
             }}
           />
         </div>
-        {showFormChooser && <BlankFormChooser onPickTable={pickTableForm} />}
+        {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} />}
         {plain && mode === "preview" && (
           <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
         )}

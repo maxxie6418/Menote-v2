@@ -343,7 +343,7 @@
 .mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4); }
 .mn-savestate.err { color: var(--app-danger); cursor: pointer; }
 /* 单滚动容器：标题、属性、工具条与正文一起滚动；编辑器不再自己滚一层（否则工具条无法吸顶、滚轮还会「滚不动」标题区） */
-.mn-docbody { flex: 1; overflow-y: auto; min-height: var(--app-zero); padding: var(--app-doc-pad); }
+.mn-docbody { flex: 1; overflow-y: auto; min-height: var(--app-zero); padding: var(--app-doc-pad); position: relative; }
 /* 版心：正文最大行宽居中，宽屏不再拉成一行五六十个字；表格形态单独放宽一档 */
 .mn-docbody > * { width: var(--app-full-size); max-width: var(--app-doc-measure); margin-inline: auto; }
 .mn-docbody > * + * { margin-top: var(--app-space-sm); }
@@ -575,13 +575,17 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-tablegrid-input { width: var(--app-full-size); height: var(--app-prop-height); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-6); }
 .mn-tablegrid-input:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 
-/* ---------- TP2 多维表格（TableDocument / TableCellEditor / FieldTypeMenu / BlankFormChooser） ---------- */
-.mn-formchooser { display: flex; align-items: center; gap: var(--app-space-6); flex-wrap: wrap; padding: var(--app-space-5) var(--app-space-6); border: var(--app-line) dashed var(--app-border-subtle); border-radius: var(--app-radius-md); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
-.mn-formchooser-icon { display: grid; place-items: center; width: var(--app-row-icon-col); height: var(--app-row-icon-col); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-subtle); }
-.mn-formchooser-label { color: var(--app-fg); }
-.mn-formchooser-switch { display: inline-flex; align-items: center; gap: var(--app-space-2); border: var(--app-line) solid var(--app-border-subtle); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-5); border-radius: var(--app-radius-sm); cursor: pointer; }
-.mn-formchooser-switch:hover { background: var(--app-hover); border-color: var(--app-accent); }
-.mn-formchooser-hint { color: var(--app-fg-faint); }
+/* ---------- TP2 多维表格（TableDocument / TableCellEditor / FieldTypeMenu / TemplatePicker） ---------- */
+/* 新文档模板选择：浮在正文区正中，整组上下左右居中。
+   每块按「一排五个」的宽度排（版心的五分之一），超过五个自动换行；将来加模板只加数据不改样式。 */
+.mn-templatepick-wrap { position: absolute; top: var(--app-template-center); left: var(--app-template-center); width: var(--app-doc-measure); max-width: var(--app-full-size); transform: var(--app-template-center-shift); pointer-events: none; z-index: 1; }
+.mn-templatepick { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--app-space-6); }
+.mn-template { pointer-events: auto; flex: 0 0 var(--app-template-width); display: grid; align-content: center; justify-items: center; gap: var(--app-space-4); aspect-ratio: 1 / 1; padding: var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); cursor: pointer; }
+.mn-template:hover { background: var(--app-hover); border-color: var(--app-accent); }
+.mn-template:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-template-icon { display: grid; place-items: center; width: var(--app-icon-md); height: var(--app-icon-md); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-subtle); }
+.mn-template:hover .mn-template-icon { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
+.mn-template-name { font-size: var(--app-size-chip); font-weight: var(--app-weight-medium); }
 
 .mn-tabledoc { display: flex; flex-direction: column; gap: var(--app-space-4); }
 .mn-tabledoc-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-chip); }

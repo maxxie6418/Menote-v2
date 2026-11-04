@@ -283,6 +283,9 @@
   /* 旧状态页与通用控件沿用 */
   --app-zero: 0;
   --app-full-size: 100%;
+  --app-template-width: 20%;      /* 新文档模板选择块：按「一排五个」的宽度 */
+  --app-template-center: 50%;     /* 模板选择块在正文区居中的锚点 */
+  --app-template-center-shift: translate(-50%, -50%);
   --app-viewport-height: 100vh;
   --app-viewport-width: 100vw;
   --app-line: 1px;
