@@ -25,7 +25,21 @@
 :root[data-skin="paper"] .mn-docbar { padding: var(--app-space-sm) var(--app-doc-pad) var(--app-space-4); border-bottom: 0; }
 :root[data-skin="paper"] .mn-docbody { padding-top: var(--app-space-18); }
 :root[data-skin="paper"] .mn-doc-foot { border-top: 0; }
+/* 纸面内的基线：顶部路径、动作条与页脚都收进版心，和标题左缘同轴。
+   默认主题里 path 用了左右 padding 的外边距、docbar/foot 铺满整栏，宽屏下会与居中的版心脱开。
+   侧边属性时正文在主列居中、页边注占右侧，因此栏宽要把「间隔 + 页边注」一并算进来，
+   否则动作条会比标题右移 (页边注/2 + 间隔/2)。 */
 :root[data-skin="paper"] .mn-doc-path { color: var(--app-fg-faint); }
+:root[data-skin="paper"] .mn-docbar,
+:root[data-skin="paper"] .mn-doc-foot {
+  width: var(--app-full-size);
+  max-width: calc(var(--app-doc-measure) + var(--app-doc-pad) + var(--app-doc-pad));
+  margin-inline: auto;
+}
+:root[data-skin="paper"][data-props-pos="side"] .mn-docbar,
+:root[data-skin="paper"][data-props-pos="side"] .mn-doc-foot {
+  max-width: calc(var(--app-doc-measure) + var(--app-doc-side-gap) + var(--app-doc-side-width) + var(--app-doc-pad) + var(--app-doc-pad));
+}
 
 /* ---------- 3. 题区：角标 → 宋体标题 → 正文 ---------- */
 :root[data-skin="paper"] .mn-doc-title {
