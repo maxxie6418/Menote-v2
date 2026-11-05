@@ -3,7 +3,7 @@
 <head>
 <!--
   Menote 视觉方案 v3 · 墨台 / INKSTAND
-  三个文件：index.html（结构）· style.css（样式）· app.js（交互）
+  文件：index.html（可 file:// 直接预览的完整多视图样稿）· style.css（CSS 入口）· 分视图样式模块 · app.js（交互）
   深链：?v=home|memo|note|table|spec
         &rail=bar|rail（侧栏形态）
         &props=side|top（属性位置）
@@ -21,7 +21,7 @@
   <aside class="rail">
     <div class="sb-top">
       <span class="sb-brand"><i class="bm">M</i><span class="bn">Menote</span></span>
-      <button class="sb-icon" id="railToggle" title="折叠侧栏">
+      <button class="sb-icon" id="railToggle" title="折叠侧栏" aria-label="折叠侧栏" aria-expanded="true">
         <svg class="i i--sm" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/><path d="M15.2 9.6l-2.4 2.4 2.4 2.4"/></svg>
       </button>
     </div>
@@ -129,7 +129,7 @@
             <div class="home-main">
               <div class="home-stamp">
                 <span class="home-time">20<span class="sec">:51</span></span>
-                <span class="home-date">2026.11.04 · 周三</span>
+                <span class="home-date">2026.11.05 · 周四</span>
               </div>
               <div class="home-greet">晚上好，<b>林</b>。想记点什么？</div>
 
@@ -162,7 +162,7 @@
                 </button>
                 <button class="ha">
                   <span class="hi"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="M15.5 15.5L20 20"/></svg></span>
-                  <span class="hx"><span class="ht">搜索</span><span class="hs">170 条 · ⌘K</span></span>
+                  <span class="hx"><span class="ht">搜索</span><span class="hs">笔记与随记 · ⌘K</span></span>
                 </button>
               </div>
 
@@ -191,14 +191,14 @@
 
             <aside class="home-side">
               <div class="hs-block">
-                <div class="hs-hd"><span class="t-label">今日</span><span class="t-label" style="color:var(--ink-4)">4 NOV</span></div>
+                <div class="hs-hd"><span class="t-label">今日</span><span class="t-label" style="color:var(--ink-4)">5 NOV</span></div>
                 <div class="hs-stat"><span class="k">随手记</span><span class="v">6<em>条</em></span></div>
                 <div class="hs-stat"><span class="k">写了</span><span class="v">428<em>字</em></span></div>
                 <div class="hs-stat"><span class="k">开到文档</span><span class="v">1<em>篇</em></span></div>
                 <div class="hs-stat"><span class="k">待整理</span><span class="v acc">3<em>条</em></span></div>
               </div>
               <div class="hs-block">
-                <div class="hs-hd"><span class="t-label">本周节奏</span><span class="t-label" style="color:var(--accent-ink)">12 天</span></div>
+                <div class="hs-hd"><span class="t-label">近 7 天</span><span class="t-label" style="color:var(--accent-ink)">连续 12 天</span></div>
                 <div class="hs-bars">
                   <i style="height:34%"></i><i class="on" style="height:62%"></i><i style="height:28%"></i><i class="on" style="height:80%"></i>
                   <i class="on" style="height:48%"></i><i class="on" style="height:72%"></i><i class="today" style="height:56%"></i>
@@ -253,6 +253,11 @@
         </div>
       </div>
 
+      <div class="memo-appbar" aria-label="Memo 视图切换">
+        <div><strong>Memo</strong><span>全部 · 128 条</span></div>
+        <div class="memo-appbar-views"><button type="button" class="is-on" data-memo-view="timeline">时间轴</button><button type="button" data-memo-view="gallery">图册</button><button type="button" data-todo-mobile-toggle>Todo · 5</button></div>
+      </div>
+
       <div class="memo-body">
         <div class="memo-main">
           <div class="memo-flow">
@@ -276,9 +281,9 @@
             </div>
 
             <div class="feed">
-              <div class="feed-day"><span class="n">今天</span><span class="m">4 NOV · WED</span><span class="rule"></span></div>
+              <div class="feed-day"><span class="n">今天</span><span class="m">5 NOV · THU</span><span class="rule"></span></div>
 
-              <article class="memo memo--key">
+              <article class="memo memo--key" id="memo-top">
                 <div class="memo-actions">
                   <button class="icon-btn" title="转文档"><svg class="i" viewBox="0 0 24 24"><path d="M6 3.5h7.5L18 8v12.5H6z"/><path d="M13.5 3.5V8H18"/></svg></button>
                   <button class="icon-btn" title="置顶"><svg class="i" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 15v5"/></svg></button>
@@ -295,9 +300,25 @@
                   <span class="tag tag--acc"><i class="dot"></i>想法</span>
                   <span class="tag tag--sky"><i class="dot"></i>产品</span>
                 </div>
+                <div class="memo-social" aria-label="Memo 互动">
+                  <button type="button" data-memo-panel="comments" aria-expanded="false" aria-label="评论"><svg class="i" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-1 2v-6a7.5 7.5 0 1 1 16-3.5z"/></svg><span>3</span></button>
+                  <button type="button" data-memo-favorite aria-pressed="false" aria-label="收藏"><svg class="i" viewBox="0 0 24 24"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3 1.1-6.4-4.6-4.5 6.4-.9z"/></svg></button>
+                  <button type="button" data-memo-panel="quote" aria-expanded="false" aria-label="引述"><svg class="i" viewBox="0 0 24 24"><path d="M9 7H5v6h5V9a4 4 0 0 0-4-4M19 7h-4v6h5V9a4 4 0 0 0-4-4"/></svg>引述</button>
+                </div>
+                <section class="memo-inline-panel" data-memo-inline="comments" hidden aria-label="评论编辑">
+                  <div class="memo-inline-heading">3 条评论 <span>· 按时间顺序</span></div>
+                  <div class="memo-inline-comment"><time>09:12</time><span>碎片先进来，后续整理的成本确实更低。</span><button type="button" aria-label="编辑评论">编辑</button></div>
+                  <div class="memo-inline-comment"><time>10:26</time><span>首页默认按天组织，这个入口很清楚。</span><button type="button" aria-label="编辑评论">编辑</button></div>
+                  <div class="memo-inline-compose"><textarea rows="2" placeholder="写下你的评论…" aria-label="写下评论"></textarea><button type="button">发送</button></div>
+                </section>
+                <section class="memo-inline-panel memo-inline-quote" data-memo-inline="quote" hidden aria-label="引述编辑">
+                  <textarea rows="2" placeholder="写下你的引述…" aria-label="引述正文"></textarea>
+                  <blockquote>如果笔记的默认单位是「一天」而不是「一篇」，会怎样？打开应用先看到今天，而不是一棵文件树。</blockquote>
+                  <div><span>发布后原文快照固定</span><button type="button" data-memo-cancel>取消</button><button type="button" class="memo-inline-publish">发布引述</button></div>
+                </section>
               </article>
 
-              <article class="memo">
+              <article class="memo" id="memo-quote">
                 <div class="memo-actions">
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M6 3.5h7.5L18 8v12.5H6z"/><path d="M13.5 3.5V8H18"/></svg></button>
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 15v5"/></svg></button>
@@ -316,7 +337,7 @@
                 </div>
               </article>
 
-              <article class="memo">
+              <article class="memo" id="memo-attachment">
                 <div class="memo-actions">
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M6 3.5h7.5L18 8v12.5H6z"/><path d="M13.5 3.5V8H18"/></svg></button>
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></svg></button>
@@ -340,7 +361,7 @@
                 </div>
               </article>
 
-              <article class="memo">
+              <article class="memo" id="memo-checklist">
                 <div class="memo-actions">
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><path d="M6 3.5h7.5L18 8v12.5H6z"/><path d="M13.5 3.5V8H18"/></svg></button>
                   <button class="icon-btn"><svg class="i" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></svg></button>
@@ -371,10 +392,26 @@
                   <span class="tag tag--acc"><i class="dot"></i>想法</span>
                   <span class="tag tag--iris"><i class="dot"></i>灵感</span>
                 </div>
+                <div class="memo-embed" id="memo-image"><div class="thumb"></div><div class="info"><div class="ttl">工作台参考图.png</div><div class="sub">图片 · 1280 × 720</div></div></div>
               </article>
+            </div>
+            <div class="memo-gallery" hidden aria-label="Memo 图册">
+              <button type="button" class="gallery-tile" data-gallery-jump="memo-attachment"><span class="gallery-art gallery-art--document"></span><span><b>密钥分层草案 v3.pdf</b><small>11-05 · PDF</small></span></button>
+              <button type="button" class="gallery-tile" data-gallery-jump="memo-quote"><span class="gallery-art gallery-art--quote">“</span><span><b>模式是一种错误</b><small>11-03 · 引述摘录</small></span></button>
+              <button type="button" class="gallery-tile" data-gallery-jump="memo-image"><span class="gallery-art gallery-art--image"></span><span><b>工作台参考图</b><small>11-02 · 图片</small></span></button>
             </div>
           </div>
         </div>
+
+        <aside class="memo-todo-panel" aria-label="Memo Todo">
+          <div class="memo-todo-head"><strong>Todo</strong><span>5</span><button type="button" data-todo-toggle aria-label="折叠 Todo">⌄</button></div>
+          <section><button class="memo-todo-group" aria-expanded="true">进行中 <span>2</span></button>
+            <label><input type="checkbox">整理材质命名与分组</label><label><input type="checkbox">补齐采样对照表</label></section>
+          <section><button class="memo-todo-group" aria-expanded="true">待办 <span>3</span></button>
+            <label><input type="checkbox">后处理栈顺序定稿</label><label><input type="checkbox">地形四层混合验证</label><label><input type="checkbox">LOD 分级规则</label></section>
+          <section><button class="memo-todo-group" aria-expanded="false">已完成 <span>8</span></button></section>
+          <small>拖动时间线 Memo 到分组可更改状态</small>
+        </aside>
 
         <aside class="memo-side">
           <div class="side-block">
@@ -431,6 +468,27 @@
               <div class="top"><span>灵感</span><span class="c">11</span></div>
               <div class="track"><div class="fill" style="width:27%"></div></div>
             </div>
+          </div>
+          <div class="side-block memo-current-tools">
+            <div class="side-hd"><span class="t-label">概述 · 当前范围</span></div>
+            <div class="memo-current-stats"><div><b>128</b><small>总条数</small></div><div><b>24</b><small>本月新增</small></div><div><b>46</b><small>记录天数</small></div></div>
+          </div>
+          <div class="side-block memo-current-tools">
+            <div class="side-hd"><span class="t-label">近 12 周 · 184 条</span></div>
+            <div class="memo-heatmap" id="memoHeatmap" aria-label="12 周 Memo 热力图"></div>
+            <div class="memo-heat-legend"><span>少</span><i></i><i></i><i></i><i></i><span>多</span></div>
+          </div>
+          <div class="side-block memo-current-tools">
+            <button class="memo-tool-action" type="button" data-memo-wander>⚡ 随机漫步 <span>›</span></button>
+            <div class="memo-on-this-day"><small>那年今日 · 2024-11-05</small><button type="button" data-gallery-jump="memo-quote">“模式是一种错误”这条摘录，今天又读到了。</button></div>
+          </div>
+          <div class="side-block memo-current-tools">
+            <div class="side-hd"><span class="t-label">日期范围</span></div>
+            <div class="memo-range-options"><button class="is-on">全部</button><button>今天</button><button>近 7 天</button><button>近 30 天</button></div>
+          </div>
+          <div class="side-block memo-current-tools">
+            <div class="side-hd"><span class="t-label">标签筛选</span></div>
+            <div class="memo-filter-tags"><button class="is-on">全部 <span>128</span></button><button>#想法 <span>32</span></button><button>#摘录 <span>24</span></button><button>#待办 <span>18</span></button></div>
           </div>
         </aside>
       </div>
@@ -514,15 +572,21 @@
           <span>技术</span><span class="sep">/</span>
           <span class="now">本地优先的密钥分层</span>
         </div>
-        <div style="margin-left:14px">
+        <div class="doc-mode-controls" style="margin-left:14px">
           <div class="seg">
             <button class="is-on">编辑</button>
             <button>预览</button>
-            <button>差异</button>
+          </div>
+          <button class="more-trigger" id="moreActions" aria-haspopup="menu" aria-expanded="false">更多<svg class="i i--sm" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="more-menu" id="moreMenu" role="menu" aria-label="文档更多操作" hidden>
+            <button role="menuitem">查看源码</button>
+            <button role="menuitem">版本历史</button>
+            <button role="menuitem">加密设置</button>
           </div>
         </div>
         <div class="topbar-right">
-          <div class="savestate"><span class="led"></span>已保存至本地 · 20:18</div>
+          <div class="savestate" id="docSaveState" role="status" aria-live="polite"><span class="led"></span><span class="state-copy">已保存至本地 · 20:18</span></div>
+          <div class="syncstate" title="云端服务已确认同步"><i></i><span>云端已同步</span></div>
           <div class="vsep"></div>
           <button class="icon-btn" id="btnProps" title="属性位置：侧边 / 顶部">
             <svg class="i i--sm" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17"/></svg>
@@ -574,7 +638,7 @@
               <span class="st">草稿</span>
               <span class="enc">
                 <svg class="i" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="1.6"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/></svg>
-                端到端加密
+                端到端加密 · 已解锁
               </span>
             </div>
 
@@ -794,7 +858,7 @@
 
             <div class="vtabs">
               <button class="vtab is-on"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.8"/><path d="M3.5 9.2h17M9.2 9.2v10.3M15 9.2v10.3"/></svg>表格</button>
-              <span class="vtab-note">唯一的视图形态 —— 点行，详情在右侧抽屉展开</span>
+              <span class="vtab-note">唯一的视图形态 —— 悬停行号后点 ↗，详情覆盖式展开</span>
             </div>
           </div>
 
@@ -804,11 +868,21 @@
             <button class="fchip fchip--add"><svg class="i" style="width:9px;height:9px" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>筛选</button>
             <button class="fchip fchip--add">排序</button>
             <button class="fchip fchip--add">分组</button>
+            <button class="fchip fchip--add" type="button" data-table-edit-demo aria-pressed="false">编辑态示例</button>
             <div class="db-count">
               <span class="m">7 / 12</span>
               <div class="vsep"></div>
               <button class="icon-btn" style="width:22px;height:22px"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="M15.5 15.5L20 20"/></svg></button>
+              <button class="icon-btn" type="button" data-columns-toggle aria-expanded="false" aria-label="列显示">列</button>
             </div>
+          </div>
+
+          <div class="db-bulkbar" aria-label="批量行操作">
+            <span><b>2</b> 行已选择</span><button type="button">复制行</button><button type="button">删除行</button><button type="button" class="bulk-clear">清除选择</button><small>支持 Ctrl/⌘ 选择、多格复制与矩形粘贴</small>
+          </div>
+          <div class="db-column-menu" data-columns-menu hidden aria-label="列显示设置">
+            <strong>显示字段</strong><label><input type="checkbox" checked>名称</label><label><input type="checkbox" checked>状态</label><label><input type="checkbox" checked>工时</label><label><input type="checkbox" checked>优先级</label><label><input type="checkbox" checked>截止日期</label><label><input type="checkbox" checked>进度</label><label><input type="checkbox">备注</label>
+            <small>隐藏偏好随账号同步；列宽保存在本机</small>
           </div>
 
           <div class="grid-scroll">
@@ -824,7 +898,7 @@
               </div>
 
               <div class="grow is-sel">
-                <div class="gc c-num"><span class="rn">01</span><span class="grip"><svg class="i" viewBox="0 0 24 24"><path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/></svg></span></div>
+                <div class="gc c-num"><input type="checkbox" class="row-select" checked aria-label="选择第 1 行"><span class="rn">01</span><span class="grip"><svg class="i" viewBox="0 0 24 24"><path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/></svg></span></div>
                 <div class="gc c-name"><span class="rid">M3-07</span><span class="tt">加密边界回归测试</span><span class="lockmini"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="1.6"/><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7"/></svg></span></div>
                 <div class="gc"><span class="pill pill--run" style="height:20px"><i class="dot"></i>进行中</span></div>
                 <div class="gc"><span class="hrs">6<em>h</em></span></div>
@@ -834,7 +908,7 @@
               </div>
 
               <div class="grow">
-                <div class="gc c-num"><span class="rn">02</span><span class="grip"><svg class="i" viewBox="0 0 24 24"><path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/></svg></span></div>
+                <div class="gc c-num"><input type="checkbox" class="row-select" checked aria-label="选择第 2 行"><span class="rn">02</span><span class="grip"><svg class="i" viewBox="0 0 24 24"><path d="M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01"/></svg></span></div>
                 <div class="gc c-name"><span class="rid">M3-08</span><span class="tt">表格视图行详情</span></div>
                 <div class="gc"><span class="pill pill--run" style="height:20px"><i class="dot"></i>进行中</span></div>
                 <div class="gc"><span class="hrs">4<em>h</em></span></div>
@@ -964,7 +1038,7 @@
           </div>
         </div>
 
-        <aside class="peek">
+        <aside class="peek" aria-hidden="true" aria-label="记录详情">
           <div class="peek-stripe"></div>
           <div class="peek-scroll">
             <div class="peek-hd">
@@ -973,7 +1047,7 @@
               <div class="acts">
                 <button class="icon-btn" style="width:22px;height:22px"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 15v5"/></svg></button>
                 <button class="icon-btn" style="width:22px;height:22px"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M14 6l6 6-6 6"/></svg></button>
-                <button class="icon-btn" style="width:22px;height:22px"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+                <button class="icon-btn" type="button" data-peek-close aria-label="关闭详情" style="width:22px;height:22px"><svg class="i" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
               </div>
             </div>
 
@@ -1253,7 +1327,7 @@
               <div class="n">01</div>
               <div class="t">列表保持完整</div>
               <div class="box"><div class="rows"><div class="row"></div><div class="row"></div><div class="row on"></div><div class="row"></div><div class="row"></div></div></div>
-              <div class="d">选中行，右侧不动。列表始终是主语。</div>
+              <div class="d">列表宽度保持不变；详情浮在右侧，不挤动行内容。</div>
             </div>
             <div class="pat">
               <div class="n">02</div>
@@ -1262,7 +1336,7 @@
                 <div class="rows" style="flex:1.2"><div class="row"></div><div class="row"></div><div class="row on"></div><div class="row"></div><div class="row"></div></div>
                 <div class="drawer" style="width:40%"><i class="hd"></i><i></i><i></i><i></i><i></i></div>
               </div>
-              <div class="d">宽度压给抽屉，列表不消失，只让位。</div>
+              <div class="d">抽屉覆盖列表右侧；关闭后回到原表格位置。</div>
             </div>
             <div class="pat">
               <div class="n">03</div>
@@ -1271,11 +1345,11 @@
                 <div class="rows" style="flex:.8"><div class="row"></div><div class="row"></div><div class="row on"></div><div class="row"></div></div>
                 <div class="drawer" style="width:56%"><i class="hd"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               </div>
-              <div class="d">属性、正文、备注都在抽屉里改，不跳页。</div>
+              <div class="d">属性、正文、备注都在抽屉里原位编辑，不跳页也不重排表格。</div>
             </div>
           </div>
           <p style="margin-top:18px;font-size:11.5px;line-height:1.8;color:var(--ink-3);max-width:660px">
-            适用：表格行、收件箱条目、文档列表、搜索结果。凡是「多条目 + 单条详情」，都走这一套，不再发明第二种。
+            适用：表格行、收件箱条目、文档列表、搜索结果。宽屏从行号入口打开覆盖式详情；表格列宽不因抽屉开合变化。
           </p>
         </section>
 
@@ -1426,6 +1500,143 @@
           </p>
         </section>
 
+        <section class="spec-sec" id="completionSpec">
+          <div class="spec-hd">
+            <span class="no">10</span><h2>完成态与异常态</h2>
+            <span class="note">选择状态，查看明确的反馈与恢复入口</span>
+          </div>
+          <div class="state-lab" data-state="saved">
+            <div class="state-controls" role="group" aria-label="切换界面状态">
+              <button class="state-choice is-on" data-state-choice="saved" aria-pressed="true">本地已保存</button>
+              <button class="state-choice" data-state-choice="offline" aria-pressed="false">离线待同步</button>
+              <button class="state-choice" data-state-choice="sync-error" aria-pressed="false">同步失败</button>
+              <button class="state-choice" data-state-choice="unsaved" aria-pressed="false">正文未保存</button>
+              <button class="state-choice" data-state-choice="locked" aria-pressed="false">加密锁定</button>
+              <button class="state-choice" data-state-choice="loading" aria-pressed="false">加载中</button>
+              <button class="state-choice" data-state-choice="empty" aria-pressed="false">空清单</button>
+              <button class="state-choice" data-state-choice="no-results" aria-pressed="false">无搜索结果</button>
+              <button class="state-choice" data-state-choice="load-error" aria-pressed="false">加载失败</button>
+              <button class="state-choice" data-state-choice="recovery" aria-pressed="false">崩溃恢复</button>
+            </div>
+            <div class="state-preview" aria-live="polite" aria-atomic="true">
+              <div class="state-preview-head">
+                <span class="state-eyebrow">界面状态样例</span>
+                <span class="state-signal" id="stateSignal"><i></i><span>本地已保存</span></span>
+              </div>
+              <div class="state-preview-body" id="statePreviewBody">
+                <div class="state-doc-icon">M</div>
+                <div class="state-preview-copy">
+                  <strong id="stateTitle">本地已保存</strong>
+                  <p id="stateDescription">内容已写入此设备。云端同步状态独立显示，不用“已同步”替代本地保存反馈。</p>
+                </div>
+                <button class="state-action" id="stateAction" hidden>重试同步</button>
+              </div>
+              <div class="state-preview-foot" id="stateFoot">保存状态与同步状态分开呈现；离线时仍可继续编辑。</div>
+            </div>
+          </div>
+
+          <div class="state-guides">
+            <article class="guide-card">
+              <span class="guide-index">A</span>
+              <div><h3>锁定内容</h3><p>隐藏正文、属性值、摘要、附件缩略图和搜索片段；只显示允许公开的标题与加密标识。解锁入口明确说明作用范围，锁定期间不产生明文恢复副本。</p></div>
+            </article>
+            <article class="guide-card">
+              <span class="guide-index">B</span>
+              <div><h3>编辑恢复</h3><p>编辑态保留未保存提示与 Ctrl/⌘+S 反馈；离开前有未保存内容时先保存或留在当前页。崩溃恢复提示说明副本仅在本机，且加密笔记副本仍加密。</p></div>
+            </article>
+            <article class="guide-card">
+              <span class="guide-index">C</span>
+              <div><h3>菜单与焦点</h3><p>菜单支持键盘打开、方向键移动、Enter 执行、Esc 关闭；关闭后焦点回到触发按钮。对话框限制焦点在弹层内，关闭后恢复原焦点；触屏提供可见的等价入口。</p></div>
+            </article>
+            <article class="guide-card">
+              <span class="guide-index">D</span>
+              <div><h3>拖动的替代操作</h3><p>主题树重排、跨主题移动、清单归类与表格列重排，都提供键盘菜单或移动入口；拖动中显示目标位置，取消后恢复原顺序，完成后给出可撤销回执。</p></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="spec-sec">
+          <div class="spec-hd">
+            <span class="no">11</span><h2>响应式与布局边界</h2>
+            <span class="note">视口收缩时保持任务连续</span>
+          </div>
+          <div class="responsive-grid">
+            <article class="viewport-card">
+              <div class="viewport-meta"><b>桌面</b><span>≥ 1280</span></div>
+              <div class="viewport-sample desktop"><i class="v-rail"></i><i class="v-list"></i><i class="v-paper"></i></div>
+              <p>完整侧栏、清单、文档同屏；纸面居中，属性和大纲占边注列。</p>
+            </article>
+            <article class="viewport-card">
+              <div class="viewport-meta"><b>平板</b><span>768–1279</span></div>
+              <div class="viewport-sample tablet"><i class="v-rail"></i><i class="v-list"></i><i class="v-paper"></i></div>
+              <p>侧栏转抽屉，清单与文档按当前任务切换；文档正文保留可读最小宽度。</p>
+            </article>
+            <article class="viewport-card">
+              <div class="viewport-meta"><b>手机</b><span>&lt; 768</span></div>
+              <div class="viewport-sample mobile"><i class="v-rail"></i><i class="v-paper"></i></div>
+              <p>单主视图；导航、清单、属性/大纲从抽屉进入。底部工具栏避开安全区和软键盘。</p>
+            </article>
+          </div>
+          <div class="boundary-list">
+            <div><b>表格</b><span>列不压到不可读；超出视口时只在表格区横向滚动。表头与行号保持可辨，键盘焦点滚入视口。</span></div>
+            <div><b>长文</b><span>纸张随正文延展；大纲高亮跟随当前章节。浮动工具坞不遮住最后一行，Esc 可退出专注模式。</span></div>
+            <div><b>设置归属</b><span>主题、布局与阅读偏好按账号隔离并同步；表格列宽等设备偏好标明仅保存在本机。</span></div>
+            <div><b>首页数字</b><span>样例数字只展示已有本地数据可可靠计算的数量，并标明周期；锁定内容不展示摘要或内容长度，不暗示额外的行为追踪。</span></div>
+          </div>
+        </section>
+
+        <section class="spec-sec">
+          <div class="spec-hd">
+            <span class="no">12</span><h2>编辑器与表格覆盖</h2>
+            <span class="note">把需求中的高频完成态落到画面</span>
+          </div>
+          <div class="coverage-grid">
+            <article class="coverage-card">
+              <div class="coverage-head"><span>NOTE EDITOR</span><b>写作工具保持两种常驻模式</b></div>
+              <div class="coverage-modes"><span class="is-current">编辑</span><span>预览</span><span class="more-trigger">更多⌄</span></div>
+              <div class="coverage-menu"><span>查看源码</span><span>版本历史</span><span>加密设置</span><span>整理到主题（未归类时）</span></div>
+              <div class="paper-variants" aria-label="纸张容器关闭与开启对照">
+                <div class="paper-variant"><span>连续阅读 · 默认</span><div class="paper-swatch flow"><i></i><i></i><i></i><i></i></div></div>
+                <div class="paper-variant"><span>A4 纸张 · 开启</span><div class="paper-swatch a4"><i></i><i></i><i></i></div></div>
+              </div>
+              <div class="selection-demo"><span class="selection-text">选中文字后设色，<mark>颜色写入选区</mark>，也可清除。</span><div class="color-swatches" aria-label="示例文字色板"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="feature-chips"><span>纸张 A4 开关</span><span>浮动大纲</span><span>选区颜色</span><span>专注 · Esc 返回</span></div>
+              <p>编辑 / 预览是仅有的常驻模式。源码、版本历史、加密和归类放入“更多”；选区工具条不遮挡光标与当前选区。</p>
+            </article>
+            <article class="coverage-card">
+              <div class="coverage-head"><span>FOCUS & OUTLINE</span><b>专注时保留编辑上下文</b></div>
+              <div class="focus-preview">
+                <div class="focus-bar"><span>专注写作</span><button>退出专注 · Esc</button></div>
+                <div class="focus-content"><div class="focus-outline"><b>大纲</b><span>一、背景</span><span class="current">二、方案</span><span>三、结论</span></div><div class="focus-paper"><b>方案设计</b><i></i><i></i><i class="short"></i><i></i></div></div>
+              </div>
+              <div class="feature-chips"><span>隐藏侧栏与清单</span><span>大纲跟随滚动</span><span>Esc 返回原位置</span></div>
+              <p>专注模式保留主编辑区，退出后回到原文档与滚动位置；大纲点击定位标题，并随当前章节更新。</p>
+            </article>
+            <article class="coverage-card">
+              <div class="coverage-head"><span>TABLE</span><b>横向空间不足时仍可操作</b></div>
+              <div class="mini-table-wrap" tabindex="0" aria-label="可横向滚动的表格样例">
+                <div class="mini-table">
+                  <div class="mini-row mini-head"><span>名称</span><span>状态</span><span>优先级</span><span>负责人</span><span>截止日期</span><span>标签</span><span>备注</span></div>
+                  <div class="mini-row"><span>边界回归</span><span class="mini-pill">进行中</span><span>P1</span><span>林</span><span>11-08</span><span>安全</span><span>回归检查</span></div>
+                </div>
+              </div>
+              <div class="feature-chips"><span>列宽拖动</span><span>列顺序拖动</span><span>行键盘编辑</span><span>窄屏横滚</span></div>
+              <p>列宽和顺序变化有明确把手与焦点态；拖动之外提供键盘入口。筛选隐藏行时提示“视图已筛选”，避免误认为数据丢失。</p>
+            </article>
+            <article class="coverage-card">
+              <div class="coverage-head"><span>HOME · LOCAL METRICS</span><b>首页数字有来源、有周期</b></div>
+              <div class="metric-preview">
+                <div><span>随手记</span><b>6 条</b><small>今天 · 本地创建</small></div>
+                <div><span>写了</span><b>428 字</b><small>今天 · 本地内容</small></div>
+                <div><span>文档</span><b>1 篇</b><small>今天 · 打开过</small></div>
+                <div><span>待整理</span><b>3 条</b><small>当前收件箱</small></div>
+              </div>
+              <div class="metric-week"><span>近 7 天</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><b>连续 12 天</b></div>
+              <p>样例数值只展示已有本地数据可可靠计算的数量；周期清楚可见。加密锁定时不显示摘要或内容长度，不增加隐式行为追踪。</p>
+            </article>
+          </div>
+        </section>
+
           
       </div>
     </div>
@@ -1454,6 +1665,15 @@
         <svg class="i i--sm" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
         快捷键
       </button>
+      <div class="settings-existing-features">
+        <div class="settings-feature-title">当前产品设置</div>
+        <button class="mnav">同步状态与重试</button><button class="mnav">远程备份</button>
+        <button class="mnav">样式编辑器</button><button class="mnav">默认属性预设</button>
+        <button class="mnav">附件管理</button><button class="mnav">恢复码</button>
+        <button class="mnav">同步诊断日志</button><button class="mnav">AI 助手</button>
+        <button class="mnav">MCP Token 与权限</button><button class="mnav">剪藏模板</button>
+        <button class="mnav">插件与 Raindrop</button>
+      </div>
       <div class="sp"></div>
       <div class="acc">
         <span class="av">林</span>
@@ -1509,6 +1729,13 @@
           <svg class="i" viewBox="0 0 24 24"><path d="M12 3.5l7 3v6c0 4.2-3 7.3-7 8.5-4-1.2-7-4.3-7-8.5v-6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>
           <span>此偏好写入<b>账号级外观设置</b>，随账号同步到其他设备。换账号互不影响，同一设备也会各自记住。</span>
         </div>
+        <section class="settings-feature-catalog" aria-label="其他现有设置功能">
+          <h4>其他设置功能</h4>
+          <div><b>同步</b><span>本地保存状态、待上传数量、失败重试与诊断日志</span></div>
+          <div><b>备份与恢复</b><span>远程目标、手动/定时备份、快照管理与恢复码</span></div>
+          <div><b>内容管理</b><span>附件引用与清理、默认属性预设、全局样式编辑</span></div>
+          <div><b>接入管理</b><span>AI 助手、MCP Token 权限、剪藏模板和插件/Raindrop</span></div>
+        </section>
       </div>
 
       <div class="modal-foot">

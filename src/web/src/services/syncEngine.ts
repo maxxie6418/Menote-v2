@@ -3,7 +3,7 @@ import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
 import { bulkPutMemoComments, deleteMemoComments } from "../db/memoCommentsRepo";
-import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseParkedSettings, settleSettingResult } from "../db/outboxRepo";
+import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseMissingItemDeletes, releaseParkedSettings, settleSettingResult } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
@@ -161,6 +161,10 @@ async function handleResult(row: OutboxRow, result: SyncOperationResult): Promis
     return deleteOutboxRows([row.seq!]);
   }
   if (result.result === "rejected") {
+    // 兼容仍把缺失条目删除判为拒绝的旧 Worker；目标状态已满足，清掉本地操作。
+    if (row.entity === "item" && row.action === "delete" && result.code === "entity_missing") {
+      return deleteOutboxRows([row.seq!]);
+    }
     // unavailable 是存储故障，退避重试；确定性拒绝才死信。
     if (result.code === "unavailable") return markOutboxError(row.seq!, "unavailable", backoffMs(row.retries));
     return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);
@@ -381,6 +385,7 @@ export async function runSyncCycle(userId: string): Promise<void> {
   try {
     const deviceId = await getDeviceId();
     await releaseParkedSettings(userId);
+    await releaseMissingItemDeletes(userId);
     await drainOutbox(userId, deviceId);
     await pullUpdates(userId);
     setPhase("idle");

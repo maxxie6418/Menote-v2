@@ -183,7 +183,7 @@
   .qt-gone .qt-x{color:var(--app-fg-faint);font-style:italic}
 
   /* ============================================================
-     02/03 单独记录窗口（对话框）
+     02/03 早期窗口草案（已被卡片内编辑方案取代）
      ============================================================ */
   .scrim{
     position:relative;padding:56px 24px;display:flex;justify-content:center;align-items:flex-start;
@@ -461,7 +461,7 @@
     <p>范围：①单独记录（气泡卡片 · 互动栏 · 详情与平铺评论 · 引述撰写）②整个 Memo 页面组合。收藏沿用现有 <span class="mono" style="font-family:var(--app-font-mono);font-size:11.5px">Item.starred</span> 与侧栏「收藏」入口，不新增可见结构。</p>
     <div class="callout" style="margin-left:0">
       <b>已确认（需求记录 §2）</b>：评论是后续发言、不改写原文；评论只直接挂在 Memo 下，不支持子评论；引述引用原文内容；评论 / 收藏 / 引述入口放在气泡框底部（参考 Twitter）；收藏支持历史回顾。<br>
-      <b>已确认（2026-11-02 补充）</b>：①评论与 Memo 原文均可编辑、删除；②引述快照发布即冻结、永久保留；③来源 Memo 删除后快照保留并标「来源已删除」；④收藏复用 <span class="mono" style="font-family:var(--app-font-mono);font-size:11.5px">Item.starred</span> 且收藏列表含 Memo；⑤时间线评论默认折叠、单独记录窗口内默认展开；⑥回收站内评论随 Memo 隐藏、恢复后恢复，永久删除 Memo 时清除评论；⑦评论与引述进搜索与备份恢复，MCP 默认不扩。
+      <b>现行确认（2026-11-05）</b>：评论、收藏、引述三个入口固定在 Memo 卡片底部；评论与引述都在原卡片内展开编辑，不弹窗、不打开独立窗口；收藏即时切换。评论与 Memo 原文均可编辑、删除；引述快照发布即冻结；来源删除后快照保留并标示；评论随回收站隐藏/恢复，永久删除时清除；搜索与备份恢复纳入评论和引述，MCP 默认不扩。下方 02/03 旧窗口图仅留作历史方案，不作为现行界面验收依据。
     </div>
   </header>
 
@@ -538,7 +538,7 @@
           <tr><td>count</td><td class="mono">mono 11px</td><td>计数为 0 时省略数字，只留图标；已收藏计数用 accent-fg</td></tr>
           <tr><td>hover</td><td class="mono">--app-hover · r8</td><td>只动按钮自身，卡片边框仍按时间线悬停规则加深一档</td></tr>
           <tr><td>active</td><td class="mono">star 实心 · accent</td><td>收藏是唯一成色的互动按钮；评论 / 引述不引入第二色，沿用灰阶</td></tr>
-          <tr><td>入口语义</td><td>评论＝展开讨论 · 引述＝打开撰写窗口</td><td>点评论或计数进「单独记录窗口」；点收藏即时切换，无需确认</td></tr>
+          <tr><td>入口语义（现行）</td><td>评论 / 引述＝在当前卡片内展开编辑</td><td>不弹窗、不导航；收藏即时切换。早期窗口草案已废止</td></tr>
         </tbody>
       </table>
     </div>
@@ -551,7 +551,7 @@
 
   <!-- ================= 02 单独记录窗口 ================= -->
   <section class="screen" id="s2">
-    <div class="screen-head"><span class="n">02</span><h2>单独记录窗口 · 详情与评论</h2><span class="desc">680px 对话框 · 评论平铺按时间排序 · 底部评论输入常驻</span></div>
+    <div class="screen-head"><span class="n">02</span><h2>旧稿（已废止）· 单独记录窗口</h2><span class="desc">历史对话框示意，不属于现行方案；评论在原 Memo 卡片内展开与编辑</span></div>
     <div class="frame"><div class="scrim">
       <div class="win">
         <div class="win-hd">
@@ -609,7 +609,7 @@
 
   <!-- ================= 03 引述 ================= -->
   <section class="screen" id="s3">
-    <div class="screen-head"><span class="n">03</span><h2>引述 · 撰写窗口与引述卡片</h2><span class="desc">新发言带原文快照 · 来源保持可回溯 · 发布即冻结、永久保留（已确认）</span></div>
+    <div class="screen-head"><span class="n">03</span><h2>旧稿（已废止）· 引述撰写窗口</h2><span class="desc">历史窗口示意；现行交互在来源 Memo 卡片内编辑并发布</span></div>
 
     <div class="duo-cap"><b>左</b>引述撰写窗口<span>·</span><b>右</b>发布后在时间线中的引述卡片</div>
     <div class="duo" style="margin-left:42px">
@@ -683,7 +683,7 @@
     </div>
 
     <div class="notes">
-      <div><b>引述是一条新发言</b>：自己的文字在上，原文快照盒在下；快照盒灰底圆角、不与正文同级，时间线内最多留 3 行，撰写窗口里完整显示。</div>
+      <div><b>引述是一条新发言</b>：自己的文字在上，原文快照盒在下；快照盒灰底圆角、不与正文同级，时间线内最多留 3 行；卡片内撰写时完整显示。</div>
       <div><b>来源可回溯</b>：快照头行标来源时间，悬停出现「查看来源」，点击滚回来源 Memo；引述与来源的关联不产生第二份状态。</div>
       <div><b>已确认 · 快照冻结</b>：发布即冻结、永久保留，原 Memo 后续编辑不回写旧引述；引用原文内容的规则不变。</div>
       <div><b>已确认 · 来源删除</b>：来源 Memo 删除后快照保留，头行标「来源已删除」，「查看来源」消失，历史引用不丢失。</div>
@@ -826,7 +826,7 @@
                     <div class="cmt-x">这条要同步进规范文档。</div>
                   </div>
                 </div>
-                <button class="m-more"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>打开单独记录窗口 · 3 条评论</button>
+                <button class="m-more"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>（旧稿）查看单独记录窗口 · 3 条评论</button>
               </div>
             </div>
 
@@ -918,7 +918,7 @@
 
     <div class="notes">
       <div><b>时间轴加重（2026-11-02）</b>：轴线 2.5px 深灰渐隐（两端淡出）、节点 8px，当前条节点加强调晕环——比 v1 的 1.5px 发丝线醒目一档；顶栏、工作栏、Todo 浮层、分组与胶囊不动。</div>
-      <div><b>已确认 · 折叠</b>：时间线默认只挂「展开 N 条评论」行；展开后评论平铺接在卡片下，完整版进单独记录窗口（02 屏），窗口内默认展开。</div>
+      <div><b>现行 · 卡片内编辑</b>：时间线默认收起评论面板；点击卡片底部评论按钮，在卡片内展开平铺评论与写入区。评论编辑/删除仍在当前卡片完成，不打开窗口。上方 02 屏是已废止的旧视觉草案。</div>
       <div><b>引述混排</b>：引述是一条普通时间线发言，带灰底快照盒，不另开列表或分组；「查看来源」悬停出现，点击滚到来源条目。</div>
       <div><b>已确认 · 收藏</b>：复用 <span class="mono" style="font-family:var(--app-font-mono);font-size:11px">Item.starred</span>，收藏列表含 Memo；侧栏「收藏」沿用回看导航（计数含 Memo），点收藏即时生效，时间线内只体现为星标实心。</div>
     </div>
@@ -932,7 +932,7 @@
         <thead><tr><th>原 §6 待明确</th><th>已确认口径</th><th>影响</th></tr></thead>
         <tbody>
           <tr><td>评论编辑 / 删除</td><td>评论与 Memo 原文均可编辑、删除</td><td>编辑标注更新时间；原文编辑沿用现有原位源文本编辑；评论不支持子评论</td></tr>
-          <tr><td>引述快照是否永久保留</td><td>发布即冻结，永久保留</td><td>旧引述不随原 Memo 编辑变化（03 屏撰写窗口已示意）</td></tr>
+          <tr><td>引述快照是否永久保留</td><td>发布即冻结，永久保留</td><td>旧引述不随原 Memo 编辑变化（现行在原卡片内撰写）</td></tr>
           <tr><td>来源 Memo 删除后如何显示</td><td>快照保留，标「来源已删除」</td><td>「查看来源」消失，历史引用不丢（03 屏已示意）</td></tr>
           <tr><td>收藏是否复用 starred</td><td>复用 <span class="mono">Item.starred</span>，收藏列表含 Memo</td><td>不新增字段；收藏列表入口沿用侧栏「收藏」，实现时核对当前导航计数口径</td></tr>
           <tr><td>评论列表默认折叠 / 展开</td><td>时间线默认折叠，窗口内默认展开</td><td>时间线密度不被评论列表冲垮；展开态与窗口态见 02、04 屏</td></tr>

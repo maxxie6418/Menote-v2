@@ -34,6 +34,13 @@ export async function releaseParkedSettings(userId: string): Promise<void> {
   await Promise.all(stuck.map((row) => localDb.outbox.update(row.seq!, { nextRetryAt: null })));
 }
 
+/** 重新排入历史上因 entity_missing 被永久退避的条目删除；缺失删除现在按幂等成功收敛。 */
+export async function releaseMissingItemDeletes(userId: string): Promise<void> {
+  const rows = await localDb.outbox.where("userId").equals(userId).toArray();
+  const stuck = rows.filter((row) => row.entity === "item" && row.action === "delete" && row.lastError === "rejected:entity_missing");
+  await Promise.all(stuck.map((row) => localDb.outbox.update(row.seq!, { nextRetryAt: null })));
+}
+
 /**
  * 设置操作落败收尾（G2 §5）：本地 rev 对齐服务端实测值，避免乐观 rev 漂移后
  * baseRev 永久错位、后续每次推送都撞冲突被丢；仍需生效的写入按修正后的 baseRev
