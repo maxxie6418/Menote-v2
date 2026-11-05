@@ -1,3 +1,5 @@
+import { base64ToBytes, bytesToBase64 } from "@menote/shared";
+
 /** 加密原语门面（G7，G4 设计 §1）：全部 WebCrypto 原生；KDF 一律客户端执行。 */
 
 const KDF_ITERATIONS = 600_000;
@@ -5,11 +7,11 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 export function toB64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes));
+  return bytesToBase64(bytes);
 }
 
 export function fromB64(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  return base64ToBytes(value);
 }
 
 async function deriveKekBytes(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {

@@ -17,6 +17,7 @@ let lastActivity = Date.now();
 export const LOCK_TIMEOUT_MS = 15 * 60_000;
 
 const listeners = new Set<() => void>();
+const beforeLock = new Set<() => Promise<void>>();
 let version = 0;
 function bump(): void {
   version += 1;
@@ -49,14 +50,26 @@ export function touchActivity(): void {
   lastActivity = Date.now();
 }
 
-export function lockItem(itemId: string): void {
+/** 锁定前先落盘。调用方必须在密钥仍在内存时把未保存明文写完。 */
+export function registerBeforeLock(flush: () => Promise<void>): () => void {
+  beforeLock.add(flush);
+  return () => beforeLock.delete(flush);
+}
+
+async function flushBeforeLock(): Promise<void> {
+  await Promise.all([...beforeLock].map((flush) => flush().catch(() => undefined)));
+}
+
+export async function lockItem(itemId: string): Promise<void> {
+  await flushBeforeLock();
   noteKeys.delete(itemId);
   spaceNotes.delete(itemId);
   bump();
 }
 
 /** 锁定私人空间，并丢弃由它打开的笔记密钥。 */
-export function lockTopic(topicId: string): void {
+export async function lockTopic(topicId: string): Promise<void> {
+  await flushBeforeLock();
   topicKeys.delete(topicId);
   for (const [itemId, owner] of spaceNotes) {
     if (owner !== topicId) continue;
@@ -67,8 +80,9 @@ export function lockTopic(topicId: string): void {
 }
 
 /** 不活动超时（FR-ENC-4）：丢弃全部会话密钥。由调度器定期调用检查。 */
-export function lockIfIdle(now = Date.now()): boolean {
+export async function lockIfIdle(now = Date.now()): Promise<boolean> {
   if ((noteKeys.size > 0 || topicKeys.size > 0) && now - lastActivity > LOCK_TIMEOUT_MS) {
+    await flushBeforeLock();
     noteKeys.clear();
     topicKeys.clear();
     spaceNotes.clear();

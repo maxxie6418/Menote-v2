@@ -122,29 +122,47 @@ export interface IssuedSession {
   expiresAt: number;
 }
 
-export async function issueSession(db: D1Database, userId: string, now: number): Promise<IssuedSession> {
-  const id = randomToken(32);
-  const expiresAt = now + SESSION_TTL_MS;
-  await createSession(db, id, userId, now, expiresAt);
-  await deleteExpiredSessions(db, userId, now);
-  return { userId, cookieValue: id, expiresAt };
+async function sessionStorageId(cookieValue: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cookieValue));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function destroySession(db: D1Database, id: string): Promise<void> {
-  await deleteSession(db, id);
+export async function issueSession(db: D1Database, userId: string, now: number): Promise<IssuedSession> {
+  const cookieValue = randomToken(32);
+  const expiresAt = now + SESSION_TTL_MS;
+  await createSession(db, await sessionStorageId(cookieValue), userId, now, expiresAt);
+  await deleteExpiredSessions(db, userId, now);
+  return { userId, cookieValue, expiresAt };
+}
+
+export async function destroySession(db: D1Database, cookieValue: string): Promise<void> {
+  await deleteSession(db, await sessionStorageId(cookieValue));
+  await deleteSession(db, cookieValue);
 }
 
 /** 解析会话并滑动续期（剩余不足半周期时顺延）；无效返回 null。
- *  touch=false 供采样等只读归属使用，不产生写放大。 */
+ *  touch=false 供采样等只读归属使用，不产生写放大。
+ *  库存的是 cookie 的 SHA-256。旧库里的明文 id 在首次访问时迁成摘要，不强制掉线。 */
 export async function resolveSessionUser(
   db: D1Database, cookieValue: string, now: number, touch = true,
 ): Promise<AuthUser | null> {
-  const session = await readSession(db, cookieValue);
+  const hashed = await sessionStorageId(cookieValue);
+  let session = await readSession(db, hashed);
+  let storageId = hashed;
+  if (!session) {
+    const legacy = await readSession(db, cookieValue);
+    if (legacy) {
+      await createSession(db, hashed, legacy.userId, now, legacy.expiresAt);
+      await deleteSession(db, cookieValue);
+      session = { ...legacy, id: hashed };
+      storageId = hashed;
+    }
+  }
   if (!session || session.expiresAt <= now) return null;
   const remaining = session.expiresAt - now;
   if (touch && remaining < SESSION_TTL_MS / 2) {
     const nextExpiry = now + SESSION_TTL_MS;
-    await touchSession(db, cookieValue, nextExpiry, now);
+    await touchSession(db, storageId, nextExpiry, now);
   }
   const user = await findUserById(db, session.userId);
   return user ? toAuthUser(user) : null;

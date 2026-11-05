@@ -12,6 +12,7 @@ import { applyPulledRaindropSettings } from "./raindropSettingsService";
 import { applyPulledPropertyTemplates } from "./propertyTemplateService";
 import { applyPulledTableViewSettings } from "./tableViewSettingsService";
 import { applyPulledWorkspaceSettings } from "./workspaceSettingsService";
+import { isBlankDraft } from "./contentService";
 import { outboxUpsert } from "./contentShared";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
@@ -44,6 +45,20 @@ export function subscribeSyncStatus(listener: () => void): () => void {
 
 export function getSyncPhase(): SyncPhase {
   return phase;
+}
+
+export async function itemSyncStatus(userId: string, itemId: string): Promise<{ pending: boolean; failed: boolean }> {
+  const rows = await localDb.outbox.where("entityId").equals(itemId).toArray();
+  const mine = rows.filter((row) => row.userId === userId && row.entity === "item");
+  return { pending: mine.length > 0, failed: mine.some((row) => row.lastError) };
+}
+
+export async function syncQueueStatus(userId: string): Promise<{ pending: number; failed: number }> {
+  const rows = await localDb.outbox.where("userId").equals(userId).toArray();
+  return {
+    pending: rows.length,
+    failed: rows.filter((row) => row.lastError).length,
+  };
 }
 
 export async function getDeviceId(): Promise<string> {
@@ -137,6 +152,7 @@ async function handleResult(row: OutboxRow, result: SyncOperationResult): Promis
     // 让已拨开的开关真正落库（否则 UI 显示已开启、推理仍 409）。
     if (result.result === "duplicate") return settleSettingResult(row, result.rev, false);
     if (result.result === "conflict") return settleSettingResult(row, result.detail.rev, result.detail.rev === 0);
+    if (result.code === "unavailable") return markOutboxError(row.seq!, "unavailable", backoffMs(row.retries));
     return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);
   }
   if (result.result === "duplicate") {
@@ -145,6 +161,8 @@ async function handleResult(row: OutboxRow, result: SyncOperationResult): Promis
     return deleteOutboxRows([row.seq!]);
   }
   if (result.result === "rejected") {
+    // unavailable 是存储故障，退避重试；确定性拒绝才死信。
+    if (result.code === "unavailable") return markOutboxError(row.seq!, "unavailable", backoffMs(row.retries));
     return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);
   }
   // conflict：元数据冲突服务端胜（G2 §5-3），对齐版本号后落队，正文冲突由 drainOutbox 另存副本。
@@ -156,7 +174,19 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
   // 一轮同步内同一条目只留一份冲突副本（G2 §5-1：只保留最新本地稿一份）。
   const conflictedItems = new Set<string>();
   for (;;) {
-    const pending = await listPendingOutbox(userId, PUSH_BATCH);
+    const queued = await listPendingOutbox(userId, PUSH_BATCH);
+    if (queued.length === 0) return;
+    const pending = [];
+    for (const row of queued) {
+      if (row.entity === "item" && row.action === "upsert") {
+        const item = await localDb.items.get(row.entityId);
+        if (item && isBlankDraft(item)) {
+          await deleteOutboxRows([row.seq!]);
+          continue;
+        }
+      }
+      pending.push(row);
+    }
     if (pending.length === 0) return;
     // 加密条目：随操作携带本地包装块（G7）。
     for (const row of pending) {
@@ -248,16 +278,34 @@ async function pendingEntityIds(userId: string): Promise<Set<string>> {
   return new Set(rows.map((row) => row.entityId));
 }
 
+function numericCursor(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+  return fallback;
+}
+
+async function reconcileFullSnapshot(userId: string, keep: Set<string>, itemIds: Set<string>, topicIds: Set<string>, commentIds: Set<string>): Promise<void> {
+  const allItems = await localDb.items.toArray();
+  await localDb.items.bulkDelete(allItems.filter((row) => row.userId === userId && !keep.has(row.id) && !itemIds.has(row.id)).map((row) => row.id));
+  const allTopics = await localDb.topics.toArray();
+  await localDb.topics.bulkDelete(allTopics.filter((row) => row.userId === userId && !keep.has(row.id) && !topicIds.has(row.id)).map((row) => row.id));
+  const allComments = await localDb.memoComments.toArray();
+  await deleteMemoComments(allComments.filter((row) => row.userId === userId && !keep.has(row.id) && !commentIds.has(row.id)).map((row) => row.id));
+}
+
 async function pullUpdates(userId: string): Promise<void> {
   // 本地仍有待推操作的条目不覆盖（G2 §4 同款保护）：拉取拿服务端版本回写会把还没上传的正文
   // 与版本号一起退回去，下一轮推送就带着过期版本号去撞前置条件——冲突副本反复出现的第二条来源。
   const keep = await pendingEntityIds(userId);
+  let cursor = String((await getMeta<number | string>(SYNC_CURSOR_KEY)) ?? 0);
+  const seenItems = new Set<string>();
+  let seenTopics: Set<string> | null = null;
+  let seenComments: Set<string> | null = null;
   for (let page = 0; page < PULL_MAX_PAGES; page += 1) {
-    const cursor = (await getMeta<number>(SYNC_CURSOR_KEY)) ?? 0;
     const pullStartedAt = Date.now();
-    const response = await fetch(`/api/sync/pull?cursor=${cursor}`, { cache: "no-store" });
+    const response = await fetch(`/api/sync/pull?cursor=${encodeURIComponent(cursor)}`, { cache: "no-store" });
     if (!response.ok) {
-      recordSyncDiagnostic(userId, { category: "error", event: "pull_request_failed", cursor, code: `http_${response.status}`, durationMs: Date.now() - pullStartedAt });
+      recordSyncDiagnostic(userId, { category: "error", event: "pull_request_failed", cursor: numericCursor(cursor, 0), code: `http_${response.status}`, durationMs: Date.now() - pullStartedAt });
       throw new Error(`pull_${response.status}`);
     }
     const body: unknown = await response.json();
@@ -267,13 +315,13 @@ async function pullUpdates(userId: string): Promise<void> {
       settings?: import("@menote/shared").UserSetting[];
       nextCursor?: unknown; hasMore?: boolean; fullResync?: boolean;
     };
+    const cursorNumber = numericCursor(cursor, 0);
     recordSyncDiagnostic(userId, {
-      category: "pull", event: fullResync ? "full_resync_page_received" : "pull_page_received", cursor,
-      nextCursor: Number(nextCursor ?? cursor) || cursor,
+      category: "pull", event: fullResync ? "full_resync_page_received" : "pull_page_received", cursor: cursorNumber,
+      nextCursor: numericCursor(nextCursor, cursorNumber),
       count: (items?.length ?? 0) + (topics?.length ?? 0) + (memoComments?.length ?? 0) + (tombstones?.length ?? 0),
       durationMs: Date.now() - pullStartedAt,
     });
-    // 包装块随页落库（G7：加密条目他端解锁的依据）。
     for (const group of (body as { wraps?: Array<{ itemId: string; wraps: KeyWrap[] }> }).wraps ?? []) {
       await localDb.wraps.put({ itemId: group.itemId, wraps: group.wraps });
     }
@@ -281,32 +329,48 @@ async function pullUpdates(userId: string): Promise<void> {
       await localDb.topicWraps.put({ topicId: group.topicId, wraps: group.wraps });
     }
     if (fullResync) {
-      const allItems = await localDb.items.toArray();
-      await localDb.items.bulkDelete(allItems.filter((row) => row.userId === userId && !keep.has(row.id)).map((row) => row.id));
-      const allTopics = await localDb.topics.toArray();
-      await localDb.topics.bulkDelete(allTopics.filter((row) => row.userId === userId && !keep.has(row.id)).map((row) => row.id));
-      const allComments = await localDb.memoComments.toArray();
-      await deleteMemoComments(allComments.filter((row) => row.userId === userId && !keep.has(row.id)).map((row) => row.id));
+      for (const item of items ?? []) seenItems.add(item.id);
+      if (seenTopics === null) {
+        seenTopics = new Set((topics ?? []).map((topic) => topic.id));
+        seenComments = new Set((memoComments ?? []).map((comment) => comment.id));
+      }
     }
     // 落库顺序：先墓碑、再条目/主题（G2 §4）。待推条目跳过回写，等推送成功后由下一轮拉取收敛。
-    for (const tombstone of tombstones ?? []) {
-      await applyTombstone({ entityId: tombstone.id, entity: tombstone.entity });
+    // 全量重同步不在中途删本地：快照收齐后再按差集删除，中断不会只剩最早一页。
+    if (!fullResync) {
+      for (const tombstone of tombstones ?? []) {
+        await applyTombstone({ entityId: tombstone.id, entity: tombstone.entity });
+      }
     }
     const incoming = (items ?? []).filter((item) => !keep.has(item.id));
     if (incoming.length > 0) await bulkPutItems(incoming);
     if (memoComments && memoComments.length > 0) await bulkPutMemoComments(memoComments);
-    for (const topic of topics ?? []) {
-      await localDb.topics.put(topic);
+    for (const topic of topics ?? []) await localDb.topics.put(topic);
+    // 全量重同步只在第一页带设置；后续页是空数组，不能再走「无远端记录则导入旧偏好」。
+    if (!fullResync || page === 0) {
+      const settings = (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? [];
+      await applyPulledSettings(userId, settings);
+      await applyPulledWorkspaceSettings(userId, settings);
+      await applyPulledAiSettings(userId, settings);
+      await applyPulledRaindropSettings(userId, settings);
+      await applyPulledPropertyTemplates(userId, settings);
+      await applyPulledTableViewSettings(userId, settings);
     }
-    await applyPulledSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await applyPulledWorkspaceSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await applyPulledAiSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await applyPulledRaindropSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await applyPulledPropertyTemplates(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await applyPulledTableViewSettings(userId, (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? []);
-    await setMeta(SYNC_CURSOR_KEY, Number(nextCursor ?? cursor) || cursor);
+    const next = String(nextCursor ?? cursor);
+    if (fullResync) {
+      if (!hasMore) {
+        await reconcileFullSnapshot(userId, keep, seenItems, seenTopics ?? new Set(), seenComments ?? new Set());
+        await setMeta(SYNC_CURSOR_KEY, numericCursor(next, 0));
+        return;
+      }
+      cursor = next;
+      continue;
+    }
+    await setMeta(SYNC_CURSOR_KEY, numericCursor(next, cursorNumber));
     if (!hasMore) return;
+    cursor = next;
   }
+  if (seenTopics) throw new Error("full_resync_incomplete");
 }
 
 /** 单轮同步；由调度器（主锁持有者）调用。 */

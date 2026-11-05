@@ -5,14 +5,14 @@ import {
 } from "@menote/shared";
 import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
-import { ensureAttachmentRow, setAttachmentRefs } from "../db/attachments";
+import { ensureAttachmentRow, realignAttachmentStatements, setAttachmentRefs } from "../db/attachments";
 import { readMemoCommentState, readMemoOwnerState, upsertMemoComment } from "../db/memoComments";
-import { putItemWraps, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
+import { itemWrapStatements, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, countItemReferences, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  appendSyncLog, appendSyncLogStatement, commitWrites, countItemReferences, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
-  readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, toTombstone, updateItemContent, updateItemMeta, upsertItemRow, upsertTopicRow,
+  readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRow,
   readSettingState, writeSetting,
 } from "../db/sync";
 
@@ -96,22 +96,26 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   })() : [];
   // 客户端的元数据版本落后（他端改过元数据）时，正文照落、元数据保持服务端值（G2 §5-3 服务端胜出）。
   const metadataStale = current ? operation.baseMetaRev !== current.metaRev : false;
+  const statements: D1PreparedStatement[] = [];
   if (current && !contentOp) {
     // 元数据写只落元数据列：正文与正文版本号保持服务端原值（避免把尚未上传的正文提前写进服务端）。
-    await updateItemMeta(ctx.db, ctx.userId, ctx.deviceId, item, metaRev);
+    statements.push(updateItemMetaStatement(ctx.db, ctx.userId, ctx.deviceId, item, metaRev));
   } else if (current && metadataStale) {
     // 正文写 + 元数据落后：窄写正文列，不连带覆盖服务端更新的标题/标签/归属。
-    await updateItemContent(ctx.db, ctx.userId, ctx.deviceId, item, rev);
+    statements.push(updateItemContentStatement(ctx.db, ctx.userId, ctx.deviceId, item, rev));
   } else {
-    await upsertItemRow(ctx.db, ctx.userId, ctx.deviceId, item, rev, metaRev);
+    statements.push(upsertItemRowStatement(ctx.db, ctx.userId, ctx.deviceId, item, rev, metaRev));
   }
   if (operation.wraps && operation.wraps.length > 0) {
-    await putItemWraps(ctx.db, ctx.userId, item.id, operation.wraps, ctx.now);
+    statements.push(...itemWrapStatements(ctx.db, ctx.userId, item.id, operation.wraps, ctx.now));
   }
-  await appendSyncLog(ctx.db, ctx.userId, "item", item.id, "upsert", rev, metaRev, ctx.now);
-  await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", item.id, "applied", rev, metaRev, item.contentHash, ctx.now);
-  // 引用对齐覆盖旧+新引用集合：移除引用后计数同样要下降（FR-SYNC-7）。
-  await realignAttachmentRefs(ctx, [...previousRefs, ...item.attachmentHashes]);
+  statements.push(
+    appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", rev, metaRev, ctx.now),
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, "applied", rev, metaRev, item.contentHash, ctx.now),
+  );
+  const hashes = [...new Set([...previousRefs, ...item.attachmentHashes])].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256));
+  for (const sha256 of hashes) statements.push(...realignAttachmentStatements(ctx.db, ctx.userId, sha256, ctx.now));
+  await commitWrites(ctx.db, statements);
   return { operationId: operation.operationId, result: "applied", rev, metaRev };
 }
 
@@ -261,15 +265,27 @@ export async function purgeOperationsBefore(ctx: ApplyContext, before: number): 
   await purgeSyncOperations(ctx.db, ctx.userId, before);
 }
 
-/** 批量推送入口：逐操作独立事务，单操作确定失败不影响其余（G2 §3），失败映射为 rejected 结果。 */
+function isConstraintError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /CHECK constraint|NOT NULL|FOREIGN KEY|SQLITE_CONSTRAINT|datatype mismatch/i.test(message);
+}
+
+/** 批量推送入口：逐操作独立事务，单操作确定失败不影响其余（G2 §3）。
+ *  载荷非法 / 约束失败是 rejected；存储或网络类故障是 unavailable，客户端退避重试，不记死信。 */
 export async function applyOperations(ctx: ApplyContext, operations: OutboxOperation[]): Promise<SyncOperationResult[]> {
   const results: SyncOperationResult[] = [];
   for (const operation of operations) {
     try {
       results.push(await applyOperation(ctx, operation));
     } catch (error) {
-      const code = error instanceof Error && error.message.startsWith("invalid") ? "invalid_payload" : "entity_missing";
-      results.push({ operationId: operation.operationId, result: "rejected", code });
+      if (error instanceof SyncRejected) {
+        results.push({ operationId: operation.operationId, result: "rejected", code: error.code });
+      } else if (isConstraintError(error)) {
+        await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, operation.entity, operation.entityId, "rejected", 0, 0, null, ctx.now);
+        results.push({ operationId: operation.operationId, result: "rejected", code: "invalid_payload" });
+      } else {
+        results.push({ operationId: operation.operationId, result: "rejected", code: "unavailable" });
+      }
     }
   }
   return results;
@@ -278,24 +294,41 @@ export async function applyOperations(ctx: ApplyContext, operations: OutboxOpera
 /** 拉取分页上限（G2 定稿 200/页）。 */
 const PULL_PAGE_LIMIT = 200;
 
+const FULL_RESYNC_CURSOR = /^full:(\d+)$/;
+
+/** 全量重同步单独分页。续页游标是 `full:<offset>`，最后一页才回到日志游标。主题/评论/设置只在第一页给全量。 */
+async function buildFullResyncPage(db: D1Database, userId: string, offset: number): Promise<SyncPage> {
+  const probe = await readLogPage(db, userId, 0, 1);
+  const items = await readAllItemsPage(db, userId, offset, PULL_PAGE_LIMIT);
+  const hasMore = items.length === PULL_PAGE_LIMIT;
+  const topics = offset === 0 ? await readAllTopics(db, userId) : [];
+  const memoComments = offset === 0 ? await readAllMemoComments(db, userId) : [];
+  const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
+  const wraps = await readItemWrapGroups(db, userId, encryptedIds);
+  const topicWraps = offset === 0
+    ? await readTopicWrapGroups(db, userId, topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id))
+    : [];
+  const finalCursor = probe.oldestSeq === null ? "0" : String(probe.oldestSeq - 1);
+  return {
+    items, topics, memoComments, tombstones: [], wraps, topicWraps,
+    settings: offset === 0 ? await readSettings(db, userId) : [],
+    nextCursor: hasMore ? `full:${offset + items.length}` : finalCursor,
+    hasMore, fullResync: true,
+  };
+}
+
 /** 拉取一页（G2 §4）：游标早于保留窗口 → 全量重同步（fullResync，cursor=0 同样适用）；
- *  否则按 sync_log.seq 增量返回条目与墓碑；加密条目附带包装块（G7）。 */
-export async function buildSyncPage(db: D1Database, userId: string, cursor: number, now: number): Promise<SyncPage> {
-  const page = await readLogPage(db, userId, cursor, PULL_PAGE_LIMIT);
+ *  否则按 sync_log.seq 增量返回条目与墓碑；加密条目附带包装块（G7）。
+ *  cursor 可以是数字日志游标，或全量续页 `full:<offset>`。 */
+export async function buildSyncPage(db: D1Database, userId: string, cursorRaw: string, now: number): Promise<SyncPage> {
+  const full = FULL_RESYNC_CURSOR.exec(cursorRaw);
+  if (full) return buildFullResyncPage(db, userId, Number(full[1]));
+  const cursor = Number.parseInt(cursorRaw, 10);
+  const safeCursor = Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0;
+  const page = await readLogPage(db, userId, safeCursor, PULL_PAGE_LIMIT);
   // 游标早于保留窗口 → 全量重同步（G2 §4）；cursor=0 同样适用（有日志被清理即缺失状态）。
   const oldestSeq = page.oldestSeq;
-  if (oldestSeq !== null && oldestSeq > cursor + 1) {
-    const items = await readAllItemsPage(db, userId, 0, PULL_PAGE_LIMIT);
-    const topics = await readAllTopics(db, userId);
-    const encryptedIds = items.filter((item) => item.content.scope !== "plain").map((item) => item.id);
-    const wraps = await readItemWrapGroups(db, userId, encryptedIds);
-    const topicWraps = await readTopicWrapGroups(db, userId, topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
-    return {
-      items, topics, tombstones: [], wraps, topicWraps, settings: await readSettings(db, userId),
-      memoComments: await readAllMemoComments(db, userId),
-      nextCursor: String(oldestSeq - 1), hasMore: items.length === PULL_PAGE_LIMIT, fullResync: true,
-    };
-  }
+  if (oldestSeq !== null && oldestSeq > safeCursor + 1) return buildFullResyncPage(db, userId, 0);
 
   // Retained soft-delete rows return as items; only physically removed rows
   // need tombstones. Never send both for the same item/topic in one page.
@@ -316,7 +349,7 @@ export async function buildSyncPage(db: D1Database, userId: string, cursor: numb
     .map((entry) => toTombstone(entry, userId, now));
   return {
     items, topics, memoComments, tombstones, wraps, topicWraps, settings: await readSettings(db, userId),
-    nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(cursor),
+    nextCursor: page.entries.length > 0 ? String(page.entries[page.entries.length - 1]!.seq) : String(safeCursor),
     hasMore: page.hasMore, fullResync: false,
   };
 }

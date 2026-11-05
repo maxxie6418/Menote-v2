@@ -1,4 +1,5 @@
 import type { AuthStatus, AuthUser, CredentialsInput } from "@menote/shared";
+import { localDb } from "../db/localDb";
 import { validPassword, validUsername } from "@menote/shared";
 
 export type AuthRequestResult = { ok: true; user: AuthUser } | { ok: false; code: string };
@@ -35,7 +36,8 @@ export async function fetchAuthStatus(signal: AbortSignal): Promise<AuthStatus |
 export async function submitCredentials(
   path: "/api/auth/bootstrap" | "/api/auth/login" | "/api/auth/register", input: CredentialsInput,
 ): Promise<AuthRequestResult> {
-  if (!validUsername(input.username) || !validPassword(input.password)) {
+  const localTestCredentials = import.meta.env?.DEV === true && input.username === "admin" && input.password === "admin";
+  if (!validUsername(input.username) || (!validPassword(input.password) && !localTestCredentials)) {
     return { ok: false, code: "invalid_credentials" };
   }
   try {
@@ -53,9 +55,31 @@ export async function submitCredentials(
   }
 }
 
+async function clearLocalAccount(): Promise<void> {
+  await localDb.transaction("rw", [
+    localDb.items, localDb.topics, localDb.memoComments, localDb.settings, localDb.outbox,
+    localDb.wraps, localDb.topicWraps, localDb.versions, localDb.syncDiagnostics, localDb.meta, localDb.recovery,
+  ], async () => {
+    await Promise.all([
+      localDb.items.clear(), localDb.topics.clear(), localDb.memoComments.clear(), localDb.settings.clear(),
+      localDb.outbox.clear(), localDb.wraps.clear(), localDb.topicWraps.clear(), localDb.versions.clear(),
+      localDb.syncDiagnostics.clear(), localDb.meta.clear(), localDb.recovery.clear(),
+    ]);
+  });
+}
+
+/** 换账号时丢掉上一账号的本地副本和同步游标，避免沿用旧游标跳过新账号日志。 */
+export async function bindLocalAccount(userId: string): Promise<void> {
+  const { getMeta, setMeta } = await import("../db/localDb");
+  const previous = await getMeta<string>("localAccountId");
+  if (previous && previous !== userId) await clearLocalAccount();
+  await setMeta("localAccountId", userId);
+}
+
 export async function logout(): Promise<{ ok: boolean }> {
   try {
     const response = await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
+    if (response.ok) await clearLocalAccount();
     return { ok: response.ok };
   } catch {
     return { ok: false };

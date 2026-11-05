@@ -7,12 +7,13 @@ import { TableDocument } from "../table";
 import { useItem, useLockVersion } from "../../services/contentHooks";
 import { degradeTableToNote } from "../../services/contentService";
 import { decryptToPlain, parseEnvelope, saveEncryptedContent } from "../../services/encryptionCommandService";
-import { uploadAttachment } from "../../services/attachmentService";
-import { isNoteUnlocked, lockItem, lockOnLeave, openSpaceNote, readPlain, unlockNote } from "../../services/keyringService";
+import { isNoteUnlocked, lockItem, lockOnLeave, openSpaceNote, readPlain, registerBeforeLock, unlockNote } from "../../services/keyringService";
 import { lockPrivateSpace, unlockPrivateSpace } from "../../services/privateSpaceService";
 import { UnlockPanel } from "../encryption";
 import { DocTitle } from "./DocTitle";
-import { itemRoutePath } from "../../app/appRoutes";
+import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, shouldOfferRecovery, writeRecovery } from "../../services/recoveryService";
+import { DocSyncStatus } from "../sync";
+import { ConflictCompare } from "./ConflictCompare";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -34,6 +35,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [plain, setPlain] = useState<string | null>(null);
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   const [dirtyTick, setDirtyTick] = useState(0);
+  const [savedTick, setSavedTick] = useState(0);
+  const dirtyTickRef = useRef(dirtyTick);
+  dirtyTickRef.current = dirtyTick;
   // 预览用的正文：切到预览时从编辑器取一次全量（编辑器在预览态会卸载）。
   const [previewText, setPreviewText] = useState<string | null>(null);
   // 编辑器注册的全量取值器（落盘出口）：保存、预览、解除加密都从它取正文。
@@ -41,10 +45,13 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   // plain 的最新值：自动保存的定时器里读它，避免定时器闭包拿到旧明文。
   const plainRef = useRef<string | null>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [recoveryText, setRecoveryText] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [paperMode, setPaperMode] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const unlocked = isNoteUnlocked(item.id);
+  const conflictSource = useItem(userId, item.conflictOf ?? null);
   const inSpace = item.content.scope === "private_space";
 
   useEffect(() => {
@@ -65,11 +72,17 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   }, [inSpace, item.id, item.topicId, unlocked]);
 
   useEffect(() => {
-    if (!unlocked) { setPlain(null); return; }
-    if (item.content.scope !== "plain" && plain === null) {
-      void readPlain(item.id, parseEnvelope(item.content.ciphertext)).then((value) => setPlain(value ?? ""));
+    if (!unlocked) { setPlain(null); setReadError(null); return; }
+    if (item.content.scope !== "plain" && plain === null && readError === null) {
+      void readPlain(item.id, parseEnvelope(item.content.ciphertext)).then((value) => {
+        if (value === null) {
+          setReadError("正文解密失败，已停止自动保存，避免用空内容覆盖原文。");
+          return;
+        }
+        setPlain(value);
+      });
     }
-  }, [unlocked, item, plain]);
+  }, [unlocked, item, plain, readError]);
 
   // 同步 plain 的最新值（给自动保存的定时器用）。
   useEffect(() => { plainRef.current = plain; }, [plain]);
@@ -82,20 +95,54 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     setSaveState({ kind: "saving" });
     try {
       await saveEncryptedContent(userId, item.id, value);
-      // 保存成功后同步最新明文：编辑器卸载后重挂载、预览、解除加密都靠它拿到当前正文。
       setPlain(value);
+      setSavedTick(dirtyTickRef.current);
       setSaveState({ kind: "idle" });
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
     }
   }, [item.id, userId]);
 
+  useEffect(() => {
+    if (!unlocked || plain === null) return;
+    let cancelled = false;
+    void readRecovery(item.id).then(async (row) => {
+      if (cancelled || !row || row.scope !== "sealed") return;
+      const text = await openRecoveryMarkdown(row);
+      if (!cancelled) setRecoveryText(shouldOfferRecovery(plain, text) ? text : null);
+    });
+    return () => { cancelled = true; };
+  }, [item.id, unlocked, plain]);
+
+  useEffect(() => {
+    if (!unlocked || plain === null || dirtyTick === 0) return;
+    const next = getMarkdownRef.current?.() ?? plain;
+    if (next !== null) scheduleRecovery(userId, item.id, next, "sealed");
+  }, [dirtyTick, unlocked, plain, item.id, userId]);
+
+  useEffect(() => {
+    const flushSnapshot = () => {
+      if (!isNoteUnlocked(item.id) || plainRef.current === null) return;
+      const next = getMarkdownRef.current?.() ?? plainRef.current;
+      void writeRecovery(userId, item.id, next, "sealed");
+    };
+    window.addEventListener("pagehide", flushSnapshot);
+    return () => window.removeEventListener("pagehide", flushSnapshot);
+  }, [item.id, userId]);
+
+  useEffect(() => registerBeforeLock(async () => {
+    if (!isNoteUnlocked(item.id) || plainRef.current === null) return;
+    await flush(getMarkdownRef.current?.() ?? plainRef.current);
+  }), [item.id, flush]);
+
   // 自动保存：键入只给脏信号，800ms 后从编辑器取全量明文再存（FR-EDT-10）。
   // 编辑器未挂载（表格形态 / 预览态）时退回 plain 的最新值。
   useEffect(() => {
     if (plainRef.current === null || !unlocked) return;
     const timer = setTimeout(() => {
-      void flush(getMarkdownRef.current?.() ?? plainRef.current ?? "");
+      const next = getMarkdownRef.current?.() ?? plainRef.current;
+    if (next === null) return;
+    void flush(next);
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [dirtyTick, unlocked, flush]);
@@ -132,19 +179,19 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         <span className="mn-docbar-right">
           {item.type !== "table" && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
           <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
-          {saveState.kind === "saving" && <span className="mn-savestate">保存中…</span>}
-          {saveState.kind === "error" && <button type="button" className="mn-savestate err" onClick={() => void flush(getMarkdownRef.current?.() ?? plain ?? "")}>保存失败 · 重试</button>}
+          <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { const next = getMarkdownRef.current?.() ?? plain; if (next !== null) void flush(next); }} />
           {unlocked && (
             <>
               <button type="button" className="mn-iconbtn" aria-label="立即锁定" title="锁定（快捷）" onClick={() => { if (inSpace) void lockPrivateSpace(userId); else lockItem(item.id); }}>
                 <Lock />
               </button>
               {!inSpace && (
-                <button type="button" className="mn-iconbtn" aria-label="解除本篇加密" title="解除加密（转为明文）"
+                <button type="button" className="mn-iconbtn" aria-label="解除本篇加密" title="解除加密（转为明文）" disabled={plain === null}
                   onClick={() => {
+                    const markdown = getMarkdownRef.current?.() ?? plain;
+                    if (markdown === null) return;
                     if (!window.confirm("解除本篇加密并转为明文？")) return;
-                    // 取全量正文：编辑器可能已被卸载，退回最近一次保存的明文。
-                    void decryptToPlain(userId, item.id, getMarkdownRef.current?.() ?? plain ?? "").then(onBack);
+                    void decryptToPlain(userId, item.id, markdown).then(onBack);
                   }}>
                   <ShieldOff />
                 </button>
@@ -154,7 +201,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
                 <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"}
                   onClick={() => {
                     // 切到预览前取一次全量正文：预览态编辑器会卸载，之后就取不到了（FR-EDT-10）。
-                    const text = getMarkdownRef.current?.() ?? plain ?? "";
+                    const text = getMarkdownRef.current?.() ?? plain;
+                    if (text === null) return;
                     setPlain(text);
                     setPreviewText(text);
                     setMode("preview");
@@ -167,9 +215,14 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       <div className="mn-docbody">
         <DocTitle value={item.title ?? ""} readOnly />
         {item.conflictOf && (
+          <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={plain} onKeptOriginal={onBack} />
+        )}
+        {readError && <p className="mn-conflictnote">{readError}</p>}
+        {recoveryText && (
           <p className="mn-conflictnote">
-            <span>同步冲突副本：原条目与这份正文各有一版，保留哪一份由你决定。</span>
-            <a href={itemRoutePath(item.conflictOf)}>打开原条目</a>
+            <span>发现未保存的恢复副本。它只存在本机，并且是加密的。</span>
+            <button type="button" className="mn-textbtn" onClick={() => { void flush(recoveryText); setRecoveryText(null); }}>恢复</button>
+            <button type="button" className="mn-textbtn" onClick={() => { void discardRecovery(item.id); setRecoveryText(null); }}>丢弃</button>
           </p>
         )}
         {!unlocked && (
@@ -200,7 +253,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             paperMode={paperMode}
             externalMarkdown={plain}
             onInput={() => setDirtyTick((n) => n + 1)}
-            uploadFile={uploadAttachment}
+            uploadFile={async () => ({ error: "加密笔记的附件不能明文上传。附件密文方案尚未定稿，请先解除加密再添加附件。" })}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             registerApplyExternal={() => {}}
           />

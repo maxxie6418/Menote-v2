@@ -1,3 +1,4 @@
+import { bytesToBase64, encodeBackupRow } from "@menote/shared";
 import { collectBackupRows } from "../db/backup";
 import { deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath, remotePut, type RemoteTarget } from "./backupRemote";
 
@@ -20,7 +21,7 @@ export async function sealSecret(pepper: string, secret: string): Promise<string
   const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv as BufferSource }, key, new TextEncoder().encode(secret));
   const bytes = new Uint8Array(iv.length + sealed.byteLength);
   bytes.set(iv); bytes.set(new Uint8Array(sealed), iv.length);
-  return btoa(String.fromCharCode(...bytes));
+  return bytesToBase64(bytes);
 }
 
 export async function openSecret(pepper: string, sealed: string): Promise<string> {
@@ -44,13 +45,13 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
     const date = new Date(typeof timestamp === "number" ? timestamp : Number(timestamp ?? 0));
     return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   };
-  for (const item of items) {
+  for (const item of items.map(encodeBackupRow)) {
     (months[monthOf(item.created_at)] ??= []).push({ kind: "item", data: item });
   }
-  for (const comment of memoComments) {
+  for (const comment of memoComments.map(encodeBackupRow)) {
     (months[monthOf(comment.created_at)] ??= []).push({ kind: "memo_comment", data: comment });
   }
-  for (const topic of topics) {
+  for (const topic of topics.map(encodeBackupRow)) {
     (months[monthOf(topic.created_at ?? 0)] ??= []).push({ kind: "topic", data: topic });
   }
   const attachments: Array<{ key: string; bytes: ArrayBuffer }> = [];
@@ -68,7 +69,14 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   };
   return {
     months,
-    manifest: { ...manifest, extra: { itemKeyWraps, topicKeyWraps, settings } },
+    manifest: {
+      ...manifest,
+      extra: {
+        itemKeyWraps: itemKeyWraps.map(encodeBackupRow),
+        topicKeyWraps: topicKeyWraps.map(encodeBackupRow),
+        settings: settings.map(encodeBackupRow),
+      },
+    },
     attachments,
   };
 }

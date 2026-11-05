@@ -111,8 +111,13 @@ export async function restoreFromTrash(userId: string, id: string): Promise<void
   notifyLocalChange();
 }
 
-/** 永久删除：本地行+包装块+版本一并清除；服务端硬删除走专用端点（墓碑已在软删时传播）。 */
+/** 永久删除：先确认服务端硬删，再清本地。网络失败保留本地行，避免软删记录被拉回时对不上。 */
 export async function purgeItemsPermanently(userId: string, ids: string[]): Promise<void> {
+  const response = await fetch("/api/trash/purge", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }), cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`purge_${response.status}`);
   await localDb.transaction("rw", localDb.items, localDb.memoComments, localDb.outbox, localDb.wraps, localDb.versions, async () => {
     for (const id of ids) {
       await localDb.items.delete(id);
@@ -123,9 +128,6 @@ export async function purgeItemsPermanently(userId: string, ids: string[]): Prom
       await localDb.versions.bulkDelete(versions.map((row) => row.id!).filter(Boolean));
     }
   });
-  await fetch("/api/trash/purge", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids }), cache: "no-store",
-  }).catch(() => {});
   notifyLocalChange();
+  void userId;
 }

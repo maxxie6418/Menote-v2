@@ -8,10 +8,11 @@ interface OrganizeDialogProps {
   onMove: (topicId: string, groupId: string | null) => Promise<void>;
   onDelete?: () => Promise<void>;
   allowDelete?: boolean;
+  heading?: string;
 }
 
 /** 收件箱/草稿箱整理（FR-IA-9）：指定主题/分组后自动移出；支持直接删除；不做 Note→Memo 转换。 */
-export function OrganizeDialog({ item, topics, onDone, onMove, onDelete, allowDelete = true }: OrganizeDialogProps) {
+export function OrganizeDialog({ item, topics, onDone, onMove, onDelete, allowDelete = true, heading }: OrganizeDialogProps) {
   const [topicId, setTopicId] = useState(item.topicId ?? "");
   const [groupId, setGroupId] = useState(item.groupId ?? "");
   const [busy, setBusy] = useState(false);
@@ -48,7 +49,7 @@ export function OrganizeDialog({ item, topics, onDone, onMove, onDelete, allowDe
   return (
     <div className="mn-overlay" role="presentation">
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="整理笔记">
-        <div className="mn-dialog-head"><p className="mn-dialog-title">修改存放路径 ·「{item.title}」</p></div>
+        <div className="mn-dialog-head"><p className="mn-dialog-title">{heading ?? `修改存放路径 ·「${item.title}」`}</p></div>
         <div className="mn-dialog-body">
           <label className="mn-auth-field">
             <span>主题</span>

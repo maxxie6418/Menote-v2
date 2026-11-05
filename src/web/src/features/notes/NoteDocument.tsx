@@ -20,6 +20,10 @@ import { HistoryPanel } from "../versions";
 import { EncryptSetupDialog } from "../encryption";
 import { setSessionKey } from "../../services/keyringService";
 import { itemRoutePath } from "../../app/appRoutes";
+import { clipSourceFromMarkdown } from "../../lib/clipSource";
+import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, shouldOfferRecovery, writeRecovery } from "../../services/recoveryService";
+import { DocSyncStatus } from "../sync";
+import { ConflictCompare } from "./ConflictCompare";
 import { getPropsPlacement, resolveToolbar, subscribeDocLayout } from "../../lib/docLayout";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -77,6 +81,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [recoveryText, setRecoveryText] = useState<string | null>(null);
   const [paperMode, setPaperMode] = useState(false);
   // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
   const [propsPos, setPropsPos] = useState(getPropsPlacement);
@@ -199,6 +204,44 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
   // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
+  const plainMarkdown = item?.content.scope === "plain" ? item.content.markdown : "";
+  const clipSource = clipSourceFromMarkdown(draft ?? plainMarkdown);
+
+  useEffect(() => {
+    if (!item || item.content.scope !== "plain") { setRecoveryText(null); return; }
+    let cancelled = false;
+    void readRecovery(item.id).then(async (row) => {
+      if (cancelled || !row) return setRecoveryText(null);
+      const text = await openRecoveryMarkdown(row);
+      if (!cancelled) setRecoveryText(shouldOfferRecovery(item.content.scope === "plain" ? item.content.markdown : "", text) ? text : null);
+    });
+    return () => { cancelled = true; };
+  }, [item]);
+
+  useEffect(() => {
+    if (!item || item.content.scope !== "plain" || dirtyTick <= savedTick) return;
+    const editorValue = getMarkdownRef.current?.();
+    if (editorValue == null) return;
+    const value = editorKindRef.current === "source"
+      ? editorValue
+      : joinFrontmatter(splitFrontmatter(item.content.markdown).frontText, editorValue);
+    scheduleRecovery(userId, item.id, value, "plain");
+  }, [dirtyTick, savedTick, item, userId]);
+
+  useEffect(() => {
+    const flushSnapshot = () => {
+      const current = latestItemRef.current;
+      const editorValue = getMarkdownRef.current?.();
+      if (!current || editorValue == null || current.content.scope !== "plain") return;
+      const value = editorKindRef.current === "source"
+        ? editorValue
+        : joinFrontmatter(splitFrontmatter(current.content.markdown).frontText, editorValue);
+      if (value !== current.content.markdown) void writeRecovery(userId, current.id, value, "plain");
+    };
+    window.addEventListener("pagehide", flushSnapshot);
+    return () => window.removeEventListener("pagehide", flushSnapshot);
+  }, [userId]);
+
   useEffect(() => {
     if (draft === null || !item || dirtyTick <= savedTick) return;
     // 旧版/异常空表格由下面的修复 effect 补种子；不要用切换前的空 draft 把它再写空。
@@ -385,6 +428,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
           <>
+            <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
             {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
@@ -445,17 +489,28 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             : item.source === "manual" ? "草稿箱" : "收件箱"}
           <button type="button" className="mn-textbtn" onClick={() => setOrganizing(true)}>修改</button>
         </p>
+        {clipSource && (
+          <p className="mn-clip-source">
+            <span>剪藏自 {clipSource.host}</span>
+            <a href={clipSource.url} target="_blank" rel="noreferrer">打开原网页</a>
+            <button type="button" className="mn-textbtn" onClick={() => void navigator.clipboard.writeText(clipSource.url)}>复制原链接</button>
+          </p>
+        )}
+        {recoveryText && (
+          <p className="mn-conflictnote">
+            <span>发现未保存的恢复副本。异常退出前的正文还在本机，没有上传。</span>
+            <button type="button" className="mn-textbtn" onClick={() => { void saveItemContent(userId, item.id, recoveryText); setRecoveryText(null); }}>恢复</button>
+            <button type="button" className="mn-textbtn" onClick={() => { void discardRecovery(item.id); setRecoveryText(null); }}>丢弃</button>
+          </p>
+        )}
         <DocTitle
           key={item.id}
           value={title ?? item.title ?? ""}
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
-        {conflictOf && (
-          <p className="mn-conflictnote">
-            <span>同步冲突副本：原条目与这份正文各有一版，保留哪一份由你决定。</span>
-            <a href={itemRoutePath(conflictOf)}>打开原条目{conflictSource?.title ? `《${conflictSource.title}》` : ""}</a>
-          </p>
+        {conflictOf && item.content.scope === "plain" && (
+          <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={draft ?? item.content.markdown} onKeptOriginal={onBack} />
         )}
         {plain && editorKind !== "source" && propsPos === "top" && (
           <PropertyPanel
@@ -536,13 +591,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         {/* 字数口径：正文改成「保存时取全量」后，这里显示的是**上次保存**的字符数，
             输入过程中不实时跳动——这是 FR-EDT-10 的有意取舍（省掉键入热路径上的整篇序列化）。 */}
         <span>{(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).length} 字符</span>
-        <span className="mn-doc-foot-right">
-          {saveState.kind === "saving" && "保存中…"}
-          {saveState.kind === "error" && (
-            <button type="button" className="mn-savestate err" onClick={() => { void flush(); }}>保存失败 · 重试</button>
-          )}
-          {saveState.kind === "idle" && (dirtyTick > savedTick ? "尚未保存" : shortcutAck ? "已保存（Ctrl+S）" : "已保存")}
-        </span>
+        <span className="mn-doc-foot-right">{shortcutAck ? "已用 Ctrl+S 保存" : ""}</span>
       </div>
       {history && item && (
         <HistoryPanel userId={userId} itemId={item.id} currentMarkdown={draft ?? item.content.markdown} onClose={() => setHistory(false)} />

@@ -100,8 +100,6 @@ export async function listDueTargets(db: D1Database, now: number) {
 
 function parseLastOk(lastResult: string | null): number | null {
   if (!lastResult?.startsWith("ok:")) return null;
-  const timestamp = Date.parse(lastResult.slice(3).split(":").slice(0, 2).join(":").slice(0, 0) || "");
-  void timestamp;
   const match = lastResult.match(/^ok:(\d{4}-\d{2}-\d{2}T[^:]+:[^:]+:[^:]+)/);
   return match ? Date.parse(match[1]!) || null : null;
 }
@@ -132,4 +130,29 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
     items: items.results, topics: topics.results, memoComments: memoComments.results, itemKeyWraps: itemKeyWraps.results,
     topicKeyWraps: topicKeyWraps.results, settings: settings.results, attachmentHashes: [...hashes],
   };
+}
+
+/** 恢复设置：rev 不高于本地则跳过。密文列只接受字节。 */
+export async function restoreSettingRow(
+  db: D1Database, userId: string, row: Record<string, unknown>,
+): Promise<boolean> {
+  const key = String(row.key ?? "");
+  if (!key) return false;
+  const rev = Number(row.rev ?? 0);
+  const current = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
+    .bind(userId, key).first<{ rev: number }>();
+  if (current && current.rev > rev) return false;
+  const secret = Number(row.is_secret) === 1;
+  const valueJson = secret ? null : String(row.value_json ?? "null");
+  const ciphertext = secret ? row.value_ciphertext : null;
+  if (secret && !(ciphertext instanceof Uint8Array)) return false;
+  await db.prepare(
+    `INSERT INTO user_settings (user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, key) DO UPDATE SET is_secret = excluded.is_secret,
+       value_json = excluded.value_json, value_ciphertext = excluded.value_ciphertext,
+       rev = excluded.rev, updated_at = excluded.updated_at
+     WHERE user_settings.rev <= excluded.rev`,
+  ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now())).run();
+  return true;
 }

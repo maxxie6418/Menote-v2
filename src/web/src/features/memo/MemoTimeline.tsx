@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ChevronDown, MessageCircle, Repeat2, Star, Trash2 } from "lucide-react";
+import { MessageCircle, Repeat2, Star, Trash2 } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { setTaskCheckbox } from "../../lib/markdownTasks";
 import { saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
 import { useMemoComments } from "../../services/contentHooks";
+import { MemoCommentPanel, MemoQuotePanel } from "./MemoInlineEditors";
 import { degradeMemoMarkdown, groupByDay, isPlainMemo, memoText, statusLabel } from "./memoView";
 
 interface MemoTimelineProps {
@@ -12,13 +13,12 @@ interface MemoTimelineProps {
   memos: Item[];
   allMemos: Item[];
   onDragItem: (event: React.DragEvent, id: string) => void;
-  onOpenMemo: (id: string) => void;
   onOpenSource: (id: string) => void;
-  onQuote: (memo: Item) => void;
+  onQuoted: (item: Item) => void;
 }
 
 /** Memo 时间线（FR-MEMO-1）：默认视图、原位编辑（源文本，保存/失焦渲染）、任务复选框可点。 */
-export function MemoTimeline({ userId, memos, allMemos, onDragItem, onOpenMemo, onOpenSource, onQuote }: MemoTimelineProps) {
+export function MemoTimeline({ userId, memos, allMemos, onDragItem, onOpenSource, onQuoted }: MemoTimelineProps) {
   if (memos.length === 0) {
     return (
       <div className="mn-empty" role="status">
@@ -35,19 +35,19 @@ export function MemoTimeline({ userId, memos, allMemos, onDragItem, onOpenMemo, 
       {groups.map((group) => (
         <section key={group.label}>
           <p className="mn-mgroup">{group.label}</p>
-          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenMemo={onOpenMemo} onOpenSource={onOpenSource} onQuote={onQuote} />)}
+          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onQuoted={onQuoted} />)}
         </section>
       ))}
     </div>
   );
 }
 
-function MemoCard({ userId, memo, allMemos, onDragItem, onOpenMemo, onOpenSource, onQuote }: { userId: string; memo: Item; allMemos: Item[]; onDragItem: (event: React.DragEvent, id: string) => void; onOpenMemo: (id: string) => void; onOpenSource: (id: string) => void; onQuote: (memo: Item) => void }) {
+function MemoCard({ userId, memo, allMemos, onDragItem, onOpenSource, onQuoted }: { userId: string; memo: Item; allMemos: Item[]; onDragItem: (event: React.DragEvent, id: string) => void; onOpenSource: (id: string) => void; onQuoted: (item: Item) => void }) {
   const plain = isPlainMemo(memo);
   const source = memoText(memo);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(source);
-  const [expanded, setExpanded] = useState(false);
+  const [panel, setPanel] = useState<"comments" | "quote" | null>(null);
   const comments = useMemoComments(userId, memo.id);
   const rendered = degradeMemoMarkdown(source);
   const status = statusLabel(memo.status);
@@ -120,29 +120,21 @@ function MemoCard({ userId, memo, allMemos, onDragItem, onOpenMemo, onOpenSource
         )}
         {plain && !editing && (
           <div className="mn-memo-interactions" aria-label="Memo 互动">
-            <button type="button" aria-label={`评论${comments.length ? `，${comments.length} 条` : ""}`} title="评论" onClick={() => onOpenMemo(memo.id)}>
+            <button type="button" aria-label={`评论${comments.length ? `，${comments.length} 条` : ""}`} title="评论" aria-expanded={panel === "comments"} onClick={() => setPanel((current) => current === "comments" ? null : "comments")}>
               <MessageCircle aria-hidden="true" />
               {comments.length > 0 && <span>{comments.length}</span>}
             </button>
             <button type="button" aria-label={memo.starred ? "取消收藏" : "收藏"} title={memo.starred ? "取消收藏" : "收藏"} aria-pressed={memo.starred} onClick={() => void saveItemMeta(userId, memo.id, { starred: !memo.starred })}>
               <Star aria-hidden="true" />
             </button>
-            <button type="button" aria-label="引述" title="引述" onClick={() => onQuote(memo)}>
+            <button type="button" aria-label="引述" title="引述" aria-expanded={panel === "quote"} onClick={() => setPanel((current) => current === "quote" ? null : "quote")}>
               <Repeat2 aria-hidden="true" />
             </button>
           </div>
         )}
-        {plain && !editing && comments.length > 0 && (
-          <>
-            <button type="button" className="mn-memo-comments-toggle" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
-              <ChevronDown /> {expanded ? "收起评论" : `展开 ${comments.length} 条评论`}
-            </button>
-            {expanded && <div className="mn-memo-inline-comments">
-              {comments.map((comment) => <button type="button" key={comment.id} onClick={() => onOpenMemo(memo.id)}>
-                <time>{new Date(comment.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>{comment.content.replace(/\s+/g, " ")}
-              </button>)}
-            </div>}
-          </>
+        {plain && !editing && panel === "comments" && <MemoCommentPanel userId={userId} memoId={memo.id} />}
+        {plain && !editing && panel === "quote" && (
+          <MemoQuotePanel userId={userId} memo={memo} onCancel={() => setPanel(null)} onCreated={(item) => { setPanel(null); onQuoted(item); }} />
         )}
       </div>
     </article>

@@ -59,14 +59,14 @@ test("saveItemContent bumps rev and chains the outbox baseRev for conflict detec
   assert.equal(saved.rev, 2);
   assert.equal(saved.content.markdown, "# 正文\n第一段。");
   const rows = await outboxRows();
-  assert.equal(rows.length, 2);
-  assert.equal(rows[1].baseRev, 1);
+  assert.equal(rows.length, 1, "空白种子不入队，第一次有内容的保存才上传");
+  assert.equal(rows[0].baseRev, 1);
   const expectedHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("# 正文\n第一段。"));
   const hex = Array.from(new Uint8Array(expectedHash), (b) => b.toString(16).padStart(2, "0")).join("");
-  assert.equal(rows[1].contentHash, hex);
+  assert.equal(rows[0].contentHash, hex);
   const savedAgain = await content.saveItemContent(USER, note.id, "# 正文\n第一段。");
   assert.equal(savedAgain.rev, 2, "same content is a no-op");
-  assert.equal((await outboxRows()).length, 2);
+  assert.equal((await outboxRows()).length, 1);
 });
 
 test("topics subtree aggregation and inbox/drafts sections", async () => {

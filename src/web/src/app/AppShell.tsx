@@ -13,7 +13,8 @@ import { saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/cont
 import { createNoteForPlace } from "../services/privateSpaceService";
 import { prefetchSettings } from "../services/settingsPrefetch";
 import { requestSync } from "../services/syncEngine";
-import { isTopicUnlocked, lockIfIdle } from "../services/keyringService";
+import { bindLocalAccount } from "../services/authService";
+import { isTopicUnlocked, lockIfIdle, touchActivity } from "../services/keyringService";
 import { PrivateSpaceDialog } from "../features/encryption";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
@@ -109,6 +110,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [section, setSection] = useState<BrowseSection>(() => routeSection(route));
   const [noteId, setNoteId] = useState<string | null>(() => route.kind === "notes" ? route.itemId ?? null : null);
   const [organizingItem, setOrganizingItem] = useState<Item | null>(null);
+  const [organizingBatch, setOrganizingBatch] = useState<Item[] | null>(null);
   const [noteReturn, setNoteReturn] = useState<{ section: BrowseSection; noteId: string | null }>({ section: { kind: "recent" }, noteId: null });
   const noteReturnRef = useRef(noteReturn);
   noteReturnRef.current = noteReturn;
@@ -138,6 +140,16 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       setNoteId(null);
       navigate(sectionRoute(section), true);
     }
+  }, [userId, noteId, section, navigate]);
+  const trashNotes = useCallback(async (batch: Item[]) => {
+    if (batch.length === 0) return false;
+    if (!window.confirm(`将 ${batch.length} 篇移入回收站？之后可恢复。`)) return false;
+    for (const item of batch) await softDeleteItem(userId, item.id);
+    if (noteId && batch.some((item) => item.id === noteId)) {
+      setNoteId(null);
+      navigate(sectionRoute(section), true);
+    }
+    return true;
   }, [userId, noteId, section, navigate]);
 
   useEffect(() => {
@@ -235,13 +247,21 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   }, [noteId, userId, layout, openNewNote, openMemoComposer, navigate]);
 
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
+  useEffect(() => { void bindLocalAccount(userId); }, [userId]);
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
   useEffect(() => { prefetchSettings(userId); }, [userId]);
 
   // FR-ENC-4 不活动自动锁定（默认 15 分钟）：周期检查，锁定触发全局重渲染。
   useEffect(() => {
-    const timer = window.setInterval(() => { lockIfIdle(); }, 30_000);
-    return () => window.clearInterval(timer);
+    const mark = () => touchActivity();
+    window.addEventListener("pointerdown", mark, { passive: true });
+    window.addEventListener("keydown", mark);
+    const timer = window.setInterval(() => { void lockIfIdle(); }, 30_000);
+    return () => {
+      window.removeEventListener("pointerdown", mark);
+      window.removeEventListener("keydown", mark);
+      window.clearInterval(timer);
+    };
   }, []);
 
   // G6 同步调度（G2 §3 触发时机）：打开、本地写入后 300ms、重新可见、网络恢复、每 5 分钟。
@@ -514,6 +534,8 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         onCreateNote={section.kind === "topic" ? () => { void openNewNote(); } : undefined}
         onToggleStar={toggleNoteStar}
         onTrashNote={trashNote}
+        onBatchMove={setOrganizingBatch}
+        onBatchTrash={(batch) => { void trashNotes(batch); }}
         onAiSummary={openAiSummary}
         emptyTitle={emptyTitle}
         emptyDetail={emptyDetail}
@@ -545,14 +567,16 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           </article>
         )}
       />
-      {organizingItem && (
+      {(organizingItem || organizingBatch) && (
         <OrganizeDialog
-          item={organizingItem}
+          item={(organizingBatch ?? [organizingItem!])[0]!}
+          heading={organizingBatch && organizingBatch.length > 1 ? `移动 ${organizingBatch.length} 篇` : undefined}
           topics={topics}
           allowDelete={false}
-          onDone={() => setOrganizingItem(null)}
+          onDone={() => { setOrganizingItem(null); setOrganizingBatch(null); }}
           onMove={async (topicId, groupId) => {
-            await saveItemMeta(userId, organizingItem.id, { topicId, groupId });
+            const batch = organizingBatch ?? (organizingItem ? [organizingItem] : []);
+            for (const item of batch) await saveItemMeta(userId, item.id, { topicId, groupId });
           }}
         />
       )}
