@@ -12,10 +12,21 @@ restoreRoutes.post("/api/restore", resolveSession, sameOriginGuard, requireSessi
   const body: unknown = await c.req.json().catch(() => null);
   const entries = (body as { entries?: unknown } | null)?.entries;
   const itemKeyWraps = (body as { itemKeyWraps?: unknown } | null)?.itemKeyWraps;
+  const topicKeyWraps = (body as { topicKeyWraps?: unknown } | null)?.topicKeyWraps;
+  const settings = (body as { settings?: unknown } | null)?.settings;
   if (!Array.isArray(entries) || entries.length === 0) return c.json({ error: "invalid_request" }, 400);
-  const result = await importBackupEntries(
-    { db: c.env.DB, userId: c.get("authUser")!.id },
-    entries, Array.isArray(itemKeyWraps) ? itemKeyWraps : null, Date.now(),
-  );
-  return c.json({ ok: true, ...result }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const result = await importBackupEntries(
+      { db: c.env.DB, userId: c.get("authUser")!.id },
+      entries,
+      Array.isArray(itemKeyWraps) ? itemKeyWraps : null,
+      Array.isArray(topicKeyWraps) ? topicKeyWraps : null,
+      Array.isArray(settings) ? settings : null,
+      Date.now(),
+    );
+    return c.json({ ok: true, ...result }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    const code = error instanceof Error && error.message.startsWith("invalid_") ? error.message : "invalid_backup";
+    return c.json({ error: code }, 400);
+  }
 });

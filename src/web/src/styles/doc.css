@@ -89,6 +89,12 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-taginput { border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); width: var(--app-field-width); padding: var(--app-space-2) var(--app-space-4); }
 .mn-taginput:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 /* 冲突副本提示：告知这份稿子顶掉了哪一条目，裁决时有据可依（G2 §5-2） */
+.mn-conflict { display: flex; flex-direction: column; gap: var(--app-space-8); margin-bottom: var(--app-space-10); }
+.mn-conflict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--app-space-10); }
+.mn-conflict-grid h3 { margin: 0 0 var(--app-space-6); font-size: var(--app-size-chip); font-weight: var(--app-weight-medium); color: var(--app-fg-muted); }
+.mn-conflict-grid > div { border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-10); overflow: auto; background: var(--app-surface); }
+.mn-conflict-actions { display: flex; flex-wrap: wrap; gap: var(--app-space-8); align-items: center; }
+.mn-clip-source { display: flex; flex-wrap: wrap; gap: var(--app-space-8); align-items: center; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-conflictnote { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--app-space-6); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-conflictnote a { color: var(--app-link); }
 .mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }

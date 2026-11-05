@@ -32,6 +32,7 @@ export type { UserSetting, MonitorSample } from "./types/settings";
 export { isClipTemplateV1 } from "./types/clipTemplate";
 export type { ClipTemplateV1, ClipTemplateField, StoredClipTemplate } from "./types/clipTemplate";
 export { resolveItemId } from "./itemId";
+export { bytesToBase64, base64ToBytes, asBytes, encodeBackupRow, decodeBackupRow, wrapFieldToBase64 } from "./bytes";
 export { PROPERTY_TEMPLATES_SETTING_KEY } from "./contracts/propertyTemplates";
 export {
   TABLE_VIEW_SETTING_KEY, DEFAULT_TABLE_VIEW_SETTINGS, normalizeTableViewSettings,

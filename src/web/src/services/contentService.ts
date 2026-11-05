@@ -11,6 +11,7 @@ import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem }
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { toOutboxRow } from "../db/outboxRepo";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
+import { discardRecovery } from "./recoveryService";
 
 /**
  * 内容统一命令链路（E1 骨架，G10 整理拆分）：读一律以本地库为源；写 = 本地变更 + outbox 入队
@@ -116,7 +117,10 @@ export async function createNote(
       : requestedTitle;
     createdItem = { ...item, title };
     await localDb.items.put(createdItem);
-    await localDb.outbox.add(outboxUpsert(createdItem, 0, 0, createdItem.contentHash));
+    // FR-VER-7：空白种子不入队。标题已改或正文已有内容才上传。
+    if (!isBlankDraft(createdItem)) {
+      await localDb.outbox.add(outboxUpsert(createdItem, 0, 0, createdItem.contentHash));
+    }
   });
   recordSyncDiagnostic(userId, {
     category: "local", event: "note_created_locally", entity: "item", entityId: createdItem.id,
@@ -267,6 +271,7 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash));
   });
+  await discardRecovery(id);
   recordSyncDiagnostic(userId, {
     category: "local", event: "note_content_saved_locally", entity: "item", entityId: id,
     action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
@@ -325,7 +330,7 @@ export async function softDeleteItem(userId: string, id: string): Promise<void> 
   notifyLocalChange();
 }
 
-/* ---------- 空白草稿三道闸（FR-VER-7：种子从不上传，本地兜底回收） ---------- */
+/* ---------- 空白草稿三道闸（FR-VER-7：种子不入队；超期仍空白则本地回收） ---------- */
 
 export const BLANK_TITLE = "无标题";
 /** 默认标题（含 v1.6 递增编号「无标题 2」）均视为未改名；形态选择条与三道闸共用此判定。 */

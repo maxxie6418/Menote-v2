@@ -68,9 +68,39 @@ test("restore import merges backup entries by id (FR-BAK-9 工具侧)", async ()
       { kind: "item", data: { id: "ri1", user_id: "x", type: "note", topic_id: null, group_id: null, title: "恢复的笔记", content_markdown: "恢复正文", content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 3, meta_rev: 1, content_hash: "h1", pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1_700_000_000_000, updated_at: 1_700_000_000_000, deleted_at: null } },
     ];
     const response = await json(mf, cookie, "POST", "/api/restore", { entries, itemKeyWraps: [] });
-    assert.deepEqual(await response.json(), { ok: true, items: 1, topics: 1, memoComments: 0 });
+    assert.deepEqual(await response.json(), { ok: true, items: 1, topics: 1, memoComments: 0, topicWraps: 0, settings: 0, skipped: 0 });
     const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
     assert.equal(page.items.find((item) => item.id === "ri1").title, "恢复的笔记");
     assert.equal(page.topics.find((topic) => topic.id === "t1").name, "恢复主题");
+  });
+});
+
+test("restore rejects garbage key wraps and accepts explicit base64", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const entries = [
+      { kind: "item", data: { id: "enc1", user_id: "x", type: "note", topic_id: null, group_id: null, title: "加密", content_markdown: null, content_ciphertext: { $b64: btoa("iv:cipher") }, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 2, meta_rev: 1, content_hash: "h", pinned: 0, starred: 0, enc_self: 1, in_enc_space: 0, created_at: 1, updated_at: 1, deleted_at: null } },
+    ];
+    const bad = await json(mf, cookie, "POST", "/api/restore", {
+      entries,
+      itemKeyWraps: [{ item_id: "enc1", wrapper: "password", kdf_salt: { not: "bytes" }, kdf_iterations: 1, iv: "aaaa", ciphertext: "aaaa", generation: 0 }],
+    });
+    assert.equal(bad.status, 400);
+    const salt = btoa("salt-bytes");
+    const iv = btoa("iv-bytes-12!");
+    const sealed = btoa("cipher-bytes");
+    const good = await json(mf, cookie, "POST", "/api/restore", {
+      entries,
+      itemKeyWraps: [{ item_id: "enc1", wrapper: "password", kdf_salt: { $b64: salt }, kdf_iterations: 1, iv: { $b64: iv }, ciphertext: { $b64: sealed }, generation: 1 }],
+      topicKeyWraps: [{ topic_id: "space", wrapper: "password", kdf_salt: { $b64: salt }, kdf_iterations: 1, iv: { $b64: iv }, ciphertext: { $b64: sealed }, generation: 1 }],
+    });
+    assert.equal(good.status, 200);
+    const body = await good.json();
+    assert.equal(body.skipped, 0);
+    assert.equal(body.topicWraps, 1);
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    const item = page.items.find((row) => row.id === "enc1");
+    assert.equal(item.content.ciphertext, "iv:cipher");
+    assert.equal(page.wraps.find((group) => group.itemId === "enc1").wraps[0].kdfSalt, salt);
   });
 });

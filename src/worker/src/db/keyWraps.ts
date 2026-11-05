@@ -1,4 +1,4 @@
-import type { KeyWrap } from "@menote/shared";
+import { base64ToBytes, bytesToBase64, type KeyWrap } from "@menote/shared";
 
 /** 密钥包装块存储（G7，G4 设计 §2）。b64 编码进出的转换在路由层。 */
 
@@ -7,31 +7,38 @@ interface WrapRow {
   ciphertext: Uint8Array; generation: number;
 }
 
+function asUint8(value: Uint8Array | ArrayBuffer): Uint8Array {
+  return value instanceof Uint8Array ? value : new Uint8Array(value);
+}
+
 function toKeyWrap(row: WrapRow): KeyWrap {
   return {
     wrapper: row.wrapper as KeyWrap["wrapper"],
-    kdfSalt: btoa(String.fromCharCode(...row.kdf_salt)),
+    kdfSalt: bytesToBase64(asUint8(row.kdf_salt)),
     kdfIterations: row.kdf_iterations,
-    iv: btoa(String.fromCharCode(...row.iv)),
-    ciphertext: btoa(String.fromCharCode(...row.ciphertext)),
+    iv: bytesToBase64(asUint8(row.iv)),
+    ciphertext: bytesToBase64(asUint8(row.ciphertext)),
     generation: row.generation,
   };
 }
 
 function fromB64(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  return base64ToBytes(value);
+}
+
+export function itemWrapStatements(db: D1Database, userId: string, itemId: string, wraps: KeyWrap[], now: number): D1PreparedStatement[] {
+  return wraps.map((wrap) => db.prepare(
+    `INSERT INTO item_key_wraps (user_id, item_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, item_id, wrapper) DO UPDATE SET
+       kdf_salt = excluded.kdf_salt, kdf_iterations = excluded.kdf_iterations,
+       iv = excluded.iv, ciphertext = excluded.ciphertext, generation = excluded.generation`,
+  ).bind(userId, itemId, wrap.wrapper, fromB64(wrap.kdfSalt), wrap.kdfIterations, fromB64(wrap.iv), fromB64(wrap.ciphertext), wrap.generation, now));
 }
 
 export async function putItemWraps(db: D1Database, userId: string, itemId: string, wraps: KeyWrap[], now: number): Promise<void> {
-  for (const wrap of wraps) {
-    await db.prepare(
-      `INSERT INTO item_key_wraps (user_id, item_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (user_id, item_id, wrapper) DO UPDATE SET
-         kdf_salt = excluded.kdf_salt, kdf_iterations = excluded.kdf_iterations,
-         iv = excluded.iv, ciphertext = excluded.ciphertext, generation = excluded.generation`,
-    ).bind(userId, itemId, wrap.wrapper, fromB64(wrap.kdfSalt), wrap.kdfIterations, fromB64(wrap.iv), fromB64(wrap.ciphertext), wrap.generation, now).run();
-  }
+  const statements = itemWrapStatements(db, userId, itemId, wraps, now);
+  if (statements.length > 0) await db.batch(statements);
 }
 
 export async function readItemWrapGroups(db: D1Database, userId: string, itemIds: string[]): Promise<Array<{ itemId: string; wraps: KeyWrap[] }>> {

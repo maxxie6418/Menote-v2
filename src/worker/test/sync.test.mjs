@@ -254,6 +254,49 @@ test("pull advances the cursor page by page; stale cursor triggers fullResync (G
   });
 });
 
+test("fullResync pages past 200 items and only then returns a log cursor", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const ops = [];
+    for (let index = 0; index < 201; index += 1) ops.push(itemOp("bulk-" + index, { rev: 1, title: "n" + index }));
+    for (let offset = 0; offset < ops.length; offset += 10) {
+      assert.equal((await post(mf, cookie, ops.slice(offset, offset + 10))).status, 200);
+    }
+    const database = await mf.getD1Database("DB");
+    await database.prepare("DELETE FROM sync_log WHERE seq <= 2").run();
+    const first = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    assert.equal(first.fullResync, true);
+    assert.equal(first.items.length, 200);
+    assert.equal(first.hasMore, true);
+    assert.match(first.nextCursor, /^full:/);
+    const second = await (await req(mf, `/api/sync/pull?cursor=${encodeURIComponent(first.nextCursor)}`, { headers: { cookie } })).json();
+    assert.equal(second.fullResync, true);
+    assert.equal(second.hasMore, false);
+    assert.match(second.nextCursor, /^\d+$/);
+    const ids = new Set([...first.items, ...second.items].map((item) => item.id));
+    assert.equal(ids.size, 201);
+  });
+});
+
+test("topic upsert keeps a moved group's parent", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const topic = topicOp("topic-a");
+    const group = topicOp("group-a");
+    group.payload.topic.parentId = "topic-a";
+    group.payload.topic.depth = 1;
+    group.payload.topic.name = "分组";
+    assert.equal((await post(mf, cookie, [topic, group])).status, 200);
+    group.operationId = crypto.randomUUID();
+    group.payload.topic.parentId = "topic-b";
+    const other = topicOp("topic-b");
+    other.payload.topic.name = "另一主题";
+    assert.equal((await post(mf, cookie, [other, group])).status, 200);
+    const page = await (await req(mf, "/api/sync/pull?cursor=0", { headers: { cookie } })).json();
+    assert.equal(page.topics.find((row) => row.id === "group-a").parentId, "topic-b");
+  });
+});
+
 test("push requires a session and rejects malformed payloads as rejected results", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

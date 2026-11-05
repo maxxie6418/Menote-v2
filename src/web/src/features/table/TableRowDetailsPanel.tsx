@@ -27,6 +27,8 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: TableRowDetailsPanelProps) {
   const coverIndex = columns.findIndex((column) => /^(cover|封面)$/i.test(column.trim()));
   const coverUrl = coverIndex >= 0 ? safeWebUrl(cells[coverIndex] ?? "") : null;
+  const pageIndex = columns.findIndex((column) => /^(网址|链接|url|source|source_url)$/i.test(column.trim()));
+  const pageUrl = pageIndex >= 0 ? safeWebUrl(cells[pageIndex] ?? "") : null;
 
   return (
     <>
@@ -36,6 +38,7 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: Tab
           <h2>第 {rowNumber} 行</h2>
           <button type="button" className="mn-iconbtn" aria-label="关闭详情" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
+        {pageUrl && <p className="mn-clip-source"><a href={pageUrl} target="_blank" rel="noreferrer">打开原网页</a></p>}
         {coverUrl && <CoverPreview key={coverUrl} src={coverUrl} alt={cells[columns.findIndex((column) => /^(title|标题)$/i.test(column.trim()))] || "收藏封面"} />}
         <dl className="mn-tabledoc-detail-fields">
           {columns.map((column, index) => {

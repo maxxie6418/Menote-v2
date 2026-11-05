@@ -15,23 +15,44 @@ interface NoteListProps {
   onToggleStar?: (item: Item) => void;
   onTrash?: (item: Item) => void;
   onAiSummary?: (item: Item) => void;
+  /** 多选模式：勾选不打开文档。Memo 不参与移动，故不可勾选。 */
+  picking?: boolean;
+  pickedIds?: ReadonlySet<string>;
+  onTogglePicked?: (id: string, extend: boolean) => void;
 }
 
 /** 清单视图（FR-IA-3 穿透聚合后的扁平列表；行样式自 M1.2 git 历史恢复）。 */
-export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, onMove, onToggleStar, onTrash, onAiSummary }: NoteListProps) {
+export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, onMove, onToggleStar, onTrash, onAiSummary, picking = false, pickedIds, onTogglePicked }: NoteListProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Item; trigger: HTMLElement } | null>(null);
   if (!items) return <div className="mn-empty" role="status" aria-busy="true" />;
   if (items.length === 0) return <NoteEmptyState title={emptyTitle} detail={emptyDetail} />;
   return (
     <div className="mn-notelist" role="list">
       {items.map((item) => (
+        <div key={item.id} className="mn-note-rowline" role="listitem">
+        {picking && item.type !== "memo" && (
+          <input
+            type="checkbox"
+            className="mn-note-check"
+            checked={pickedIds?.has(item.id) ?? false}
+            aria-label={`选择「${item.title ?? "无标题"}」`}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onTogglePicked?.(item.id, event.nativeEvent instanceof MouseEvent && event.nativeEvent.shiftKey)}
+          />
+        )}
         <button
-          key={item.id} type="button" role="listitem"
-          draggable={item.type !== "memo"}
-          className={item.id === selectedId ? "mn-note-row on" : "mn-note-row"}
+          type="button"
+          draggable={item.type !== "memo" && !picking}
+          className={item.id === selectedId || pickedIds?.has(item.id) ? "mn-note-row on" : "mn-note-row"}
           aria-haspopup={onMove && onToggleStar && onTrash ? "menu" : undefined}
           aria-expanded={contextMenu?.item.id === item.id}
-          onClick={() => onSelect(item.id)}
+          onClick={(event) => {
+            if (picking && item.type !== "memo") {
+              onTogglePicked?.(item.id, event.shiftKey);
+              return;
+            }
+            onSelect(item.id);
+          }}
           onDragStart={(event) => {
             if (item.type === "memo") { event.preventDefault(); return; }
             event.dataTransfer.effectAllowed = "move";
@@ -59,6 +80,7 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
           <span className="mn-note-row-meta">{formatItemMeta(item)}</span>
           <span className="mn-note-row-desc">{noteSnippet(item) || "（空白）"}</span>
         </button>
+        </div>
       ))}
       {contextMenu && onMove && onToggleStar && onTrash && (
         <NoteContextMenu

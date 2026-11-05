@@ -7,6 +7,7 @@ import { archiveVersionBeforeSave } from "./versionService";
 import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope } from "./contentShared";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
+import { discardRecovery } from "./recoveryService";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
 /** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
@@ -14,7 +15,13 @@ export const NOTE_PASSWORD_MIN = 6;
 
 /** 启用单篇加密：生成内容密钥、密码+恢复码双包装（FR-ENC-2/6），写回密文并随操作携带包装块。
  *  未提供恢复码时自动生成并返回（明文仅此一次展示，永不入库）。 */
-export async function enableItemEncryption(
+export function enableItemEncryption(
+  userId: string, id: string, markdown: string, password: string, recoveryCode?: string,
+): Promise<{ item: Item; recoveryCode: string; key: Uint8Array }> {
+  return enqueueWrite(() => enableItemEncryptionInner(userId, id, markdown, password, recoveryCode));
+}
+
+async function enableItemEncryptionInner(
   userId: string, id: string, markdown: string, password: string, recoveryCode?: string,
 ): Promise<{ item: Item; recoveryCode: string; key: Uint8Array }> {
   if (password.length < NOTE_PASSWORD_MIN) throw new Error(`密码至少 ${NOTE_PASSWORD_MIN} 位`);
@@ -68,6 +75,7 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
       // 重加密后正文哈希变了：按正文操作上报，正文版本号随之推进。
       await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
     });
+    await discardRecovery(id);
     recordSyncDiagnostic(userId, {
       category: "local", event: "encrypted_note_content_saved_locally", entity: "item", entityId: id,
       action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
@@ -78,8 +86,21 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
 }
 
 /** 解密为明文形态（移除单篇加密）：包装块本地清除，服务端旧行随清理期滚动（无害残留）。 */
-export async function decryptToPlain(userId: string, id: string, markdown: string): Promise<Item> {
+export function decryptToPlain(userId: string, id: string, markdown: string): Promise<Item> {
+  return enqueueWrite(() => decryptToPlainInner(userId, id, markdown));
+}
+
+async function decryptToPlainInner(userId: string, id: string, markdown: string): Promise<Item> {
   const current = await requireItem(userId, id);
+  if (current.content.scope === "self" && markdown.trim() === "") {
+    const sealed = current.content.ciphertext;
+    if (sealed.length > 0) {
+      const { readPlain } = await import("./keyringService");
+      const plain = await readPlain(id, unpackEnvelope(sealed));
+      if (plain === null) throw new Error("decrypt_failed");
+      if (plain.trim() !== "") throw new Error("decrypt_empty");
+    }
+  }
   if (current.content.scope === "private_space") throw new Error("私人空间笔记不能转为明文");
   const next: Item = {
     ...current, rev: current.rev + 1, contentHash: await (async () => {

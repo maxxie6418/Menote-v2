@@ -331,6 +331,10 @@
 .mn-nav a.on svg { color: var(--app-accent-fg); }
 .mn-nav a[aria-disabled="true"] { cursor: default; }
 .mn-notelist { flex: 1; overflow-y: auto; min-height: 0; padding: var(--app-space-4) var(--app-zero) var(--app-space-lg); }
+.mn-note-rowline { display: flex; align-items: stretch; }
+.mn-note-rowline .mn-note-row { flex: 1 1 auto; min-width: var(--app-zero); }
+.mn-note-check { flex: none; align-self: center; margin-left: var(--app-space-10); accent-color: var(--app-accent); }
+.mn-listpick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-8); padding: var(--app-space-6) var(--app-space-md); border-bottom: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-note-row { position: relative; display: grid; grid-template-columns: var(--app-row-icon-col) 1fr auto; gap: var(--app-space-2) var(--app-space-10); align-items: baseline; width: var(--app-full-size); padding: var(--app-space-10) var(--app-space-14); border: var(--app-zero); background: none; color: var(--app-fg); text-align: left; font-family: var(--app-font); cursor: pointer; transition: background var(--app-motion-fast) var(--app-ease); }
 .mn-note-row:not(:last-child)::after { content: ""; position: absolute; left: var(--app-row-line-inset); right: var(--app-space-14); bottom: var(--app-zero); height: var(--app-line); background: var(--app-border-subtle); }
 .mn-note-row:hover { background: var(--app-hover); }
@@ -672,6 +676,8 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-dlg-head h3 { font-family: var(--app-font-serif); font-size: var(--app-size-brand); font-weight: var(--app-weight-serif); margin: var(--app-zero); }
 .mn-dlg-body { flex: 1; display: grid; grid-template-columns: var(--app-dlg-nav-width) minmax(0, 1fr); min-height: var(--app-zero); }
 .mn-dlg-nav { border-right: var(--app-line) solid var(--app-border); padding: var(--app-space-10) var(--app-space-10); display: flex; flex-direction: column; gap: var(--app-line); background: var(--app-bg-side); }
+.mn-dlg-nav .mn-nav-label { margin: var(--app-space-8) var(--app-space-10) var(--app-space-4); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-dlg-nav .mn-nav-label button { border: var(--app-zero); background: none; color: inherit; font: inherit; cursor: pointer; padding: var(--app-zero); }
 .mn-dlg-nav a { font-size: var(--app-size-nav); color: var(--app-fg-muted); padding: var(--app-space-6) var(--app-space-10); border-radius: var(--app-radius-md); text-decoration: none; }
 .mn-dlg-nav a.on { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-side); }
 .mn-dlg-content { padding: var(--app-space-md) var(--app-space-lg); overflow-y: auto; min-height: var(--app-zero); }

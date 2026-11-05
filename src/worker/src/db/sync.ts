@@ -183,13 +183,20 @@ export async function readTopicDeletedAt(db: D1Database, userId: string, id: str
   return row ? row.deleted_at : undefined;
 }
 
+export function appendSyncLogStatement(
+  db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
+  op: "upsert" | "delete", rev: number, metaRev: number, now: number,
+): D1PreparedStatement {
+  return db.prepare(
+    "INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  ).bind(userId, entity, entityId, op, rev, metaRev, now);
+}
+
 export async function appendSyncLog(
   db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
   op: "upsert" | "delete", rev: number, metaRev: number, now: number,
 ): Promise<void> {
-  await db.prepare(
-    "INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-  ).bind(userId, entity, entityId, op, rev, metaRev, now).run();
+  await appendSyncLogStatement(db, userId, entity, entityId, op, rev, metaRev, now).run();
 }
 
 export interface SyncOperationRecord {
@@ -203,15 +210,27 @@ export async function readSyncOperation(db: D1Database, userId: string, operatio
   return row ? { entity: row.entity, entityId: row.entity_id, result: row.result, rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash } : null;
 }
 
+export function recordSyncOperationStatement(
+  db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
+  result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, operation_id) DO NOTHING`,
+  ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now);
+}
+
 export async function recordSyncOperation(
   db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
   result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
 ): Promise<void> {
-  await db.prepare(
-    `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (user_id, operation_id) DO NOTHING`,
-  ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now).run();
+  await recordSyncOperationStatement(db, userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now).run();
+}
+
+export async function commitWrites(db: D1Database, statements: D1PreparedStatement[]): Promise<void> {
+  if (statements.length === 0) return;
+  await db.batch(statements);
 }
 
 /** 撤销一条已知操作记录（G2 §6 幂等只覆盖已应用；rejected 记录重推前删除以重新判定）。 */
@@ -221,10 +240,10 @@ export async function deleteSyncOperation(db: D1Database, userId: string, operat
   ).bind(userId, operationId).run();
 }
 
-export async function upsertItemRow(
+export function upsertItemRowStatement(
   db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
-): Promise<void> {
-  await db.prepare(
+): D1PreparedStatement {
+  return db.prepare(
     `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
@@ -251,7 +270,13 @@ export async function upsertItemRow(
     item.type === "memo" ? item.memoQuote?.sourceMemoId ?? null : null,
     item.type === "memo" ? item.memoQuote?.sourceCreatedAt ?? null : null,
     item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
-  ).run();
+  );
+}
+
+export async function upsertItemRow(
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
+): Promise<void> {
+  await upsertItemRowStatement(db, userId, deviceId, item, rev, metaRev).run();
 }
 
 /**
@@ -260,10 +285,10 @@ export async function upsertItemRow(
  * 用于「客户端元数据版本落后」的正文写——元数据冲突服务端胜出（G2 §5-3），
  * 正文照常落地，不连带覆盖服务端更新的元数据。
  */
-export async function updateItemContent(
+export function updateItemContentStatement(
   db: D1Database, userId: string, deviceId: string, item: Item, rev: number,
-): Promise<void> {
-  await db.prepare(
+): D1PreparedStatement {
+  return db.prepare(
     `UPDATE items SET content_markdown = ?, content_ciphertext = ?, content_hash = ?,
        attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?
      WHERE id = ? AND user_id = ?`,
@@ -273,17 +298,23 @@ export async function updateItemContent(
     item.contentHash, JSON.stringify(item.attachmentHashes), rev,
     item.updatedAt, item.deletedAt, deviceId,
     item.id, userId,
-  ).run();
+  );
+}
+
+export async function updateItemContent(
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number,
+): Promise<void> {
+  await updateItemContentStatement(db, userId, deviceId, item, rev).run();
 }
 
 /**
  * 元数据写（标题/标签/归属/状态/形态）：只动元数据列与 meta_rev，
  * 正文列与正文版本 rev 一律不动（G2 §1：两个版本通道互不推进）。
  */
-export async function updateItemMeta(
+export function updateItemMetaStatement(
   db: D1Database, userId: string, deviceId: string, item: Item, metaRev: number,
-): Promise<void> {
-  await db.prepare(
+): D1PreparedStatement {
+  return db.prepare(
     `UPDATE items SET type = ?, topic_id = ?, group_id = ?, title = ?, tags_json = ?, status = ?, source = ?,
        pinned = ?, starred = ?, memo_quote_source_id = ?, memo_quote_source_created_at = ?, memo_quote_snapshot = ?,
        meta_rev = MAX(meta_rev, ?), updated_at = ?, deleted_at = ?, last_device = ?
@@ -297,7 +328,13 @@ export async function updateItemMeta(
     item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
     metaRev, item.updatedAt, item.deletedAt, deviceId,
     item.id, userId,
-  ).run();
+  );
+}
+
+export async function updateItemMeta(
+  db: D1Database, userId: string, deviceId: string, item: Item, metaRev: number,
+): Promise<void> {
+  await updateItemMetaStatement(db, userId, deviceId, item, metaRev).run();
 }
 
 export async function markItemDeleted(
@@ -311,7 +348,9 @@ export async function upsertTopicRow(db: D1Database, userId: string, topic: Topi
   await db.prepare(
     `INSERT INTO topic_nodes (id, user_id, parent_id, name, depth, is_enc_space, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (id) DO UPDATE SET name = excluded.name, deleted_at = excluded.deleted_at`,
+     ON CONFLICT (id) DO UPDATE SET
+       parent_id = excluded.parent_id, name = excluded.name, depth = excluded.depth,
+       is_enc_space = excluded.is_enc_space, deleted_at = excluded.deleted_at`,
   ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt).run();
 }
 

@@ -15,20 +15,27 @@ import { PluginSection } from "./PluginSection";
 import { PropertyTemplatePanel } from "./PropertyTemplatePanel";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 import { SyncLogSection } from "./SyncLogSection";
+import { getSyncPhase, requestSync, subscribeSyncStatus, syncQueueStatus, type SyncPhase } from "../../services/syncEngine";
+import { subscribeLocalChanges } from "../../lib/broadcast";
 
-export type SettingsSection = "appearance" | "style" | "ai" | "backup" | "attachments" | "syncLogs" | "recovery" | "mcp" | "clipTemplates" | "plugins" | "propertyTemplates";
+export type SettingsSection = "appearance" | "sync" | "style" | "ai" | "backup" | "attachments" | "syncLogs" | "recovery" | "mcp" | "clipTemplates" | "plugins" | "propertyTemplates";
 
-const NAV: Array<{ id: SettingsSection; label: string }> = [
+const COMMON: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
+  { id: "sync", label: "同步" },
+  { id: "backup", label: "备份" },
+];
+const CONTENT: Array<{ id: SettingsSection; label: string }> = [
   { id: "style", label: "样式" },
-  { id: "ai", label: "AI 助手" },
-  { id: "backup", label: "远程备份" },
+  { id: "propertyTemplates", label: "默认属性" },
   { id: "attachments", label: "附件" },
-  { id: "syncLogs", label: "同步日志" },
   { id: "recovery", label: "恢复码" },
+];
+const ADVANCED: Array<{ id: SettingsSection; label: string }> = [
+  { id: "syncLogs", label: "同步日志" },
+  { id: "ai", label: "AI 助手" },
   { id: "mcp", label: "MCP 接入" },
   { id: "clipTemplates", label: "剪藏模板" },
-  { id: "propertyTemplates", label: "默认属性" },
   { id: "plugins", label: "插件" },
 ];
 
@@ -40,8 +47,9 @@ interface SettingsDialogProps {
 }
 
 /** 设置对话框：外观、远程备份、附件与恢复码。 */
-export function SettingsDialog({ userId, initialSection = "backup", onClose, onSectionChange }: SettingsDialogProps) {
+export function SettingsDialog({ userId, initialSection = "appearance", onClose, onSectionChange }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [advancedOpen, setAdvancedOpen] = useState(ADVANCED.some((entry) => entry.id === initialSection));
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -58,7 +66,22 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
         </div>
         <div className="mn-dlg-body">
           <nav className="mn-dlg-nav" aria-label="设置分类">
-            {NAV.map((entry) => (
+            <p className="mn-nav-label">常用</p>
+            {COMMON.map((entry) => (
+              <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
+                onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
+                {entry.label}
+              </a>
+            ))}
+            <p className="mn-nav-label">内容</p>
+            {CONTENT.map((entry) => (
+              <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
+                onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
+                {entry.label}
+              </a>
+            ))}
+            <p className="mn-nav-label"><button type="button" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>{advancedOpen ? "高级" : "高级 · 连接器与诊断"}</button></p>
+            {advancedOpen && ADVANCED.map((entry) => (
               <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
                 onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
                 {entry.label}
@@ -67,6 +90,7 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
           </nav>
           <div className="mn-dlg-content">
             {section === "appearance" && <AppearanceSection userId={userId} />}
+            {section === "sync" && <SyncSection userId={userId} onOpenLogs={() => { setAdvancedOpen(true); setSection("syncLogs"); onSectionChange?.("syncLogs"); }} />}
             {section === "style" && <StyleSection userId={userId} />}
             {section === "ai" && <AiSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}
@@ -81,6 +105,26 @@ export function SettingsDialog({ userId, initialSection = "backup", onClose, onS
         </div>
       </div>
     </div>
+  );
+}
+
+function SyncSection({ userId, onOpenLogs }: { userId: string; onOpenLogs: () => void }) {
+  const [phase, setPhase] = useState<SyncPhase>(getSyncPhase);
+  const [pending, setPending] = useState(0);
+  const [failed, setFailed] = useState(0);
+  useEffect(() => subscribeSyncStatus(() => setPhase(getSyncPhase())), []);
+  useEffect(() => {
+    const load = () => { void syncQueueStatus(userId).then((status) => { setPending(status.pending); setFailed(status.failed); }); };
+    load();
+    return subscribeLocalChanges(load);
+  }, [userId]);
+  const label = phase === "syncing" ? "正在同步" : phase === "error" || failed > 0 ? "同步失败" : pending > 0 ? "已保存，等待上传" : "已同步";
+  return (
+    <section className="mn-settings-section" aria-label="同步">
+      <p>{label}{pending > 0 ? ` · ${pending} 项待上传` : ""}</p>
+      {(phase === "error" || failed > 0) && <button type="button" className="mn-btn" onClick={() => void requestSync(userId)}>重试同步</button>}
+      <button type="button" className="mn-textbtn" onClick={onOpenLogs}>查看诊断日志</button>
+    </section>
   );
 }
 

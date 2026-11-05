@@ -35,8 +35,6 @@ syncRoutes.get("/api/sync/pull", resolveSession, requireSession, async (c) => {
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
   const userId = c.get("authUser")!.id;
   const rawCursor = c.req.query("cursor") ?? "0";
-  let cursor = Number.parseInt(rawCursor, 10);
-  if (!Number.isSafeInteger(cursor) || cursor < 0) cursor = 0;
-  const page = await buildSyncPage(c.env.DB, userId, cursor, Date.now());
+  const page = await buildSyncPage(c.env.DB, userId, rawCursor, Date.now());
   return c.json(page, { headers: { "Cache-Control": "no-store" } });
 });

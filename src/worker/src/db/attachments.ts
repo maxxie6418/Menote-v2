@@ -63,6 +63,23 @@ export async function deleteAttachmentRow(db: D1Database, userId: string, sha256
 }
 
 /** 引用对齐时补齐缺失的元数据行（不覆盖既有 size/mime；计数另设）。 */
+/** 与条目写放进同一次 batch：计数子查询能看见本批刚写入的哈希列表。 */
+export function realignAttachmentStatements(db: D1Database, userId: string, sha256: string, now: number): D1PreparedStatement[] {
+  const countSql = `SELECT COUNT(*) FROM items WHERE user_id = ? AND deleted_at IS NULL
+     AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`;
+  return [
+    db.prepare(
+      `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, 0, 'application/octet-stream', 0)
+       ON CONFLICT (user_id, sha256) DO NOTHING`,
+    ).bind(userId, sha256),
+    db.prepare(
+      `UPDATE attachments SET ref_count = (${countSql}),
+         orphaned_at = CASE WHEN (${countSql}) > 0 THEN NULL ELSE COALESCE(orphaned_at, ?) END
+       WHERE user_id = ? AND sha256 = ?`,
+    ).bind(userId, sha256, userId, sha256, now, userId, sha256),
+  ];
+}
+
 export async function ensureAttachmentRow(db: D1Database, userId: string, sha256: string): Promise<void> {
   await db.prepare(
     `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, 0, 'application/octet-stream', 0)

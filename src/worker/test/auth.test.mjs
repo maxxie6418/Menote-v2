@@ -131,7 +131,9 @@ test("expired sessions are rejected", async () => {
     const cookie = await readyWorker(mf);
     const database = await mf.getD1Database("DB");
     const token = cookie.slice("mn_session=".length);
-    await database.prepare("UPDATE sessions SET expires_at = 1 WHERE id = ?").bind(token).run();
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    const stored = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    await database.prepare("UPDATE sessions SET expires_at = 1 WHERE id = ?").bind(stored).run();
     assert.equal((await req(mf, "/api/auth/me", { headers: { cookie } })).status, 401);
   });
 });

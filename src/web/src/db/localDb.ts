@@ -80,6 +80,15 @@ export interface VersionRow {
   createdAt: number;
 }
 
+/** 崩溃恢复副本（FR-EDT-11）。不进 outbox。 */
+export interface RecoveryRow {
+  itemId: string;
+  userId: string;
+  content: string;
+  scope: "plain" | "sealed";
+  updatedAt: number;
+}
+
 /** E1 表集；版本历史（G8）与同步游标推进（G6）随对应工作项扩展。 */
 class MenoteLocalDb extends Dexie {
   topics!: Table<TopicNode, string>;
@@ -92,6 +101,7 @@ class MenoteLocalDb extends Dexie {
   versions!: Table<VersionRow, number>;
   meta!: Table<MetaRow, string>;
   syncDiagnostics!: Table<SyncDiagnosticRow, number>;
+  recovery!: Table<RecoveryRow, string>;
 
   constructor() {
     super("menote-local");
@@ -149,6 +159,9 @@ class MenoteLocalDb extends Dexie {
       versions: "++id, itemId, createdAt, userId",
       meta: "key",
       syncDiagnostics: "++id, userId, at, [userId+at]",
+    });
+    this.version(6).stores({
+      recovery: "itemId, userId, updatedAt",
     });
   }
 }

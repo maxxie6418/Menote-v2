@@ -28,10 +28,14 @@ export const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
 export const sameOriginGuard: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(c.req.method)) return next();
   const origin = c.req.header("Origin");
-  if (origin) {
-    const url = new URL(c.req.url);
-    if (origin !== `${url.protocol}//${url.host}`) return c.json({ error: "cross_origin" }, 403);
+  const url = new URL(c.req.url);
+  const expected = `${url.protocol}//${url.host}`;
+  // 带会话 cookie 的变更请求必须带同源 Origin。无 cookie 的登录/引导仍放行。
+  if (!origin) {
+    if (getCookie(c, SESSION_COOKIE)) return c.json({ error: "cross_origin" }, 403);
+    return next();
   }
+  if (origin !== expected) return c.json({ error: "cross_origin" }, 403);
   return next();
 };
 
