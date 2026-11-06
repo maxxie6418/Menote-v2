@@ -7,6 +7,7 @@ import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { AccountMenu } from "./AccountMenu";
+import { TagManagerDialog } from "./TagManagerDialog";
 import { SectionHead } from "../components/ui/SectionHead";
 import { DEFAULT_WORKSPACE_SETTINGS, readWorkspaceSettings, updateWorkspaceSettings } from "../services/workspaceSettingsService";
 
@@ -41,6 +42,7 @@ const isSection = (section: BrowseSection, kind: BrowseSection["kind"]): boolean
 export function Sidebar({ userId, account, layout, collapsed, drawerOpen, section, onSelectSection, onOpenPrivate, onDropItem, onCreateNote, onLogout, onToggleCollapse, onCloseDrawer, onOpenSettings, onOpenStatus, memoComposerSignal }: SidebarProps) {
   const overlayMode = layout === "tablet" || layout === "mobile";
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WORKSPACE_SETTINGS.sidebarWidth);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const resizeStart = useRef<{ x: number; width: number } | null>(null);
   useEffect(() => {
     const refresh = () => { void readWorkspaceSettings(userId).then((settings) => {
@@ -76,6 +78,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
   const tags = useAllTags(userId);
 
   return (
+    <>
     <aside className={overlayMode ? "mn-sidebar mn-drawer" : "mn-sidebar"} data-open={overlayMode ? drawerOpen : undefined} aria-label="侧栏">
       <div className="mn-sb-top">
         {overlayMode && (
@@ -111,30 +114,30 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         {!collapsed && <>新建笔记<span className="mn-kbd mn-btn-kbd" aria-hidden="true">⌘N</span></>}
       </button>
       <nav className="mn-quick" aria-label="回看">
-        <a href="#" className={isSection(section, "recent") ? "on" : ""}
+        <a href="#" title="最近编辑" aria-label="最近编辑" className={isSection(section, "recent") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "recent" }); }}>
           <Clock />
           {!collapsed && "最近编辑"}
         </a>
-        <a href="#" className={isSection(section, "starred") ? "on" : ""}
+        <a href="#" title="收藏" aria-label="收藏" className={isSection(section, "starred") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "starred" }); }}>
           <Star />
           {!collapsed && "收藏"}
         </a>
-        <a href="#" className={isSection(section, "trash") ? "on" : ""}
+        <a href="#" title="回收站" aria-label="回收站" className={isSection(section, "trash") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "trash" }); }}>
           <Trash2 />
           {!collapsed && "回收站"}
         </a>
       </nav>
       <div className="mn-queue" role="group" aria-label="收集入口">
-        <a href="#" className={isSection(section, "inbox") ? "on hot" : "hot"}
+        <a href="#" title="收件箱" aria-label={`收件箱${inbox.length ? `，${inbox.length} 条` : ""}`} className={isSection(section, "inbox") ? "on hot" : "hot"}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "inbox" }); }}>
           <Inbox />
           {!collapsed && <span>收件箱</span>}
           {!collapsed && inbox.length > 0 && <span className="mn-count">{inbox.length}</span>}
         </a>
-        <a href="#" className={isSection(section, "drafts") ? "on" : ""}
+        <a href="#" title="草稿箱" aria-label={`草稿箱${drafts.length ? `，${drafts.length} 条` : ""}`} className={isSection(section, "drafts") ? "on" : ""}
           onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "drafts" }); }}>
           <FileText />
           {!collapsed && <span>草稿箱</span>}
@@ -149,9 +152,9 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         <SectionHead
           label="标签"
           action={{
-            label: "标签管理将在后续版本开放",
+            label: "管理标签",
             icon: <MoreHorizontal aria-hidden="true" />,
-            disabled: true,
+            onClick: () => setTagManagerOpen(true),
           }}
         />
       )}
@@ -174,5 +177,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         onPointerUp={() => { if (resizeStart.current) { resizeStart.current = null; void updateWorkspaceSettings(userId, { sidebarWidth: sidebarWidthRef.current }); } }}
         onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); const next = Math.max(200, Math.min(420, sidebarWidth + (event.key === "ArrowRight" ? 16 : -16))); setSidebarWidth(next); void updateWorkspaceSettings(userId, { sidebarWidth: next }); } }} />}
     </aside>
+    {tagManagerOpen && <TagManagerDialog userId={userId} onClose={() => setTagManagerOpen(false)} />}
+    </>
   );
 }

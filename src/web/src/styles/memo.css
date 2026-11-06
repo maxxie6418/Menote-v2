@@ -107,7 +107,13 @@
   font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint);
   font-variant-numeric: tabular-nums; text-align: right;
 }
-.mn-memo-main .mn-memo-actions { flex-direction: row; }
+.mn-memo-main .mn-memo-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--app-space-2); }
+.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
+.mn-memo-main .mn-memo-actions .mn-minibtn[aria-pressed="true"] { color: var(--app-accent-fg); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:disabled { cursor: default; }
 
 .mn-memo-card-body {
   margin-bottom: var(--app-space-sm);

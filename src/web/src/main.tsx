@@ -19,6 +19,9 @@ import "./styles/home.css";
 import "./styles/mobile.css";
 // 滚动条：全局接管所有原生滚动容器（DESIGN §4.4），须在 tokens.css 之后引入以取到令牌。
 import "./styles/scrollbar.css";
+import "./styles/inkstand-shell.css";
+import "./styles/inkstand-memo.css";
+import "./styles/inkstand-pages.css";
 import { applyDocStyle } from "./lib/docStyle";
 import { getThemeSkin } from "./lib/themeSkin";
 import { applyDocLayout } from "./lib/docLayout";

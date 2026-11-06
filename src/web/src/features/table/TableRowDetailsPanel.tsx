@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 interface TableRowDetailsPanelProps {
@@ -25,6 +25,28 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 
 /** Row detail side panel, with a large preview for Raindrop cover URLs. */
 export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: TableRowDetailsPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key === "Tab") {
+        const focusable = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])');
+        if (!focusable?.length) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [onClose]);
   const coverIndex = columns.findIndex((column) => /^(cover|封面)$/i.test(column.trim()));
   const coverUrl = coverIndex >= 0 ? safeWebUrl(cells[coverIndex] ?? "") : null;
   const pageIndex = columns.findIndex((column) => /^(网址|链接|url|source|source_url)$/i.test(column.trim()));
@@ -33,10 +55,10 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: Tab
   return (
     <>
       <button type="button" className="mn-tabledoc-detail-backdrop" aria-label="关闭行详情" onClick={onClose} />
-      <aside className="mn-tabledoc-detail" aria-label={`第 ${rowNumber} 行详情`}>
+      <aside ref={panelRef} className="mn-tabledoc-detail" role="dialog" aria-modal="true" aria-label={`第 ${rowNumber} 行详情`}>
         <header className="mn-tabledoc-detail-head">
           <h2>第 {rowNumber} 行</h2>
-          <button type="button" className="mn-iconbtn" aria-label="关闭详情" onClick={onClose}><X aria-hidden="true" /></button>
+          <button ref={closeRef} type="button" className="mn-iconbtn" aria-label="关闭详情" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         {pageUrl && <p className="mn-clip-source"><a href={pageUrl} target="_blank" rel="noreferrer">打开原网页</a></p>}
         {coverUrl && <CoverPreview key={coverUrl} src={coverUrl} alt={cells[columns.findIndex((column) => /^(title|标题)$/i.test(column.trim()))] || "收藏封面"} />}

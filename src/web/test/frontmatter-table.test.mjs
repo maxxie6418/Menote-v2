@@ -155,3 +155,17 @@ test("renameProp keeps arrays/booleans and refuses to overwrite an existing key"
   // 源键不存在：不动
   assert.equal(fm.renameProp("正文", fm.PROPS_KEY, "nope", "other"), "正文");
 });
+
+test("Note marginalia round-trips in frontmatter without changing properties or body", () => {
+  const source = `---\ntitle: 记录\nprops:\n  status:\n    type: text\nstatus: draft\n---\n\n# 保持原文\n正文内容`;
+  const annotation = { id: "m-1", quote: "正文", note: "补充一个例子", createdAt: 1793900000000 };
+  const written = fm.writeNoteMarginalia(source, [annotation]);
+  assert.deepEqual(fm.readNoteMarginalia(written), [annotation]);
+  assert.equal(fm.parseFrontmatterData(written).status, "draft");
+  assert.deepEqual(fm.readDefs(written, fm.PROPS_KEY).status, { type: "text", label: undefined, options: undefined, optionColors: undefined });
+  assert.equal(fm.readPropRows(written, fm.PROPS_KEY).some((row) => row.key === "menote_marginalia"), false);
+  assert.match(written, /# 保持原文\n正文内容$/);
+  const removed = fm.writeNoteMarginalia(written, []);
+  assert.deepEqual(fm.readNoteMarginalia(removed), []);
+  assert.equal(fm.parseFrontmatterData(removed).status, "draft");
+});

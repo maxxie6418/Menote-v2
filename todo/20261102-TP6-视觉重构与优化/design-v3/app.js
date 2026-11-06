@@ -2,7 +2,271 @@ const root = document.documentElement;
 const app = document.getElementById('app');
 const panelStack = document.getElementById('panelStack');
 
-/* Memo 卡片的互动行和内联面板沿用同一结构，不让非加密卡片漏画入口。 */
+/* Memo 卡片的互动行与内联面板：评论线程与引述就地展开，不弹窗、不切页。
+   评论面板覆盖「新增 / 回复 / 编辑 / 删除 / 排序 / 空态」，引述面板覆盖「快照 + 理由 + 可见性」，
+   面板结构从首条明文 Memo 克隆给其余卡片，保证每张卡片都有同一套入口。 */
+function clampTextarea(el, max) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, max) + 'px';
+}
+
+function initMemoCard(card) {
+  const bar = card.querySelector('.memo-social');
+  const thread = card.querySelector('[data-memo-inline="comments"]');
+  const quote = card.querySelector('[data-memo-inline="quote"]');
+  if (!bar || !thread || !quote) return;
+
+  const list = thread.querySelector('.mt-list');
+  const empty = thread.querySelector('.mt-empty');
+  const total = thread.querySelector('[data-comment-total]');
+  const badge = bar.querySelector('[data-comment-badge]');
+  const form = thread.querySelector('[data-mt-form]');
+  const input = thread.querySelector('.mt-input');
+  const counter = thread.querySelector('.mt-counter b');
+  const send = thread.querySelector('.mt-send');
+  const chip = thread.querySelector('.mt-reply-chip');
+  const chipName = chip ? chip.querySelector('b') : null;
+  const panels = { comments: thread, quote: quote };
+  let replyTarget = null;
+
+  function syncCount() {
+    const n = thread.querySelectorAll('.mt-comment').length;
+    if (total) total.textContent = String(n);
+    if (badge) {
+      badge.textContent = String(n);
+      badge.hidden = n === 0;
+    }
+    if (empty) empty.hidden = n > 0;
+  }
+  function setExpanded(name, open) {
+    bar.querySelector('[data-memo-panel="' + name + '"]')?.setAttribute('aria-expanded', String(open));
+  }
+  function closePanel(panel) {
+    if (!panel) return;
+    panel.hidden = true;
+    setExpanded(panel.dataset.memoInline, false);
+  }
+  function clearReply() {
+    replyTarget = null;
+    if (chip) chip.hidden = true;
+  }
+  syncCount();
+
+  bar.querySelectorAll('[data-memo-panel]').forEach(button => {
+    button.addEventListener('click', () => {
+      const panel = panels[button.dataset.memoPanel];
+      if (!panel) return;
+      const opening = panel.hidden;
+      Object.values(panels).forEach(closePanel);
+      if (!opening) return;
+      panel.hidden = false;
+      setExpanded(panel.dataset.memoInline, true);
+      panel.querySelector('textarea')?.focus({ preventScroll: true });
+    });
+  });
+
+  bar.querySelector('[data-memo-favorite]')?.addEventListener('click', event => {
+    const button = event.currentTarget;
+    const saved = button.getAttribute('aria-pressed') !== 'true';
+    button.setAttribute('aria-pressed', String(saved));
+    button.setAttribute('aria-label', saved ? '取消收藏' : '收藏');
+  });
+
+  card.querySelectorAll('[data-memo-cancel]').forEach(button => {
+    button.addEventListener('click', () => {
+      closePanel(button.closest('[data-memo-inline]'));
+    });
+  });
+
+  /* 评论：删除 / 回复 / 编辑（点「保存」提交，Esc 放弃） */
+  function startEdit(item, button) {
+    const text = item.querySelector('.mt-text');
+    if (!text) return;
+    const editor = document.createElement('textarea');
+    editor.className = 'mt-edit';
+    editor.rows = 2;
+    editor.value = text.textContent;
+    text.replaceWith(editor);
+    clampTextarea(editor, 160);
+    editor.focus();
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    button.dataset.mode = 'save';
+    button.textContent = '保存';
+    editor.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      editor.replaceWith(text);
+      button.dataset.mode = '';
+      button.textContent = '编辑';
+    });
+  }
+
+  function commitEdit(item, button) {
+    const editor = item.querySelector('.mt-edit');
+    if (!editor) return;
+    const paragraph = document.createElement('p');
+    paragraph.className = 'mt-text';
+    paragraph.textContent = editor.value.trim() || '（已清空）';
+    editor.replaceWith(paragraph);
+    button.dataset.mode = '';
+    button.textContent = '编辑';
+    const meta = item.querySelector('.mt-meta');
+    if (meta) {
+      /* 需求口径：编辑要标注更新时间，不只是「已编辑」 */
+      const stamp = new Date().toTimeString().slice(0, 5);
+      let flag = meta.querySelector('.mt-flag');
+      if (!flag) {
+        flag = document.createElement('span');
+        flag.className = 'mt-flag';
+        meta.insertBefore(flag, meta.querySelector('.mt-acts'));
+      }
+      flag.textContent = '已编辑 ' + stamp;
+    }
+  }
+
+  list?.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    const item = button?.closest('.mt-comment');
+    if (!item) return;
+    if (button.hasAttribute('data-mt-delete')) {
+      item.remove();
+      if (replyTarget === item) clearReply();
+      syncCount();
+      return;
+    }
+    if (button.hasAttribute('data-mt-reply')) {
+      replyTarget = item;
+      if (chip && chipName) {
+        chipName.textContent = item.querySelector('.mt-meta b')?.textContent.trim() || '这条评论';
+        chip.hidden = false;
+      }
+      input?.focus();
+      return;
+    }
+    if (button.hasAttribute('data-mt-edit')) {
+      if (button.dataset.mode === 'save') commitEdit(item, button);
+      else startEdit(item, button);
+    }
+  });
+
+  /* 评论支持一层回复：回复挂到目标评论下的 .mt-replies，不再继续嵌套 */
+  function appendComment() {
+    const value = input.value.trim();
+    if (!value) return;
+    const item = document.createElement('li');
+    item.className = 'mt-comment';
+    item.innerHTML =
+      '<span class="mt-av" data-tone="acc" aria-hidden="true">林</span>' +
+      '<div class="mt-main"><div class="mt-meta"><b>林一</b><time>刚刚</time>' +
+      '<span class="mt-acts"><button type="button" data-mt-reply>回复</button>' +
+      '<button type="button" data-mt-edit>编辑</button>' +
+      '<button type="button" data-mt-delete>删除</button></span></div>' +
+      '<p class="mt-text"></p></div>';
+    item.querySelector('.mt-text').textContent = value;
+    let host = list;
+    if (replyTarget) {
+      const main = replyTarget.querySelector(':scope > .mt-main');
+      let replies = main?.querySelector(':scope > .mt-replies');
+      if (!replies && main) {
+        replies = document.createElement('ol');
+        replies.className = 'mt-replies';
+        main.append(replies);
+      }
+      host = replies || list;
+    }
+    host.append(item);
+    input.value = '';
+    if (counter) counter.textContent = '0';
+    if (send) send.disabled = true;
+    clampTextarea(input, 104);
+    clearReply();
+    syncCount();
+    item.scrollIntoView({ block: 'nearest' });
+  }
+
+  input?.addEventListener('input', () => {
+    clampTextarea(input, 104);
+    const length = input.value.trim().length;
+    if (counter) counter.textContent = String(length);
+    if (send) send.disabled = length === 0;
+  });
+  input?.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      appendComment();
+    }
+  });
+  form?.addEventListener('submit', event => {
+    event.preventDefault();
+    appendComment();
+  });
+  thread.querySelector('[data-mt-reply-cancel]')?.addEventListener('click', clearReply);
+
+  thread.querySelector('[data-mt-sort]')?.addEventListener('click', event => {
+    const button = event.currentTarget;
+    const descending = button.getAttribute('aria-pressed') !== 'true';
+    button.setAttribute('aria-pressed', String(descending));
+    const label = button.querySelector('[data-sort-label]');
+    if (label) label.textContent = descending ? '按位置' : '按时间';
+    [...list.children].reverse().forEach(node => list.append(node));
+  });
+
+  /* 引述：原文快照固定，发布后在时间轴顶部生成引述卡片 */
+  const quoteInput = quote.querySelector('.mq-input');
+  const quoteCounter = quote.querySelector('.mq-counter b');
+  quoteInput?.addEventListener('input', () => {
+    if (quoteCounter) quoteCounter.textContent = String(quoteInput.value.length);
+  });
+  quote.querySelectorAll('[data-mq-vis]').forEach(button => {
+    button.addEventListener('click', () => {
+      quote.querySelectorAll('[data-mq-vis]').forEach(item => item.classList.toggle('is-on', item === button));
+    });
+  });
+
+  function publishQuote() {
+    const feed = document.querySelector('.feed');
+    if (!feed) return;
+    const reason = quoteInput.value.trim();
+    const source = card.querySelector('.memo-text')?.textContent.trim() || '';
+    const time = card.querySelector('.memo-time')?.textContent.trim() || '';
+    const article = document.createElement('article');
+    article.className = 'memo memo--quoted';
+    const head = document.createElement('div');
+    head.className = 'memo-hd';
+    head.innerHTML = '<span class="memo-time">刚刚</span><span class="tag tag--moss">引述</span>';
+    article.append(head);
+    if (reason) {
+      const text = document.createElement('p');
+      text.className = 'memo-text';
+      text.textContent = reason;
+      article.append(text);
+    }
+    const snapshot = document.createElement('blockquote');
+    snapshot.className = 'memo-quote-snap';
+    snapshot.textContent = source;
+    const origin = document.createElement('small');
+    origin.textContent = '引自 ' + time + ' · 原文快照已固定';
+    snapshot.append(origin);
+    article.append(snapshot);
+    /* 插到「今天」分组之下，保持时间轴按天分组的次序，而不是压到分组头上 */
+    const dayDivider = feed.querySelector('.feed-day');
+    if (dayDivider) dayDivider.after(article);
+    else feed.prepend(article);
+    quoteInput.value = '';
+    if (quoteCounter) quoteCounter.textContent = '0';
+    closePanel(quote);
+    article.scrollIntoView({ block: 'nearest' });
+  }
+  quote.querySelector('.memo-inline-publish')?.addEventListener('click', publishQuote);
+  quote.querySelector('[data-mq-draft]')?.addEventListener('click', () => closePanel(quote));
+  quoteInput?.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      publishQuote();
+    }
+  });
+}
+
 const firstMemoCard = document.querySelector('#memo-top');
 if (firstMemoCard) {
   const actionTemplate = firstMemoCard.querySelector('.memo-social');
@@ -13,80 +277,14 @@ if (firstMemoCard) {
     card.append(actionTemplate.cloneNode(true));
     const comments = commentTemplate.cloneNode(true);
     const quote = quoteTemplate.cloneNode(true);
+    /* 克隆只带走结构，不带走首条的示例评论 —— 每条 Memo 的评论各自独立 */
+    comments.querySelectorAll('.mt-comment').forEach(node => node.remove());
     comments.hidden = true;
     quote.hidden = true;
     card.append(comments, quote);
   });
 }
-document.querySelectorAll('.memo-social').forEach(bar => {
-  const card = bar.closest('.memo');
-  bar.querySelectorAll('[data-memo-panel]').forEach(button => {
-    button.addEventListener('click', () => {
-      const target = button.dataset.memoPanel;
-      const panel = card.querySelector('[data-memo-inline="' + target + '"]');
-      if (!panel) return;
-      const opening = panel.hidden;
-      card.querySelectorAll('[data-memo-inline]').forEach(item => { item.hidden = true; });
-      bar.querySelectorAll('[data-memo-panel]').forEach(item => item.setAttribute('aria-expanded', 'false'));
-      panel.hidden = !opening;
-      button.setAttribute('aria-expanded', String(opening));
-      if (opening) panel.querySelector('textarea')?.focus();
-    });
-  });
-  bar.querySelector('[data-memo-favorite]')?.addEventListener('click', event => {
-    const button = event.currentTarget;
-    const saved = button.getAttribute('aria-pressed') !== 'true';
-    button.setAttribute('aria-pressed', String(saved));
-    button.setAttribute('aria-label', saved ? '取消收藏' : '收藏');
-  });
-  card.querySelector('[data-memo-cancel]')?.addEventListener('click', () => {
-    const panel = card.querySelector('[data-memo-inline="quote"]');
-    panel.hidden = true;
-    bar.querySelector('[data-memo-panel="quote"]').setAttribute('aria-expanded', 'false');
-  });
-  card.querySelector('.memo-inline-compose button')?.addEventListener('click', () => {
-    const input = card.querySelector('.memo-inline-compose textarea');
-    if (!input.value.trim()) return;
-    const row = document.createElement('div');
-    row.className = 'memo-inline-comment';
-    row.innerHTML = '<time>刚刚</time><span></span><button type="button">编辑</button>';
-    row.querySelector('span').textContent = input.value.trim();
-    card.querySelector('.memo-inline-compose').before(row);
-    input.value = '';
-  });
-  card.querySelectorAll('.memo-inline-comment button').forEach(editButton => {
-    editButton.addEventListener('click', () => {
-      const row = editButton.closest('.memo-inline-comment');
-      const copy = row.querySelector('span');
-      const editor = document.createElement('textarea');
-      editor.value = copy.textContent;
-      editor.setAttribute('aria-label', '编辑评论');
-      copy.replaceWith(editor);
-      editButton.textContent = '保存';
-      editButton.onclick = () => {
-        const text = document.createElement('span');
-        text.textContent = editor.value;
-        editor.replaceWith(text);
-        editButton.textContent = '编辑';
-      };
-    });
-  });
-  card.querySelector('.memo-inline-publish')?.addEventListener('click', () => {
-    const input = card.querySelector('.memo-inline-quote textarea');
-    if (!input.value.trim()) return;
-    const quote = document.createElement('article');
-    quote.className = 'memo memo--quoted';
-    const text = document.createElement('p');
-    text.className = 'memo-text';
-    text.textContent = input.value.trim();
-    const snapshot = document.createElement('blockquote');
-    snapshot.className = 'memo-inline-published-snapshot';
-    snapshot.textContent = card.querySelector('.memo-text')?.textContent || '来源原文快照';
-    quote.append(text, snapshot);
-    document.querySelector('.feed').prepend(quote);
-    card.querySelector('[data-memo-cancel]').click();
-  });
-});
+document.querySelectorAll('.memo').forEach(initMemoCard);
 
 /* Memo 时间轴/图册、工作栏筛选和 Todo 交互示意。 */
 const memoTimeline = document.querySelector('.feed');
@@ -97,6 +295,7 @@ document.querySelectorAll('[data-memo-view]').forEach(button => button.addEventL
   memoTimeline.hidden = gallery;
   memoGallery.hidden = !gallery;
   document.querySelector('.memo-todo-panel').hidden = gallery;
+  document.querySelector('.memo-body').classList.toggle('is-gallery', gallery);
 }));
 document.querySelectorAll('[data-gallery-jump]').forEach(button => button.addEventListener('click', () => {
   const target = document.getElementById(button.dataset.galleryJump);
@@ -139,11 +338,37 @@ document.querySelectorAll('[data-columns-toggle]').forEach(button => button.addE
   menu.hidden = !menu.hidden;
   button.setAttribute('aria-expanded', String(!menu.hidden));
 }));
-document.querySelectorAll('.row-select').forEach(input => input.addEventListener('change', () => {
+/* 表格：勾选即选中。复选框与行高亮（.is-sel）是同一个状态，
+   分开维护会出现「打了勾却没高亮」的错位，也会让首列的选中/未选中看起来不一致。 */
+function syncRowSelection(markUndo = false) {
+  document.querySelectorAll('.grow').forEach(row => {
+    const box = row.querySelector('.row-select');
+    row.classList.toggle('is-sel', Boolean(box?.checked));
+  });
   const count = document.querySelectorAll('.row-select:checked').length;
-  document.querySelector('.db-bulkbar b').textContent = String(count);
-  document.querySelector('.db-bulkbar').hidden = count === 0;
-}));
+  const bar = document.querySelector('.db-bulkbar');
+  if (bar) {
+    bar.querySelector('b').textContent = String(count);
+    bar.hidden = count === 0;
+  }
+  const undo = document.querySelector('[data-table-undo]');
+  if (undo && markUndo) undo.disabled = false;
+}
+syncRowSelection();
+document.querySelectorAll('.row-select').forEach(input => input.addEventListener('change', () => syncRowSelection(true)));
+document.querySelector('.db-bulkbar .bulk-clear')?.addEventListener('click', () => {
+  document.querySelectorAll('.row-select').forEach(box => { box.checked = false; });
+  syncRowSelection(true);
+});
+document.querySelector('[data-table-undo]')?.addEventListener('click', event => {
+  /* 演示：把选择恢复成批量操作之前的 1、2 行 */
+  document.querySelectorAll('.grow').forEach((row, index) => {
+    const box = row.querySelector('.row-select');
+    if (box) box.checked = index < 2;
+  });
+  syncRowSelection();
+  event.currentTarget.disabled = true;
+});
 /* 表格行详情：行号区悬停后出现专用入口；抽屉覆盖表格，不改变表格宽度。 */
 const dbBody = document.querySelector('.db-body');
 const peek = document.querySelector('.peek');
@@ -191,10 +416,18 @@ document.querySelector('[data-table-edit-demo]')?.addEventListener('click', even
   button.setAttribute('aria-pressed', String(active));
   button.textContent = active ? '关闭编辑示例' : '编辑态示例';
 });
-document.querySelectorAll('.settings-existing-features .mnav').forEach(button => button.addEventListener('click', () => {
-  document.querySelectorAll('.settings-existing-features .mnav').forEach(item => item.classList.toggle('is-on', item === button));
-  document.querySelector('.settings-feature-catalog').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}));
+/* 设置管理中心：切换已实现分类的视觉页面；表单为演示数据，不写入真实设置。 */
+function showSettingsPage(id) {
+  document.querySelectorAll('[data-settings-page]').forEach(button => button.classList.toggle('is-on', button.dataset.settingsPage === id));
+  document.querySelectorAll('[data-settings-content]').forEach(page => page.classList.toggle('is-on', page.dataset.settingsContent === id));
+}
+document.querySelectorAll('[data-settings-page]').forEach(button => button.addEventListener('click', () => showSettingsPage(button.dataset.settingsPage)));
+document.querySelectorAll('[data-settings-go]').forEach(button => button.addEventListener('click', () => showSettingsPage(button.dataset.settingsGo)));
+/* 表格筛选/排序面板可开合，示意真实 UI 的控制入口。 */
+for (const [toggle, panel] of [['[data-table-filter-toggle]','[data-table-filter-panel]'],['[data-table-sort-toggle]','[data-table-sort-panel]']]) {
+  const button = document.querySelector(toggle), content = document.querySelector(panel);
+  button?.addEventListener('click', () => { content.hidden = !content.hidden; button.setAttribute('aria-expanded', String(!content.hidden)); });
+}
 
 /* 把各视图自带的面板收归统一面板栈 —— 侧栏两形态的前提 */
 document.querySelectorAll('.mode').forEach(modeEl => {
@@ -289,12 +522,14 @@ document.getElementById('btn-grid').addEventListener('click', function () {
   this.classList.toggle('is-on');
 });
 
-/* 表格：行选中 */
+/* 表格：点行身也能勾选；复选框 / 拖动柄 / 详情入口 / 编辑框各自处理自己的点击 */
 document.querySelectorAll('.grow').forEach(row => {
-  row.addEventListener('click', e => {
-    if (e.target.closest('.cell-edit')) return;
-    document.querySelectorAll('.grow').forEach(r => r.classList.remove('is-sel'));
-    row.classList.add('is-sel');
+  row.addEventListener('click', event => {
+    if (event.target.closest('input, button, .cell-edit, .grip')) return;
+    const box = row.querySelector('.row-select');
+    if (!box) return;
+    box.checked = !box.checked;
+    syncRowSelection();
   });
 });
 
@@ -397,10 +632,9 @@ if (params.get('scroll') === 'end') {
 const modal = document.getElementById('appearanceModal');
 const settingsBtn = document.getElementById('sbSettings');
 function closeModal() { modal.classList.remove('is-on'); }
-if (settingsBtn) settingsBtn.addEventListener('click', () => modal.classList.add('is-on'));
-document.getElementById('modalClose').addEventListener('click', closeModal);
-document.getElementById('modalDone').addEventListener('click', closeModal);
-document.getElementById('modalCancel').addEventListener('click', closeModal);
+if (settingsBtn) settingsBtn.addEventListener('click', () => { modal.classList.add('is-on'); showSettingsPage('appearance'); });
+document.getElementById('modalClose')?.addEventListener('click', closeModal);
+document.getElementById('modalDone')?.addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
@@ -524,3 +758,56 @@ function balanceNote() {
 }
 balanceNote();
 window.addEventListener('resize', balanceNote);
+
+/* 下拉选择：替代原生 select —— 面板跟随令牌，支持点击外部 / Esc 关闭与方向键选择 */
+function closeAllSelects(except) {
+  document.querySelectorAll('[data-sel]').forEach(sel => {
+    if (sel === except) return;
+    sel.querySelector('.sel-menu').hidden = true;
+    sel.querySelector('.sel-btn').setAttribute('aria-expanded', 'false');
+  });
+}
+document.querySelectorAll('[data-sel]').forEach(sel => {
+  const btn = sel.querySelector('.sel-btn');
+  const menu = sel.querySelector('.sel-menu');
+  const value = sel.querySelector('[data-sel-value]');
+  const items = [...menu.querySelectorAll('li')];
+
+  function close(restoreFocus) {
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) btn.focus({ preventScroll: true });
+  }
+  function choose(item) {
+    items.forEach(node => node.setAttribute('aria-selected', String(node === item)));
+    value.textContent = item.textContent;
+    close(true);
+  }
+  btn.addEventListener('click', event => {
+    event.stopPropagation();
+    const opening = menu.hidden;
+    closeAllSelects(sel);
+    menu.hidden = !opening;
+    btn.setAttribute('aria-expanded', String(opening));
+    if (opening) items.find(node => node.getAttribute('aria-selected') === 'true')?.focus({ preventScroll: true });
+  });
+  items.forEach(item => {
+    item.tabIndex = -1;
+    item.addEventListener('click', () => choose(item));
+  });
+  sel.addEventListener('keydown', event => {
+    const current = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') { event.preventDefault(); close(true); return; }
+    if (event.key === 'Enter' || event.key === ' ') {
+      if (current >= 0) { event.preventDefault(); choose(items[current]); }
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (menu.hidden) { btn.click(); return; }
+      const delta = event.key === 'ArrowDown' ? 1 : -1;
+      items[(current + delta + items.length) % items.length]?.focus({ preventScroll: true });
+    }
+  });
+});
+document.addEventListener('click', () => closeAllSelects(null));

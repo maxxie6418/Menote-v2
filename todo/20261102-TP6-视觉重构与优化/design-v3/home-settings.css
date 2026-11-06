@@ -36,7 +36,7 @@
 .hr-item .ic .i { width: 11px; height: 11px; }
 .hr-item .tx { font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hr-item .tm { margin-left: auto; font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); flex: none; }
-@media (max-width: 1180px) { .home-inner { grid-template-columns: 1fr; } .home-side { display: none; } }
+@media (max-width: 1024px) { .home-inner { grid-template-columns: 1fr; } .home-side { display: none; } }
 
 .home-stamp { display: flex; align-items: baseline; gap: 13px; }
 .home-time {
@@ -214,7 +214,7 @@
 .pat .drawer i.hd { height: 7px; background: var(--line-strong); width: 70%; }
 .pat .d { font-size: 10px; color: var(--ink-4); margin-top: 8px; line-height: 1.6; }
 
-@media (max-width: 1100px) { .form-demo { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .form-demo { grid-template-columns: 1fr; } }
 
 /* ---------- 12. MODAL · 外观设置 ---------- */
 .modal {

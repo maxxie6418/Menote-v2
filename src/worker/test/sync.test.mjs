@@ -55,6 +55,39 @@ function itemOp(id, { rev, baseRev = rev - 1, markdown = "正文", title = "笔�
   };
 }
 
+function memoCommentOp(id, memoId, parentId, content) {
+  const now = 1_700_000_000_000;
+  return { operationId: crypto.randomUUID(), userId: "ignored", entityId: id, entity: "memo_comment", action: "upsert", baseRev: 0, baseMetaRev: 0,
+    payload: { comment: { id, userId: "ignored", memoId, parentId, content, rev: 1, createdAt: now, updatedAt: now, deletedAt: null } } };
+}
+function memoCommentDeleteOp(id, memoId, parentId) {
+  const now = Date.now();
+  return { operationId: crypto.randomUUID(), userId: "ignored", entityId: id, entity: "memo_comment", action: "delete", baseRev: 1, baseMetaRev: 0,
+    payload: { comment: { id, userId: "ignored", memoId, parentId, content: "", rev: 2, createdAt: 1_700_000_000_000, updatedAt: now, deletedAt: now } } };
+}
+
+test("Memo comments sync one reply level and keep the parent reference", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const memo = itemOp("memo-thread", { rev: 1, markdown: "随记" });
+    memo.payload.item.type = "memo";
+    memo.payload.item.title = null;
+    const response = await post(mf, cookie, [memo, memoCommentOp("comment-root", "memo-thread", null, "根评论"), memoCommentOp("comment-reply", "memo-thread", "comment-root", "回复")]);
+    const results = (await response.json()).results;
+    assert.deepEqual(results.map((result) => result.result), ["applied", "applied", "applied"]);
+    const db = await mf.getD1Database("DB");
+    const reply = await db.prepare("SELECT parent_id, content_markdown FROM memo_comments WHERE id = ?").bind("comment-reply").first();
+    assert.deepEqual(reply, { parent_id: "comment-root", content_markdown: "回复" });
+    const invalid = await post(mf, cookie, [memoCommentOp("comment-nested", "memo-thread", "comment-reply", "不允许二级回复")]);
+    assert.equal((await invalid.json()).results[0].result, "rejected");
+    const deleted = await post(mf, cookie, [memoCommentDeleteOp("comment-root", "memo-thread", null), memoCommentDeleteOp("comment-reply", "memo-thread", "comment-root")]);
+    assert.deepEqual((await deleted.json()).results.map((result) => result.result), ["applied", "applied"]);
+    const rows = await db.prepare("SELECT id, deleted_at FROM memo_comments WHERE id IN (?, ?) ORDER BY id").bind("comment-reply", "comment-root").all();
+    assert.equal(rows.results.length, 2);
+    assert.ok(rows.results.every((row) => row.deleted_at !== null));
+  });
+});
+
 test("push applies operations atomically per operation with idempotent replay (G2 §3/§6)", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

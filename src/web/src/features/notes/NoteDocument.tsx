@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, ScrollText, FilePlus2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, ScrollText, FilePlus2, X } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
-import { NoteEditor, type EditorKind } from "../editor";
+import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
-import { joinFrontmatter, splitFrontmatter } from "../../lib/frontmatter";
+import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia } from "../../lib/frontmatter";
+import { newId } from "../../lib/hash";
 import { TableDocument } from "../table";
 import { AiAssistDialog } from "../ai";
 import { useItem } from "../../services/contentHooks";
 import { createNote, degradeTableToNote, isConvertibleBlankDraft, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../../services/contentService";
 import { enableItemEncryption } from "../../services/encryptionCommandService";
-import { purgeItemsPermanently } from "../../services/versionService";
+import { listVersions, purgeItemsPermanently, type VersionRow } from "../../services/versionService";
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 import { DocTitle } from "./DocTitle";
@@ -24,9 +25,24 @@ import { clipSourceFromMarkdown } from "../../lib/clipSource";
 import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, shouldOfferRecovery, writeRecovery } from "../../services/recoveryService";
 import { DocSyncStatus } from "../sync";
 import { ConflictCompare } from "./ConflictCompare";
-import { getPropsPlacement, resolveToolbar, subscribeDocLayout } from "../../lib/docLayout";
+import { getPropsPlacement, resolveToolbar, setPropsPlacement, subscribeDocLayout } from "../../lib/docLayout";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
+
+function formatDocumentDate(timestamp: number): string {
+  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(timestamp);
+}
+
+function formatDocumentUpdate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const time = date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (date.toDateString() === today.toDateString()) return `今天 ${time}`;
+  if (date.toDateString() === yesterday.toDateString()) return `昨天 ${time}`;
+  return `${date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" })} ${time}`;
+}
 
 /** 新文档可选模板（正文区正中浮出的小方块）。加模板就往这里续，渲染按一排五个的宽度排。 */
 const TEMPLATES: TemplateOption[] = [
@@ -51,6 +67,74 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; messag
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
 export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
+  const [editorHost, setEditorHost] = useState<HTMLDivElement | null>(null);
+  const outlineHostRef = useMemo(() => ({ current: editorHost }), [editorHost]);
+  const [versionRows, setVersionRows] = useState<VersionRow[]>([]);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState("");
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [annotationId, setAnnotationId] = useState<string | null>(null);
+  const [annotationDraft, setAnnotationDraft] = useState("");
+  const [annotationError, setAnnotationError] = useState<string | null>(null);
+  const documentRootRef = useRef<HTMLElement>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
+  const inspectorCloseRef = useRef<HTMLButtonElement>(null);
+  const readSelectedQuote = useCallback((target?: EventTarget | null): string => {
+    if (target instanceof HTMLTextAreaElement) {
+      return target.value.slice(target.selectionStart, target.selectionEnd).trim().slice(0, 4_000);
+    }
+    const selection = window.getSelection();
+    const node = selection?.anchorNode;
+    const preview = documentRootRef.current?.querySelector(".mn-doc-preview");
+    if (!selection || selection.isCollapsed || !node) return "";
+    if (!editorHost?.contains(node) && !preview?.contains(node)) return "";
+    return selection.toString().trim().slice(0, 4_000);
+  }, [editorHost]);
+  const captureSelectedQuote = useCallback((target?: EventTarget | null) => setSelectedQuote(readSelectedQuote(target)), [readSelectedQuote]);
+  useEffect(() => {
+    if (!item || item.type === "memo" || item.content.scope !== "plain") { setVersionRows([]); return; }
+    let current = true;
+    void listVersions(item.id).then((rows) => { if (current) setVersionRows(rows); });
+    return () => { current = false; };
+  }, [item?.id, item?.rev]);
+  useEffect(() => {
+    if (!inspectorOpen) return;
+    const layout = document.querySelector<HTMLElement>(".mn-shell")?.dataset.layout;
+    if (layout !== "compact" && layout !== "tablet" && layout !== "mobile") return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    inspectorCloseRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setInspectorOpen(false); return; }
+      if (event.key !== "Tab") return;
+      const nodes = inspectorRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])');
+      if (!nodes?.length) return;
+      const first = nodes[0]!;
+      const last = nodes[nodes.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [inspectorOpen]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "m") return;
+      if (item?.type !== "note" || item.content.scope !== "plain") return;
+      const quote = readSelectedQuote(event.target);
+      if (!quote) return;
+      event.preventDefault();
+      setSelectedQuote(quote);
+      setAnnotationError(null);
+      setAnnotationId(newId());
+      setAnnotationOpen(true);
+      setInspectorOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [item, readSelectedQuote]);
   const latestItemRef = useRef(item);
   latestItemRef.current = item;
   // 冲突副本：记录它顶掉了哪一条目（G2 §5-2），文档区给出回溯入口供人工裁决。
@@ -150,6 +234,36 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       return false;
     }
   }, [editorKind, item, userId]);
+
+  const createMarginalia = async () => {
+    const note = annotationDraft.trim();
+    if (!note || !item || item.type !== "note") return;
+    setAnnotationError(null);
+    try {
+      const markdown = latestFullMarkdown();
+      const current = readNoteMarginalia(markdown);
+      const id = annotationId ?? newId();
+      const next = writeNoteMarginalia(markdown, [...current.filter((row) => row.id !== id), { id, quote: selectedQuote, note, createdAt: Date.now() }]);
+      if (!await saveFullMarkdown(next)) throw new Error("save_failed");
+      setAnnotationDraft("");
+      setAnnotationOpen(false);
+      setAnnotationId(null);
+      setSelectedQuote("");
+    } catch {
+      setAnnotationError("页边注保存失败，请重试。");
+    }
+  };
+
+  const removeMarginalia = async (id: string) => {
+    if (!item || item.type !== "note") return;
+    try {
+      const markdown = latestFullMarkdown();
+      const next = writeNoteMarginalia(markdown, readNoteMarginalia(markdown).filter((annotation) => annotation.id !== id));
+      if (!await saveFullMarkdown(next)) throw new Error("save_failed");
+    } catch {
+      setAnnotationError("页边注删除失败，请重试。");
+    }
+  };
 
   // noteId 变化时初始化（父组件以 key 重挂载，这里兜底异步到达）。
   useEffect(() => {
@@ -353,6 +467,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
   const plain = item.content;
   const isTableDoc = item.type === "table";
+  const marginalia = isTableDoc ? [] : readNoteMarginalia(draft ?? plain.markdown);
+  const contentCharacters = splitFrontmatter(draft ?? plain.markdown).body.length;
+  const itemPlace = item.topicId ? topics.find((row) => row.id === item.topicId)?.name : item.source === "manual" ? "草稿箱" : "收件箱";
+  const groupPlace = item.groupId ? topics.find((row) => row.id === item.groupId)?.name : null;
+  const documentCrumb = [itemPlace || crumb, groupPlace, title ?? item.title].filter(Boolean).join(" / ");
   // 模板选择块：仅空白种子期浮出；落了笔（dirtyTick）或已点选就不再打扰编辑。
   const showFormChooser = !isTableDoc && isConvertibleBlankDraft(item) && dirtyTick === 0 && !templatePicked;
 
@@ -423,12 +542,16 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
 
   return (
-    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-focus={focusMode || undefined}>
+    <article ref={documentRootRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-focus={focusMode || undefined} data-inspector-open={inspectorOpen || undefined}
+      onMouseUpCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
+      onSelectCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
+      onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
       <DocBar
-        crumb={crumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
+        crumb={documentCrumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
         extra={(
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
+            {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档检查器" : "打开文档检查器"} title="文档检查器" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
             {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
@@ -483,12 +606,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       />
       <div className="mn-docbody">
         <div className="mn-doc-main">
-        <p className="mn-doc-path" aria-label="笔记存放路径">
-          存放路径：{item.topicId
-            ? `${topics.find((row) => row.id === item.topicId)?.name ?? "主题"}${item.groupId ? ` / ${topics.find((row) => row.id === item.groupId)?.name ?? "分类"}` : ""}`
-            : item.source === "manual" ? "草稿箱" : "收件箱"}
-          <button type="button" className="mn-textbtn" onClick={() => setOrganizing(true)}>修改</button>
-        </p>
         {clipSource && (
           <p className="mn-clip-source">
             <span>剪藏自 {clipSource.host}</span>
@@ -503,16 +620,24 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <button type="button" className="mn-textbtn" onClick={() => { void discardRecovery(item.id); setRecoveryText(null); }}>丢弃</button>
           </p>
         )}
+        {!isTableDoc && <div className="mn-doc-kicker"><span>NOTE</span><i aria-hidden="true" />{item.topicId === null && <b>{item.source === "manual" ? "草稿" : "收件箱"}</b>}</div>}
         <DocTitle
           key={item.id}
           value={title ?? item.title ?? ""}
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
+        {!isTableDoc && <div className="mn-doc-meta" aria-label="文档信息">
+          <time dateTime={new Date(item.createdAt).toISOString()}>{formatDocumentDate(item.createdAt)}</time>
+          <span aria-hidden="true">·</span>
+          <span>更新于 {formatDocumentUpdate(item.updatedAt)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{contentCharacters.toLocaleString("zh-CN")} 字符</span>
+        </div>}
         {conflictOf && item.content.scope === "plain" && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={draft ?? item.content.markdown} onKeptOriginal={onBack} />
         )}
-        {plain && editorKind !== "source" && propsPos === "top" && (
+        {plain && propsPos === "top" && (
           <PropertyPanel
             userId={userId}
             markdown={draft ?? plain.markdown}
@@ -565,6 +690,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             uploadFile={uploadAttachment}
+            inspectorOutline
+            onHostElement={setEditorHost}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
               if (apply) applyExternalRef.current = (markdown: string) => apply(
                 editorKind === "source" ? markdown : splitFrontmatter(markdown).body,
@@ -574,15 +701,37 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           />
         )}
         </div>
-        {plain && editorKind !== "source" && propsPos === "side" && (
-          <aside className="mn-doc-aside" aria-label="属性">
-            <PropertyPanel
-              userId={userId}
-              markdown={draft ?? plain.markdown}
-              onSave={saveFullMarkdown}
-            />
+        {!isTableDoc && <>
+          <button type="button" className="mn-doc-inspector-backdrop" aria-label="关闭文档检查器" onClick={() => setInspectorOpen(false)} />
+          <aside ref={inspectorRef} id="mn-doc-inspector" className="mn-doc-inspector" aria-label="文档检查器" data-open={inspectorOpen || undefined}>
+            <header className="mn-inspector-mobile-head"><strong>文档检查器</strong><button ref={inspectorCloseRef} type="button" className="mn-iconbtn" aria-label="关闭检查器" onClick={() => setInspectorOpen(false)}><X aria-hidden="true" /></button></header>
+            {propsPos === "side" && <section className="mn-inspector-section mn-inspector-properties" aria-label="属性">
+              <header className="mn-inspector-section-head"><h2>属性</h2><button type="button" className="mn-textbtn" onClick={() => setPropsPlacement("top")}>移至顶部</button></header>
+              <PropertyPanel userId={userId} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} />
+            </section>}
+            <OutlinePanel hostRef={outlineHostRef} kind={editorKind} variant="inspector" markdown={mode === "preview" ? splitFrontmatter(draft ?? plain.markdown).body : undefined} />
+            <section className="mn-inspector-section mn-inspector-marginalia" aria-label="页边注">
+              <header className="mn-inspector-section-head"><h2>页边注</h2><span>{marginalia.length} 条</span></header>
+              {marginalia.map((annotation) => <article className="mn-marginalia-card" key={annotation.id}>
+                {annotation.quote && <blockquote><mark>{annotation.quote}</mark></blockquote>}
+                <p>{annotation.note}</p>
+                <footer><time dateTime={new Date(annotation.createdAt).toISOString()}>{formatDocumentUpdate(annotation.createdAt)}</time><button type="button" className="mn-iconbtn" aria-label="删除页边注" title="删除页边注" onClick={() => void removeMarginalia(annotation.id)}><Trash2 aria-hidden="true" /></button></footer>
+              </article>)}
+              {annotationOpen ? <form className="mn-inspector-annotation-form" onSubmit={(event) => { event.preventDefault(); void createMarginalia(); }}>
+                <blockquote><mark>{selectedQuote}</mark></blockquote>
+                <textarea autoFocus value={annotationDraft} onChange={(event) => setAnnotationDraft(event.target.value)} aria-label="页边注内容" placeholder="写下这段文字的批注…" maxLength={4_000} />
+                {annotationError && <p role="alert">{annotationError}</p>}
+                <div><button type="button" className="mn-textbtn" onClick={() => { setAnnotationOpen(false); setAnnotationDraft(""); setAnnotationId(null); setAnnotationError(null); }}>取消</button><button type="submit" className="mn-textbtn" disabled={!annotationDraft.trim()}>保存批注</button></div>
+              </form> : <button type="button" className="mn-inspector-add-annotation" disabled={!selectedQuote} title={selectedQuote ? "添加页边注" : "选中正文后添加页边注"} onClick={() => { setAnnotationId(newId()); setAnnotationError(null); setAnnotationOpen(true); }}><MessageSquarePlus aria-hidden="true" />新建页边注 · 选中文字后按 ⌥⌘M</button>}
+            </section>
+            <section className="mn-inspector-section mn-inspector-versions" aria-label="版本">
+              <header className="mn-inspector-section-head"><h2>版本</h2><button type="button" className="mn-textbtn" onClick={() => setHistory(true)}>全部</button></header>
+              {versionRows.length === 0 ? <p className="mn-outline-empty">保存后会在这里保留版本记录</p> : versionRows.slice(0, 3).map((version) => <button type="button" className="mn-inspector-version" key={version.id} onClick={() => setHistory(true)}>
+                <time dateTime={new Date(version.createdAt).toISOString()}>{formatDocumentUpdate(version.createdAt)}</time><span>{version.reason === "manual" ? "手动保存" : version.reason === "restore" ? "恢复前存档" : version.reason === "session" ? "会话存档" : "自动保存"}</span>
+              </button>)}
+            </section>
           </aside>
-        )}
+        </>}
       </div>
       {toolbarPos === "bottom" && mode === "edit" && editorKind === "wysiwyg" && !isTableDoc && (
         <div className="mn-formatdock" ref={setFormatDock} role="presentation" />
@@ -590,7 +739,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       <div className="mn-doc-foot">
         {/* 字数口径：正文改成「保存时取全量」后，这里显示的是**上次保存**的字符数，
             输入过程中不实时跳动——这是 FR-EDT-10 的有意取舍（省掉键入热路径上的整篇序列化）。 */}
-        <span>{(draft ?? (item.content.scope === "plain" ? item.content.markdown : "")).length} 字符</span>
+        <span>{(isTableDoc ? (draft ?? plain.markdown).length : contentCharacters).toLocaleString("zh-CN")} 字符</span>
         <span className="mn-doc-foot-right">{shortcutAck ? "已用 Ctrl+S 保存" : ""}</span>
       </div>
       {history && item && (

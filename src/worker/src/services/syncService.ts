@@ -178,7 +178,7 @@ async function applyTopic(ctx: ApplyContext, operation: OutboxOperation): Promis
 
 async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const incoming = (operation.payload as { comment?: MemoComment } | null)?.comment;
-  if (!incoming || incoming.id !== operation.entityId || !incoming.memoId || typeof incoming.content !== "string") {
+  if (!incoming || incoming.id !== operation.entityId || !incoming.memoId || typeof incoming.content !== "string" || (incoming.parentId != null && typeof incoming.parentId !== "string")) {
     throw new SyncRejected("invalid_payload");
   }
   const owner = await readMemoOwnerState(ctx.db, ctx.userId, incoming.memoId);
@@ -199,7 +199,7 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   if (current && (current.rev > incoming.rev || (current.rev === incoming.rev && current.updated_at >= incoming.updatedAt))) {
     return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: 0, contentHash: null };
   }
-  const comment = { ...incoming, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
+  const comment = { ...incoming, parentId: incoming.parentId ?? null, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
   await upsertMemoComment(ctx.db, comment);
   await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, "upsert", comment.rev, 0, ctx.now);
   await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", comment.id, "applied", comment.rev, 0, null, ctx.now);

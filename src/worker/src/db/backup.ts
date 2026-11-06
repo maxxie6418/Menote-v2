@@ -153,6 +153,12 @@ export function restoreSettingStatement(
   ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now()));
 }
 
+export async function readSettingRev(db: D1Database, userId: string, key: string): Promise<number | null> {
+  const row = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
+    .bind(userId, key).first<{ rev: number }>();
+  return row?.rev ?? null;
+}
+
 export async function restoreSettingRow(
   db: D1Database, userId: string, row: Record<string, unknown>,
 ): Promise<boolean> {

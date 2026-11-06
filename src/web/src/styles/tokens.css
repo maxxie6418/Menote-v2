@@ -97,6 +97,43 @@
   --app-home-tag-menu-height: 12rem;
   --app-home-tag-menu-width: 10rem;
   --app-home-search-width: 16rem;
+  --app-home-layout-max: 63.375rem;
+  --app-home-aside-width: 17.875rem;
+  --app-home-layout-gap: 2.875rem;
+  --app-home-layout-pad: 2.125rem 2.5rem 1.875rem;
+  --app-home-clock-size: 2.375rem;
+  --app-home-clock-mobile-size: 1.875rem;
+  --app-home-greeting-margin: 0.9375rem 0 1.75rem;
+  --app-home-greeting-size: 1.3125rem;
+  --app-home-greeting-mobile-size: 1.125rem;
+  --app-home-greeting-track: -0.008em;
+  --app-home-capture-height: 7rem;
+  --app-home-capture-pad: 1.1875rem 1.3125rem 0;
+  --app-home-capture-size: 1.03125rem;
+  --app-home-capture-bar: 2.625rem;
+  --app-home-tag-input-width: 11rem;
+  --app-home-accent-mark: 2rem;
+  --app-home-save-height: 1.5625rem;
+  --app-home-actions-top: 1rem;
+  --app-home-action-pad: 0.875rem 0;
+  --app-home-action-gap: 1.125rem;
+  --app-home-action-icon: 1.6875rem;
+  --app-home-recent-top: 1.625rem;
+  --app-home-document-height: 2rem;
+  --app-home-document-icon: 1.25rem;
+  --app-home-history-top: 2.125rem;
+  --app-home-history-bar: 2.5rem;
+  --app-home-bars-height: 1.75rem;
+  --app-home-side-action-height: 1.875rem;
+  --app-home-footer-height: 2.25rem;
+  --app-appearance-preview-height: 7.75rem;
+  --app-appearance-preview-nav: 1.375rem;
+  --app-appearance-preview-nav-full: 3.5rem;
+  --app-appearance-preview-list: 4.25rem;
+  --app-appearance-preview-gap: 0.25rem;
+  --app-appearance-preview-pad: 0.5rem;
+  --app-appearance-preview-bar: 0.1875rem;
+  --app-appearance-preview-toolbar: 0.875rem;
   --app-icon-lg: 1.0625rem;
   --app-dot-size-lg: 0.5rem;
   /* 移动端专有尺寸（TP1 / wiki/Menote_V2_移动端设计_v0.1.md） */
@@ -138,6 +175,8 @@
   --app-mobile-z-nav: 9;
   --app-mobile-z-filter: 2;
   --app-mobile-z-sheet: 12;
+  --app-mobile-z-workbar: 13;
+  --app-mobile-z-todo: 13;
   --app-mobile-z-composer: 14;
   --app-mobile-z-action: 16;
   --app-mobile-z-toast: 18;
@@ -318,6 +357,7 @@
   /* 旧状态页与通用控件沿用 */
   --app-zero: 0;
   --app-full-size: 100%;
+  --app-half-size: 50%;
   --app-template-width: 20%;      /* 新文档模板选择块：按「一排五个」的宽度 */
   --app-template-center: 50%;     /* 模板选择块在正文区居中的锚点 */
   --app-template-center-shift: translate(-50%, -50%);
@@ -340,9 +380,9 @@
   --app-dialog-head-gap: var(--app-space-6);
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
   --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
-  --app-settings-dialog: 46rem;    /* 设置对话框 736px（2026-11-02 负责人要求放宽，原 648） */
+  --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
-  --app-settings-height: 38rem;    /* 设置对话框 608px（配合放宽的宽度，原 530） */
+  --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */
   --app-dlg-head-height: 50px;      /* 设置对话框头 */
   --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
   --app-memo-time-col: 38px;        /* Memo 时间列 */
@@ -492,7 +532,6 @@
   --app-scrollbar-thumb: #45494d;
   --app-scrollbar-thumb-hover: #6b7176;
 }
-
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
 @keyframes mn-authloading-cloud { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--app-authload-shift))); } }
 @keyframes mn-authloading-book { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--app-authload-shift)); } }
@@ -510,6 +549,7 @@
 /* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。 */
 :root {
   --app-doc-side-width: 9.25rem;   /* 148px 页边注 */
+  --app-doc-inspector-width: 16rem; /* 256px Note 检查器 */
   --app-dock-left: 50%;
   --app-dock-shift: translateX(-50%);
   --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
@@ -521,8 +561,7 @@
 /* ---------- 柔纸模式（设置·外观，负责人 2026-11-04） ----------
    皮肤与深色/浅色正交：data-skin="paper" 只换令牌取值，结构覆盖在 styles/paper.css。
    不切到柔纸时以下规则一条都不命中，默认主题不受影响。
-   版心固定 520（32.5rem）：柔纸的页边注需要右侧余量，故不受「阅读宽度」三档影响——
-   本块位于 data-measure 之后，同特异性下后者被覆盖。 */
+   正文版心采用加宽档 56rem（阅读宽度设置的 wide 值），以增加柔纸阅读空间；仍保留右侧页边注。 */
 :root[data-skin="paper"] {
   /* 四层表面：侧栏 → 清单 → 纸面 → 案头（缝） */
   --app-bg-side: #efebde;
@@ -551,7 +590,7 @@
   /* 字体：标题走衬线（系统栈，未额外分发字包） */
   --app-font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, Georgia, serif;
   /* 版面 */
-  --app-doc-measure: 32.5rem;
+  --app-doc-measure: 56rem;
   --app-doc-title-size: 2.5rem;
   --app-paper-radius: 0.8125rem;
   --app-paper-inset: 0.625rem;
@@ -607,4 +646,121 @@
   --app-link: #9db6da;
   --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -34px #000;
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
+}
+/* 墨台 v3 → app token 映射。纸张皮肤独立保留；默认视觉按 v3 深浅主题取值。 */
+:root:not([data-skin="paper"])[data-theme="light"] {
+  color-scheme: light;
+  --app-bg-side: #e2ddce;
+  --app-surface: #fffdf9;
+  --app-surface-sunken: #f7f4ec;
+  --app-raised-on-side: #ffffff;
+  --app-seg-active: #ffffff;
+  --app-selected: #f1ede3;
+  --app-hover: #eee9de;
+  --app-border: #d8d2c2;
+  --app-border-subtle: #e6e1d3;
+  --app-fg: #191a17;
+  --app-fg-muted: #4d4e48;
+  --app-fg-subtle: #61625b;
+  --app-fg-faint: #686961;
+  --app-accent: #d8381a;
+  --app-accent-hover: #b82d12;
+  --app-accent-text: #fffaf5;
+  --app-accent-fg: #b82d12;
+  --app-accent-subtle: rgba(216, 56, 26, .08);
+  --app-link: #2f6287;
+  --app-success: #49693f;
+  --app-danger: #b3261e;
+  --app-paper-bg: #fffdf9;
+  --app-paper-fg: #191a17;
+  --app-paper-border: #d8d2c2;
+  --app-paper-shadow: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .28), 0 .125rem .375rem rgba(60, 50, 30, .08);
+  --app-font-serif: Georgia, "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+  --app-radius-sm: .1875rem;
+  --app-radius-md: .3125rem;
+  --app-radius: .3125rem;
+  --app-radius-lg: .5rem;
+  --app-radius-xl: .75rem;
+  --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
+  --app-sidebar-width: 15.5rem;
+  --app-list-width: 16.5rem;
+  --app-list-width-compact: 16.5rem;
+  --app-memo-work-width: 14.5rem;
+  --app-memo-todo-width: 13.5rem;
+  --app-memo-todo-width-compact: 11.75rem;
+  --app-memo-todo-width-tablet: 10.5rem;
+  --app-space-7: .4375rem;
+  --app-space-8: .5rem;
+  --app-space-12: .75rem;
+  --app-space-20: 1.25rem;
+  --app-space-24: 1.5rem;
+  --app-space-26: 1.625rem;
+  --app-space-30: 1.875rem;
+  --app-space-32: 2rem;
+  --app-space-34: 2.125rem;
+  --app-topbar-height: 3.25rem;
+  --app-drawer-width: 17.5rem;
+}
+
+:root:not([data-skin="paper"])[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg-side: #0a0a09;
+  --app-surface: #151614;
+  --app-surface-sunken: #101110;
+  --app-raised-on-side: #232420;
+  --app-seg-active: #232420;
+  --app-selected: #22221e;
+  --app-hover: #1e1f1c;
+  --app-border: #2a2b27;
+  --app-border-subtle: #1e1f1c;
+  --app-fg: #eae8e2;
+  --app-fg-muted: #b3b0a7;
+  --app-fg-subtle: #929087;
+  --app-fg-faint: #8d8b82;
+  --app-accent: #ff5a3c;
+  --app-accent-hover: #ff7a5e;
+  --app-accent-text: #ffffff;
+  --app-accent-fg: #ff7a5e;
+  --app-accent-subtle: rgba(255, 90, 60, .13);
+  --app-link: #82b0d3;
+  --app-success: #9dc08f;
+  --app-danger: #ff8a80;
+  --app-paper-bg: #1b1c19;
+  --app-paper-fg: #eae8e2;
+  --app-paper-border: #3a3b35;
+  --app-paper-shadow: 0 1.5rem 4rem -1.5rem rgba(0, 0, 0, .8);
+  --app-shadow-card: 0 1.125rem 3rem -.75rem rgba(0, 0, 0, .48), 0 .125rem .5rem rgba(0, 0, 0, .24);
+}
+
+:root:not([data-skin="paper"]) {
+  --app-memo-work-min: 13rem;
+  --app-memo-todo-min: 10rem;
+  --app-memo-todo-min-compact: 11.75rem;
+  --app-memo-todo-min-tablet: 10.5rem;
+  --app-list-nav-max-height: 48%;
+  --app-viewport-width: 100vw;
+  --app-home-content-max: 78rem;
+  --app-home-capture-max: 46rem;
+  --app-animation-progress-start: -100%;
+  --app-animation-progress-end: 200%;
+  --app-disabled-opacity: .5;
+  --app-chart-width-1: 25%;
+  --app-chart-width-2: 50%;
+  --app-chart-width-3: 75%;
+  --app-chart-width-4: 100%;
+  --app-chart-height-1: 25%;
+  --app-chart-height-2: 50%;
+  --app-chart-height-3: 75%;
+  --app-chart-height-4: 100%;
+  --app-font-serif: Georgia, "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+  --app-shadow-seg: 0 1px 2px rgba(0, 0, 0, .16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-skin="paper"]) *, :root:not([data-skin="paper"]) *::before, :root:not([data-skin="paper"]) *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

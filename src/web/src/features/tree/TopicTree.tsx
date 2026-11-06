@@ -1,6 +1,6 @@
 import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { ChevronDown, GripVertical, Lock, Plus } from "lucide-react";
-import { useLockVersion, useTopics, type BrowseSection } from "../../services/contentHooks";
+import { useLockVersion, useTopicItemCounts, useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, moveGroupToTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
 import { isTopicUnlocked } from "../../services/keyringService";
 import { lockPrivateSpace } from "../../services/privateSpaceService";
@@ -22,6 +22,7 @@ interface TopicTreeProps {
 export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropItem }: TopicTreeProps) {
   useLockVersion();
   const topics = useTopics(userId);
+  const itemCounts = useTopicItemCounts(userId);
   const active = topics.filter((row) => row.deletedAt === null);
   const space = active.find((row) => row.depth === 0 && row.isEncSpace);
   const spaceOpen = space ? isTopicUnlocked(space.id) : false;
@@ -52,7 +53,7 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropIte
       {space && spaceOpen ? (
         <ul className="mn-tree-list mn-tree-space" aria-label="加密空间">
           <TopicNodeView
-            userId={userId} topic={space} fixed
+            userId={userId} topic={space} counts={itemCounts} fixed
             groups={active.filter((row) => row.depth === 1 && row.parentId === space.id)}
             selected={selected} onSelect={onSelect}
             onDropItem={onDropItem}
@@ -92,7 +93,7 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropIte
         <ul className="mn-tree-list">
           {orderedRoots.map((topic) => (
             <TopicNodeView
-              key={topic.id} userId={userId} topic={topic}
+              key={topic.id} userId={userId} topic={topic} counts={itemCounts}
               groups={orderIds(active.filter((row) => row.depth === 1 && row.parentId === topic.id).map((row) => row.id), workspace.groupOrder[topic.id] ?? [])
                 .map((id) => active.find((row) => row.id === id)!).filter(Boolean)}
               selected={selected} onSelect={onSelect} onDropItem={onDropItem}
@@ -131,6 +132,7 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropIte
 
 interface TopicNodeViewProps {
   userId: string;
+  counts: Record<string, number>;
   topic: { id: string; name: string; depth: 0 | 1 };
   groups: Array<{ id: string; name: string; depth: 0 | 1 }>;
   selected: BrowseSection;
@@ -144,7 +146,7 @@ interface TopicNodeViewProps {
   onLock?: () => void;
 }
 
-function TopicNodeView({ userId, topic, groups, selected, onSelect, onDropItem, fixed = false, onLock, draggingId, onDragStart, onDragEnd, onTreeDrop }: TopicNodeViewProps) {
+function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDropItem, fixed = false, onLock, draggingId, onDragStart, onDragEnd, onTreeDrop }: TopicNodeViewProps) {
   const [addingGroup, setAddingGroup] = useState(false);
   const [open, setOpen] = useState(true);
   const [name, setName] = useState("");
@@ -244,6 +246,7 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, onDropItem, 
         <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
           {fixed && <Lock />}{topic.name}
         </button>
+        {!fixed && (counts[topic.id] ?? 0) > 0 && <span className="mn-tree-count" aria-label={`${counts[topic.id]} 篇笔记`}>{counts[topic.id]}</span>}
         {!fixed && <button type="button" className="mn-tree-drag" draggable aria-label={`拖动「${topic.name}」调整目录位置`} title="拖动调整位置"
           onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", topic.id); onDragStart?.(topic.id); }} onDragEnd={onDragEnd}><GripVertical aria-hidden="true" /></button>}
         {fixed && onLock && (
@@ -297,6 +300,7 @@ function TopicNodeView({ userId, topic, groups, selected, onSelect, onDropItem, 
                 onKeyDown={(event) => openKeyboardMenu(event, group)}
               >
                 {group.name}
+                {(counts[group.id] ?? 0) > 0 && <span className="mn-tree-count" aria-label={`${counts[group.id]} 篇笔记`}>{counts[group.id]}</span>}
               </button>
             </li>
           ))}

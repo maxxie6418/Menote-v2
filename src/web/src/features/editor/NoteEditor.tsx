@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { EditorAdapter } from "./EditorAdapter";
@@ -50,11 +50,18 @@ interface NoteEditorProps {
   paperMode?: boolean;
   /** 底部浮动坞容器（设置·外观）：非空时格式栏 portal 到纸面底部，否则留在正文顶部。 */
   formatDock?: HTMLElement | null;
+  /** 页面检查器负责展示大纲时，隐藏编辑器内的大纲浮钮并注册实际编辑宿主。 */
+  inspectorOutline?: boolean;
+  onHostElement?: (host: HTMLDivElement | null) => void;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, paperMode = false, formatDock = null }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, paperMode = false, formatDock = null, inspectorOutline = false, onHostElement }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const bindHost = useCallback((host: HTMLDivElement | null) => {
+    hostRef.current = host;
+    onHostElement?.(host);
+  }, [onHostElement]);
   const adapterRef = useRef<EditorAdapter | null>(null);
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
@@ -335,7 +342,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
 
   return (
     <div className="mn-editor-wrap" data-dragging={dragging || undefined} data-paper={paperMode || undefined}>
-      <OutlinePanel hostRef={hostRef} kind={kind} />
+      {!inspectorOutline && <OutlinePanel hostRef={hostRef} kind={kind} />}
       {formatBar && (formatDock ? createPortal(formatBar, formatDock) : formatBar)}
       {selectionBar && mode === "edit" && kind === "wysiwyg" && (
         <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
@@ -347,7 +354,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         <TableBlockToolbar getAdapter={() => adapterRef.current} hostRef={hostRef} />
       )}
       <div
-        ref={hostRef} className="mn-editor-host" data-mode={mode} data-kind={kind}
+        ref={bindHost} className="mn-editor-host" data-mode={mode} data-kind={kind}
         onKeyUp={() => { refreshSlash(); refreshSelectionBar(); }}
         onMouseUp={() => { refreshSlash(); refreshSelectionBar(); }}
         onContextMenu={(event) => {

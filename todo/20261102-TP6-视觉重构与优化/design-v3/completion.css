@@ -62,14 +62,42 @@
 .viewport-card, .coverage-card { min-width: 0; padding: 12px; background: var(--canvas-bg); }
 .viewport-meta { display: flex; justify-content: space-between; color: var(--ink); font-size: 11px; }
 .viewport-meta span { color: var(--ink-4); font: 9px var(--font-mono); }
-.viewport-sample { display: flex; height: 76px; gap: 3px; margin: 10px 0 8px; padding: 5px; border: 1px solid var(--line); background: var(--sheet-bg); }
-.viewport-sample i { display: block; border: 1px solid var(--line); background: var(--panel-bg); }
-.viewport-sample .v-rail { width: 18%; flex: none; background: var(--rail-bg); }
-.viewport-sample .v-list { width: 25%; flex: none; }
-.viewport-sample .v-paper { flex: 1; background: var(--sheet-bg); }
-.viewport-sample.tablet .v-rail { width: 9%; }
-.viewport-sample.tablet .v-list { width: 25%; }
-.viewport-sample.mobile .v-rail { width: 12%; }
+/* 响应式缩略：用真实结构表达三档布局，而不是三个空白块 */
+.viewport-sample {
+  position: relative; display: flex; flex-direction: column; height: 92px;
+  margin: 10px 0 8px; border: 1px solid var(--line); border-radius: var(--r-2);
+  background: var(--sheet-bg); overflow: hidden;
+}
+.vs-bar { display: flex; align-items: center; gap: 5px; height: 15px; padding: 0 6px; border-bottom: 1px solid var(--line-faint); background: var(--panel-bg); flex: none; }
+.vs-bar i { display: block; border-radius: 2px; background: var(--line-strong); opacity: .7; }
+.vs-logo { width: 6px; height: 6px; background: var(--accent) !important; opacity: 1 !important; }
+.vs-crumb { width: 30px; height: 3px; }
+.vs-tab { display: none !important; width: 8px; height: 6px; margin-left: auto; }
+.vs-save { width: 12px; height: 3px; margin-left: auto; }
+.vs-cols { flex: 1; display: flex; min-height: 0; }
+.vs-rail { width: 26px; flex: none; padding: 6px 5px; display: grid; gap: 4px; align-content: start; border-right: 1px solid var(--line-faint); background: var(--rail-bg); }
+.vs-rail i { display: block; height: 3px; border-radius: 2px; background: var(--line-strong); opacity: .55; }
+.vs-rail i.is-on { background: var(--accent); opacity: 1; }
+.vs-list { width: 46px; flex: none; padding: 7px 5px; display: grid; gap: 4px; align-content: start; border-right: 1px solid var(--line-faint); background: var(--panel-bg); }
+.vs-list i { display: block; height: 3px; border-radius: 2px; background: var(--line-strong); opacity: .45; }
+.vs-list i.ttl { height: 4px; opacity: .7; margin-bottom: 2px; }
+.vs-list i.is-on { background: var(--accent-soft); opacity: 1; box-shadow: inset 2px 0 0 var(--accent); }
+.vs-paper { flex: 1; min-width: 0; padding: 8px 10px; display: grid; gap: 5px; align-content: start; background: var(--sheet-bg); }
+.vs-paper i { display: block; border-radius: 2px; background: var(--line-strong); opacity: .4; }
+.vs-paper i.h { height: 6px; width: 56%; background: var(--ink); opacity: .7; margin-bottom: 2px; }
+.vs-paper i.l { height: 3px; }
+.vs-paper i.short { width: 68%; }
+.vs-dock { position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%); display: flex; gap: 3px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--raise-bg); }
+.vs-dock i { display: block; width: 5px; height: 5px; border-radius: 1px; background: var(--line-strong); }
+/* 平板：侧栏收为图标条，清单进抽屉 */
+.viewport-sample.tablet .vs-tab { display: block !important; }
+.viewport-sample.tablet .vs-rail { width: 12px; padding: 6px 3px; }
+.viewport-sample.tablet .vs-list { display: none; }
+/* 手机：单主视图，抽屉入口在顶栏 */
+.viewport-sample.mobile .vs-tab { display: block !important; }
+.viewport-sample.mobile .vs-rail,
+.viewport-sample.mobile .vs-list { display: none; }
+.viewport-sample.mobile .vs-paper { padding: 10px 12px; }
 .viewport-card p, .coverage-card > p { color: var(--ink-3); font-size: 10px; line-height: 1.7; }
 .boundary-list { margin-top: 10px; border-top: 1px solid var(--line-faint); }
 .boundary-list > div { display: grid; grid-template-columns: 88px 1fr; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line-faint); font-size: 10px; line-height: 1.6; }
@@ -135,12 +163,12 @@
 .metric-week i:nth-of-type(3n) { height: 18px; background: var(--accent-line); }
 .metric-week b { margin-left: auto; color: var(--accent-ink); font-size: 8.5px; font-weight: 500; white-space: nowrap; }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .state-lab { grid-template-columns: 1fr; }
   .responsive-grid { grid-template-columns: 1fr; }
   .coverage-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   .state-guides { grid-template-columns: 1fr; }
   .state-controls { grid-template-columns: 1fr 1fr; }
   .boundary-list > div { grid-template-columns: 64px 1fr; }

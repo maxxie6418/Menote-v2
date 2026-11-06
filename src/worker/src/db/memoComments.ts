@@ -3,6 +3,7 @@ import type { MemoComment } from "@menote/shared";
 export function rowToMemoComment(row: Record<string, unknown>, userIdOverride?: string): MemoComment {
   return {
     id: String(row.id), userId: userIdOverride ?? String(row.user_id), memoId: String(row.memo_id),
+    parentId: row.parent_id === null || row.parent_id === undefined ? null : String(row.parent_id),
     content: String(row.content_markdown), rev: Number(row.rev),
     createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
     deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
@@ -35,11 +36,11 @@ export async function readMemoOwnerState(db: D1Database, userId: string, memoId:
 
 export function upsertMemoCommentStatement(db: D1Database, comment: MemoComment): D1PreparedStatement {
   return db.prepare(
-    `INSERT INTO memo_comments (id, user_id, memo_id, content_markdown, rev, created_at, updated_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (user_id, id) DO UPDATE SET memo_id = excluded.memo_id, content_markdown = excluded.content_markdown,
-       rev = MAX(memo_comments.rev, excluded.rev), updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
-  ).bind(comment.id, comment.userId, comment.memoId, comment.content, comment.rev, comment.createdAt, comment.updatedAt, comment.deletedAt);
+    "INSERT INTO memo_comments (id, user_id, memo_id, parent_id, content_markdown, rev, created_at, updated_at, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO UPDATE SET " +
+      "memo_id = excluded.memo_id, parent_id = excluded.parent_id, content_markdown = excluded.content_markdown, " +
+      "rev = MAX(memo_comments.rev, excluded.rev), updated_at = excluded.updated_at, deleted_at = excluded.deleted_at",
+  ).bind(comment.id, comment.userId, comment.memoId, comment.parentId ?? null, comment.content, comment.rev, comment.createdAt, comment.updatedAt, comment.deletedAt);
 }
 
 export async function upsertMemoComment(db: D1Database, comment: MemoComment): Promise<void> {

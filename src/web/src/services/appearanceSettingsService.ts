@@ -19,6 +19,12 @@ export interface AppearanceSettings {
   propsPos: PropsPlacement;
   /** 编辑工具栏位置：auto = 跟随主题，top / bottom 强制。 */
   toolbar: ToolbarPlacement;
+  /** 主导航：bar=完整侧栏；rail=书脊 + 清单栏导航。 */
+  railMode: "bar" | "rail";
+  /** Memo 侧记栏位置；窄屏布局由响应式规则接管。 */
+  memoWorkbarSide: "left" | "right";
+  /** Memo 首次进入时 Todo 侧板状态。 */
+  memoTodoDefault: "open" | "closed";
   docStyle: DocStyleVars;
 }
 
@@ -26,10 +32,22 @@ const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   theme: "system", skin: "default", font: "noto", measure: "narrow",
-  propsPos: "top", toolbar: "auto", docStyle: {},
+  propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: {},
 };
 
+function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSettings {
+  return {
+    ...DEFAULT_APPEARANCE,
+    ...value,
+    railMode: value.railMode === "rail" ? "rail" : "bar",
+    memoWorkbarSide: value.memoWorkbarSide === "right" ? "right" : "left",
+    memoTodoDefault: value.memoTodoDefault === "closed" ? "closed" : "open",
+    docStyle: value.docStyle ?? {},
+  };
+}
+
 export function applyAppearance(value: AppearanceSettings): void {
+  value = normalizeAppearance(value);
   setThemeMode(value.theme);
   // 皮肤先落定：工具栏的 auto 解析依赖当前皮肤。
   setThemeSkin(value.skin ?? "default");
@@ -38,6 +56,11 @@ export function applyAppearance(value: AppearanceSettings): void {
   setPropsPlacement(value.propsPos ?? "top");
   setToolbarPlacement(value.toolbar ?? "auto");
   setDocStyle(value.docStyle);
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.rail = value.railMode;
+    document.documentElement.dataset.memoWorkbarSide = value.memoWorkbarSide;
+    document.documentElement.dataset.memoTodoDefault = value.memoTodoDefault;
+  }
   if (typeof window !== "undefined") window.dispatchEvent(new Event("menote:appearance"));
 }
 
@@ -68,7 +91,7 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
   if (remote?.sensitivity === "ordinary") {
     if (pending === 0) {
       await localDb.settings.put(remote);
-      applyAppearance(remote.value as AppearanceSettings);
+      applyAppearance(normalizeAppearance(remote.value as Partial<AppearanceSettings>));
     }
     await setMeta(LEGACY_IMPORTED_KEY, true);
     return;
@@ -82,7 +105,7 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
   // Import old browser-only preferences once, into the first account that signs in on this device.
   const legacy: AppearanceSettings = {
     theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
-    propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), docStyle: getDocStyle(),
+    propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
   };
   await saveAppearance(userId, legacy);
   await setMeta(LEGACY_IMPORTED_KEY, true);
@@ -91,18 +114,18 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
 export async function updateAppearance(userId: string, patch: Partial<AppearanceSettings>): Promise<void> {
   const current = await localDb.settings.get([userId, SETTING_KEY]);
   const base: AppearanceSettings = current?.sensitivity === "ordinary"
-    ? current.value as AppearanceSettings
+    ? normalizeAppearance(current.value as Partial<AppearanceSettings>)
     : {
         theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
-        propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), docStyle: getDocStyle(),
+        propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
       };
-  await saveAppearance(userId, { ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle });
+  await saveAppearance(userId, normalizeAppearance({ ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle }));
 }
 
 /** 读取账号已同步的外观偏好（UI 只经服务访问数据层）；无记录或非普通敏感度返回 null。 */
 export async function readAppearance(userId: string): Promise<AppearanceSettings | null> {
   const current = await localDb.settings.get([userId, SETTING_KEY]);
   if (current?.sensitivity !== "ordinary") return null;
-  return current.value as AppearanceSettings;
+  return normalizeAppearance(current.value as Partial<AppearanceSettings>);
 }
 

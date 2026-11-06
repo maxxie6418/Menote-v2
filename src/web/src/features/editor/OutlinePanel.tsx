@@ -18,11 +18,12 @@ function fromSource(value: string): OutlineEntry[] {
   });
 }
 
-export function OutlinePanel({ hostRef, kind }: { hostRef: RefObject<HTMLDivElement | null>; kind: "wysiwyg" | "source" }) {
+export function OutlinePanel({ hostRef, kind, variant = "popover", markdown }: { hostRef: RefObject<HTMLDivElement | null>; kind: "wysiwyg" | "source"; variant?: "popover" | "inspector"; markdown?: string }) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<OutlineEntry[]>([]);
 
   useEffect(() => {
+    if (markdown !== undefined) { setEntries(fromSource(markdown)); return; }
     const host = hostRef.current;
     if (!host) return;
     const update = () => {
@@ -39,11 +40,17 @@ export function OutlinePanel({ hostRef, kind }: { hostRef: RefObject<HTMLDivElem
     observer.observe(host, { subtree: true, childList: true, characterData: true });
     host.addEventListener("input", update);
     return () => { observer.disconnect(); host.removeEventListener("input", update); };
-  }, [hostRef, kind]);
+  }, [hostRef, kind, markdown]);
 
   const goTo = (entry: OutlineEntry) => {
     const host = hostRef.current;
-    if (!host) return;
+    if (!host) {
+      if (markdown !== undefined) {
+        const headings = document.querySelectorAll<HTMLElement>(".mn-doc[data-form='note'] .mn-doc-preview h1, .mn-doc[data-form='note'] .mn-doc-preview h2, .mn-doc[data-form='note'] .mn-doc-preview h3, .mn-doc[data-form='note'] .mn-doc-preview h4, .mn-doc[data-form='note'] .mn-doc-preview h5, .mn-doc[data-form='note'] .mn-doc-preview h6");
+        headings[entry.index]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
     if (kind === "source") {
       const textarea = host.querySelector("textarea");
       if (!textarea) return;
@@ -55,6 +62,13 @@ export function OutlinePanel({ hostRef, kind }: { hostRef: RefObject<HTMLDivElem
     const headings = host.querySelectorAll<HTMLElement>(".ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6");
     headings[entry.index]?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  if (variant === "inspector") return <section className="mn-inspector-section mn-inspector-outline" aria-label="文档大纲">
+    <header className="mn-inspector-section-head"><h2>大纲</h2><span>{entries.length} 节</span></header>
+    <nav className="mn-outline-inspector">
+      {entries.length === 0 ? <p className="mn-outline-empty">添加标题后会显示在这里</p> : entries.map((entry) => <button key={`${entry.index}-${entry.text}`} type="button" className="mn-outline-entry" data-level={entry.level} onClick={() => goTo(entry)}>{entry.text}</button>)}
+    </nav>
+  </section>;
 
   return <div className="mn-outline-control">
     <button type="button" className="mn-iconbtn" aria-label="文档大纲" title="文档大纲" aria-expanded={open} onClick={() => setOpen((value) => !value)}><ListTree aria-hidden="true" /></button>

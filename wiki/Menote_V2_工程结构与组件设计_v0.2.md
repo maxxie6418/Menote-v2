@@ -1,10 +1,18 @@
-# Menote V2 工程结构与组件设计（v0.15）
+# Menote V2 工程结构与组件设计（v0.16）
 
 - **整理日期**：2026-10-31
 - **修订记录**：v0.15（2026-11-05，TP11）目录树按代码现状修订：没有 `stores/`、没有独立 `inbox` feature、没有 `configGuard`、MCP 是平铺的 `services/mcp*.ts` 而不是 `services/mcp/` 子目录；同步引擎在 `src/web/src/services/syncEngine.ts`；另有 `features/perf`。这是现状对齐，不改产品结论。v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）；v0.13 登记 `workspaceSettingsService`：侧栏宽度与主题树顺序按账号设置写入 IndexedDB settings/outbox，经 Worker 同步到 D1 `user_settings`；树节点内容移动继续由 `contentService` 写入本地库与 outbox；v0.14 登记 `tableViews` 账号设置同步隐藏列偏好，以及表格行详情面板/列显隐控件。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
+
+## 9. TP12 v3 组件映射增补（2026-11-06）
+
+- 首页仍归 `src/web/src/app/HomePage.tsx`；视图编排留在 `app/`，数据通过 `services/contentHooks` / `contentService` 获取与写入。
+- v3 样式映射分为 `src/web/src/styles/inkstand-shell.css`（外壳/导航）、`inkstand-memo.css`（Memo）与 `inkstand-pages.css`（首页、Note、表格页面）；token 统一登记于 `tokens.css`，不得在组件增加行内样式。
+- Memo 视图由 `features/memo/MemoWorkspace.tsx` 编排；日期统计、侧记栏、图册、时间线、Todo 与互动各归现有 memo 子组件。一级评论通过 shared `MemoComment.parentId` 契约，web service/db、sync Worker db/service、迁移、备份恢复全链路维护。
+- 新增 `appearance` 偏好字段用于侧栏完整/书脊、Memo 侧记栏左右及 Todo 默认展开；兼容旧设置并沿既有账号设置同步链路保存。
+- 组件公共入口约束、UI→services→db 分层、1000 行单文件软上限和 Worker 入口 200 行限制保持不变。
 
 ## 1. 仓库结构与目录树
 

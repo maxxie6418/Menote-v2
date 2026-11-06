@@ -38,11 +38,12 @@ export type Item = ItemFields & (
   | { type: "note" | "table"; title: string; content: StoredContent }
 );
 
-/** Flat, directly attached follow-up post under a Memo; replies are intentionally unsupported. */
+/** Memo comment; parentId enables one reply level when non-null. */
 export interface MemoComment {
   id: string;
   userId: string;
   memoId: string;
+  parentId: string | null;
   content: string;
   rev: number;
   createdAt: number;

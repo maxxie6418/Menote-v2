@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "lucide-react";
 import type { AuthUser, Item } from "@menote/shared";
-import { saveItemMeta, softDeleteItem } from "../services/contentService";
+import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
 import { restoreFromTrash } from "../services/versionService";
 import type { SettingsSection } from "../features/settings";
 import type { AppRoute } from "./appRoutes";
+import type { BrowseSection } from "../services/contentHooks";
+import { HomePage } from "./HomePage";
 import { MobileComposer, type ComposeMode } from "./MobileComposer";
-import { MobileHome, MobileMe, MobileMemo, MobileNotes, MobileTopicSheet, type MobilePage, type NoteSection } from "./MobileScreens";
+import { MobileMe, MobileMemo, MobileNotes, MobileTopicSheet, type MobilePage, type NoteSection } from "./MobileScreens";
 
 interface MobileAppProps {
   user: AuthUser;
@@ -23,6 +25,7 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   const appRef = useRef<HTMLDivElement>(null);
   const routePage: MobilePage = route.kind === "memos" ? "memo" : route.kind === "notes" ? "notes" : route.kind === "me" || route.kind === "settings" ? "me" : "home";
   const [page, setPage] = useState<MobilePage>(routePage);
+  const [mobileMemoTab, setMobileMemoTab] = useState<"all" | "todo" | "gallery">("all");
   const [noteSection, setNoteSection] = useState<NoteSection>({ kind: "recent" });
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [topicSheetOpen, setTopicSheetOpen] = useState(false);
@@ -90,6 +93,32 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
     }
   };
 
+  const createTable = async () => {
+    try {
+      const note = await createNote(userId);
+      const table = await setItemForm(userId, note.id, "table");
+      setPage("notes"); setNoteSection({ kind: "drafts" }); setSelectedNoteId(table.id);
+      onNavigate({ kind: "notes", section: { kind: "drafts" }, itemId: table.id });
+    } catch {
+      window.alert("新建表格失败，请重试。");
+    }
+  };
+
+  const importMarkdown = async (files: File[]) => {
+    const markdownFiles = files.filter((file) => /\.md$/i.test(file.name));
+    if (!markdownFiles.length) throw new Error("no_markdown_files");
+    const imported: Item[] = [];
+    for (const file of markdownFiles) {
+      const note = await createNote(userId, { title: file.name.replace(/\.md$/i, "").trim() || "无标题" });
+      await saveItemContent(userId, note.id, await file.text());
+      imported.push(note);
+    }
+    const first = imported[0]!;
+    setPage("notes"); setNoteSection({ kind: "drafts" }); setSelectedNoteId(first.id);
+    onNavigate({ kind: "notes", section: { kind: "drafts" }, itemId: first.id });
+    return imported.length;
+  };
+
   const openMemo = (id: string) => {
     setPage("memo");
     onNavigate({ kind: "memos", itemId: id });
@@ -145,11 +174,17 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
 
   return <div ref={appRef} className="m-app" data-page={page}>
     <div className="m-body">
-      {page === "home" && <MobileHome userId={userId} onOpenItem={(item) => {
-        if (item.type === "memo") openMemo(item.id);
-        else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); onNavigate({ kind: "notes", section: { kind: "recent" }, itemId: item.id }); }
-      }} onOpenSection={openSection} />}
-      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} />}
+      {page === "home" && <HomePage userId={userId} username={user.username} onCreateNote={() => void createAndOpenNote()} onCreateTable={() => void createTable()} onImportMarkdown={importMarkdown}
+        onOpenItem={(item) => {
+          if (item.type === "memo") openMemo(item.id);
+          else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); onNavigate({ kind: "notes", section: { kind: "recent" }, itemId: item.id }); }
+        }}
+        onNavigate={(next: BrowseSection) => {
+          if (next.kind === "home") goPage("home");
+          else if (next.kind === "memos") { setMobileMemoTab("all"); goPage("memo"); }
+          else openSection(next as NoteSection);
+        }} />}
+      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} initialTab={mobileMemoTab} />}
       {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => {
         if (item?.type === "memo") { openMemo(item.id); return; }
         setSelectedNoteId(item?.id ?? null);

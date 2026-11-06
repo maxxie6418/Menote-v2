@@ -9,7 +9,7 @@ import { purgeItemsPermanently } from "../services/versionService";
 import type { BrowseSection } from "../services/contentHooks";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { useLockVersion, useSectionItems, useTopics } from "../services/contentHooks";
-import { saveItemMeta, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
+import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
 import { prefetchSettings } from "../services/settingsPrefetch";
 import { requestSync } from "../services/syncEngine";
@@ -19,7 +19,9 @@ import { PrivateSpaceDialog } from "../features/encryption";
 import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
+import { ListNavigation } from "./ListNavigation";
 import { appRoutePath, parseAppRoute, type AppRoute, type RouteSection } from "./appRoutes";
+import { readAppearance } from "../services/appearanceSettingsService";
 
 /* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
 import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
@@ -115,10 +117,12 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const noteReturnRef = useRef(noteReturn);
   noteReturnRef.current = noteReturn;
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
-  const [todoOpen, setTodoOpen] = useState(false);
+  const [todoOpen, setTodoOpen] = useState(() => document.documentElement.dataset.memoTodoDefault !== "closed");
+  const todoDefaultRef = useRef<"open" | "closed" | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(() => route.kind === "settings" || route.kind === "me");
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(() => route.kind === "settings" ? route.section : "appearance");
   const [memoComposerSignal, setMemoComposerSignal] = useState(0);
+  const [railMode, setRailMode] = useState<"bar" | "rail">(() => document.documentElement.dataset.rail === "rail" ? "rail" : "bar");
   const [privateGate, setPrivateGate] = useState(false);
   const [summaryRequest, setSummaryRequest] = useState<{ id: string; token: number } | null>(null);
   const userId = user.id;
@@ -196,6 +200,32 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       if (cause instanceof Error && cause.message === "private_space_locked") setPrivateGate(true);
     }
   }, [userId, navigate, section]);
+  const openNewTable = useCallback(async () => {
+    try {
+      const note = await createNote(userId);
+      const table = await setItemForm(userId, note.id, "table");
+      const next = { kind: "drafts" as const };
+      setView("main"); setSection(next); setNoteId(table.id); setMobilePane("doc"); setDrawerOpen(false);
+      navigate(sectionRoute(next, table.id));
+    } catch {
+      window.alert("新建表格失败，请重试。");
+    }
+  }, [userId, navigate]);
+  const importMarkdown = useCallback(async (files: File[]) => {
+    const markdownFiles = files.filter((file) => /\.md$/i.test(file.name));
+    if (markdownFiles.length === 0) throw new Error("no_markdown_files");
+    const imported: Item[] = [];
+    for (const file of markdownFiles) {
+      const title = file.name.replace(/\.md$/i, "").trim() || "无标题";
+      const note = await createNote(userId, { title });
+      await saveItemContent(userId, note.id, await file.text());
+      imported.push(note);
+    }
+    const next = { kind: "drafts" as const };
+    setView("main"); setSection(next); setNoteId(imported[0]!.id); setMobilePane("doc"); setDrawerOpen(false);
+    navigate(sectionRoute(next, imported[0]!.id));
+    return imported.length;
+  }, [userId, navigate]);
   const openMemoComposer = useCallback(() => {
     setCollapsed(false);
     setMemoComposerSignal((value) => value + 1);
@@ -250,6 +280,20 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   useEffect(() => { void bindLocalAccount(userId); }, [userId]);
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
   useEffect(() => { prefetchSettings(userId); }, [userId]);
+  useEffect(() => {
+    const refresh = () => { void readAppearance(userId).then((value) => {
+      if (!value) return;
+      setRailMode(value.railMode ?? "bar");
+      const nextTodoDefault = value.memoTodoDefault ?? "open";
+      if (todoDefaultRef.current !== nextTodoDefault) {
+        todoDefaultRef.current = nextTodoDefault;
+        setTodoOpen(nextTodoDefault !== "closed");
+      }
+    }); };
+    refresh();
+    window.addEventListener("menote:appearance", refresh);
+    return () => window.removeEventListener("menote:appearance", refresh);
+  }, [userId]);
 
   // FR-ENC-4 不活动自动锁定（默认 15 分钟）：周期检查，锁定触发全局重渲染。
   useEffect(() => {
@@ -305,6 +349,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const shellProps = {
     "data-layout": layout,
     "data-sidebar": collapsed && (layout === "compact" || layout === "full") ? "collapsed" : "expanded",
+    "data-rail": railMode,
     "data-pointer": coarsePointer ? "coarse" : "fine",
   };
   const sidebar = (
@@ -393,15 +438,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         {sidebar}
         <HomePage
           userId={userId}
+          username={user.username}
           onCreateNote={openNewNote}
-          onOpenMemoComposer={openMemoComposer}
-          onOpenTodos={() => {
-            setNoteReturn({ section: { kind: "recent" }, noteId: null });
-            setTodoOpen(true);
-            setSection({ kind: "memos" });
-            setDrawerOpen(false);
-            navigate({ kind: "memos" });
-          }}
+          onCreateTable={openNewTable}
+          onImportMarkdown={importMarkdown}
           onOpenItem={(item) => {
             if (item.type === "memo") {
               setSection({ kind: "memos" });
@@ -415,7 +455,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             setMobilePane("doc");
             setDrawerOpen(false);
           }}
-          onOpenPrivate={() => setPrivateGate(true)}
           onNavigate={(next) => {
             if (next.kind === "memos") setNoteReturn({ section: { kind: "recent" }, noteId: null });
             setSection(next);
@@ -438,12 +477,16 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         {sidebar}
         <MemoWorkspace
           userId={userId}
+          username={user.username}
           layout={layout}
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
-          onOpenDrawer={() => setDrawerOpen(true)}
           selectedMemoId={route.kind === "memos" ? route.itemId : undefined}
           onSelectMemo={(id) => navigate({ kind: "memos", itemId: id })}
+          onOpenNote={(id) => {
+            const next = { kind: "recent" as const };
+            setSection(next); setNoteId(id); setMobilePane("doc"); navigate(sectionRoute(next, id));
+          }}
           onBackToNotes={() => { setSection(noteReturn.section); setNoteId(noteReturn.noteId); navigate(sectionRoute(noteReturn.section, noteReturn.noteId ?? undefined), true); }}
         />
         {settingsDialog}
@@ -482,6 +525,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           mobilePane={mobilePane}
           onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
           onOpenDrawer={() => setDrawerOpen(true)}
+          listNavigation={railMode === "rail" ? <ListNavigation userId={userId} selected={section} onSelect={(next) => { setSection(next); setNoteId(null); navigate(sectionRoute(next)); }} onOpenPrivate={() => setPrivateGate(true)} onDropItem={(itemId, topicId, groupId) => saveItemMeta(userId, itemId, { topicId, groupId })} /> : undefined}
           document={trashItem ? (
             <TrashItemPanel key={trashItem.id} userId={userId} item={trashItem} onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }} showBack={layout === "tablet"} />
           ) : (
@@ -542,6 +586,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         mobilePane={mobilePane}
         onBackToList={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
         onOpenDrawer={() => setDrawerOpen(true)}
+        listNavigation={railMode === "rail" ? <ListNavigation userId={userId} selected={section} onSelect={(next) => { setSection(next); setNoteId(null); navigate(sectionRoute(next)); }} onOpenPrivate={() => setPrivateGate(true)} onDropItem={(itemId, topicId, groupId) => saveItemMeta(userId, itemId, { topicId, groupId })} /> : undefined}
         document={noteId ? (
           <NoteDocument
             key={noteId}

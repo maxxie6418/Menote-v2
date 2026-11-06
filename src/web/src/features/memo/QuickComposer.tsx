@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Tags } from "lucide-react";
 import { createMemo } from "../../services/contentService";
+import { useAllTags } from "../../services/contentHooks";
 import { uploadAttachment } from "../../services/attachmentService";
 import { insertAttachment } from "../editor";
 
@@ -13,6 +14,10 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const [newTag, setNewTag] = useState("");
+  const allTags = useAllTags(userId);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -25,8 +30,9 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
     if (!text || busy || uploading) return;
     setBusy(true);
     try {
-      await createMemo(userId, text);
+      await createMemo(userId, text, tags);
       setValue("");
+      setTags([]);
       setError(null);
       setExpanded(false);
     } finally {
@@ -92,6 +98,18 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
         }}
       />
       <div className="mn-composer-actions">
+        <div className="mn-composer-tag-control">
+          <button type="button" className="mn-composer-tool" aria-expanded={tagMenuOpen} aria-haspopup="dialog" onClick={() => setTagMenuOpen((open) => !open)}>
+            <Tags aria-hidden="true" />标签{tags.length > 0 ? ` ${tags.length}` : ""}
+          </button>
+          {tagMenuOpen && <div className="mn-composer-tag-menu" role="dialog" aria-label="Memo 标签" onKeyDown={(event) => { if (event.key === "Escape") setTagMenuOpen(false); }}>
+            {allTags.map((tag) => <label key={tag}><input type="checkbox" checked={tags.includes(tag)} onChange={(event) => setTags((current) => event.target.checked ? [...current, tag] : current.filter((item) => item !== tag))} />#{tag}</label>)}
+            <form onSubmit={(event) => { event.preventDefault(); const tag = newTag.trim().replace(/^#/, ""); if (tag && !tags.includes(tag)) setTags((current) => [...current, tag]); setNewTag(""); }}>
+              <input aria-label="添加标签" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="新标签" />
+              <button type="submit" disabled={!newTag.trim()}>添加</button>
+            </form>
+          </div>}
+        </div>
         <button type="button" className="mn-composer-tool" disabled={uploading} onClick={() => fileRef.current?.click()}>
           <ImagePlus aria-hidden="true" />
           {uploading ? "上传中…" : "图片"}

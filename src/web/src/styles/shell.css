@@ -366,6 +366,13 @@
 .mn-dialog select:not(.mn-propselect) { height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button); }
 .mn-dialog-actions { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-sm); margin: var(--app-zero); padding: var(--app-space-6) var(--app-space-xl) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-dialog-actions .mn-auth-submit { margin-top: var(--app-zero); flex: 0 1 auto; }
+.mn-tag-manager { width: min(var(--app-dialog-width-md), var(--app-full-size)); }
+.mn-tag-manager-list { display: flex; flex-direction: column; gap: var(--app-space-xs); margin: var(--app-zero); padding: var(--app-zero); list-style: none; }
+.mn-tag-manager-list > li { display: flex; min-height: var(--app-touch-target); align-items: center; justify-content: space-between; gap: var(--app-space-sm); border-bottom: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg); }
+.mn-tag-manager-list form, .mn-tag-manager-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2); }
+.mn-tag-manager-list form { width: var(--app-full-size); }
+.mn-tag-manager-list form .mn-propinput { min-width: var(--app-zero); flex: 1; }
+.mn-tag-manager-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-label); }
 
 /* ---------- E2 主题树扩展 ---------- */
 .mn-minibtn { cursor: pointer; }
@@ -417,6 +424,12 @@
 .mn-composer-tool:hover { color: var(--app-fg); border-color: var(--app-fg-faint); }
 .mn-composer-tool:disabled { color: var(--app-fg-faint); cursor: default; }
 .mn-composer-tool svg { width: var(--app-icon-xs); height: var(--app-icon-xs); flex: none; }
+.mn-composer-tag-control { position: relative; }
+.mn-composer-tag-menu { position: absolute; left: var(--app-zero); bottom: calc(var(--app-full-size) + var(--app-space-4)); display: flex; flex-direction: column; gap: var(--app-space-4); width: var(--app-dialog-width-md); max-width: var(--app-full-size); max-height: var(--app-dialog-max-height); overflow: auto; padding: var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
+.mn-composer-tag-menu label { display: flex; align-items: center; gap: var(--app-space-6); min-height: var(--app-touch-target); color: var(--app-fg); font-size: var(--app-size-label); }
+.mn-composer-tag-menu form { display: flex; gap: var(--app-space-4); padding-top: var(--app-space-4); border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-composer-tag-menu form input { min-width: var(--app-zero); flex: 1; height: var(--app-touch-target); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); padding-inline: var(--app-space-6); }
+.mn-composer-tag-menu form button { padding-inline: var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface-sunken); color: var(--app-fg); }
 .mn-composer-error { flex: 0 1 auto; min-width: var(--app-zero); overflow: hidden; color: var(--app-danger); font-size: var(--app-size-label); white-space: nowrap; text-overflow: ellipsis; }
 .mn-composer-actions .mn-textbtn { height: var(--app-composer-action-height); margin-left: auto; color: var(--app-fg-muted); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-zero) var(--app-space-10); font-size: var(--app-size-button); }
 .mn-composer-actions .mn-textbtn:hover { color: var(--app-fg); border-color: var(--app-fg-faint); background: none; }
@@ -688,7 +701,7 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-raindrop-progress { display: grid; gap: var(--app-space-6); padding-block: var(--app-space-10); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-raindrop-progress-track { position: relative; inline-size: var(--app-full-size); block-size: var(--app-space-6); overflow: hidden; border-radius: var(--app-radius-pill); background: var(--app-border); }
 .mn-raindrop-progress-track::before { position: absolute; inset-block: var(--app-zero); inline-size: var(--app-field-width); max-inline-size: var(--app-full-size); border-radius: var(--app-radius-pill); background: var(--app-accent); content: ""; animation: mn-raindrop-indeterminate var(--app-motion-loop) var(--app-ease) infinite; }
-@keyframes mn-raindrop-indeterminate { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
+@keyframes mn-raindrop-indeterminate { from { transform: translateX(var(--app-animation-progress-start)); } to { transform: translateX(var(--app-animation-progress-end)); } }
 @media (prefers-reduced-motion: reduce) { .mn-raindrop-progress-track::before { animation: none; } }
 .mn-raindrop-advanced { display: grid; gap: var(--app-space-6); }
 .mn-raindrop-advanced summary { color: var(--app-fg-muted); cursor: pointer; font-size: var(--app-size-chip); }

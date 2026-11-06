@@ -99,6 +99,21 @@ test("memo commands keep memos out of note sections; meta save bumps metaRev", a
   await assert.rejects(content.saveItemMeta(USER, memo.id, { groupId: "g1" }), /同时指定主题/);
 });
 
+test("convertMemoToNote keeps the source Memo and atomically queues a matching Note", async () => {
+  await resetLocalDb();
+  const memo = await content.createMemo(USER, "# 新产品想法\n拆解下一步", ["产品"]);
+  const converted = await content.convertMemoToNote(USER, memo.id);
+  assert.equal(converted.type, "note");
+  assert.equal(converted.title, "新产品想法");
+  assert.equal(converted.content.markdown, memo.content.markdown);
+  assert.deepEqual(converted.tags, ["产品"]);
+  assert.ok(await dbModule.localDb.items.get(memo.id), "original memo is retained");
+  const rows = await outboxRows();
+  assert.equal(rows.length, 2, "Memo and Note are each synced once");
+  assert.equal(rows[1].payload.item.id, converted.id);
+  assert.equal(rows[1].payload.item.content.markdown, memo.content.markdown);
+});
+
 test("soft delete marks the row and enqueues a delete tombstone", async () => {
   await resetLocalDb();
   const note = await content.createNote(USER);

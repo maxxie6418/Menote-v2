@@ -1,6 +1,6 @@
 import type { Item, MemoComment, TopicNode } from "@menote/shared";
 import { decodeBackupRow, wrapFieldToBase64 } from "@menote/shared";
-import { restoreSettingStatement } from "../db/backup";
+import { readSettingRev, restoreSettingStatement } from "../db/backup";
 import { itemWrapStatements, topicWrapStatements } from "../db/keyWraps";
 import { appendSyncLogStatement, rowToItem, upsertItemRowStatement, upsertTopicRowStatement } from "../db/sync";
 import { readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoCommentStatement } from "../db/memoComments";
@@ -72,6 +72,7 @@ export async function importBackupEntries(
     }
   }
 
+  restoredCommentRows.sort((a, b) => Number(Boolean(a.parentId)) - Number(Boolean(b.parentId)) || a.createdAt - b.createdAt);
   for (const comment of restoredCommentRows) {
     const owner = restoredMemoIds.has(comment.memoId)
       ? { type: "memo" }
@@ -98,9 +99,8 @@ export async function importBackupEntries(
     if (!statement) continue;
     const key = String(row.key);
     const rev = Number(row.rev ?? 0);
-    const current = await ctx.db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
-      .bind(ctx.userId, key).first<{ rev: number }>();
-    if (current && current.rev > rev) continue;
+    const currentRev = await readSettingRev(ctx.db, ctx.userId, key);
+    if (currentRev !== null && currentRev > rev) continue;
     statements.push(statement);
     restoredSettings += 1;
   }
