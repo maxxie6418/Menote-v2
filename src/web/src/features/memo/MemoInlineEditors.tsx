@@ -11,6 +11,8 @@ export function MemoCommentPanel({ userId, memoId }: { userId: string; memoId: s
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<MemoComment | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   return (
     <div className="mn-memo-inline-editor" aria-label="评论">
@@ -18,11 +20,17 @@ export function MemoCommentPanel({ userId, memoId }: { userId: string; memoId: s
         event.preventDefault();
         const content = draft.trim();
         if (!content) return;
-        void addMemoComment(userId, memoId, content).then(() => setDraft(""));
+        setSaving(true);
+        setActionError(null);
+        void addMemoComment(userId, memoId, content)
+          .then(() => setDraft(""))
+          .catch(() => setActionError("评论未能保存，请检查本地存储后重试。"))
+          .finally(() => setSaving(false));
       }}>
         <textarea autoFocus aria-label="写下评论" placeholder="写下你的评论…" value={draft} onChange={(event) => setDraft(event.target.value)} />
-        <button type="submit" aria-label="发送评论" disabled={!draft.trim()}><ArrowUp /></button>
+        <button type="submit" aria-label="发送评论" disabled={!draft.trim() || saving}><ArrowUp /></button>
       </form>
+      {actionError && <p className="mn-memo-action-error" role="alert">{actionError}</p>}
       <div className="mn-memo-comment-list">
         {comments.map((comment) => (
           <article className="mn-memo-comment" key={comment.id}>
@@ -31,7 +39,10 @@ export function MemoCommentPanel({ userId, memoId }: { userId: string; memoId: s
               {comment.updatedAt > comment.createdAt && <span>已编辑</span>}
               <span className="mn-memo-comment-actions">
                 <button type="button" aria-label="编辑评论" onClick={() => { setEditing(comment); setEditValue(comment.content); }}><Pencil /></button>
-                <button type="button" aria-label="删除评论" onClick={() => void deleteMemoComment(userId, comment.id)}><Trash2 /></button>
+                <button type="button" aria-label="删除评论" onClick={() => {
+                  setActionError(null);
+                  void deleteMemoComment(userId, comment.id).catch(() => setActionError("评论未能删除，请重试。"));
+                }}><Trash2 /></button>
               </span>
             </div>
             {editing?.id === comment.id ? (
@@ -39,7 +50,14 @@ export function MemoCommentPanel({ userId, memoId }: { userId: string; memoId: s
                 <textarea autoFocus aria-label="编辑评论" value={editValue} onChange={(event) => setEditValue(event.target.value)} />
                 <div>
                   <button type="button" onClick={() => setEditing(null)}>取消</button>
-                  <button type="button" onClick={() => { void editMemoComment(userId, comment.id, editValue).then(() => setEditing(null)); }}>保存</button>
+                  <button type="button" disabled={saving} onClick={() => {
+                    setSaving(true);
+                    setActionError(null);
+                    void editMemoComment(userId, comment.id, editValue)
+                      .then(() => setEditing(null))
+                      .catch(() => setActionError("评论未能保存，请重试。"))
+                      .finally(() => setSaving(false));
+                  }}>保存</button>
                 </div>
               </div>
             ) : <MarkdownView markdown={comment.content} className="mn-memo-comment-content" />}

@@ -275,6 +275,7 @@
 .mn-memo-comment-content :last-child { margin-bottom: var(--app-zero); }
 .mn-memo-comments-empty { margin: var(--app-zero); padding: var(--app-space-sm) var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-button); }
 .mn-memo-inline-editor { margin-top: var(--app-space-8); padding: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
+.mn-memo-action-error { margin: var(--app-space-6) var(--app-zero) var(--app-zero); color: var(--app-danger); font-size: var(--app-size-label); }
 .mn-memo-inline-editor .mn-memo-comment-compose { padding: var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-inline-editor .mn-memo-quote-footer { padding: var(--app-space-8) var(--app-zero) var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-comment-edit { display: flex; flex-direction: column; gap: var(--app-space-6); margin-top: var(--app-space-4); }

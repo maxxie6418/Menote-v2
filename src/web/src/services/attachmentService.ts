@@ -36,6 +36,8 @@ export async function listAttachmentReferences(userId: string): Promise<Record<s
 
 /** 上传附件；`onProgress` 给出 0–100 的上传进度（fetch 没有上传进度，故走 XHR）。
  *  只有请求体发完才会有进度事件，因此成功/失败都在 load 之后收尾。 */
+export const ATTACHMENT_UPLOAD_TIMEOUT_MS = 120_000;
+
 export function uploadAttachment(
   file: File,
   onProgress?: (percent: number) => void,
@@ -43,6 +45,7 @@ export function uploadAttachment(
   return new Promise((resolve) => {
     const request = new XMLHttpRequest();
     request.open("POST", "/api/attachments");
+    request.timeout = ATTACHMENT_UPLOAD_TIMEOUT_MS;
     request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
     request.upload.onprogress = (event) => {
       if (!onProgress || !event.lengthComputable || event.total === 0) return;
@@ -62,6 +65,7 @@ export function uploadAttachment(
     };
     request.onerror = () => resolve({ error: "network" });
     request.onabort = () => resolve({ error: "aborted" });
+    request.ontimeout = () => resolve({ error: "timeout" });
     request.send(file);
   });
 }

@@ -267,6 +267,26 @@ export function removePropDef(markdown: string, namespace: string, key: string):
   return removeDef(removeProp(markdown, key), namespace, key);
 }
 
+/** Undo property deletion by merging only its prior value/definition into the latest document. */
+export function restoreProp(markdown: string, previousMarkdown: string, namespace: string, key: string): string {
+  const currentData = parseFrontmatterData(markdown);
+  const currentDefs = readDefs(markdown, namespace);
+  if (Object.hasOwn(currentData, key) || Object.hasOwn(currentDefs, key)) return markdown;
+  const previousData = parseFrontmatterData(previousMarkdown);
+  const previousDefs = readDefs(previousMarkdown, namespace);
+  let next = markdown;
+  if (Object.hasOwn(previousData, key)) {
+    const value = previousData[key];
+    if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+      || (Array.isArray(value) && value.every((entry) => typeof entry === "string"))) {
+      next = writeValue(next, key, value as string | number | boolean | string[] | null);
+    }
+  }
+  const def = previousDefs[key];
+  if (def) next = writeDef(next, namespace, key, def);
+  return next;
+}
+
 /**
  * 重命名属性键（FR-PROP-2 属性设置浮层）：**定义与值一起迁移**。
  * 分开做会留下「有值没定义」或「有定义没值」的半截状态，所以这里按

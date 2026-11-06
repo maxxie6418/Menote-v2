@@ -17,6 +17,11 @@ const bundle = await build({
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 const { localDb, createNote, saveItemContent } = mod;
+const attachmentBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/services/attachmentService.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "browser",
+});
+const attachmentModule = await import(`data:text/javascript;base64,${Buffer.from(attachmentBundle.outputFiles[0].text).toString("base64")}`);
 
 const USER = "user-a";
 const SHA = "a".repeat(64);
@@ -24,6 +29,25 @@ const SHA = "a".repeat(64);
 async function reset() {
   await Promise.all(localDb.tables.map((table) => table.clear()));
 }
+
+test("attachment upload times out and returns a retryable error", async () => {
+  const original = globalThis.XMLHttpRequest;
+  let request;
+  globalThis.XMLHttpRequest = class {
+    upload = {};
+    open() {}
+    setRequestHeader() {}
+    send() { this.ontimeout?.(); }
+    constructor() { request = this; }
+  };
+  try {
+    const result = await attachmentModule.uploadAttachment({ type: "image/png", name: "image.png" });
+    assert.equal(request.timeout, 120_000);
+    assert.deepEqual(result, { error: "timeout" });
+  } finally {
+    globalThis.XMLHttpRequest = original;
+  }
+});
 
 test("saving content backfills the attachment hash list (FR-SYNC-7)", async () => {
   await reset();

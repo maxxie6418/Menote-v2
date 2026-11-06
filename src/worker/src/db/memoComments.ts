@@ -33,13 +33,17 @@ export async function readMemoOwnerState(db: D1Database, userId: string, memoId:
     .bind(userId, memoId).first<{ type: string; deleted_at: number | null }>();
 }
 
-export async function upsertMemoComment(db: D1Database, comment: MemoComment): Promise<void> {
-  await db.prepare(
+export function upsertMemoCommentStatement(db: D1Database, comment: MemoComment): D1PreparedStatement {
+  return db.prepare(
     `INSERT INTO memo_comments (id, user_id, memo_id, content_markdown, rev, created_at, updated_at, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (user_id, id) DO UPDATE SET memo_id = excluded.memo_id, content_markdown = excluded.content_markdown,
        rev = MAX(memo_comments.rev, excluded.rev), updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
-  ).bind(comment.id, comment.userId, comment.memoId, comment.content, comment.rev, comment.createdAt, comment.updatedAt, comment.deletedAt).run();
+  ).bind(comment.id, comment.userId, comment.memoId, comment.content, comment.rev, comment.createdAt, comment.updatedAt, comment.deletedAt);
+}
+
+export async function upsertMemoComment(db: D1Database, comment: MemoComment): Promise<void> {
+  await upsertMemoCommentStatement(db, comment).run();
 }
 
 export async function markMemoCommentDeleted(db: D1Database, userId: string, id: string, deletedAt: number): Promise<void> {

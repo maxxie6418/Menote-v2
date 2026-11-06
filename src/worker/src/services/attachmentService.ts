@@ -20,8 +20,18 @@ export async function storeAttachment(ctx: AttachmentStoreContext, userId: strin
   const digest = await crypto.subtle.digest("SHA-256", body);
   const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   const mime = rawMime?.split(";")[0] ?? "application/octet-stream";
-  await ctx.bucket.put(`${userId}/${sha256}`, body);
-  await upsertAttachment(ctx.db, userId, sha256, body.byteLength, mime);
+  const key = `${userId}/${sha256}`;
+  const existed = (await ctx.bucket.head(key)) !== null;
+  await ctx.bucket.put(key, body);
+  try {
+    await upsertAttachment(ctx.db, userId, sha256, body.byteLength, mime);
+  } catch (error) {
+    // Compensate only newly-created objects; never remove a prior valid object on metadata failure.
+    if (!existed) {
+      try { await ctx.bucket.delete(key); } catch { /* orphan cleanup will reconcile transient R2 failures */ }
+    }
+    throw error;
+  }
   return { sha256, size: body.byteLength, mime };
 }
 

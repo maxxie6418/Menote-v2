@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Check, MoreHorizontal, Plus, X } from "lucide-react";
 import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import {
-  PROPS_KEY, readPropRows, removePropDef, renameProp, writeDef, writeValue, type PropRow,
+  PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue, type PropRow,
 } from "../../lib/frontmatter";
 import { readPropertyTemplates } from "../../services/propertyTemplateService";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
@@ -34,7 +34,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ text: string; restore: string; index: number } | null>(null);
+  const [undo, setUndo] = useState<{ text: string; key: string; previousMarkdown: string; index: number } | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const [columns, setColumns] = useState<1 | 2>(2);
 
@@ -113,7 +113,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
     const index = rows.findIndex((entry) => entry.key === row.key);
     onSave(removePropDef(markdown, PROPS_KEY, row.key));
     setSettings(null);
-    setUndo({ text: `已删除「${row.def?.label ?? row.key}」`, restore: markdown, index });
+    setUndo({ text: `已删除「${row.def?.label ?? row.key}」`, key: row.key, previousMarkdown: markdown, index });
   };
 
   const settingsRow = settings ? rows.find((row) => row.key === settings.key) ?? null : null;
@@ -146,7 +146,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
               {undo?.index === index && (
                 <div className="mn-props-undo" role="status">
                   <span>{undo.text}</span>
-                  <button type="button" onClick={() => { onSave(undo.restore); setUndo(null); }}>撤销</button>
+                  <button type="button" onClick={() => { onSave(restoreProp(markdown, undo.previousMarkdown, PROPS_KEY, undo.key)); setUndo(null); }}>撤销</button>
                 </div>
               )}
               <div className={`mn-props-row${SPAN_TYPES.has(type) ? " span" : ""}${flash === row.key ? " flash" : ""}`}>
@@ -179,7 +179,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         {undo && undo.index >= rows.length && (
           <div className="mn-props-undo" role="status">
             <span>{undo.text}</span>
-            <button type="button" onClick={() => { onSave(undo.restore); setUndo(null); }}>撤销</button>
+            <button type="button" onClick={() => { onSave(restoreProp(markdown, undo.previousMarkdown, PROPS_KEY, undo.key)); setUndo(null); }}>撤销</button>
           </div>
         )}
       </div>
@@ -269,11 +269,18 @@ function PropertyValue({ row, type, editing, onStartEdit, onCommit, onCancel, on
     );
   }
 
+  if (text && isHttpUrl(text)) {
+    return (
+      <span className="mn-props-link">
+        <a href={text} target="_blank" rel="noreferrer">{text}</a>
+        <button type="button" className="mn-props-relink" onClick={onStartEdit} title="修改值">改</button>
+      </span>
+    );
+  }
+
   return (
     <button type="button" className="mn-props-open" onClick={onStartEdit} title={text || "设置值"}>
-      {text
-        ? (isHttpUrl(text) ? <a href={text} target="_blank" rel="noreferrer">{text}</a> : <span>{text}</span>)
-        : <span className="mn-props-emptyvalue">—</span>}
+      {text ? <span>{text}</span> : <span className="mn-props-emptyvalue">—</span>}
     </button>
   );
 }

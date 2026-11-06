@@ -75,6 +75,36 @@ test("restore import merges backup entries by id (FR-BAK-9 工具侧)", async ()
   });
 });
 
+test("restore imports Memo comments together with their Memo owner atomically", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const response = await json(mf, cookie, "POST", "/api/restore", { entries: [
+      { kind: "item", data: { id: "restore-memo", type: "memo", topic_id: null, group_id: null, title: null, content_markdown: "memo body", content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 1, meta_rev: 0, content_hash: "memo-hash", pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1, updated_at: 1, deleted_at: null } },
+      { kind: "memo_comment", data: { id: "restore-comment", user_id: "x", memo_id: "restore-memo", content_markdown: "comment", rev: 1, created_at: 1, updated_at: 1, deleted_at: null } },
+    ] });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).memoComments, 1);
+    const db = await mf.getD1Database("DB");
+    const comment = await db.prepare("SELECT content_markdown FROM memo_comments WHERE id = 'restore-comment'").first();
+    assert.equal(comment.content_markdown, "comment");
+  });
+});
+
+test("restore import rolls back all rows if any batched write fails", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const db = await mf.getD1Database("DB");
+    await db.exec("CREATE TRIGGER fail_restore_log BEFORE INSERT ON sync_log WHEN NEW.entity_id = 'atomic-item' BEGIN SELECT RAISE(FAIL, 'injected restore failure'); END;");
+    const entries = [
+      { kind: "item", data: { id: "atomic-item", type: "note", topic_id: null, group_id: null, title: "atomic", content_markdown: "body", content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 1, meta_rev: 0, content_hash: "h", pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1, updated_at: 1, deleted_at: null } },
+    ];
+    const response = await json(mf, cookie, "POST", "/api/restore", { entries });
+    assert.equal(response.status, 400);
+    const item = await db.prepare("SELECT id FROM items WHERE id = 'atomic-item'").first();
+    assert.equal(item, null, "the D1 batch must roll back the row written before the failing log insert");
+  });
+});
+
 test("restore rejects garbage key wraps and accepts explicit base64", async () => {
   await withWorker(async (mf) => {
     const cookie = await login(mf);

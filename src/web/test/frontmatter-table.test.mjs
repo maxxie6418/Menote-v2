@@ -79,6 +79,8 @@ test("GFM table parse, escape and replace keep the carrier standard (FR-TBL-1/6)
   assert.match(replaced, /后缀/);
   assert.equal(table.joinMultiCell([" A ", "B"]), "A, B");
   assert.deepEqual(table.splitMultiCell("A, B"), ["A", "B"]);
+  assert.equal(table.normalizeCellValue("  多行\n文本  "), "多行 文本");
+  assert.equal(table.normalizeCellValue("  首尾空格  "), "首尾空格");
 });
 
 test("GFM table parsing accepts omitted outer pipes (FR-TBL-1)", () => {
@@ -106,6 +108,23 @@ test("候选值分隔：换行与中英文分号、逗号都认，空格不作�
   assert.deepEqual(fm.parseOptionList("In Progress, 待评审"), ["In Progress", "待评审"]);
   // 空项与重复项
   assert.deepEqual(fm.parseOptionList("A;;B\n\nA"), ["A", "B"]);
+});
+
+test("restoreProp merges only the removed property into the latest markdown", () => {
+  let before = fm.writeDef("旧正文", fm.PROPS_KEY, "status", { type: "select", options: ["open", "done"] });
+  before = fm.writeValue(before, "status", "open");
+  const deleted = fm.removePropDef(before, fm.PROPS_KEY, "status");
+  const latest = fm.writeValue(fm.writeValue(deleted, "title", "新标题"), "other", "新属性");
+  const restored = fm.restoreProp(latest, before, fm.PROPS_KEY, "status");
+  const data = fm.parseFrontmatterData(restored);
+  assert.equal(data.status, "open");
+  assert.equal(data.title, "新标题");
+  assert.equal(data.other, "新属性");
+  assert.match(restored, /旧正文/);
+  assert.deepEqual(fm.readDefs(restored, fm.PROPS_KEY).status.options, ["open", "done"]);
+
+  const recreated = fm.writeValue(latest, "status", "new");
+  assert.equal(fm.parseFrontmatterData(fm.restoreProp(recreated, before, fm.PROPS_KEY, "status")).status, "new");
 });
 
 test("renameProp moves value and definition together (FR-PROP-2)", () => {
