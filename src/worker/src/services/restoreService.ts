@@ -1,9 +1,9 @@
 import type { Item, MemoComment, TopicNode } from "@menote/shared";
 import { decodeBackupRow, wrapFieldToBase64 } from "@menote/shared";
-import { restoreSettingRow } from "../db/backup";
-import { putItemWraps, putTopicWraps } from "../db/keyWraps";
-import { appendSyncLog, rowToItem, upsertItemRow, upsertTopicRow } from "../db/sync";
-import { readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoComment } from "../db/memoComments";
+import { readSettingRev, restoreSettingStatement } from "../db/backup";
+import { itemWrapStatements, topicWrapStatements } from "../db/keyWraps";
+import { appendSyncLogStatement, rowToItem, upsertItemRowStatement, upsertTopicRowStatement } from "../db/sync";
+import { readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoCommentStatement } from "../db/memoComments";
 
 /**
  * 恢复导入服务（FR-BAK-9 工具侧）：接受备份分片条目与包装块，按 id 合并（rev 高者胜）。
@@ -44,52 +44,69 @@ export async function importBackupEntries(
     wrapFieldToBase64(raw.iv);
     wrapFieldToBase64(raw.ciphertext);
   }
+  // Parse/validate the entire import before the first write. All resulting SQL statements
+  // are submitted in one D1 batch, whose transaction guarantees rollback on any failure.
+  const statements: D1PreparedStatement[] = [];
   let items = 0;
   let topics = 0;
   let memoComments = 0;
-  for (const entry of limited) {
-    const record = (entry as { kind?: unknown; data?: unknown });
-    if (record?.kind === "item" && typeof record.data === "object" && record.data !== null) {
-      const item = rowToItem(decodeBackupRow(record.data as Record<string, unknown>)) as Item;
-      await upsertItemRow(ctx.db, ctx.userId, "restore", item, item.rev, item.metaRev);
-      await appendSyncLog(ctx.db, ctx.userId, "item", item.id, "upsert", item.rev, item.metaRev, now);
-      items += 1;
-    } else if (record?.kind === "topic" && typeof record.data === "object" && record.data !== null) {
-      const topic = rowToTopic(ctx.userId, decodeBackupRow(record.data as Record<string, unknown>));
-      await upsertTopicRow(ctx.db, ctx.userId, topic, topic.deletedAt);
-      await appendSyncLog(ctx.db, ctx.userId, "topic", topic.id, "upsert", 0, 0, now);
-      topics += 1;
-    }
-  }
+  const restoredCommentRows: MemoComment[] = [];
+  const restoredMemoIds = new Set<string>();
   for (const entry of limited) {
     const record = entry as { kind?: unknown; data?: unknown };
-    if (record?.kind !== "memo_comment" || typeof record.data !== "object" || record.data === null) continue;
-    const comment = rowToMemoComment(decodeBackupRow(record.data as Record<string, unknown>), ctx.userId) as MemoComment;
-    const owner = await readMemoOwnerState(ctx.db, ctx.userId, comment.memoId);
-    if (!owner || owner.type !== "memo") continue;
-    const current = await readMemoCommentState(ctx.db, ctx.userId, comment.id);
-    if (!current || comment.rev > current.rev) {
-      await upsertMemoComment(ctx.db, comment);
-      await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, comment.deletedAt === null ? "upsert" : "delete", comment.rev, 0, now);
-      memoComments += 1;
+    if (typeof record?.data !== "object" || record.data === null) continue;
+    const row = decodeBackupRow(record.data as Record<string, unknown>);
+    if (record.kind === "item") {
+      const item = rowToItem(row) as Item;
+      if (item.type === "memo") restoredMemoIds.add(item.id);
+      statements.push(upsertItemRowStatement(ctx.db, ctx.userId, "restore", item, item.rev, item.metaRev));
+      statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", item.rev, item.metaRev, now));
+      items += 1;
+    } else if (record.kind === "topic") {
+      const topic = rowToTopic(ctx.userId, row);
+      statements.push(upsertTopicRowStatement(ctx.db, ctx.userId, topic, topic.deletedAt));
+      statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "topic", topic.id, "upsert", 0, 0, now));
+      topics += 1;
+    } else if (record.kind === "memo_comment") {
+      restoredCommentRows.push(rowToMemoComment(row, ctx.userId));
     }
   }
+
+  restoredCommentRows.sort((a, b) => Number(Boolean(a.parentId)) - Number(Boolean(b.parentId)) || a.createdAt - b.createdAt);
+  for (const comment of restoredCommentRows) {
+    const owner = restoredMemoIds.has(comment.memoId)
+      ? { type: "memo" }
+      : await readMemoOwnerState(ctx.db, ctx.userId, comment.memoId);
+    if (!owner || owner.type !== "memo") continue;
+    const current = await readMemoCommentState(ctx.db, ctx.userId, comment.id);
+    if (current && comment.rev <= current.rev) continue;
+    statements.push(upsertMemoCommentStatement(ctx.db, comment));
+    statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "memo_comment", comment.id,
+      comment.deletedAt === null ? "upsert" : "delete", comment.rev, 0, now));
+    memoComments += 1;
+  }
+
   const wrapsByItem = groupWraps(itemWrapRows, "item_id");
-  for (const [itemId, wraps] of wrapsByItem) {
-    await putItemWraps(ctx.db, ctx.userId, itemId, wraps, now);
-  }
+  for (const [itemId, wraps] of wrapsByItem) statements.push(...itemWrapStatements(ctx.db, ctx.userId, itemId, wraps, now));
   const wrapsByTopic = groupWraps(topicWrapRows, "topic_id");
-  for (const [topicId, wraps] of wrapsByTopic) {
-    await putTopicWraps(ctx.db, ctx.userId, topicId, wraps, now);
-  }
+  for (const [topicId, wraps] of wrapsByTopic) statements.push(...topicWrapStatements(ctx.db, ctx.userId, topicId, wraps, now));
+
   let restoredSettings = 0;
   for (const raw of settings ?? []) {
     if (typeof raw !== "object" || raw === null) continue;
-    if (await restoreSettingRow(ctx.db, ctx.userId, decodeBackupRow(raw as Record<string, unknown>))) restoredSettings += 1;
+    const row = decodeBackupRow(raw as Record<string, unknown>);
+    const statement = restoreSettingStatement(ctx.db, ctx.userId, row);
+    if (!statement) continue;
+    const key = String(row.key);
+    const rev = Number(row.rev ?? 0);
+    const currentRev = await readSettingRev(ctx.db, ctx.userId, key);
+    if (currentRev !== null && currentRev > rev) continue;
+    statements.push(statement);
+    restoredSettings += 1;
   }
-  return {
-    items, topics, memoComments, topicWraps: wrapsByTopic.size, settings: restoredSettings, skipped,
-  };
+
+  if (statements.length > 0) await ctx.db.batch(statements);
+  return { items, topics, memoComments, topicWraps: wrapsByTopic.size, settings: restoredSettings, skipped };
 }
 
 function groupWraps(rows: Array<Record<string, unknown>>, idKey: "item_id" | "topic_id") {

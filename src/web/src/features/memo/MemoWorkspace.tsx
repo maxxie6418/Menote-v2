@@ -1,32 +1,39 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import type { LayoutMode } from "../../lib/layout";
-import { useMemos } from "../../services/contentHooks";
+import { useMemos, useTopics } from "../../services/contentHooks";
 import { MemoBar, type MemoView } from "./MemoBar";
 import { MemoGallery } from "./MemoGallery";
 import { MemoTimeline } from "./MemoTimeline";
 import { MemoWorkbar } from "./MemoWorkbar";
 import { TodoSidePanel } from "./TodoSidePanel";
 import { filterMemos, memoImages, pickRandomMemo, type MemoRange } from "./memoView";
+import { QuickComposer } from "./QuickComposer";
 
 interface MemoWorkspaceProps {
   userId: string;
+  username: string;
   layout: LayoutMode;
   todoOpen: boolean;
   onToggleTodo: () => void;
-  onOpenDrawer: () => void;
   selectedMemoId?: string;
   onSelectMemo: (id: string) => void;
+  onOpenNote: (id: string) => void;
   /** 回到进入 Memo 之前的笔记位置。未接上时按钮不出现。 */
   onBackToNotes?: () => void;
 }
 
 /** Memo 视图：顶栏 + 工作栏浮层 + 时间线或图册。Todo 只在时间轴出现。 */
-export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDrawer, selectedMemoId, onSelectMemo, onBackToNotes }: MemoWorkspaceProps) {
-  const memos = useMemos(userId);
+export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
+  const allMemos = useMemos(userId);
+  const topics = useTopics(userId);
+  const privateRoots = new Set(topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
+  const privateTopicIds = new Set(topics.filter((topic) => topic.isEncSpace || (topic.parentId !== null && privateRoots.has(topic.parentId))).map((topic) => topic.id));
+  const memos = allMemos.filter((memo) => memo.topicId === null || !privateTopicIds.has(memo.topicId));
   const [range, setRange] = useState<MemoRange>("all");
   const [tag, setTag] = useState<string | null>(null);
   const [view, setView] = useState<MemoView>("timeline");
+  const [workbarOpen, setWorkbarOpen] = useState(false);
   const visible = filterMemos(memos, range, tag);
   const images = memoImages(visible);
   const singlePane = layout === "tablet" || layout === "mobile";
@@ -59,31 +66,40 @@ export function MemoWorkspace({ userId, layout, todoOpen, onToggleTodo, onOpenDr
         onView={setView}
         onBack={onBackToNotes}
       />
-      <div className="mn-memo-stage">
+      <div className={`mn-memo-stage${workbarOpen ? " is-work-open" : ""}${layout === "mobile" && todoOpen ? " is-todo-open" : ""}`}>
         <MemoWorkbar
           memos={memos} range={range} tag={tag} onRange={setRange} onTag={setTag}
           onWander={() => { const picked = pickRandomMemo(visible); if (picked) openMemo(picked.id); }}
           onOpen={openMemo}
+          onClose={() => setWorkbarOpen(false)}
         />
         <section className="mn-memo-scroll" aria-label={view === "gallery" ? "Memo 图册" : "Memo 时间线"}>
           {singlePane && (
-            <button type="button" className="mn-iconbtn mn-memo-drawer" aria-label="打开侧栏" onClick={onOpenDrawer}>
-              <Menu />
-            </button>
+            <div className="mn-memo-mobile-controls">
+              <button type="button" className="mn-iconbtn mn-memo-drawer" aria-label="打开 Memo 侧记栏" aria-expanded={workbarOpen} onClick={() => { if (todoOpen) onToggleTodo(); setWorkbarOpen(true); }}><Menu /></button>
+              {view === "timeline" && <button type="button" className="mn-memo-mobile-todo-toggle" aria-label={todoOpen ? "关闭 Todo 面板" : "打开 Todo 面板"} aria-expanded={todoOpen} onClick={() => { setWorkbarOpen(false); onToggleTodo(); }}>Todo</button>}
+            </div>
           )}
           {view === "gallery"
             ? <MemoGallery images={images} onOpen={openMemo} />
             : (
+              <>
+              <QuickComposer userId={userId} />
               <MemoTimeline
                 userId={userId}
+                username={username}
                 memos={visible}
                 allMemos={memos}
                 onQuoted={(item) => { setRange("all"); setTag(null); openMemo(item.id); }}
                 onOpenSource={openSource}
+                onOpenNote={onOpenNote}
                 onDragItem={(event, id) => event.dataTransfer.setData("text/menote-item", id)}
               />
+              </>
             )}
         </section>
+        {singlePane && workbarOpen && <button type="button" className="mn-memo-work-backdrop" aria-label="关闭 Memo 侧记栏" onClick={() => setWorkbarOpen(false)} />}
+        {layout === "mobile" && todoOpen && view === "timeline" && <button type="button" className="mn-memo-todo-backdrop" aria-label="关闭 Todo 面板" onClick={onToggleTodo} />}
         {view === "timeline" && <TodoSidePanel userId={userId} memos={memos} open={todoOpen} onToggle={onToggleTodo} />}
       </div>
     </main>

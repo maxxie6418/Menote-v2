@@ -79,6 +79,8 @@ test("GFM table parse, escape and replace keep the carrier standard (FR-TBL-1/6)
   assert.match(replaced, /后缀/);
   assert.equal(table.joinMultiCell([" A ", "B"]), "A, B");
   assert.deepEqual(table.splitMultiCell("A, B"), ["A", "B"]);
+  assert.equal(table.normalizeCellValue("  多行\n文本  "), "多行 文本");
+  assert.equal(table.normalizeCellValue("  首尾空格  "), "首尾空格");
 });
 
 test("GFM table parsing accepts omitted outer pipes (FR-TBL-1)", () => {
@@ -108,6 +110,23 @@ test("候选值分隔：换行与中英文分号、逗号都认，空格不作�
   assert.deepEqual(fm.parseOptionList("A;;B\n\nA"), ["A", "B"]);
 });
 
+test("restoreProp merges only the removed property into the latest markdown", () => {
+  let before = fm.writeDef("旧正文", fm.PROPS_KEY, "status", { type: "select", options: ["open", "done"] });
+  before = fm.writeValue(before, "status", "open");
+  const deleted = fm.removePropDef(before, fm.PROPS_KEY, "status");
+  const latest = fm.writeValue(fm.writeValue(deleted, "title", "新标题"), "other", "新属性");
+  const restored = fm.restoreProp(latest, before, fm.PROPS_KEY, "status");
+  const data = fm.parseFrontmatterData(restored);
+  assert.equal(data.status, "open");
+  assert.equal(data.title, "新标题");
+  assert.equal(data.other, "新属性");
+  assert.match(restored, /旧正文/);
+  assert.deepEqual(fm.readDefs(restored, fm.PROPS_KEY).status.options, ["open", "done"]);
+
+  const recreated = fm.writeValue(latest, "status", "new");
+  assert.equal(fm.parseFrontmatterData(fm.restoreProp(recreated, before, fm.PROPS_KEY, "status")).status, "new");
+});
+
 test("renameProp moves value and definition together (FR-PROP-2)", () => {
   let markdown = fm.writeDef("正文", fm.PROPS_KEY, "status", { type: "select", label: "状态", options: ["未开始", "已完成"] });
   markdown = fm.writeValue(markdown, "status", "已完成");
@@ -135,4 +154,18 @@ test("renameProp keeps arrays/booleans and refuses to overwrite an existing key"
 
   // 源键不存在：不动
   assert.equal(fm.renameProp("正文", fm.PROPS_KEY, "nope", "other"), "正文");
+});
+
+test("Note marginalia round-trips in frontmatter without changing properties or body", () => {
+  const source = `---\ntitle: 记录\nprops:\n  status:\n    type: text\nstatus: draft\n---\n\n# 保持原文\n正文内容`;
+  const annotation = { id: "m-1", quote: "正文", note: "补充一个例子", createdAt: 1793900000000 };
+  const written = fm.writeNoteMarginalia(source, [annotation]);
+  assert.deepEqual(fm.readNoteMarginalia(written), [annotation]);
+  assert.equal(fm.parseFrontmatterData(written).status, "draft");
+  assert.deepEqual(fm.readDefs(written, fm.PROPS_KEY).status, { type: "text", label: undefined, options: undefined, optionColors: undefined });
+  assert.equal(fm.readPropRows(written, fm.PROPS_KEY).some((row) => row.key === "menote_marginalia"), false);
+  assert.match(written, /# 保持原文\n正文内容$/);
+  const removed = fm.writeNoteMarginalia(written, []);
+  assert.deepEqual(fm.readNoteMarginalia(removed), []);
+  assert.equal(fm.parseFrontmatterData(removed).status, "draft");
 });

@@ -144,7 +144,7 @@ export async function createMemo(userId: string, markdown: string, tags: string[
   const now = Date.now();
   const item: Item = {
     id: newId(), userId, type: "memo", topicId: null, groupId: null,
-    title: null, tags, status: null, attachmentHashes: [], source: "manual",
+    title: null, tags, status: null, attachmentHashes: attachmentHashesOf(markdown), source: "manual",
     rev: 1, metaRev: 1, contentHash: await sha256Hex(markdown),
     pinned: false, starred: false, createdAt: now, updatedAt: now, deletedAt: null,
     content: { scope: "plain", markdown }, ...(memoQuote ? { memoQuote } : {}),
@@ -155,6 +155,33 @@ export async function createMemo(userId: string, markdown: string, tags: string[
   });
   notifyLocalChange();
   return item;
+}
+
+/** Convert a plain Memo into an independently editable Note without deleting the source. */
+export async function convertMemoToNote(userId: string, memoId: string): Promise<Item> {
+  const memo = await requireItem(userId, memoId);
+  if (memo.type !== "memo" || memo.content.scope !== "plain" || memo.deletedAt !== null) {
+    throw new Error("只有有效的明文 Memo 可以转为 Note");
+  }
+  const markdown = memo.content.markdown;
+  const title = markdown.trim().split(/\r?\n/, 1)[0]?.replace(/^#+\s*/, "").slice(0, 80) || "来自 Memo";
+  const now = Date.now();
+  const note: Item = {
+    id: newId(), userId, type: "note", topicId: null, groupId: null, title,
+    tags: [...memo.tags], status: null, attachmentHashes: attachmentHashesOf(markdown), source: "manual",
+    rev: 1, metaRev: 1, contentHash: await sha256Hex(markdown), pinned: false, starred: false,
+    createdAt: now, updatedAt: now, deletedAt: null, content: { scope: "plain", markdown },
+  };
+  await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+    await localDb.items.put(note);
+    await localDb.outbox.add(outboxUpsert(note, 0, 0, note.contentHash));
+  });
+  recordSyncDiagnostic(userId, {
+    category: "local", event: "memo_converted_to_note", entity: "item", entityId: note.id,
+    action: "upsert", baseRev: 0, baseMetaRev: 0,
+  });
+  notifyLocalChange();
+  return note;
 }
 
 /**

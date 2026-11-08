@@ -48,6 +48,16 @@ export interface PropertyTemplate {
   group?: string;
 }
 
+/** Note 页边注存入同一条目 frontmatter，随正文版本、同步、加密与备份一并流转。 */
+export interface NoteMarginalia {
+  id: string;
+  quote: string;
+  note: string;
+  createdAt: number;
+}
+
+const MARGINALIA_KEY = "menote_marginalia";
+
 /**
  * 候选值输入的解析（属性区「单选/多选」候选编辑）：
  * 换行、中英文分号、中英文逗号都算分隔符；首尾空格去掉、重复项去重。
@@ -90,6 +100,36 @@ export function parseFrontmatterData(markdown: string): Record<string, unknown> 
   } catch {
     return {};
   }
+}
+
+/** 读取并校验 Note 页边注；损坏/未知条目忽略，不把 YAML 值直接信任为 UI 数据。 */
+export function readNoteMarginalia(markdown: string): NoteMarginalia[] {
+  const raw = parseFrontmatterData(markdown)[MARGINALIA_KEY];
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((value): NoteMarginalia[] => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
+    const row = value as Record<string, unknown>;
+    if (typeof row.id !== "string" || typeof row.quote !== "string" || typeof row.note !== "string"
+      || typeof row.createdAt !== "number" || !Number.isFinite(row.createdAt)) return [];
+    return [{ id: row.id, quote: row.quote.slice(0, 4_000), note: row.note.slice(0, 4_000), createdAt: row.createdAt }];
+  }).slice(-500);
+}
+
+/** 更新只属于 Menote 的 frontmatter 键；其它属性、表格字段、注释和正文原样保留。 */
+export function writeNoteMarginalia(markdown: string, annotations: NoteMarginalia[]): string {
+  const { frontText, body } = splitFrontmatter(markdown);
+  const document = frontText
+    ? parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""))
+    : new Document({});
+  if (document.errors.length > 0) throw new Error("invalid_frontmatter");
+  const value = annotations.slice(-500).map(({ id, quote, note, createdAt }) => ({
+    id: id.slice(0, 128), quote: quote.slice(0, 4_000), note: note.slice(0, 4_000), createdAt,
+  }));
+  if (!frontText && value.length === 0) return markdown;
+  if (value.length > 0) document.set(MARGINALIA_KEY, document.createNode(value));
+  else document.delete(MARGINALIA_KEY);
+  const serialized = String(document).trimEnd();
+  return serialized ? `---\n${serialized}\n---\n\n${body}` : body;
 }
 
 export function readDefs(markdown: string, namespace: string): Record<string, PropertyDef> {
@@ -240,7 +280,7 @@ export function readPropRows(markdown: string, namespace: string): PropRow[] {
   const data = parseFrontmatterData(markdown);
   const defs = readDefs(markdown, namespace);
   const rows = Object.entries(data)
-    .filter(([key]) => key !== PROPS_KEY && key !== FIELDS_KEY)
+    .filter(([key]) => key !== PROPS_KEY && key !== FIELDS_KEY && key !== MARGINALIA_KEY)
     .map(([key, value]) => ({
       key,
       raw: typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : "",
@@ -265,6 +305,26 @@ export function removeProp(markdown: string, key: string): string {
 /** 删除一个属性：连同它的定义一起去掉（只删值会留下看不见的定义残渣）。 */
 export function removePropDef(markdown: string, namespace: string, key: string): string {
   return removeDef(removeProp(markdown, key), namespace, key);
+}
+
+/** Undo property deletion by merging only its prior value/definition into the latest document. */
+export function restoreProp(markdown: string, previousMarkdown: string, namespace: string, key: string): string {
+  const currentData = parseFrontmatterData(markdown);
+  const currentDefs = readDefs(markdown, namespace);
+  if (Object.hasOwn(currentData, key) || Object.hasOwn(currentDefs, key)) return markdown;
+  const previousData = parseFrontmatterData(previousMarkdown);
+  const previousDefs = readDefs(previousMarkdown, namespace);
+  let next = markdown;
+  if (Object.hasOwn(previousData, key)) {
+    const value = previousData[key];
+    if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+      || (Array.isArray(value) && value.every((entry) => typeof entry === "string"))) {
+      next = writeValue(next, key, value as string | number | boolean | string[] | null);
+    }
+  }
+  const def = previousDefs[key];
+  if (def) next = writeDef(next, namespace, key, def);
+  return next;
 }
 
 /**

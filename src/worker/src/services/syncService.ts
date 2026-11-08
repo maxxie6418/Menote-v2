@@ -134,7 +134,20 @@ async function recordConflict(
 /** 软删：删除不推 rev（与客户端语义一致）；并发编辑胜由后续 upsert 复活（G2 §5-5）。 */
 async function applyItemDelete(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const current = await readItemState(ctx.db, ctx.userId, operation.entityId);
-  if (!current) throw new SyncRejected("entity_missing");
+  if (!current) {
+    // 删除是幂等操作：条目已物理删除或从未上传时，目标状态已经满足。
+    // 记下操作结果以清除客户端 outbox；不追加墓碑，因为当前没有可变更的服务端实体。
+    await recordSyncOperation(
+      ctx.db, ctx.userId, operation.operationId, "item", operation.entityId,
+      "applied", operation.baseRev, operation.baseMetaRev, null, ctx.now,
+    );
+    return {
+      operationId: operation.operationId,
+      result: "applied",
+      rev: operation.baseRev,
+      metaRev: operation.baseMetaRev,
+    };
+  }
   // 前置条件只看正文版本 rev：元数据版本与删除无关，不该让一次改名把删除挡成冲突。
   if (current.rev !== operation.baseRev) {
     await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId, "conflict", current.rev, current.metaRev, current.contentHash, ctx.now);
@@ -165,7 +178,7 @@ async function applyTopic(ctx: ApplyContext, operation: OutboxOperation): Promis
 
 async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const incoming = (operation.payload as { comment?: MemoComment } | null)?.comment;
-  if (!incoming || incoming.id !== operation.entityId || !incoming.memoId || typeof incoming.content !== "string") {
+  if (!incoming || incoming.id !== operation.entityId || !incoming.memoId || typeof incoming.content !== "string" || (incoming.parentId != null && typeof incoming.parentId !== "string")) {
     throw new SyncRejected("invalid_payload");
   }
   const owner = await readMemoOwnerState(ctx.db, ctx.userId, incoming.memoId);
@@ -186,7 +199,7 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   if (current && (current.rev > incoming.rev || (current.rev === incoming.rev && current.updated_at >= incoming.updatedAt))) {
     return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: 0, contentHash: null };
   }
-  const comment = { ...incoming, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
+  const comment = { ...incoming, parentId: incoming.parentId ?? null, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
   await upsertMemoComment(ctx.db, comment);
   await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, "upsert", comment.rev, 0, ctx.now);
   await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", comment.id, "applied", comment.rev, 0, null, ctx.now);

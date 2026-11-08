@@ -36,6 +36,7 @@ import memoInteractions from "./0034_memo_interactions.sql";
 import ai from "./0035_ai.sql";
 import raindrop from "./0036_raindrop.sql";
 import itemConflictOf from "./0037_item_conflict_of.sql";
+import memoCommentReplies from "./0038_memo_comment_replies.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -76,4 +77,5 @@ export const migrations = [
   { version: 35, name: "0035_ai", statements: [ai] },
   { version: 36, name: "0036_raindrop", statements: [raindrop] },
   { version: 37, name: "0037_item_conflict_of", statements: [itemConflictOf] },
+  { version: 38, name: "0038_memo_comment_replies", statements: [memoCommentReplies] },
 ] as const satisfies readonly SchemaMigration[];

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
-import { joinMultiCell, splitMultiCell } from "../../lib/gfmTable";
+import { joinMultiCell, normalizeCellValue, splitMultiCell } from "../../lib/gfmTable";
 import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
 
 interface TableCellEditorProps {
@@ -19,7 +19,7 @@ export function TableCellEditor({ value, type, def, onChange }: TableCellEditorP
   } else if (type === "select") {
     const options = def?.options ?? [];
     // 候选必须显式定义（FR-PROP-4）；未定义候选时按文本编辑，候选在列设置中维护。
-    if (options.length === 0) editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="单选单元格" onChange={(e) => onChange(e.target.value)} />;
+    if (options.length === 0) editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="单选单元格" onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(normalizeCellValue(e.currentTarget.value))} />;
     else editor = <SingleSelectCell value={value} options={options} colors={def?.optionColors ?? {}} onChange={onChange} />;
   } else if (type === "multiselect") {
     const options = def?.options ?? [];
@@ -32,14 +32,14 @@ export function TableCellEditor({ value, type, def, onChange }: TableCellEditorP
   } else if (type === "date") {
     // 日期控件只接受 ISO 形态；历史自由文本保留原样，清空或改正后回到日期控件。
     if (value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      editor = <input className="mn-tcell-input" type="date" value={value} title={value} aria-label="日期单元格" onChange={(e) => onChange(e.target.value)} />;
+      editor = <input className="mn-tcell-input" type="date" value={value} title={value} aria-label="日期单元格" onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(normalizeCellValue(e.currentTarget.value))} />;
     } else {
-      editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="日期单元格（非标准格式，编辑后按日期处理）" onChange={(e) => onChange(e.target.value)} />;
+      editor = <input className="mn-tcell-input" type="text" size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value} aria-label="日期单元格（非标准格式，编辑后按日期处理）" onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(normalizeCellValue(e.currentTarget.value))} />;
     }
   } else {
     editor = <input className="mn-tcell-input" type={type === "number" ? "number" : "text"} size={Math.max(12, Math.min(80, value.length || 12))} value={value} title={value}
       aria-label={type === "number" ? "数字单元格" : type === "link" ? "链接单元格" : "单元格"}
-      onChange={(e) => onChange(e.target.value)} />;
+      onChange={(e) => onChange(e.target.value)} onBlur={(e) => onChange(normalizeCellValue(e.currentTarget.value))} />;
   }
   return <CellEditorShell value={value} onRestore={onChange}>{editor}</CellEditorShell>;
 }

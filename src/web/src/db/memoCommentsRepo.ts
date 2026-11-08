@@ -4,18 +4,18 @@ import { localDb } from "./localDb";
 
 export async function getMemoComment(userId: string, id: string): Promise<MemoComment | undefined> {
   const row = await localDb.memoComments.get(id);
-  return row?.userId === userId ? row : undefined;
+  return row?.userId === userId ? { ...row, parentId: row.parentId ?? null } : undefined;
 }
 
 export async function listMemoComments(userId: string, memoId: string): Promise<MemoComment[]> {
   const rows = await localDb.memoComments.where("[userId+memoId+createdAt]").between(
     [userId, memoId, Dexie.minKey], [userId, memoId, Dexie.maxKey], true, true,
   ).toArray();
-  return rows.filter((row) => row.deletedAt === null).sort((a, b) => a.createdAt - b.createdAt);
+  return rows.filter((row) => row.deletedAt === null).map((row) => ({ ...row, parentId: row.parentId ?? null })).sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function listAllMemoComments(userId: string): Promise<MemoComment[]> {
-  return localDb.memoComments.where("userId").equals(userId).toArray();
+  return (await localDb.memoComments.where("userId").equals(userId).toArray()).map((row) => ({ ...row, parentId: row.parentId ?? null }));
 }
 
 export async function putMemoComment(comment: MemoComment): Promise<void> {

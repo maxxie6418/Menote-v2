@@ -344,14 +344,18 @@ export async function markItemDeleted(
     .bind(deletedAt, deviceId, id, userId).run();
 }
 
-export async function upsertTopicRow(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): Promise<void> {
-  await db.prepare(
+export function upsertTopicRowStatement(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): D1PreparedStatement {
+  return db.prepare(
     `INSERT INTO topic_nodes (id, user_id, parent_id, name, depth, is_enc_space, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET
        parent_id = excluded.parent_id, name = excluded.name, depth = excluded.depth,
        is_enc_space = excluded.is_enc_space, deleted_at = excluded.deleted_at`,
-  ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt).run();
+  ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt);
+}
+
+export async function upsertTopicRow(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): Promise<void> {
+  await upsertTopicRowStatement(db, userId, topic, deletedAt).run();
 }
 
 export async function countItemReferences(db: D1Database, userId: string, sha256: string): Promise<number> {

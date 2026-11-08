@@ -418,6 +418,6 @@ test("remote-vanished rows are only marked; push skips them; disabled connector 
 test("token validation rejects unauthorized tokens", async () => {
   await withDatabase(async (db, env) => {
     statefulStub({ collections: "unauthorized" });
-    await assert.rejects(() => service.saveToken(env, "u1", "bad"), /raindrop_token_invalid/);
+    await assert.rejects(() => service.saveToken(env, "u1", "bad"), /raindrop_token_unauthorized/);
   });
 });

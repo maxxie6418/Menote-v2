@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
@@ -41,6 +42,22 @@ const PNG = Uint8Array.from(Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
 ));
+
+test("元数据落库失败时清理本次新建的孤儿 R2 对象", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const db = await mf.getD1Database("DB");
+    const bucket = await mf.getR2Bucket("BUCKET");
+    await db.exec("CREATE TRIGGER fail_attachment_insert BEFORE INSERT ON attachments BEGIN SELECT RAISE(FAIL, 'injected metadata failure'); END;");
+    const sha256 = createHash("sha256").update(PNG).digest("hex");
+    const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const response = await req(mf, "/api/attachments", {
+      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+    });
+    assert.equal(response.status, 503);
+    assert.equal(await bucket.head(`${user.id}/${sha256}`), null);
+  });
+});
 
 test("附件上传后可用会话读回（图片不再 401）", async () => {
   await withWorker(async (mf) => {

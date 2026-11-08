@@ -107,7 +107,13 @@
   font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint);
   font-variant-numeric: tabular-nums; text-align: right;
 }
-.mn-memo-main .mn-memo-actions { flex-direction: row; }
+.mn-memo-main .mn-memo-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--app-space-2); }
+.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
+.mn-memo-main .mn-memo-actions .mn-minibtn[aria-pressed="true"] { color: var(--app-accent-fg); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
+.mn-memo-main .mn-memo-actions .mn-minibtn:disabled { cursor: default; }
 
 .mn-memo-card-body {
   margin-bottom: var(--app-space-sm);
@@ -260,18 +266,8 @@
 .mn-memo-gal-cap { display: flex; align-items: center; gap: var(--app-space-xs); margin-top: var(--app-space-6); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-memo-gal-cap span { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-label); }
 
-/* 评论与引述（FR-MEMO-7/8）：对话框、平铺评论、不可变来源快照。 */
+/* 评论与引述（FR-MEMO-7/8）：卡片内原位编辑、平铺评论、不可变来源快照。 */
 .mn-memo-interactions button:disabled { cursor: default; opacity: var(--app-mobile-disabled-opacity); }
-.mn-memo-modal-scrim { position: fixed; inset: var(--app-zero); z-index: var(--app-memo-modal-z); display: grid; place-items: center; padding: var(--app-space-34); background: var(--app-memo-scrim); }
-.mn-memo-modal { width: min(var(--app-memo-dialog-width), calc(var(--app-full-size) - var(--app-memo-modal-space))); max-height: min(var(--app-memo-modal-max-height), calc(var(--app-full-size) - var(--app-memo-modal-space))); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--app-memo-dialog-radius); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
-.mn-memo-modal-head { height: var(--app-memo-modal-head-height); display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-zero) var(--app-space-lg); border-bottom: var(--app-line) solid var(--app-border-subtle); flex: none; font-family: var(--app-font-mono); font-size: var(--app-size-label); color: var(--app-fg-muted); }
-.mn-memo-modal-head button { margin-left: auto; width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
-.mn-memo-modal-head button:hover { background: var(--app-hover); color: var(--app-fg); }
-.mn-memo-modal-head svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
-.mn-memo-modal-body { min-height: var(--app-zero); overflow-y: auto; padding: var(--app-memo-modal-body-pad); }
-.mn-memo-dialog-source { padding-bottom: var(--app-space-sm); border-bottom: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-muted); font-size: var(--app-size-button); line-height: var(--app-leading-summary); }
-.mn-memo-comments-title { display: flex; align-items: center; gap: var(--app-space-10); margin-top: var(--app-space-lg); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); }
-.mn-memo-comments-title::after { content: ""; flex: 1; height: var(--app-line); background: var(--app-border-subtle); }
 .mn-memo-comment-list { margin-top: var(--app-space-10); padding-left: var(--app-memo-thread-indent); border-left: var(--app-memo-comment-indent-line) solid var(--app-border-subtle); }
 .mn-memo-comment { padding: var(--app-space-6) var(--app-zero); }
 .mn-memo-comment + .mn-memo-comment { border-top: var(--app-line) solid var(--app-border-subtle); }
@@ -285,18 +281,18 @@
 .mn-memo-comment-content :last-child { margin-bottom: var(--app-zero); }
 .mn-memo-comments-empty { margin: var(--app-zero); padding: var(--app-space-sm) var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-button); }
 .mn-memo-inline-editor { margin-top: var(--app-space-8); padding: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
+.mn-memo-action-error { margin: var(--app-space-6) var(--app-zero) var(--app-zero); color: var(--app-danger); font-size: var(--app-size-label); }
 .mn-memo-inline-editor .mn-memo-comment-compose { padding: var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-inline-editor .mn-memo-quote-footer { padding: var(--app-space-8) var(--app-zero) var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-comment-edit { display: flex; flex-direction: column; gap: var(--app-space-6); margin-top: var(--app-space-4); }
 .mn-memo-comment-edit textarea { width: var(--app-full-size); min-height: var(--app-space-34); resize: vertical; border: var(--app-zero); border-radius: var(--app-radius-lg); background: var(--app-surface); padding: var(--app-space-8); color: var(--app-fg); font: inherit; }
 .mn-memo-comment-edit div { display: flex; justify-content: flex-end; gap: var(--app-space-8); }
 .mn-memo-comment-edit button { border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; cursor: pointer; }
-.mn-memo-comment-compose { display: flex; align-items: end; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-memo-modal-body-pad); border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-memo-comment-compose { display: flex; align-items: end; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-comment-compose textarea { flex: 1; min-height: var(--app-space-34); max-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: var(--app-surface-sunken); border-radius: var(--app-radius-lg); padding: var(--app-space-10); color: var(--app-fg); font: inherit; }
 .mn-memo-comment-compose button { width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
 .mn-memo-comment-compose button:disabled { background: var(--app-border); color: var(--app-fg-faint); cursor: default; }
 .mn-memo-comment-compose svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-memo-quote-modal { max-height: min(var(--app-memo-modal-max-height), calc(var(--app-full-size) - var(--app-memo-modal-space))); }
 .mn-memo-quote-input { width: var(--app-full-size); min-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: none; color: var(--app-fg); font: inherit; line-height: var(--app-leading-summary); }
 .mn-memo-quote-snapshot { margin-top: var(--app-space-10); padding: var(--app-space-10) var(--app-space-14); border-radius: var(--app-memo-quote-radius); background: var(--app-surface-sunken); }
 .mn-memo-quote-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); }
@@ -308,7 +304,7 @@
 .mn-memo-quote-content :last-child { margin-bottom: var(--app-zero); }
 .mn-memo-card-body > .mn-memo-quote-snapshot .mn-memo-quote-content { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .mn-memo-quote-snapshot.is-source-deleted .mn-memo-quote-head > span:last-child { margin-left: auto; }
-.mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-memo-modal-body-pad) var(--app-memo-modal-body-pad); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
+.mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
 .mn-memo-quote-footer button { margin-left: auto; height: var(--app-space-22); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
 .mn-memo-quote-footer button:disabled { opacity: var(--app-mobile-disabled-opacity); cursor: default; }
 .mn-memo-comments-toggle { display: inline-flex; align-items: center; gap: var(--app-space-5); margin: var(--app-space-6) var(--app-zero) var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-space-4) var(--app-space-10); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer; }

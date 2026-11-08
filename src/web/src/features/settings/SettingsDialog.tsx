@@ -136,6 +136,9 @@ function AppearanceSection({ userId }: { userId: string }) {
   const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
   const [propsPos, setPropsPos] = useState<PropsPlacement>(getPropsPlacement);
   const [toolbar, setToolbar] = useState<ToolbarPlacement>(getToolbarPlacement);
+  const [railMode, setRailMode] = useState<"bar" | "rail">(() => document.documentElement.dataset.rail === "rail" ? "rail" : "bar");
+  const [memoWorkbarSide, setMemoWorkbarSide] = useState<"left" | "right">(() => document.documentElement.dataset.memoWorkbarSide === "right" ? "right" : "left");
+  const [memoTodoDefault, setMemoTodoDefault] = useState<"open" | "closed">(() => document.documentElement.dataset.memoTodoDefault === "closed" ? "closed" : "open");
   useEffect(() => {
     const refresh = () => { void readAppearance(userId).then((value) => {
       if (!value) return;
@@ -144,6 +147,9 @@ function AppearanceSection({ userId }: { userId: string }) {
       if (value.measure) setMeasure(value.measure);
       if (value.propsPos) setPropsPos(value.propsPos);
       if (value.toolbar) setToolbar(value.toolbar);
+      setRailMode(value.railMode ?? "bar");
+      setMemoWorkbarSide(value.memoWorkbarSide ?? "left");
+      setMemoTodoDefault(value.memoTodoDefault ?? "open");
     }); };
     refresh();
     window.addEventListener("menote:appearance", refresh);
@@ -154,7 +160,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">界面主题</p>
-          <p className="mn-sethint">默认沿用现有纸白界面；柔纸模式换成四层暖色纸面（侧栏 / 清单 / 纸面 / 案头）、宋体标题与更窄的版心，与深色 / 浅色互相独立。</p>
+          <p className="mn-sethint">选择墨台界面或柔纸界面；再单独设置浅色 / 深色主题。界面布局与编辑阅读偏好即时生效并随账号同步。</p>
         </div>
         <select
           className="mn-propselect"
@@ -170,6 +176,30 @@ function AppearanceSection({ userId }: { userId: string }) {
           <option value="default">默认</option>
           <option value="paper">柔纸模式</option>
         </select>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">导航布局</p><p className="mn-sethint">完整侧栏保留主题与标签；书脊布局将其移到笔记清单顶部。窄屏仍使用抽屉。</p></div>
+        <select className="mn-propselect" aria-label="导航布局" value={railMode} onChange={(event) => {
+          const value = event.target.value as "bar" | "rail";
+          setRailMode(value);
+          void updateAppearance(userId, { railMode: value });
+        }}><option value="bar">完整侧栏</option><option value="rail">书脊 + 清单导航</option></select>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">Memo 侧记栏位置</p><p className="mn-sethint">选择统计、热力图与筛选栏位于时间轴的哪一侧。</p></div>
+        <select className="mn-propselect" aria-label="Memo 侧记栏位置" value={memoWorkbarSide} onChange={(event) => {
+          const value = event.target.value as "left" | "right";
+          setMemoWorkbarSide(value);
+          void updateAppearance(userId, { memoWorkbarSide: value });
+        }}><option value="left">左侧</option><option value="right">右侧</option></select>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">Memo Todo 默认状态</p><p className="mn-sethint">控制进入 Memo 时 Todo 侧板默认展开或收起；之后仍可在页面中切换。</p></div>
+        <select className="mn-propselect" aria-label="Memo Todo 默认状态" value={memoTodoDefault} onChange={(event) => {
+          const value = event.target.value as "open" | "closed";
+          setMemoTodoDefault(value);
+          void updateAppearance(userId, { memoTodoDefault: value });
+        }}><option value="open">展开</option><option value="closed">收起</option></select>
       </div>
       <div className="mn-setrow">
         <div>
@@ -235,7 +265,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">阅读宽度</p>
-          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。柔纸模式固定使用更窄的纸面版心，此设置只影响其他主题。</p>
+          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。柔纸模式正文固定为加宽版心，此设置只影响其他主题。</p>
         </div>
         <select
           className="mn-propselect"
@@ -253,6 +283,15 @@ function AppearanceSection({ userId }: { userId: string }) {
           <option value="full">撑满</option>
         </select>
       </div>
+      <section className="mn-appearance-preview" aria-label="当前外观组合预览">
+        <div className="mn-appearance-preview-head"><strong>预览</strong><span>当前组合即时生效，随账号同步</span></div>
+        <div className={`mn-appearance-preview-frame${railMode === "rail" ? " is-rail" : ""}${propsPos === "side" ? " has-side-props" : ""}${toolbar === "bottom" ? " has-bottom-toolbar" : ""}`} data-skin={skin} data-measure={measure} aria-hidden="true">
+          <div className="mn-appearance-preview-top"><i /><i /><i /><i /></div>
+          <div className="mn-appearance-preview-cols"><div className="mn-appearance-preview-nav"><i /><i /><i /><i /></div><div className="mn-appearance-preview-list"><i /><i /><i /><i /></div><div className="mn-appearance-preview-paper"><i className="is-heading" /><i /><i /><i className="is-short" /><i />{propsPos === "side" && <i className="is-props" />}</div></div>
+          <div className="mn-appearance-preview-toolbar"><i /><i /><i /></div>
+        </div>
+        <div className="mn-appearance-preview-chips"><span>{skin === "paper" ? "柔纸模式" : "默认皮肤"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
+      </section>
     </div>
   );
 }

@@ -27,10 +27,11 @@ interface MainLayoutProps {
   mobilePane: MobilePane;
   onBackToList: () => void;
   onOpenDrawer: () => void;
+  listNavigation?: ReactNode;
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -81,6 +82,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
     <main className="mn-main" aria-label="主区">
       {showList && (
         <section className="mn-listcol" aria-label="笔记清单">
+          {listNavigation}
           <div className="mn-listhead">
             <span className="mn-listhead-left">
               {singlePane && (

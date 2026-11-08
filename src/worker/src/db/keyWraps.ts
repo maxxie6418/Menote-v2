@@ -58,17 +58,19 @@ export async function readItemWrapGroups(db: D1Database, userId: string, itemIds
   return [...groups.entries()].map(([itemId, wraps]) => ({ itemId, wraps }));
 }
 
+export function topicWrapStatements(db: D1Database, userId: string, topicId: string, wraps: KeyWrap[], now: number): D1PreparedStatement[] {
+  return wraps.filter((wrap) => wrap.wrapper === "password" || wrap.wrapper === "recovery").map((wrap) => db.prepare(
+    `INSERT INTO topic_key_wraps (user_id, topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_id, topic_id, wrapper) DO UPDATE SET
+       kdf_salt = excluded.kdf_salt, kdf_iterations = excluded.kdf_iterations,
+       iv = excluded.iv, ciphertext = excluded.ciphertext, generation = excluded.generation`,
+  ).bind(userId, topicId, wrap.wrapper, fromB64(wrap.kdfSalt), wrap.kdfIterations, fromB64(wrap.iv), fromB64(wrap.ciphertext), wrap.generation, now));
+}
+
 export async function putTopicWraps(db: D1Database, userId: string, topicId: string, wraps: KeyWrap[], now: number): Promise<void> {
-  for (const wrap of wraps) {
-    if (wrap.wrapper !== "password" && wrap.wrapper !== "recovery") continue;
-    await db.prepare(
-      `INSERT INTO topic_key_wraps (user_id, topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (user_id, topic_id, wrapper) DO UPDATE SET
-         kdf_salt = excluded.kdf_salt, kdf_iterations = excluded.kdf_iterations,
-         iv = excluded.iv, ciphertext = excluded.ciphertext, generation = excluded.generation`,
-    ).bind(userId, topicId, wrap.wrapper, fromB64(wrap.kdfSalt), wrap.kdfIterations, fromB64(wrap.iv), fromB64(wrap.ciphertext), wrap.generation, now).run();
-  }
+  const statements = topicWrapStatements(db, userId, topicId, wraps, now);
+  if (statements.length > 0) await db.batch(statements);
 }
 
 export async function readTopicWrapGroups(db: D1Database, userId: string, topicIds: string[]): Promise<Array<{ topicId: string; wraps: KeyWrap[] }>> {

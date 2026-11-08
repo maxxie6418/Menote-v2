@@ -79,8 +79,12 @@ export function findTables(body: string): ParsedTable[] {
   return tables;
 }
 
+export function normalizeCellValue(value: string): string {
+  return value.replace(/\s*\r?\n\s*/g, " ").trim();
+}
+
 function escapeCell(value: string): string {
-  return value.replace(/\s*\r?\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+  return normalizeCellValue(value).replace(/\|/g, "\\|");
 }
 
 export function renderTable(header: string[], rows: string[][]): string {

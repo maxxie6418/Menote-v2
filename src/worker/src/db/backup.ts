@@ -133,26 +133,42 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
 }
 
 /** 恢复设置：rev 不高于本地则跳过。密文列只接受字节。 */
-export async function restoreSettingRow(
+export function restoreSettingStatement(
   db: D1Database, userId: string, row: Record<string, unknown>,
-): Promise<boolean> {
+): D1PreparedStatement | null {
   const key = String(row.key ?? "");
-  if (!key) return false;
+  if (!key) return null;
   const rev = Number(row.rev ?? 0);
-  const current = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
-    .bind(userId, key).first<{ rev: number }>();
-  if (current && current.rev > rev) return false;
   const secret = Number(row.is_secret) === 1;
   const valueJson = secret ? null : String(row.value_json ?? "null");
   const ciphertext = secret ? row.value_ciphertext : null;
-  if (secret && !(ciphertext instanceof Uint8Array)) return false;
-  await db.prepare(
+  if (secret && !(ciphertext instanceof Uint8Array)) return null;
+  return db.prepare(
     `INSERT INTO user_settings (user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, key) DO UPDATE SET is_secret = excluded.is_secret,
        value_json = excluded.value_json, value_ciphertext = excluded.value_ciphertext,
        rev = excluded.rev, updated_at = excluded.updated_at
      WHERE user_settings.rev <= excluded.rev`,
-  ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now())).run();
+  ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now()));
+}
+
+export async function readSettingRev(db: D1Database, userId: string, key: string): Promise<number | null> {
+  const row = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
+    .bind(userId, key).first<{ rev: number }>();
+  return row?.rev ?? null;
+}
+
+export async function restoreSettingRow(
+  db: D1Database, userId: string, row: Record<string, unknown>,
+): Promise<boolean> {
+  const statement = restoreSettingStatement(db, userId, row);
+  if (!statement) return false;
+  const key = String(row.key);
+  const rev = Number(row.rev ?? 0);
+  const current = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
+    .bind(userId, key).first<{ rev: number }>();
+  if (current && current.rev > rev) return false;
+  await statement.run();
   return true;
 }

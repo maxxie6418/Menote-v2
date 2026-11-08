@@ -77,14 +77,16 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   );
 }
 
-export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId }: {
-  userId: string; onLongPress: (item: Item) => void; onOpenMemo: (id: string) => void; selectedId?: string | null;
+export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId, initialTab = "all" }: {
+  userId: string; onLongPress: (item: Item) => void; onOpenMemo: (id: string) => void; selectedId?: string | null; initialTab?: "all" | "todo" | "gallery";
 }) {
   const memos = useMemos(userId);
-  const [tab, setTab] = useState<"all" | "todo" | "gallery">("all");
+  const [tab, setTab] = useState<"all" | "todo" | "gallery">(initialTab);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(["done"]));
   const images = memoImages(memos);
   const counts = { todo: memos.filter((memo) => memo.status === "todo").length, doing: memos.filter((memo) => memo.status === "doing").length, done: memos.filter((memo) => memo.status === "done").length };
+
+  useEffect(() => setTab(initialTab), [initialTab]);
 
   useEffect(() => {
     if (!selectedId) return;
