@@ -6,7 +6,10 @@ import {
 import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
 import { ensureAttachmentRow, realignAttachmentStatements, setAttachmentRefs } from "../db/attachments";
-import { readMemoCommentState, readMemoOwnerState, upsertMemoComment } from "../db/memoComments";
+import {
+  markMemoCommentDeletedStatement, readMemoCommentChildren, readMemoCommentParentState, readMemoCommentState,
+  readMemoOwnerState, upsertMemoCommentStatement,
+} from "../db/memoComments";
 import { itemWrapStatements, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
@@ -183,6 +186,16 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   }
   const owner = await readMemoOwnerState(ctx.db, ctx.userId, incoming.memoId);
   if (!owner || owner.type !== "memo" || owner.deleted_at !== null) throw new SyncRejected("memo_unavailable");
+  // 回复的父评论结构预检（与 0038 触发器同口径，错误显式化，不依赖 D1 错误文本）：
+  // 父不存在可能是根评论操作尚未同步（暂态），按 unavailable 退避重试而不是死信。
+  if (incoming.parentId) {
+    const parent = await readMemoCommentParentState(ctx.db, ctx.userId, incoming.parentId);
+    if (!parent) throw new Error("memo_comment_parent_pending");
+    if (parent.memo_id !== incoming.memoId || parent.parent_id !== null
+      || (parent.deleted_at !== null && incoming.deletedAt === null)) {
+      throw new SyncRejected("invalid_parent");
+    }
+  }
   const current = await readMemoCommentState(ctx.db, ctx.userId, incoming.id);
   if (operation.action === "delete") {
     if (!current) throw new SyncRejected("entity_missing");
@@ -191,16 +204,25 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
       return { operationId: operation.operationId, result: "conflict", detail: { rev: current.rev, metaRev: 0, contentHash: null } };
     }
     const deletedAt = incoming.deletedAt ?? ctx.now;
-    await upsertMemoComment(ctx.db, { ...incoming, userId: ctx.userId, rev: current.rev + 1, updatedAt: deletedAt, deletedAt });
-    await appendSyncLog(ctx.db, ctx.userId, "memo_comment", incoming.id, "delete", current.rev + 1, 0, ctx.now);
-    await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", incoming.id, "applied", current.rev + 1, 0, null, ctx.now);
+    // 删除根评论时同批级联墓碑其全部回复（G8：删父不留活子）；回复墓碑随 sync_log 下发，
+    // 其他设备据此清理本地线程。单 batch 保证根与回复的删除原子生效。
+    const statements: D1PreparedStatement[] = [
+      upsertMemoCommentStatement(ctx.db, { ...incoming, userId: ctx.userId, rev: current.rev + 1, updatedAt: deletedAt, deletedAt }),
+      appendSyncLogStatement(ctx.db, ctx.userId, "memo_comment", incoming.id, "delete", current.rev + 1, 0, ctx.now),
+    ];
+    for (const child of await readMemoCommentChildren(ctx.db, ctx.userId, incoming.id)) {
+      statements.push(markMemoCommentDeletedStatement(ctx.db, ctx.userId, child.id, deletedAt));
+      statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "memo_comment", child.id, "delete", child.rev + 1, 0, ctx.now));
+    }
+    statements.push(recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "memo_comment", incoming.id, "applied", current.rev + 1, 0, null, ctx.now));
+    await commitWrites(ctx.db, statements);
     return { operationId: operation.operationId, result: "applied", rev: current.rev + 1, metaRev: 0 };
   }
   if (current && (current.rev > incoming.rev || (current.rev === incoming.rev && current.updated_at >= incoming.updatedAt))) {
     return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: 0, contentHash: null };
   }
   const comment = { ...incoming, parentId: incoming.parentId ?? null, userId: ctx.userId, rev: Math.max(incoming.rev, (current?.rev ?? 0) + 1), deletedAt: null };
-  await upsertMemoComment(ctx.db, comment);
+  await upsertMemoCommentStatement(ctx.db, comment).run();
   await appendSyncLog(ctx.db, ctx.userId, "memo_comment", comment.id, "upsert", comment.rev, 0, ctx.now);
   await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "memo_comment", comment.id, "applied", comment.rev, 0, null, ctx.now);
   return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };

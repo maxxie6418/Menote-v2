@@ -43,17 +43,19 @@ export async function putItemWraps(db: D1Database, userId: string, itemId: strin
 
 export async function readItemWrapGroups(db: D1Database, userId: string, itemIds: string[]): Promise<Array<{ itemId: string; wraps: KeyWrap[] }>> {
   if (itemIds.length === 0) return [];
-  const placeholders = itemIds.map(() => "?").join(",");
-  const rows = await db.prepare(
-    `SELECT item_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM item_key_wraps
-     WHERE user_id = ? AND item_id IN (${placeholders})`,
-  ).bind(userId, ...itemIds).all<WrapRow & { item_id: string }>();
   const groups = new Map<string, KeyWrap[]>();
-  for (const row of rows.results) {
-    const itemId = row.item_id;
-    const group = groups.get(itemId) ?? [];
-    group.push(toKeyWrap(row));
-    groups.set(itemId, group);
+  for (let index = 0; index < itemIds.length; index += 90) {
+    const chunk = itemIds.slice(index, index + 90);
+    const rows = await db.prepare(
+      `SELECT item_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM item_key_wraps
+       WHERE user_id = ? AND item_id IN (${chunk.map(() => "?").join(",")})`,
+    ).bind(userId, ...chunk).all<WrapRow & { item_id: string }>();
+    for (const row of rows.results) {
+      const itemId = row.item_id;
+      const group = groups.get(itemId) ?? [];
+      group.push(toKeyWrap(row));
+      groups.set(itemId, group);
+    }
   }
   return [...groups.entries()].map(([itemId, wraps]) => ({ itemId, wraps }));
 }
@@ -75,18 +77,20 @@ export async function putTopicWraps(db: D1Database, userId: string, topicId: str
 
 export async function readTopicWrapGroups(db: D1Database, userId: string, topicIds: string[]): Promise<Array<{ topicId: string; wraps: KeyWrap[] }>> {
   if (topicIds.length === 0) return [];
-  const placeholders = topicIds.map(() => "?").join(",");
-  const rows = await db.prepare(
-    `SELECT topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM topic_key_wraps
-     WHERE user_id = ? AND topic_id IN (${placeholders})
-     ORDER BY topic_id, wrapper`,
-  ).bind(userId, ...topicIds).all<WrapRow & { topic_id: string }>();
   const groups = new Map<string, KeyWrap[]>();
-  for (const row of rows.results) {
-    const topicId = row.topic_id;
-    const group = groups.get(topicId) ?? [];
-    group.push(toKeyWrap(row));
-    groups.set(topicId, group);
+  for (let index = 0; index < topicIds.length; index += 90) {
+    const chunk = topicIds.slice(index, index + 90);
+    const rows = await db.prepare(
+      `SELECT topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM topic_key_wraps
+       WHERE user_id = ? AND topic_id IN (${chunk.map(() => "?").join(",")})
+       ORDER BY topic_id, wrapper`,
+    ).bind(userId, ...chunk).all<WrapRow & { topic_id: string }>();
+    for (const row of rows.results) {
+      const topicId = row.topic_id;
+      const group = groups.get(topicId) ?? [];
+      group.push(toKeyWrap(row));
+      groups.set(topicId, group);
+    }
   }
   return [...groups.entries()].map(([topicId, wraps]) => ({ topicId, wraps }));
 }

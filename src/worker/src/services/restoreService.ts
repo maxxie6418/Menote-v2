@@ -2,8 +2,10 @@ import type { Item, MemoComment, TopicNode } from "@menote/shared";
 import { decodeBackupRow, wrapFieldToBase64 } from "@menote/shared";
 import { readSettingRev, restoreSettingStatement } from "../db/backup";
 import { itemWrapStatements, topicWrapStatements } from "../db/keyWraps";
-import { appendSyncLogStatement, rowToItem, upsertItemRowStatement, upsertTopicRowStatement } from "../db/sync";
-import { readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoCommentStatement } from "../db/memoComments";
+import { appendSyncLogStatement, readItemState, rowToItem, upsertItemRowStatement, upsertTopicRowStatement } from "../db/sync";
+import {
+  readMemoCommentParentState, readMemoCommentState, readMemoOwnerState, rowToMemoComment, upsertMemoCommentStatement,
+} from "../db/memoComments";
 
 /**
  * 恢复导入服务（FR-BAK-9 工具侧）：接受备份分片条目与包装块，按 id 合并（rev 高者胜）。
@@ -34,7 +36,7 @@ export async function importBackupEntries(
   settings: unknown[] | null,
   now: number,
 ): Promise<ImportResult> {
-  const skipped = Math.max(0, entries.length - MAX_IMPORT_ENTRIES);
+  const overLimit = Math.max(0, entries.length - MAX_IMPORT_ENTRIES);
   const limited = entries.slice(0, MAX_IMPORT_ENTRIES);
   const itemWrapRows = (itemKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
   const topicWrapRows = (topicKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
@@ -50,6 +52,7 @@ export async function importBackupEntries(
   let items = 0;
   let topics = 0;
   let memoComments = 0;
+  let skipped = overLimit;
   const restoredCommentRows: MemoComment[] = [];
   const restoredMemoIds = new Set<string>();
   for (const entry of limited) {
@@ -58,6 +61,13 @@ export async function importBackupEntries(
     const row = decodeBackupRow(record.data as Record<string, unknown>);
     if (record.kind === "item") {
       const item = rowToItem(row) as Item;
+      // 按 id 合并以版本通道为准（rev，其次 meta_rev）：服务端已有更新版本时跳过，
+      // 避免旧备份把新内容打回且 rev 取 MAX 后版本号失真（FR-BAK-9）。
+      const current = await readItemState(ctx.db, ctx.userId, item.id);
+      if (current && (item.rev < current.rev || (item.rev === current.rev && item.metaRev <= current.metaRev))) {
+        skipped += 1;
+        continue;
+      }
       if (item.type === "memo") restoredMemoIds.add(item.id);
       statements.push(upsertItemRowStatement(ctx.db, ctx.userId, "restore", item, item.rev, item.metaRev));
       statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", item.rev, item.metaRev, now));
@@ -73,17 +83,39 @@ export async function importBackupEntries(
   }
 
   restoredCommentRows.sort((a, b) => Number(Boolean(a.parentId)) - Number(Boolean(b.parentId)) || a.createdAt - b.createdAt);
+  // 回复的父评论必须在本批先写入，或已在库且结构可用；不满足则跳过该回复——
+  // 分片恢复、超限截断与历史级联缺口都会把父子切开，不能让单条孤儿回复
+  // 触发 0038 触发器 ABORT 而回滚整批（此前整批 items/topics/settings 一并失败）。
+  const writtenComments = new Map<string, { memoId: string; isRoot: boolean }>();
   for (const comment of restoredCommentRows) {
+    if (comment.parentId) {
+      const inBatch = writtenComments.get(comment.parentId);
+      let parentAvailable = inBatch !== undefined
+        && inBatch.memoId === comment.memoId && inBatch.isRoot;
+      if (!parentAvailable && inBatch === undefined) {
+        const parentRow = await readMemoCommentParentState(ctx.db, ctx.userId, comment.parentId);
+        parentAvailable = parentRow !== null && parentRow.memo_id === comment.memoId && parentRow.parent_id === null
+          && (parentRow.deleted_at === null || comment.deletedAt !== null);
+      }
+      if (!parentAvailable) {
+        skipped += 1;
+        continue;
+      }
+    }
     const owner = restoredMemoIds.has(comment.memoId)
       ? { type: "memo" }
       : await readMemoOwnerState(ctx.db, ctx.userId, comment.memoId);
-    if (!owner || owner.type !== "memo") continue;
+    if (!owner || owner.type !== "memo") {
+      skipped += 1;
+      continue;
+    }
     const current = await readMemoCommentState(ctx.db, ctx.userId, comment.id);
     if (current && comment.rev <= current.rev) continue;
     statements.push(upsertMemoCommentStatement(ctx.db, comment));
     statements.push(appendSyncLogStatement(ctx.db, ctx.userId, "memo_comment", comment.id,
       comment.deletedAt === null ? "upsert" : "delete", comment.rev, 0, now));
     memoComments += 1;
+    writtenComments.set(comment.id, { memoId: comment.memoId, isRoot: comment.parentId === null });
   }
 
   const wrapsByItem = groupWraps(itemWrapRows, "item_id");

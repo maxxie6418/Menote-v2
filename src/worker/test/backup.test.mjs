@@ -134,3 +134,37 @@ test("restore rejects garbage key wraps and accepts explicit base64", async () =
     assert.equal(page.wraps.find((group) => group.itemId === "enc1").wraps[0].kdfSalt, salt);
   });
 });
+
+test("restore skips orphaned replies instead of failing the whole batch", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const response = await json(mf, cookie, "POST", "/api/restore", { entries: [
+      { kind: "item", data: { id: "orphan-memo", type: "memo", topic_id: null, group_id: null, title: null, content_markdown: "memo", content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev: 1, meta_rev: 0, content_hash: "h", pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1, updated_at: 1, deleted_at: null } },
+      { kind: "memo_comment", data: { id: "orphan-root", user_id: "x", memo_id: "orphan-memo", content_markdown: "root", rev: 1, created_at: 1, updated_at: 1, deleted_at: null } },
+      { kind: "memo_comment", data: { id: "orphan-reply", user_id: "x", memo_id: "orphan-memo", parent_id: "missing-parent", content_markdown: "reply", rev: 1, created_at: 2, updated_at: 2, deleted_at: null } },
+    ] });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.memoComments, 1, "根评论正常导入");
+    assert.equal(body.skipped, 1, "孤儿回复跳过并计数");
+    const db = await mf.getD1Database("DB");
+    const reply = await db.prepare("SELECT id FROM memo_comments WHERE id = 'orphan-reply'").first();
+    assert.equal(reply, null);
+    const root = await db.prepare("SELECT content_markdown FROM memo_comments WHERE id = 'orphan-root'").first();
+    assert.equal(root.content_markdown, "root");
+  });
+});
+
+test("restore does not roll newer content back to an older backup revision", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const row = (rev, markdown) => ({ id: "rev-item", type: "note", topic_id: null, group_id: null, title: "t", content_markdown: markdown, content_ciphertext: null, tags_json: "[]", attachment_hashes_json: "[]", status: null, source: "manual", rev, meta_rev: 0, content_hash: `h-${markdown}`, pinned: 0, starred: 0, enc_self: 0, in_enc_space: 0, created_at: 1, updated_at: 1, deleted_at: null });
+    await json(mf, cookie, "POST", "/api/restore", { entries: [{ kind: "item", data: row(5, "新版正文") }] });
+    const second = await json(mf, cookie, "POST", "/api/restore", { entries: [{ kind: "item", data: row(3, "旧版正文") }] });
+    assert.equal(second.status, 200);
+    assert.deepEqual(await second.json(), { ok: true, items: 0, topics: 0, memoComments: 0, topicWraps: 0, settings: 0, skipped: 1 });
+    const db = await mf.getD1Database("DB");
+    const item = await db.prepare("SELECT content_markdown, rev FROM items WHERE id = 'rev-item'").first();
+    assert.deepEqual(item, { content_markdown: "新版正文", rev: 5 });
+  });
+});

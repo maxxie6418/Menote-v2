@@ -35,6 +35,9 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
       setTags([]);
       setError(null);
       setExpanded(false);
+    } catch {
+      // 保存失败保留草稿与标签，给出可见反馈（不静默吞错）。
+      setError("Memo 保存失败，请重试。");
     } finally {
       setBusy(false);
     }

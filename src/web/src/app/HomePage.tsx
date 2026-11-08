@@ -5,6 +5,7 @@ import type { BrowseSection } from "../services/contentHooks";
 import { useHomeSnapshot, useLocalSearch, useRecentItems } from "../services/contentHooks";
 import { createMemo } from "../services/contentService";
 import { uploadAttachment } from "../services/attachmentService";
+import { alwaysHiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { insertAttachment } from "../features/editor";
 
 interface HomePageProps {
@@ -16,6 +17,13 @@ function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   if (date.toDateString() === new Date().toDateString()) return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+}
+
+/** 顶部时间牌自带秒级步进：秒针只重渲染这块，不拖动整页（问候/统计走父级分钟级时钟）。 */
+function HomeStamp() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(timer); }, []);
+  return <div className="mn-home-stamp"><time>{now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</time><span>{now.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>;
 }
 
 export function HomePage({ userId, username, onCreateNote, onCreateTable, onImportMarkdown, onOpenItem, onNavigate }: HomePageProps) {
@@ -38,7 +46,7 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
     const layout = document.querySelector<HTMLElement>(".mn-shell")?.dataset.layout;
     if (layout === "full" || layout === "compact") memoInputRef.current?.focus({ preventScroll: true });
   }, []);
-  useEffect(() => { const timer = window.setInterval(() => setClock(new Date()), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setClock(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !(event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]"))) {
@@ -51,8 +59,8 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
   const searching = query.trim().length > 0;
   const snapshot = useHomeSnapshot(userId);
   const recent = useRecentItems(userId);
-  const privateRoots = new Set(snapshot.topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
-  const privateIds = new Set(snapshot.topics.filter((topic) => topic.isEncSpace || (topic.parentId !== null && privateRoots.has(topic.parentId))).map((topic) => topic.id));
+  // 私人空间无论锁定与否都不进首页最近列表与搜索结果（与 Memo 侧栏、移动端同一口径）。
+  const privateIds = alwaysHiddenPrivateTopicIds(snapshot.topics);
   const visible = (item: Item) => item.topicId === null || !privateIds.has(item.topicId);
   const documents = snapshot.items.filter((item) => item.type !== "memo" && visible(item));
   const memos = snapshot.items.filter((item) => item.type === "memo" && visible(item));
@@ -112,7 +120,7 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
     <div className="mn-home-scroll"><div className="mn-home-layout">
       <section className="mn-home-main">
         {!searching && <>
-          <div className="mn-home-stamp"><time>{clock.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</time><span>{clock.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>
+          <HomeStamp />
           <h1 className="mn-home-greeting">{greeting}，<b>{username.slice(0, 1)}</b>。想记点什么？</h1>
           <form className="mn-home-capture" onSubmit={saveMemo}>
             <textarea ref={memoInputRef} aria-label="快速记录 Memo" placeholder="随手写。这里不会显示任何历史内容。" value={memoDraft} disabled={memoUploading} onChange={(event) => { setMemoDraft(event.target.value); setMemoSaved(false); }} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
@@ -126,7 +134,7 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
           <section className="mn-home-recent" aria-label="最近文档"><div className="mn-home-recent-heading"><span>最近文档</span><button type="button" onClick={() => onNavigate({ kind: "recent" })}>全部 {documents.length} 篇</button></div>
             {recentDocuments.length ? recentDocuments.map((item) => <button type="button" className="mn-home-document" key={item.id} onClick={() => onOpenItem(item)}><span className="mn-home-document-icon">{item.type === "table" ? <Table2 /> : <FilePlus2 />}</span><span className="mn-home-document-title">{item.title || "无标题"}</span><time>{formatTime(item.updatedAt)}</time></button>) : <p className="mn-home-empty">还没有最近编辑的文档</p>}
           </section>
-          <section className={`mn-home-history${historyOpen ? " is-open" : ""}`}><div><LockKeyhole /><span>最近随记 · <b>{recentMemos.length ? `${memos.length} 条已隐藏` : "暂无随记"}</b></span><button type="button" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}>{historyOpen ? "隐藏" : "显示"}</button></div>
+          <section className={`mn-home-history${historyOpen ? " is-open" : ""}`}><div><LockKeyhole /><span>最近随记 · <b>{recentMemos.length ? `共 ${memos.length} 条` : "暂无随记"}</b></span><button type="button" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}>{historyOpen ? "隐藏" : "显示"}</button></div>
             {historyOpen && <ul>{recentMemos.map((item) => <li key={item.id}><time>{formatTime(item.createdAt)}</time><button type="button" onClick={() => onOpenItem(item)}>{item.content.scope === "plain" ? item.content.markdown || "（空白随记）" : "已加密"}</button></li>)}</ul>}
           </section>
         </>}

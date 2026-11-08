@@ -169,3 +169,36 @@ test("Note marginalia round-trips in frontmatter without changing properties or 
   assert.deepEqual(fm.readNoteMarginalia(removed), []);
   assert.equal(fm.parseFrontmatterData(removed).status, "draft");
 });
+
+test("frontmatter 往返不累积正文空行（页边注/属性写入幂等）", () => {
+  const source = `---\ntitle: 记录\n---\n\n正文第一行\n`;
+  const annotation = { id: "m-1", quote: "正文", note: "注", createdAt: 1 };
+  let markdown = fm.writeNoteMarginalia(source, [annotation]);
+  const once = markdown;
+  for (let index = 0; index < 4; index += 1) markdown = fm.writeNoteMarginalia(markdown, [annotation]);
+  assert.equal(markdown, once, "重复写页边注不得给正文加空行");
+  assert.match(markdown, /^---\n[\s\S]*\n---\n\n正文第一行\n$/);
+  // 属性写入同链路：join∘split 幂等
+  const joined = fm.joinFrontmatter(fm.splitFrontmatter(source).frontText, fm.splitFrontmatter(source).body);
+  assert.equal(joined, source);
+  const rewritten = fm.writeValue(source, "title", "新标题");
+  assert.match(rewritten, /\n---\n\n正文第一行\n$/);
+  assert.equal(fm.writeValue(rewritten, "title", "新标题"), rewritten);
+});
+
+test("writeNoteMarginalia 拒绝标量 frontmatter 并按契约报错，删空不残留空映射", () => {
+  const scalar = `---\njust a line of text\n---\n\n正文`;
+  assert.throws(() => fm.writeNoteMarginalia(scalar, [{ id: "m", quote: "q", note: "n", createdAt: 1 }]), /invalid_frontmatter/);
+  assert.equal(fm.writeNoteMarginalia(scalar, []), scalar);
+  const onlyMarginalia = `---\nmenote_marginalia:\n  - id: m\n    quote: q\n    note: n\n    createdAt: 1\n---\n\n正文`;
+  const removed = fm.writeNoteMarginalia(onlyMarginalia, []);
+  assert.equal(removed, "正文", "删空后不得残留 ---\n{}---");
+  assert.deepEqual(fm.readNoteMarginalia(removed), []);
+});
+
+test("renameProp 拒绝改名为系统保留键", () => {
+  const source = `---\nprops:\n  status:\n    type: text\nstatus: draft\n---\n\n正文`;
+  for (const reserved of ["menote_marginalia", "props", "fields"]) {
+    assert.equal(fm.renameProp(source, fm.PROPS_KEY, "status", reserved), source, `保留键 ${reserved} 不可占用`);
+  }
+});

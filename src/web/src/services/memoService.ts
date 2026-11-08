@@ -66,8 +66,11 @@ export function deleteMemoComment(userId: string, commentId: string): Promise<vo
     const current = await getMemoComment(userId, commentId);
     if (!current || current.deletedAt !== null) return;
     const now = Date.now();
-    const targets = current.parentId ? [current] : [current, ...(await listMemoComments(userId, current.memoId)).filter((row) => row.parentId === current.id)];
     await localDb.transaction("rw", localDb.memoComments, localDb.outbox, async () => {
+      // 级联目标在事务内读取：pull 的 bulkPut 落在事务外，窗口内新到的回复也能一并清理。
+      const targets = current.parentId
+        ? [current]
+        : [current, ...(await listMemoComments(userId, current.memoId)).filter((row) => row.parentId === current.id)];
       for (const target of targets) {
         const next = { ...target, rev: target.rev + 1, updatedAt: now, deletedAt: now };
         await putMemoComment(next);

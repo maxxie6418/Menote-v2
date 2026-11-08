@@ -27,8 +27,13 @@ export async function storeAttachment(ctx: AttachmentStoreContext, userId: strin
     await upsertAttachment(ctx.db, userId, sha256, body.byteLength, mime);
   } catch (error) {
     // Compensate only newly-created objects; never remove a prior valid object on metadata failure.
-    if (!existed) {
+    // 并发同内容上传（或引用对齐补行）可能在补偿前提交元数据行：删除对象前后各查一次，
+    // 若行已出现则把对象放回，避免把对方的引用删成断链；残余窗口由下次同内容上传自愈。
+    if (!existed && await getAttachment(ctx.db, userId, sha256) === null) {
       try { await ctx.bucket.delete(key); } catch { /* orphan cleanup will reconcile transient R2 failures */ }
+      if (await getAttachment(ctx.db, userId, sha256) !== null) {
+        try { await ctx.bucket.put(key, body); } catch { /* 对象缺失由下次同内容上传或 30 天孤儿清理兜底 */ }
+      }
     }
     throw error;
   }

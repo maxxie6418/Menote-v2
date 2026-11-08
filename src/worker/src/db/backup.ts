@@ -158,17 +158,3 @@ export async function readSettingRev(db: D1Database, userId: string, key: string
     .bind(userId, key).first<{ rev: number }>();
   return row?.rev ?? null;
 }
-
-export async function restoreSettingRow(
-  db: D1Database, userId: string, row: Record<string, unknown>,
-): Promise<boolean> {
-  const statement = restoreSettingStatement(db, userId, row);
-  if (!statement) return false;
-  const key = String(row.key);
-  const rev = Number(row.rev ?? 0);
-  const current = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
-    .bind(userId, key).first<{ rev: number }>();
-  if (current && current.rev > rev) return false;
-  await statement.run();
-  return true;
-}

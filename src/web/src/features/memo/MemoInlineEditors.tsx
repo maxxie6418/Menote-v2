@@ -10,6 +10,7 @@ export function MemoCommentPanel({ userId, username, memoId }: { userId: string;
   const comments = useMemoComments(userId, memoId);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
   const [editing, setEditing] = useState<MemoComment | null>(null);
   const [editValue, setEditValue] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -18,12 +19,16 @@ export function MemoCommentPanel({ userId, username, memoId }: { userId: string;
   const roots = comments.filter((comment) => !comment.parentId);
   const submitComment = (event: React.FormEvent, parentId: string | null = null) => {
     event.preventDefault();
-    const content = draft.trim();
+    // 主评论与回复各用各的草稿：点「回复」不清掉主框里未提交的评论，两边内容也不再互相同步。
+    const content = (parentId ? replyDraft : draft).trim();
     if (!content) return;
     setSaving(true);
     setActionError(null);
     void addMemoComment(userId, memoId, content, parentId)
-      .then(() => { setDraft(""); setReplyTo(null); })
+      .then(() => {
+        if (parentId) { setReplyDraft(""); setReplyTo(null); }
+        else setDraft("");
+      })
       .catch(() => setActionError("评论未能保存，请检查本地存储后重试。"))
       .finally(() => setSaving(false));
   };
@@ -65,7 +70,7 @@ export function MemoCommentPanel({ userId, username, memoId }: { userId: string;
                 </div>
               </div>
             ) : <MarkdownView markdown={comment.content} className="mn-memo-comment-content" />}
-            <button type="button" className="mn-memo-comment-reply" onClick={() => { setReplyTo(replyTo === comment.id ? null : comment.id); setDraft(""); }}>回复</button>
+            <button type="button" className="mn-memo-comment-reply" onClick={() => { setReplyTo(replyTo === comment.id ? null : comment.id); setReplyDraft(""); }}>回复</button>
             {comments.filter((reply) => reply.parentId === comment.id).map((reply) => (
               <article className="mn-memo-comment mn-memo-comment-child" key={reply.id}>
                 <div className="mn-memo-comment-head"><strong className="mn-memo-comment-author">{username}</strong><time>{new Date(reply.createdAt).toLocaleString()}</time>{reply.updatedAt > reply.createdAt && <span>已编辑</span>}
@@ -77,7 +82,7 @@ export function MemoCommentPanel({ userId, username, memoId }: { userId: string;
                 {editing?.id === reply.id ? <div className="mn-memo-comment-edit"><textarea autoFocus aria-label="编辑回复" value={editValue} onChange={(event) => setEditValue(event.target.value)} /><div><button type="button" onClick={() => setEditing(null)}>取消</button><button type="button" disabled={saving} onClick={() => { setSaving(true); void editMemoComment(userId, reply.id, editValue).then(() => setEditing(null)).catch(() => setActionError("回复未能保存，请重试。")).finally(() => setSaving(false)); }}>保存</button></div></div> : <MarkdownView markdown={reply.content} className="mn-memo-comment-content" />}
               </article>
             ))}
-            {replyTo === comment.id && <form className="mn-memo-comment-compose" onSubmit={(event) => submitComment(event, comment.id)}><textarea autoFocus aria-label="写下回复" placeholder="回复这条评论…" value={draft} onChange={(event) => setDraft(event.target.value)} /><button type="submit" aria-label="发送回复" disabled={!draft.trim() || saving}><ArrowUp /></button></form>}
+            {replyTo === comment.id && <form className="mn-memo-comment-compose" onSubmit={(event) => submitComment(event, comment.id)}><textarea autoFocus aria-label="写下回复" placeholder="回复这条评论…" value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} /><button type="submit" aria-label="发送回复" disabled={!replyDraft.trim() || saving}><ArrowUp /></button></form>}
           </article>
         ))}
         {roots.length === 0 && <p className="mn-memo-comments-empty">还没有评论。</p>}
@@ -95,6 +100,7 @@ export function MemoQuotePanel({ userId, memo, onCreated, onCancel }: {
 }) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
   const [tags, setTags] = useState<string[]>(memo.tags);
   const availableTags = useAllTags(userId);
   return (
@@ -108,12 +114,14 @@ export function MemoQuotePanel({ userId, memo, onCreated, onCancel }: {
         <span>标签</span>
         {availableTags.map((tag) => <button key={tag} type="button" aria-pressed={tags.includes(tag)} onClick={() => setTags((current) => current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag])}>#{tag}</button>)}
       </div>}
+      {error && <p className="mn-memo-action-error" role="alert">引述发布失败，请重试。</p>}
       <footer className="mn-memo-quote-footer">
         <span>发布即冻结原文</span>
         <button type="button" onClick={onCancel}>取消</button>
         <button type="button" disabled={!draft.trim() || saving} onClick={() => {
           setSaving(true);
-          void createQuoteMemo(userId, memo, draft.trim(), tags).then(onCreated).finally(() => setSaving(false));
+          setError(false);
+          void createQuoteMemo(userId, memo, draft.trim(), tags).then(onCreated).catch(() => setError(true)).finally(() => setSaving(false));
         }}>发布</button>
       </footer>
     </div>

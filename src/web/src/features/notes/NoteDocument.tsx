@@ -123,6 +123,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "m") return;
       if (item?.type !== "note" || item.content.scope !== "plain") return;
+      // 检查器（含批注输入框）里的选区不是正文：与鼠标路径同样排除，避免把批注文字抓成引述。
+      if (event.target instanceof Element && event.target.closest(".mn-doc-inspector")) return;
       const quote = readSelectedQuote(event.target);
       if (!quote) return;
       event.preventDefault();
@@ -319,6 +321,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
   // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
   const plainMarkdown = item?.content.scope === "plain" ? item.content.markdown : "";
+  // 页边注与字数统计随 draft 缓存：键入只递增 dirtyTick，不再每次重渲染都全量解析 YAML。
+  const docSplit = useMemo(() => splitFrontmatter(draft ?? plainMarkdown), [draft, plainMarkdown]);
+  const docMarginalia = useMemo(
+    () => (item?.type === "note" ? readNoteMarginalia(draft ?? plainMarkdown) : []),
+    [item?.type, draft, plainMarkdown],
+  );
   const clipSource = clipSourceFromMarkdown(draft ?? plainMarkdown);
 
   useEffect(() => {
@@ -467,8 +475,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
   const plain = item.content;
   const isTableDoc = item.type === "table";
-  const marginalia = isTableDoc ? [] : readNoteMarginalia(draft ?? plain.markdown);
-  const contentCharacters = splitFrontmatter(draft ?? plain.markdown).body.length;
+  const marginalia = docMarginalia;
+  const contentCharacters = docSplit.body.length;
   const itemPlace = item.topicId ? topics.find((row) => row.id === item.topicId)?.name : item.source === "manual" ? "草稿箱" : "收件箱";
   const groupPlace = item.groupId ? topics.find((row) => row.id === item.groupId)?.name : null;
   const documentCrumb = [itemPlace || crumb, groupPlace, title ?? item.title].filter(Boolean).join(" / ");
