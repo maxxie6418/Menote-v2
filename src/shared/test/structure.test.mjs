@@ -93,3 +93,27 @@ test("Worker SQL stays in db and style values stay in tokens", async () => {
   }
   assert.deepEqual(findings, []);
 });
+
+test("style var() references resolve to a defined token", async () => {
+  const cssFiles = files.filter((file) => file.startsWith(path.join(sourceRoot, "web")) && file.endsWith(".css"));
+  const texts = [];
+  for (const file of cssFiles) texts.push([relative(file), await readFile(file, "utf8")]);
+  const defined = new Set();
+  for (const [, text] of texts) {
+    for (const match of text.matchAll(/(--[a-zA-Z0-9-]+)[ \t]*:/g)) defined.add(match[1]);
+  }
+  // JS 运行时注入的自定义属性（setProperty）在 CSS 里没有定义点，从源码收集。
+  for (const file of files.filter((file) => file.startsWith(path.join(sourceRoot, "web")) && /\.tsx?$/.test(file))) {
+    const text = await readFile(file, "utf8");
+    for (const match of text.matchAll(/setProperty\(\s*["'`](--[a-zA-Z0-9-]+)/g)) defined.add(match[1]);
+  }
+  const findings = [];
+  for (const [rel, text] of texts) {
+    // 带 fallback 的 var() 是显式的可选钩子（如 --app-canvas-bg），不在强制定义之列。
+    for (const match of text.matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*([,)])/g)) {
+      if (match[2] === ",") continue;
+      if (!defined.has(match[1])) findings.push(`${rel}: undefined token ${match[1]}`);
+    }
+  }
+  assert.deepEqual(findings, []);
+});

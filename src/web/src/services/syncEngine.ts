@@ -165,6 +165,12 @@ async function handleResult(row: OutboxRow, result: SyncOperationResult): Promis
     if (row.entity === "item" && row.action === "delete" && result.code === "entity_missing") {
       return deleteOutboxRows([row.seq!]);
     }
+    // 评论仅在 Memo 物理清除时级联删除：软删 Memo 下再删评论会被服务端拒绝（entity_missing /
+    // memo_unavailable），但删除目标状态已满足，同样清队而不是死信（回复级联会放大死信行数）。
+    if (row.entity === "memo_comment" && row.action === "delete"
+      && (result.code === "entity_missing" || result.code === "memo_unavailable")) {
+      return deleteOutboxRows([row.seq!]);
+    }
     // unavailable 是存储故障，退避重试；确定性拒绝才死信。
     if (result.code === "unavailable") return markOutboxError(row.seq!, "unavailable", backoffMs(row.retries));
     return markOutboxError(row.seq!, `rejected:${result.code}`, Number.MAX_SAFE_INTEGER);

@@ -64,10 +64,13 @@
   --app-weight-serif: 500;
   --app-weight-medium: 600;
   --app-leading-nav: 1.2;
+  --app-leading-body: 1.6;
+  --app-leading-title: 1.2;
   --app-leading-meta: 1.6;
   --app-leading-summary: 1.55;
   --app-leading-list-title: 1.45;
   --app-leading-doc-title: 1.32;
+  --app-leading-editor: 1.7;
   /* 字号档位（DESIGN §3.2：9.5/10/10.5/11.5/12/12.5/13.5/14/17/32） */
   --app-font-small: 0.8125rem;
   --app-font-body: 0.875rem;
@@ -78,6 +81,8 @@
   --app-size-sechead: 0.6875rem;   /* 11px 侧栏段标题（主题 / 标签） */
   --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
   --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-body: 0.875rem;       /* 14px 正文 */
+  --app-size-page-title: 2.375rem; /* 38px 页面标题/首页时钟 */
   --app-size-tree-l1: 0.8125rem;   /* 13px 主题树一级 */
   --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
   --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
@@ -183,7 +188,9 @@
   --app-mobile-z-settings: 20;
   --app-mobile-z-settings-dialog: 21;
   /* 间距（DESIGN §1.4：基准 4px，实际只用 4/6/8/10/12/14/18/22/24/34） */
+  --app-space-1: 0.0625rem;
   --app-space-2: 0.125rem;
+  --app-space-3: 0.1875rem;
   --app-space-4: 0.25rem;
   --app-space-5: 0.3125rem;
   --app-space-6: 0.375rem;
@@ -668,38 +675,17 @@
   --app-accent-text: #fffaf5;
   --app-accent-fg: #b82d12;
   --app-accent-subtle: rgba(216, 56, 26, .08);
+  --app-accent-soft: rgba(216, 56, 26, .18);
   --app-link: #2f6287;
   --app-success: #49693f;
   --app-danger: #b3261e;
+  --app-surface-raised: #ffffff;
   --app-paper-bg: #fffdf9;
   --app-paper-fg: #191a17;
   --app-paper-border: #d8d2c2;
   --app-paper-shadow: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .28), 0 .125rem .375rem rgba(60, 50, 30, .08);
   --app-font-serif: Georgia, "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
-  --app-radius-sm: .1875rem;
-  --app-radius-md: .3125rem;
-  --app-radius: .3125rem;
-  --app-radius-lg: .5rem;
-  --app-radius-xl: .75rem;
   --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
-  --app-sidebar-width: 15.5rem;
-  --app-list-width: 16.5rem;
-  --app-list-width-compact: 16.5rem;
-  --app-memo-work-width: 14.5rem;
-  --app-memo-todo-width: 13.5rem;
-  --app-memo-todo-width-compact: 11.75rem;
-  --app-memo-todo-width-tablet: 10.5rem;
-  --app-space-7: .4375rem;
-  --app-space-8: .5rem;
-  --app-space-12: .75rem;
-  --app-space-20: 1.25rem;
-  --app-space-24: 1.5rem;
-  --app-space-26: 1.625rem;
-  --app-space-30: 1.875rem;
-  --app-space-32: 2rem;
-  --app-space-34: 2.125rem;
-  --app-topbar-height: 3.25rem;
-  --app-drawer-width: 17.5rem;
 }
 
 :root:not([data-skin="paper"])[data-theme="dark"] {
@@ -722,9 +708,11 @@
   --app-accent-text: #ffffff;
   --app-accent-fg: #ff7a5e;
   --app-accent-subtle: rgba(255, 90, 60, .13);
+  --app-accent-soft: rgba(255, 90, 60, .26);
   --app-link: #82b0d3;
   --app-success: #9dc08f;
   --app-danger: #ff8a80;
+  --app-surface-raised: #1d1e1b;
   --app-paper-bg: #1b1c19;
   --app-paper-fg: #eae8e2;
   --app-paper-border: #3a3b35;
@@ -733,6 +721,32 @@
 }
 
 :root:not([data-skin="paper"]) {
+  /* v3 几何基线（栏宽/圆角/间距/高度）与主题无关：放在无主题块，
+     深浅主题共用同一套刻度，不再出现切主题变栏宽的漂移。 */
+  --app-radius-xs: .125rem;
+  --app-radius-sm: .1875rem;
+  --app-radius-md: .3125rem;
+  --app-radius: .3125rem;
+  --app-radius-lg: .5rem;
+  --app-radius-xl: .75rem;
+  --app-sidebar-width: 15.5rem;
+  --app-list-width: 16.5rem;
+  --app-list-width-compact: 16.5rem;
+  --app-memo-work-width: 14.5rem;
+  --app-memo-todo-width: 13.5rem;
+  --app-memo-todo-width-compact: 11.75rem;
+  --app-memo-todo-width-tablet: 10.5rem;
+  --app-space-7: .4375rem;
+  --app-space-8: .5rem;
+  --app-space-12: .75rem;
+  --app-space-20: 1.25rem;
+  --app-space-24: 1.5rem;
+  --app-space-26: 1.625rem;
+  --app-space-30: 1.875rem;
+  --app-space-32: 2rem;
+  --app-space-34: 2.125rem;
+  --app-topbar-height: 3.25rem;
+  --app-drawer-width: 17.5rem;
   --app-memo-work-min: 13rem;
   --app-memo-todo-min: 10rem;
   --app-memo-todo-min-compact: 11.75rem;

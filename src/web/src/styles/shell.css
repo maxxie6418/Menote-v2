@@ -643,14 +643,14 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 /* ---------- G5 附件管理 ---------- */
 .mn-attachlist { list-style: none; margin: var(--app-space-sm) var(--app-zero) var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-2); }
 .mn-attachrow { display: flex; align-items: center; gap: var(--app-space-sm); font-size: var(--app-size-chip); }
-.mn-attachthumb { width: var(--app-attach-thumb-size); height: var(--app-attach-thumb-size); flex: 0 0 var(--app-attach-thumb-size); display: grid; place-items: center; overflow: hidden; border: var(--app-border-width) solid var(--app-border); border-radius: var(--app-radius-sm); }
+.mn-attachthumb { width: var(--app-attach-thumb-size); height: var(--app-attach-thumb-size); flex: 0 0 var(--app-attach-thumb-size); display: grid; place-items: center; overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); }
 .mn-attachthumb img { width: var(--app-full-size); height: var(--app-full-size); object-fit: cover; }
 .mn-attachthumb-file { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
 .mn-attachcontent { display: flex; min-width: var(--app-zero); flex: 1; flex-direction: column; gap: var(--app-space-1); }
 .mn-attachname, .mn-attachrefs a { color: var(--app-link); overflow-wrap: anywhere; }
 .mn-attachmeta, .mn-attachrefs { color: var(--app-fg-faint); }
 .mn-attachrefs { overflow-wrap: anywhere; }
-.mn-attach-clean { display: flex; justify-content: flex-end; margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-border-width) solid var(--app-border); }
+.mn-attach-clean { display: flex; justify-content: flex-end; margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-line) solid var(--app-border); }
 
 /* ---------- G6 同步状态指示 ---------- */
 .mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); white-space: nowrap; }
@@ -757,7 +757,7 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-tpl-confirm { display: inline-flex; align-items: center; gap: var(--app-space-6); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
 .mn-tpl-quiet { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-4) var(--app-space-2); cursor: pointer; }
 .mn-tpl-quiet:hover { color: var(--app-fg-muted); text-decoration: underline; text-underline-offset: var(--app-space-2); }
-.mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
+.mn-cliptemplate-json { display: block; width: var(--app-full-size); box-sizing: border-box; margin-block: var(--app-space-sm); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); line-height: var(--app-leading-summary); resize: vertical; }
 .mn-cliptemplate-section { display: flex; flex-direction: column; gap: var(--app-space-sm); margin-block: var(--app-space-md); }
 .mn-cliptemplate-import { display: grid; grid-template-columns: minmax(var(--app-zero), 1fr); gap: var(--app-space-xs); width: var(--app-full-size); }
 .mn-cliptemplate-card { display: flex; flex-direction: column; gap: var(--app-space-xs); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }

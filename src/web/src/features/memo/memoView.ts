@@ -101,13 +101,12 @@ export function memoCalendar(memos: Item[], now = Date.now()) {
   const cursor = new Date(todayStart);
   const todayKey = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
   if (!byDay.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
-  while (days.size || streak === 0) {
+  // 连续记录按 byDay 全量回溯，跨月不断档（1 号没写也能接上个月的连击）；366 天封顶。
+  while (streak < 366) {
     const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
-    const hasMemo = byDay.has(key);
-    if (!hasMemo) break;
+    if (!byDay.has(key)) break;
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
-    if (streak >= 366) break;
   }
   const streakCells = Array.from({ length: 12 }, (_, index) => {
     const day = new Date(todayStart);

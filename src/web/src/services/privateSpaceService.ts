@@ -112,6 +112,16 @@ export function hiddenPrivateTopicIds(topics: TopicNode[]): Set<string> {
   return ids;
 }
 
+/** 无论锁定与否都不进入普通导航/统计的私人空间主题（首页、Memo 侧栏、移动端共用口径）。 */
+export function alwaysHiddenPrivateTopicIds(topics: TopicNode[]): Set<string> {
+  const roots = new Set(topics.filter((topic) => topic.isEncSpace && topic.deletedAt === null).map((topic) => topic.id));
+  const ids = new Set(roots);
+  for (const topic of topics) {
+    if (topic.parentId && roots.has(topic.parentId)) ids.add(topic.id);
+  }
+  return ids;
+}
+
 export function isHiddenPrivateItem(item: Item, topics: TopicNode[]): boolean {
   return item.topicId !== null && hiddenPrivateTopicIds(topics).has(item.topicId);
 }

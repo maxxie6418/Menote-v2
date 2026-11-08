@@ -12,10 +12,15 @@ export function rowToMemoComment(row: Record<string, unknown>, userIdOverride?: 
 
 export async function readMemoComments(db: D1Database, userId: string, ids: string[]): Promise<MemoComment[]> {
   if (ids.length === 0) return [];
-  const rows = await db.prepare(
-    `SELECT * FROM memo_comments WHERE user_id = ? AND id IN (${ids.map(() => "?").join(",")}) AND deleted_at IS NULL`,
-  ).bind(userId, ...ids).all<Record<string, unknown>>();
-  return rows.results.map((row) => rowToMemoComment(row));
+  const results: MemoComment[] = [];
+  for (let index = 0; index < ids.length; index += 90) {
+    const chunk = ids.slice(index, index + 90);
+    const rows = await db.prepare(
+      `SELECT * FROM memo_comments WHERE user_id = ? AND id IN (${chunk.map(() => "?").join(",")}) AND deleted_at IS NULL`,
+    ).bind(userId, ...chunk).all<Record<string, unknown>>();
+    results.push(...rows.results.map((row) => rowToMemoComment(row)));
+  }
+  return results;
 }
 
 export async function readAllMemoComments(db: D1Database, userId: string): Promise<MemoComment[]> {
@@ -27,6 +32,20 @@ export async function readAllMemoComments(db: D1Database, userId: string): Promi
 export async function readMemoCommentState(db: D1Database, userId: string, id: string) {
   return db.prepare("SELECT rev, updated_at, deleted_at FROM memo_comments WHERE user_id = ? AND id = ?")
     .bind(userId, id).first<{ rev: number; updated_at: number; deleted_at: number | null }>();
+}
+
+/** 父评论结构状态（upsert 预检与恢复预检共用，口径与 0038 触发器一致）。 */
+export async function readMemoCommentParentState(db: D1Database, userId: string, id: string) {
+  return db.prepare("SELECT memo_id, parent_id, deleted_at FROM memo_comments WHERE user_id = ? AND id = ?")
+    .bind(userId, id).first<{ memo_id: string; parent_id: string | null; deleted_at: number | null }>();
+}
+
+/** 根评论下的活回复（删除级联用；回复不可再有子级，非根调用返回空）。 */
+export async function readMemoCommentChildren(db: D1Database, userId: string, rootId: string) {
+  const rows = await db.prepare(
+    "SELECT id, rev FROM memo_comments WHERE user_id = ? AND parent_id = ? AND deleted_at IS NULL",
+  ).bind(userId, rootId).all<{ id: string; rev: number }>();
+  return rows.results;
 }
 
 export async function readMemoOwnerState(db: D1Database, userId: string, memoId: string) {
@@ -47,7 +66,9 @@ export async function upsertMemoComment(db: D1Database, comment: MemoComment): P
   await upsertMemoCommentStatement(db, comment).run();
 }
 
-export async function markMemoCommentDeleted(db: D1Database, userId: string, id: string, deletedAt: number): Promise<void> {
-  await db.prepare("UPDATE memo_comments SET deleted_at = ?, updated_at = ?, rev = rev + 1 WHERE user_id = ? AND id = ?")
-    .bind(deletedAt, deletedAt, userId, id).run();
+/** 墓碑一条评论（删除根评论时对其回复级联使用）；UPDATE 不触发父校验触发器。 */
+export function markMemoCommentDeletedStatement(db: D1Database, userId: string, id: string, deletedAt: number): D1PreparedStatement {
+  return db.prepare(
+    "UPDATE memo_comments SET deleted_at = ?, updated_at = ?, rev = rev + 1 WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+  ).bind(deletedAt, deletedAt, userId, id);
 }

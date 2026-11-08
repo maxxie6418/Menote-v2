@@ -1,4 +1,4 @@
-import { Document, parse as parseYaml, parseDocument, type YAMLMap } from "yaml";
+import { Document, parse as parseYaml, parseDocument, YAMLMap } from "yaml";
 
 /**
  * Frontmatter 往返（开放项 #5 定稿 + FR-PROP-5/7）：
@@ -81,8 +81,9 @@ export function splitFrontmatter(markdown: string): { frontText: string | null; 
   const end = markdown.indexOf("\n---", 3);
   if (end === -1) return { frontText: null, body: markdown };
   const frontText = markdown.slice(0, end) + "\n---";
-  const rest = markdown.slice(end + 4);
-  return { frontText, body: rest.startsWith("\n") ? rest.slice(1) : rest };
+  // 闭合围栏后的分隔空行在这里剥净：join 侧恒补一个空行，两侧互逆，
+  // 往返（页边注/属性写入 → 保存）不再逐次给正文累积空行。
+  return { frontText, body: markdown.slice(end + 4).replace(/^\n+/, "") };
 }
 
 /** 把编辑器里的纯正文拼回属性区管理的 frontmatter（FR-PROP-1）。无属性时原样返回正文。 */
@@ -122,6 +123,12 @@ export function writeNoteMarginalia(markdown: string, annotations: NoteMarginali
     ? parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""))
     : new Document({});
   if (document.errors.length > 0) throw new Error("invalid_frontmatter");
+  // 标量/数组形式的 frontmatter 无法在保留原文的前提下扩展映射键：
+  // 读取路径视为无属性，写入路径按契约显式报错（而不是抛 YAML 内部异常）。
+  if (frontText && document.contents !== null && !(document.contents instanceof YAMLMap)) {
+    if (annotations.length === 0) return markdown;
+    throw new Error("invalid_frontmatter");
+  }
   const value = annotations.slice(-500).map(({ id, quote, note, createdAt }) => ({
     id: id.slice(0, 128), quote: quote.slice(0, 4_000), note: note.slice(0, 4_000), createdAt,
   }));
@@ -129,7 +136,8 @@ export function writeNoteMarginalia(markdown: string, annotations: NoteMarginali
   if (value.length > 0) document.set(MARGINALIA_KEY, document.createNode(value));
   else document.delete(MARGINALIA_KEY);
   const serialized = String(document).trimEnd();
-  return serialized ? `---\n${serialized}\n---\n\n${body}` : body;
+  // 删空后序列化会残留空映射 "{}"：视同无属性，直接还原正文。
+  return serialized.length > 0 && serialized !== "{}" ? `---\n${serialized}\n---\n\n${body}` : body;
 }
 
 export function readDefs(markdown: string, namespace: string): Record<string, PropertyDef> {
@@ -150,8 +158,13 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
   return defs;
 }
 
+/** 系统保留键：用户属性不得占用（页边注数据键与两个命名空间）。 */
+const RESERVED_KEYS = new Set([PROPS_KEY, FIELDS_KEY, MARGINALIA_KEY]);
+
 /** 新建 frontmatter（无 frontmatter 时）：写入定义并保持最小结构。 */
 export function createFrontmatter(markdown: string, namespace: string, def: PropertyDef, name: string): string {
+  // 保留键/与命名空间同名会让顶层结构互相覆盖，按「目标已存在不操作」契约原样返回。
+  if (name === namespace || RESERVED_KEYS.has(name)) return markdown;
   const initial: Record<string, unknown> = { [namespace]: { [name]: defNode(def) } };
   if (namespace === PROPS_KEY) initial[name] = emptyPropertyValue(def);
   const doc = new Document(initial);
@@ -182,6 +195,7 @@ function readOptionColors(raw: unknown): Record<string, OptionColor> | undefined
 
 /** 在既有 frontmatter 中写入命名空间定义；无 frontmatter 时新建。 */
 export function writeDef(markdown: string, namespace: string, name: string, def: PropertyDef): string {
+  if (name === namespace || RESERVED_KEYS.has(name)) return markdown;
   const { frontText, body } = splitFrontmatter(markdown);
   if (!frontText) return createFrontmatter(markdown, namespace, def, name);
   const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
@@ -241,7 +255,7 @@ export function removeDef(markdown: string, namespace: string, name: string): st
   if (container.get(name) === undefined) return markdown;
   container.delete(name);
   const serialized = String(doc).trimEnd();
-  if (serialized.length === 0) return body;
+  if (serialized.length === 0 || serialized === "{}") return body;
   return `---\n${serialized}\n---\n\n${body}`;
 }
 
@@ -262,7 +276,7 @@ export function writeValue(markdown: string, key: string, value: string | boolea
     existing.value = value;
   }
   const serialized = String(doc).trimEnd();
-  if (serialized.length === 0) return body;
+  if (serialized.length === 0 || serialized === "{}") return body;
   return `---\n${serialized}\n---\n\n${body}`;
 }
 
@@ -333,7 +347,7 @@ export function restoreProp(markdown: string, previousMarkdown: string, namespac
  * 写新值 → 删旧值 → 迁定义三步走；目标键已存在或源键不存在时原样返回（调用方先行校验并提示）。
  */
 export function renameProp(markdown: string, namespace: string, from: string, to: string): string {
-  if (from === to) return markdown;
+  if (from === to || RESERVED_KEYS.has(to)) return markdown;
   const row = readPropRows(markdown, namespace).find((entry) => entry.key === from);
   if (!row) return markdown;
   if (readPropRows(markdown, namespace).some((entry) => entry.key === to)) return markdown;

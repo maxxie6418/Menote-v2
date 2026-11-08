@@ -81,7 +81,8 @@ test("Memo comments sync one reply level and keep the parent reference", async (
     const invalid = await post(mf, cookie, [memoCommentOp("comment-nested", "memo-thread", "comment-reply", "不允许二级回复")]);
     assert.equal((await invalid.json()).results[0].result, "rejected");
     const deleted = await post(mf, cookie, [memoCommentDeleteOp("comment-root", "memo-thread", null), memoCommentDeleteOp("comment-reply", "memo-thread", "comment-root")]);
-    assert.deepEqual((await deleted.json()).results.map((result) => result.result), ["applied", "applied"]);
+    // 根评论删除已在服务端级联墓碑回复：随后的显式回复删除按幂等收敛为 duplicate。
+    assert.deepEqual((await deleted.json()).results.map((result) => result.result), ["applied", "duplicate"]);
     const rows = await db.prepare("SELECT id, deleted_at FROM memo_comments WHERE id IN (?, ?) ORDER BY id").bind("comment-reply", "comment-root").all();
     assert.equal(rows.results.length, 2);
     assert.ok(rows.results.every((row) => row.deleted_at !== null));
@@ -441,5 +442,71 @@ test("private space topic wraps travel through push and pull (FR-ENC-1)", async 
     const topic = page.topics.find((row) => row.id === topicId);
     assert.equal(topic.isEncSpace, true);
     assert.deepEqual(page.topicWraps, [{ topicId, wraps: [password, recovery] }]);
+  });
+});
+
+test("item/topic upsert is user-scoped: a foreign id collision is rejected, not overwritten", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    await post(mf, cookie, [topicOp("t-owner"), itemOp("i-owner", { rev: 1, markdown: "甲的正文", title: "甲的笔记" })]);
+    // 开放注册后第二个用户推同 id：撞全局主键必须按约束拒绝，不得改写他人行。
+    await req(mf, "/api/auth/registration", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost", cookie },
+      body: JSON.stringify({ open: true }),
+    });
+    const reg = await req(mf, "/api/auth/register", {
+      method: "POST", headers: { "content-type": "application/json", origin: "http://localhost", cookie },
+      body: JSON.stringify({ username: "mallory", password: "mallory-password-1" }),
+    });
+    const mallory = reg.headers.get("set-cookie").split(";")[0];
+    const itemPush = await post(mf, mallory, [itemOp("i-owner", { rev: 1, markdown: "乙的篡改", title: "乙的笔记" })]);
+    const itemResult = (await itemPush.json()).results[0];
+    assert.equal(itemResult.result, "rejected");
+    const topicPush = await post(mf, mallory, [topicOp("t-owner")]);
+    assert.equal((await topicPush.json()).results[0].result, "rejected");
+    const db = await mf.getD1Database("DB");
+    const item = await db.prepare("SELECT content_markdown, title FROM items WHERE id = 'i-owner'").first();
+    assert.deepEqual(item, { content_markdown: "甲的正文", title: "甲的笔记" });
+    const topic = await db.prepare("SELECT name, deleted_at FROM topic_nodes WHERE id = 't-owner'").first();
+    assert.deepEqual(topic, { name: "工作", deleted_at: null });
+  });
+});
+
+test("deleting a root comment cascades tombstones to its replies server-side", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const memo = itemOp("memo-cascade", { rev: 1, markdown: "随记" });
+    memo.payload.item.type = "memo";
+    memo.payload.item.title = null;
+    await post(mf, cookie, [memo, memoCommentOp("c-root", "memo-cascade", null, "根"), memoCommentOp("c-reply", "memo-cascade", "c-root", "回复")]);
+    const response = await post(mf, cookie, [memoCommentDeleteOp("c-root", "memo-cascade", null)]);
+    assert.equal((await response.json()).results[0].result, "applied");
+    const db = await mf.getD1Database("DB");
+    const rows = await db.prepare("SELECT id, deleted_at FROM memo_comments WHERE id IN ('c-root', 'c-reply')").all();
+    assert.equal(rows.results.length, 2);
+    assert.ok(rows.results.every((row) => row.deleted_at !== null), "回复必须随根评论一起墓碑");
+    const log = await db.prepare("SELECT COUNT(*) AS n FROM sync_log WHERE entity = 'memo_comment' AND entity_id = 'c-reply' AND op = 'delete'").first();
+    assert.ok(log.n >= 1, "回复墓碑进 sync_log，其他设备据此清理");
+  });
+});
+
+test("reply parent structure is pre-checked: cross-memo parent rejected, missing parent retriable", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const memoA = itemOp("memo-a", { rev: 1, markdown: "A" });
+    const memoB = itemOp("memo-b", { rev: 1, markdown: "B" });
+    memoA.payload.item.type = "memo";
+    memoB.payload.item.type = "memo";
+    memoA.payload.item.title = null;
+    memoB.payload.item.title = null;
+    await post(mf, cookie, [memoA, memoB, memoCommentOp("c-root-a", "memo-a", null, "A 的根评论")]);
+    // 父评论属于另一条 Memo：显式 invalid_parent（确定性拒绝）
+    const cross = await post(mf, cookie, [memoCommentOp("c-reply-x", "memo-b", "c-root-a", "跨 Memo 回复")]);
+    const crossResult = (await cross.json()).results[0];
+    assert.equal(crossResult.result, "rejected");
+    assert.equal(crossResult.code, "invalid_parent");
+    // 父评论尚未同步：unavailable（暂态，客户端退避重试）
+    const pending = await post(mf, cookie, [memoCommentOp("c-reply-p", "memo-a", "c-missing-root", "父未同步")]);
+    assert.equal((await pending.json()).results[0].code, "unavailable");
   });
 });

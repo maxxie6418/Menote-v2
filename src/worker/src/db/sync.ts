@@ -69,28 +69,39 @@ export function rowToItem(row: Record<string, unknown>): Item {
   };
 }
 
+/** D1 单查询绑定参数上限 100：id 分块查询后内存合并（一页日志可达 200 条）。 */
+export const QUERY_CHUNK_SIZE = 90;
+
 export async function readItems(db: D1Database, userId: string, ids: string[]): Promise<Item[]> {
   if (ids.length === 0) return [];
-  const placeholders = ids.map(() => "?").join(",");
-  const rows = await db.prepare(
-    `SELECT * FROM items WHERE user_id = ? AND id IN (${placeholders})`,
-  ).bind(userId, ...ids).all<Record<string, unknown>>();
-  return rows.results.map(rowToItem);
+  const results: Item[] = [];
+  for (let index = 0; index < ids.length; index += QUERY_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + QUERY_CHUNK_SIZE);
+    const rows = await db.prepare(
+      `SELECT * FROM items WHERE user_id = ? AND id IN (${chunk.map(() => "?").join(",")})`,
+    ).bind(userId, ...chunk).all<Record<string, unknown>>();
+    results.push(...rows.results.map(rowToItem));
+  }
+  return results;
 }
 
 export async function readTopics(db: D1Database, userId: string, ids: string[]): Promise<TopicNode[]> {
   if (ids.length === 0) return [];
-  const placeholders = ids.map(() => "?").join(",");
-  const rows = await db.prepare(
-    `SELECT * FROM topic_nodes WHERE user_id = ? AND id IN (${placeholders})`,
-  ).bind(userId, ...ids).all<Record<string, unknown>>();
-  return rows.results.map((row) => ({
-    id: String(row.id), userId: String(row.user_id),
-    parentId: row.parent_id === null || row.parent_id === undefined ? null : String(row.parent_id),
-    name: String(row.name), depth: Number(row.depth) === 1 ? 1 : 0,
-    isEncSpace: Number(row.is_enc_space) === 1,
-    deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
-  }));
+  const results: TopicNode[] = [];
+  for (let index = 0; index < ids.length; index += QUERY_CHUNK_SIZE) {
+    const chunk = ids.slice(index, index + QUERY_CHUNK_SIZE);
+    const rows = await db.prepare(
+      `SELECT * FROM topic_nodes WHERE user_id = ? AND id IN (${chunk.map(() => "?").join(",")})`,
+    ).bind(userId, ...chunk).all<Record<string, unknown>>();
+    results.push(...rows.results.map((row): TopicNode => ({
+      id: String(row.id), userId: String(row.user_id),
+      parentId: row.parent_id === null || row.parent_id === undefined ? null : String(row.parent_id),
+      name: String(row.name), depth: Number(row.depth) === 1 ? 1 : 0,
+      isEncSpace: Number(row.is_enc_space) === 1,
+      deletedAt: row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+    })));
+  }
+  return results;
 }
 
 export { readAllMemoComments, readMemoComments };
@@ -249,7 +260,7 @@ export function upsertItemRowStatement(
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
        memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (id) DO UPDATE SET
+     ON CONFLICT (user_id, id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
        tags_json = excluded.tags_json, attachment_hashes_json = excluded.attachment_hashes_json, status = excluded.status,
@@ -348,7 +359,7 @@ export function upsertTopicRowStatement(db: D1Database, userId: string, topic: T
   return db.prepare(
     `INSERT INTO topic_nodes (id, user_id, parent_id, name, depth, is_enc_space, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (id) DO UPDATE SET
+     ON CONFLICT (user_id, id) DO UPDATE SET
        parent_id = excluded.parent_id, name = excluded.name, depth = excluded.depth,
        is_enc_space = excluded.is_enc_space, deleted_at = excluded.deleted_at`,
   ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt);

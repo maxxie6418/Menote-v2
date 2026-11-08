@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos, useTopics } from "../../services/contentHooks";
+import { alwaysHiddenPrivateTopicIds } from "../../services/privateSpaceService";
 import { MemoBar, type MemoView } from "./MemoBar";
 import { MemoGallery } from "./MemoGallery";
 import { MemoTimeline } from "./MemoTimeline";
@@ -27,9 +28,7 @@ interface MemoWorkspaceProps {
 export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
   const allMemos = useMemos(userId);
   const topics = useTopics(userId);
-  const privateRoots = new Set(topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
-  const privateTopicIds = new Set(topics.filter((topic) => topic.isEncSpace || (topic.parentId !== null && privateRoots.has(topic.parentId))).map((topic) => topic.id));
-  const memos = allMemos.filter((memo) => memo.topicId === null || !privateTopicIds.has(memo.topicId));
+  const memos = allMemos.filter((memo) => memo.topicId === null || !alwaysHiddenPrivateTopicIds(topics).has(memo.topicId));
   const [range, setRange] = useState<MemoRange>("all");
   const [tag, setTag] = useState<string | null>(null);
   const [view, setView] = useState<MemoView>("timeline");

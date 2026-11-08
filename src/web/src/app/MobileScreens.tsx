@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "lucide-react";
-import type { Item, TopicNode } from "@menote/shared";
+import type { Item } from "@menote/shared";
 import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
 import { isTopicUnlocked } from "../services/keyringService";
-import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
+import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
 import { groupByDay, memoImages, statusLabel, MemoGallery } from "../features/memo";
 import { NoteDocument } from "../features/notes";
@@ -27,11 +27,6 @@ const previewText = (item: Item) => item.content.scope === "plain"
   ? item.content.markdown.replace(/[#>*`\-\[\]!]/g, "").replace(/\s+/g, " ").trim().slice(0, 64)
   : "已加密";
 
-function privateTopicIds(topics: TopicNode[]): Set<string> {
-  const roots = new Set(topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
-  return new Set(topics.filter((topic) => topic.isEncSpace || (topic.parentId !== null && roots.has(topic.parentId))).map((topic) => topic.id));
-}
-
 export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   userId: string; onOpenItem: (item: Item) => void; onOpenSection: (section: NoteSection) => void;
 }) {
@@ -39,7 +34,7 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   const hits = useLocalSearch(userId, query);
   const searching = query.trim().length > 0;
   const { items, topics } = useHomeSnapshot(userId);
-  const hidden = privateTopicIds(topics);
+  const hidden = alwaysHiddenPrivateTopicIds(topics);
   const visible = items.filter((item) => !item.topicId || !hidden.has(item.topicId));
   const favorites = visible.filter((item) => item.starred).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
   const recent = [...visible].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12);
@@ -152,7 +147,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
   const [query, setQuery] = useState("");
   const topics = useTopics(userId);
   const rows = useSectionItems(userId, section) ?? [];
-  const hidden = privateTopicIds(topics);
+  const hidden = alwaysHiddenPrivateTopicIds(topics);
   const visible = rows.filter((item) => !item.topicId || !hidden.has(item.topicId));
   const items = filterItems(visible, query);
   const selected = items.find((item) => item.id === selectedId);
@@ -220,7 +215,7 @@ export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onS
   const topics = useTopics(userId).filter((topic) => topic.deletedAt === null);
   const space = topics.find((topic) => topic.depth === 0 && topic.isEncSpace);
   const roots = topics.filter((topic) => topic.depth === 0 && !topic.isEncSpace).sort((a, b) => a.name.localeCompare(b.name));
-  const allTags = [...new Set(useHomeSnapshot(userId).items.filter((item) => item.type === "memo" || !item.topicId || !privateTopicIds(topics).has(item.topicId)).flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
+  const allTags = [...new Set(useHomeSnapshot(userId).items.filter((item) => item.type === "memo" || !item.topicId || !alwaysHiddenPrivateTopicIds(topics).has(item.topicId)).flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
 
   return <div className="m-sheet-overlay" role="presentation" onClick={onClose}><section className="m-topic-sheet" role="dialog" aria-modal="true" aria-label="主题导航" onClick={(event) => event.stopPropagation()}>
     <header className="m-sheet-head"><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><ArrowLeft /></button><b>主题与标签</b><span className="grow" /><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><X /></button></header>

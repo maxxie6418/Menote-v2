@@ -27,11 +27,15 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: TableRowDetailsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // onClose 走 ref：父组件传内联闭包时，表格数据刷新重渲染会让陷阱 effect 反复重跑、
+  // 把焦点从面板内拽回关闭按钮；与 TagManagerDialog 同一修法。
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); onClose(); }
+      if (event.key === "Escape") { event.preventDefault(); onCloseRef.current(); }
       if (event.key === "Tab") {
         const focusable = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])');
         if (!focusable?.length) return;
@@ -46,7 +50,7 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: Tab
       document.removeEventListener("keydown", onKeyDown);
       if (previous?.isConnected) previous.focus();
     };
-  }, [onClose]);
+  }, []);
   const coverIndex = columns.findIndex((column) => /^(cover|封面)$/i.test(column.trim()));
   const coverUrl = coverIndex >= 0 ? safeWebUrl(cells[coverIndex] ?? "") : null;
   const pageIndex = columns.findIndex((column) => /^(网址|链接|url|source|source_url)$/i.test(column.trim()));
