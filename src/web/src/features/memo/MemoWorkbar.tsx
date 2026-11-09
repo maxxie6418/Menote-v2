@@ -1,6 +1,7 @@
 import { ChevronRight, Zap } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { heatGrid, memoCalendar, memoStats, memoText, onThisDay, tagCounts, type MemoRange } from "./memoView";
+import { MemoViewToggle, type MemoView } from "./MemoBar";
 
 const RANGES: Array<{ id: MemoRange; label: string }> = [
   { id: "all", label: "全部" },
@@ -18,10 +19,12 @@ interface MemoWorkbarProps {
   onWander: () => void;
   onOpen: (memoId: string) => void;
   onClose: () => void;
+  view: MemoView;
+  onView: (view: MemoView) => void;
 }
 
 /** 工作栏：概述、热力图、随机漫步、那年今日、日期、标签。两视图共用，切换时不卸载。 */
-export function MemoWorkbar({ memos, range, tag, onRange, onTag, onWander, onOpen, onClose }: MemoWorkbarProps) {
+export function MemoWorkbar({ memos, range, tag, onRange, onTag, onWander, onOpen, onClose, view, onView }: MemoWorkbarProps) {
   const stats = memoStats(memos);
   const heat = heatGrid(memos);
   const tags = tagCounts(memos);
@@ -36,6 +39,10 @@ export function MemoWorkbar({ memos, range, tag, onRange, onTag, onWander, onOpe
   return (
     <aside className="mn-memo-work" aria-label="Memo 工作栏">
       <button type="button" className="mn-memo-work-close" aria-label="关闭 Memo 侧记栏" onClick={onClose}>关闭</button>
+      <section className="mn-memo-work-block mn-memo-view-block">
+        <h2>视图</h2>
+        <MemoViewToggle view={view} onView={onView} />
+      </section>
       <section className="mn-memo-work-block mn-memo-calendar-block">
         <h2>{calendar.year} 年 {calendar.month + 1} 月</h2>
         <div className="mn-memo-calendar" aria-label="本月 Memo 记录日历">

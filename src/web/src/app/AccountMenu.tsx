@@ -81,6 +81,7 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
   return (
     <>
       <button type="button" ref={triggerRef} className="mn-foot-user" aria-haspopup="menu" aria-expanded={open}
+        aria-label={`账户菜单，${username}（${role === "owner" ? "管理员" : "成员"}）`}
         title={`${username}（${role === "owner" ? "管理员" : "成员"}）`}
         onClick={() => setOpen((value) => !value)}>
         <span className="mn-ava" aria-hidden="true">{username.slice(0, 1).toUpperCase()}</span>

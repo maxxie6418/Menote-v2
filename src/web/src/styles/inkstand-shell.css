@@ -54,6 +54,12 @@
 :root .mn-shell[data-rail="rail"] .mn-quick a svg,
 :root .mn-shell[data-rail="rail"] .mn-queue a svg { width: var(--app-space-14); height: var(--app-space-14); }
 :root .mn-shell[data-rail="rail"] .mn-btn { width: var(--app-space-34); min-height: var(--app-space-32); padding: 0; }
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-btn { font-size: 0; }
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-sidebar .mn-space,
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-sidebar .mn-tree-space { display: none; }
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-foot-user { width: var(--app-space-34); flex: none; justify-content: center; padding-inline: 0; }
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-foot-user .mn-sync,
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"])[data-rail="rail"] .mn-foot-user .mn-foot-version { display: none; }
 :root .mn-shell[data-rail="rail"] .mn-sb-foot { justify-content: center; padding-inline: 0; }
 
 :root .mn-listcol { background: var(--app-surface); }

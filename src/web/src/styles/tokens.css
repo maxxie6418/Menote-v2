@@ -194,10 +194,18 @@
   --app-space-4: 0.25rem;
   --app-space-5: 0.3125rem;
   --app-space-6: 0.375rem;
+  --app-space-7: 0.4375rem;
+  --app-space-8: 0.5rem;
   --app-space-10: 0.625rem;
+  --app-space-12: 0.75rem;
   --app-space-14: 0.875rem;
   --app-space-18: 1.125rem;
+  --app-space-20: 1.25rem;
   --app-space-22: 1.375rem;
+  --app-space-24: 1.5rem;
+  --app-space-26: 1.625rem;
+  --app-space-30: 1.875rem;
+  --app-space-32: 2rem;
   --app-space-34: 2.125rem;
   --app-space-xs: 0.5rem;
   --app-space-sm: 0.75rem;
@@ -238,10 +246,13 @@
   --app-composer-hint-height: 2.125rem;  /* 34px 收起态提示行 */
   --app-composer-open-height: 5.5rem;    /* 88px 展开态 = 提示行 + 间距 + 新建笔记按钮区 */
   --app-composer-action-height: 1.5rem;  /* 24px 展开态操作按钮 */
+  --app-sidebar-composer-open-height: 8.125rem; /* 130px 侧栏展开态，覆盖新建与三项回看入口 */
   --app-composer-cover: calc(var(--app-composer-open-height) - var(--app-composer-hint-height) - var(--app-space-10));
   /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
-  --app-doc-measure: 42rem;
+  --app-doc-measure-narrow: 42rem;
   --app-doc-measure-wide: 56rem;
+  --app-doc-measure-paper-default: 48rem;
+  --app-doc-measure: var(--app-doc-measure-narrow);
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
   --app-icon-2xs: 0.5rem;          /* 8px */
   --app-icon-xs: 0.75rem;          /* 12px */
@@ -290,15 +301,24 @@
   --app-authloading-logo: 6rem;    /* 96px 登录检查屏 logo（与 shell.css 动效幅度成对，见该处注释） */
   --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
   /* Memo workspace dimensions and rendering details (TP5). */
-  --app-memo-timeline-pad-right: 14rem;
-  --app-memo-timeline-pad-left: 15.125rem;
-  --app-memo-axis-left: 18.375rem;
+  --app-memo-timeline-pad-right: 1.125rem;
+  --app-memo-timeline-pad-left: 1.125rem;
   --app-memo-meta-width: 3.25rem;
   --app-memo-dot-left: 3.1rem;
+  --app-memo-dot-center-offset: 0.15625rem;
+  --app-memo-axis-left: calc(var(--app-space-18) + var(--app-memo-dot-left) + var(--app-memo-dot-center-offset));
   --app-memo-dot-top: 1.3rem;
   --app-memo-list-indent: 1.2em;
-  --app-memo-work-width: 13.5rem;
-  --app-memo-todo-width: 12.25rem;
+  --app-memo-work-width: 14.5rem;
+  --app-memo-todo-width: 13.5rem;
+  --app-memo-composer-max: 43.75rem; /* 700px v3 Memo 输入版心 */
+  --app-memo-composer-height: 6.25rem; /* 100px v3 输入卡片高度 */
+  --app-memo-work-min: 13rem;
+  --app-memo-todo-min: 10rem;
+  --app-memo-todo-width-compact: 11.75rem;
+  --app-memo-todo-width-tablet: 10.5rem;
+  --app-memo-todo-min-compact: 11.75rem;
+  --app-memo-todo-min-tablet: 10.5rem;
   --app-memo-letter-spacing: 0.06em;
   --app-memo-heat-level-1: 22%;
   --app-memo-heat-level-2: 45%;
@@ -549,6 +569,9 @@
 :root[data-measure="wide"] {
   --app-doc-measure: 56rem;
 }
+:root[data-measure="narrow"] {
+  --app-doc-measure: var(--app-doc-measure-narrow);
+}
 :root[data-measure="full"] {
   --app-doc-measure: var(--app-full-size);
 }
@@ -568,7 +591,10 @@
 /* ---------- 柔纸模式（设置·外观，负责人 2026-11-04） ----------
    皮肤与深色/浅色正交：data-skin="paper" 只换令牌取值，结构覆盖在 styles/paper.css。
    不切到柔纸时以下规则一条都不命中，默认主题不受影响。
-   正文版心采用加宽档 56rem（阅读宽度设置的 wide 值），以增加柔纸阅读空间；仍保留右侧页边注。 */
+   无显式版心偏好时采用 48rem 默认值；用户的 narrow / wide / full 选项在所有皮肤生效。 */
+:root[data-skin="paper"]:not([data-measure]) {
+  --app-doc-measure: var(--app-doc-measure-paper-default);
+}
 :root[data-skin="paper"] {
   /* 四层表面：侧栏 → 清单 → 纸面 → 案头（缝） */
   --app-bg-side: #efebde;
@@ -597,7 +623,13 @@
   /* 字体：标题走衬线（系统栈，未额外分发字包） */
   --app-font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, Georgia, serif;
   /* 版面 */
-  --app-doc-measure: 56rem;
+  --app-list-width: 16.5rem;
+  --app-list-width-compact: 16.5rem;
+  --app-doc-inspector-width: 19.75rem;
+  --app-note-paper-pad-block-start: 3.375rem;
+  --app-note-paper-pad-inline-start: 5.125rem;
+  --app-note-paper-pad-inline-end: 4.875rem;
+  --app-note-paper-pad-block-end: 6rem;
   --app-doc-title-size: 2.5rem;
   --app-paper-radius: 0.8125rem;
   --app-paper-inset: 0.625rem;
@@ -732,25 +764,8 @@
   --app-sidebar-width: 15.5rem;
   --app-list-width: 16.5rem;
   --app-list-width-compact: 16.5rem;
-  --app-memo-work-width: 14.5rem;
-  --app-memo-todo-width: 13.5rem;
-  --app-memo-todo-width-compact: 11.75rem;
-  --app-memo-todo-width-tablet: 10.5rem;
-  --app-space-7: .4375rem;
-  --app-space-8: .5rem;
-  --app-space-12: .75rem;
-  --app-space-20: 1.25rem;
-  --app-space-24: 1.5rem;
-  --app-space-26: 1.625rem;
-  --app-space-30: 1.875rem;
-  --app-space-32: 2rem;
-  --app-space-34: 2.125rem;
   --app-topbar-height: 3.25rem;
   --app-drawer-width: 17.5rem;
-  --app-memo-work-min: 13rem;
-  --app-memo-todo-min: 10rem;
-  --app-memo-todo-min-compact: 11.75rem;
-  --app-memo-todo-min-tablet: 10.5rem;
   --app-list-nav-max-height: 48%;
   --app-viewport-width: 100vw;
   --app-home-content-max: 78rem;

@@ -58,7 +58,7 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
   }, [onClose]);
 
   return (
-    <div className="mn-overlay mn-settings-overlay" role="presentation">
+    <div className="mn-overlay mn-settings-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="mn-dialog mn-dialog-settings" role="dialog" aria-modal="true" aria-label="设置">
         <div className="mn-dlg-head">
           <h3>设置</h3>
@@ -265,7 +265,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">阅读宽度</p>
-          <p className="mn-sethint">窄为默认版心（约 48 汉字/行）；加宽适合代码与长表格；撑满占满文档栏。柔纸模式正文固定为加宽版心，此设置只影响其他主题。</p>
+          <p className="mn-sethint">跟随主题默认宽度；也可选窄、加宽或撑满，所选宽度在所有主题生效并覆盖主题默认值。</p>
         </div>
         <select
           className="mn-propselect"
@@ -278,7 +278,8 @@ function AppearanceSection({ userId }: { userId: string }) {
             void updateAppearance(userId, { measure: value });
           }}
         >
-          <option value="narrow">窄（默认）</option>
+          <option value="auto">跟随主题默认</option>
+          <option value="narrow">窄</option>
           <option value="wide">加宽</option>
           <option value="full">撑满</option>
         </select>
@@ -290,7 +291,7 @@ function AppearanceSection({ userId }: { userId: string }) {
           <div className="mn-appearance-preview-cols"><div className="mn-appearance-preview-nav"><i /><i /><i /><i /></div><div className="mn-appearance-preview-list"><i /><i /><i /><i /></div><div className="mn-appearance-preview-paper"><i className="is-heading" /><i /><i /><i className="is-short" /><i />{propsPos === "side" && <i className="is-props" />}</div></div>
           <div className="mn-appearance-preview-toolbar"><i /><i /><i /></div>
         </div>
-        <div className="mn-appearance-preview-chips"><span>{skin === "paper" ? "柔纸模式" : "默认皮肤"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
+        <div className="mn-appearance-preview-chips"><span>{skin === "paper" ? "柔纸模式" : "默认皮肤"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "auto" ? "跟随主题版心" : measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
       </section>
     </div>
   );

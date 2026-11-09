@@ -109,7 +109,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         </div>
       )}
       {!collapsed && <QuickComposer userId={userId} openSignal={memoComposerSignal} />}
-      <button type="button" className="mn-btn" onClick={onCreateNote}>
+      <button type="button" className="mn-btn" aria-label="新建笔记" title="新建笔记" onClick={onCreateNote}>
         <Plus />
         {!collapsed && <>新建笔记<span className="mn-kbd mn-btn-kbd" aria-hidden="true">⌘N</span></>}
       </button>

@@ -231,7 +231,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setMemoComposerSignal((value) => value + 1);
     if (layout === "tablet" || layout === "mobile") setDrawerOpen(true);
   }, [layout]);
-  const openSettings = useCallback((next: SettingsSection = "backup") => {
+  const openSettings = useCallback((next: SettingsSection = "appearance") => {
     setSettingsSection(next);
     setSettingsOpen(true);
     setDrawerOpen(false);

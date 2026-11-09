@@ -3,7 +3,7 @@ import { Menu } from "lucide-react";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos, useTopics } from "../../services/contentHooks";
 import { alwaysHiddenPrivateTopicIds } from "../../services/privateSpaceService";
-import { MemoBar, type MemoView } from "./MemoBar";
+import { MemoBar, MemoViewToggle, type MemoView } from "./MemoBar";
 import { MemoGallery } from "./MemoGallery";
 import { MemoTimeline } from "./MemoTimeline";
 import { MemoWorkbar } from "./MemoWorkbar";
@@ -61,8 +61,6 @@ export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo
         count={view === "gallery" ? images.length : visible.length}
         unit={view === "gallery" ? "张" : "条"}
         filtered={range !== "all" || tag !== null}
-        view={view}
-        onView={setView}
         onBack={onBackToNotes}
       />
       <div className={`mn-memo-stage${workbarOpen ? " is-work-open" : ""}${layout === "mobile" && todoOpen ? " is-todo-open" : ""}`}>
@@ -71,11 +69,14 @@ export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo
           onWander={() => { const picked = pickRandomMemo(visible); if (picked) openMemo(picked.id); }}
           onOpen={openMemo}
           onClose={() => setWorkbarOpen(false)}
+          view={view}
+          onView={setView}
         />
         <section className="mn-memo-scroll" aria-label={view === "gallery" ? "Memo 图册" : "Memo 时间线"}>
           {singlePane && (
             <div className="mn-memo-mobile-controls">
               <button type="button" className="mn-iconbtn mn-memo-drawer" aria-label="打开 Memo 侧记栏" aria-expanded={workbarOpen} onClick={() => { if (todoOpen) onToggleTodo(); setWorkbarOpen(true); }}><Menu /></button>
+              <MemoViewToggle view={view} onView={setView} />
               {view === "timeline" && <button type="button" className="mn-memo-mobile-todo-toggle" aria-label={todoOpen ? "关闭 Todo 面板" : "打开 Todo 面板"} aria-expanded={todoOpen} onClick={() => { setWorkbarOpen(false); onToggleTodo(); }}>Todo</button>}
             </div>
           )}
@@ -83,7 +84,7 @@ export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo
             ? <MemoGallery images={images} onOpen={openMemo} />
             : (
               <>
-              <QuickComposer userId={userId} />
+              <QuickComposer userId={userId} expandedByDefault keepOpenAfterSubmit />
               <MemoTimeline
                 userId={userId}
                 username={username}

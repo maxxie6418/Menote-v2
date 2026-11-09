@@ -124,6 +124,8 @@
 .mn-appearance-preview-toolbar { display: none; height: var(--app-appearance-preview-toolbar); flex: none; align-items: center; justify-content: center; gap: var(--app-space-xs); border-top: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); }
 .mn-appearance-preview-toolbar i { width: var(--app-space-sm); height: var(--app-appearance-preview-bar); background: var(--app-fg-faint); }
 .mn-appearance-preview-frame.has-bottom-toolbar .mn-appearance-preview-toolbar { display: flex; }
+.mn-appearance-preview-frame[data-measure="auto"][data-skin="paper"] .mn-appearance-preview-paper { max-width: var(--app-doc-measure-paper-default); }
+.mn-appearance-preview-frame[data-measure="auto"]:not([data-skin="paper"]) .mn-appearance-preview-paper { max-width: var(--app-doc-measure-narrow); }
 .mn-appearance-preview-frame[data-measure="narrow"] .mn-appearance-preview-paper { max-width: var(--app-half-size); }
 .mn-appearance-preview-frame[data-measure="wide"] .mn-appearance-preview-paper { max-width: var(--app-doc-measure-wide); }
 .mn-appearance-preview-frame[data-measure="full"] .mn-appearance-preview-paper { width: var(--app-full-size); max-width: var(--app-full-size); }
@@ -132,7 +134,7 @@
 
 /* Note paper and its persistent inspector follow the v3 two-column reading layout. */
 .mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); align-items: start; gap: var(--app-doc-side-gap); }
-.mn-doc[data-form="note"] .mn-doc-main { grid-column: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); justify-self: start; margin: 0; }
+.mn-doc[data-form="note"] .mn-doc-main { position: relative; grid-column: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); min-height: var(--app-full-size); justify-self: center; margin: 0; }
 .mn-doc-inspector { position: sticky; top: var(--app-space-8); grid-column: 2; display: flex; width: var(--app-doc-inspector-width); max-height: calc(var(--app-full-viewport-height) - var(--app-space-2xl)); flex-direction: column; gap: var(--app-space-8); overflow: auto; padding-block: var(--app-space-4) var(--app-space-14); color: var(--app-fg); }
 .mn-inspector-mobile-head { display: none; }
 .mn-inspector-section { min-width: 0; padding-block: var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); }
@@ -176,5 +178,6 @@
 :root[data-skin="paper"] .mn-shell { background: var(--app-bg-desk); }
 :root[data-skin="paper"] .mn-listcol { background: var(--app-bg-list); }
 :root[data-skin="paper"] .mn-doc { margin: var(--app-zero); overflow: visible; border-radius: var(--app-zero); background: var(--app-surface-sunken); box-shadow: none; }
+:root[data-skin="paper"] .mn-doc[data-form="note"] .mn-doc-main { padding: var(--app-note-paper-pad-block-start) var(--app-note-paper-pad-inline-end) var(--app-note-paper-pad-block-end) var(--app-note-paper-pad-inline-start); }
 :root[data-skin="paper"] .mn-docbar, :root[data-skin="paper"] .mn-doc-foot { width: var(--app-full-size); max-width: none; margin-inline: var(--app-zero); }
 :root[data-skin="paper"][data-props-pos="side"] .mn-docbar, :root[data-skin="paper"][data-props-pos="side"] .mn-doc-foot { max-width: none; }
