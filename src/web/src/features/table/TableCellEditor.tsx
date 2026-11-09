@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { joinMultiCell, normalizeCellValue, splitMultiCell } from "../../lib/gfmTable";
 import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
@@ -120,7 +120,7 @@ function CellEditorShell({ value, onRestore, children }: { value: string; onRest
     if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
     focused.current = false;
   };
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
     onRestore(original.current);
