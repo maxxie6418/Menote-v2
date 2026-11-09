@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>多维表格 · 表头与行号槽改版对照</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css">
+<link rel="stylesheet" href="../src/web/src/styles/table.css">
+<style>
+  /* 仅本静态稿需要的壳层：真实页面里这些来自 app.css / shell.css / doc.css。 */
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 24px 56px; background: var(--app-bg); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); }
+  h2.demo-h { margin: 32px 0 8px; font-size: var(--app-size-chip); font-weight: var(--app-weight-medium); color: var(--app-fg-muted); }
+  h2.demo-h:first-child { margin-top: 0; }
+  .demo-note { margin: 0 0 16px; color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+  .mn-tabledoc { max-width: 1180px; }
+  .mn-tabledoc-scroll { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); }
+  .mn-textbtn { display: inline-flex; align-items: center; gap: var(--app-space-2); border: 0; background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
+  .mn-tabledoc-column-picker summary { font-size: var(--app-size-chip); }
+  /* 静态稿无法悬停：把「悬停后应出现」的元素直接点亮，方便核对排版。 */
+  .demo-reveal .mn-tabledoc-sort, .demo-reveal .mn-tabledoc-hbadge, .demo-reveal .mn-tabledoc-col-drag, .demo-rowdrag .mn-tabledoc-rowdrag { opacity: 1; pointer-events: auto; }
+</style>
+<script>
+  // 真实组件用 field-sizing: content + JS 兜底；这里补一段等价的自动增高，方便看换行列的行高。
+  addEventListener("DOMContentLoaded", () => {
+    for (const el of document.querySelectorAll(".mn-tcell-textarea")) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  });
+</script>
+</head>
+<body>
+
+<h2 class="demo-h">1 · 默认态：表头只露字段名，行号槽只有一个行号</h2>
+<p class="demo-note">某一列悬停时（下图第二列已点亮）才浮出拖动柄、排序与类型徽标；行悬停才浮出行拖动柄。</p>
+
+<div class="mn-tabledoc">
+  <div class="mn-tabledoc-bar">
+    <span class="mn-tabledoc-bar-meta">8 字段 · 5 行</span>
+    <div class="mn-tabledoc-bar-actions">
+      <button class="mn-textbtn" type="button">筛选</button>
+      <details class="mn-tabledoc-column-picker"><summary>显示字段</summary></details>
+      <button class="mn-textbtn" type="button">多选</button>
+      <button class="mn-textbtn" type="button">＋ 添加字段</button>
+    </div>
+  </div>
+  <div class="mn-tabledoc-scroll">
+    <div class="mn-tabledoc-grid" role="grid">
+      <div class="mn-tabledoc-row head" role="row">
+        <div class="mn-tabledoc-rownum mn-tabledoc-rownum-head" role="columnheader" aria-label="选择行"></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-0" role="columnheader">
+          <button class="mn-tabledoc-col-drag" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <input class="mn-tabledoc-hname" value="名称" readonly>
+          <button class="mn-tabledoc-sort" type="button"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></button>
+          <button class="mn-tabledoc-hbadge" type="button">文本</button>
+          <button class="mn-tabledoc-colresize" type="button" aria-label="调整列宽"></button>
+        </div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-4 demo-reveal" role="columnheader">
+          <button class="mn-tabledoc-col-drag" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <input class="mn-tabledoc-hname" value="摘要" readonly>
+          <button class="mn-tabledoc-sort" type="button"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></button>
+          <button class="mn-tabledoc-hbadge" type="button">文本</button>
+          <button class="mn-tabledoc-colresize" type="button" aria-label="调整列宽"></button>
+        </div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-3" role="columnheader">
+          <button class="mn-tabledoc-col-drag" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <input class="mn-tabledoc-hname" value="标签" readonly>
+          <button class="mn-tabledoc-sort" type="button"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></button>
+          <button class="mn-tabledoc-hbadge" type="button">多选</button>
+          <button class="mn-tabledoc-colresize" type="button" aria-label="调整列宽"></button>
+        </div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-2" role="columnheader">
+          <button class="mn-tabledoc-col-drag" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <input class="mn-tabledoc-hname" value="采集时间" readonly>
+          <button class="mn-tabledoc-sort" type="button"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></button>
+          <button class="mn-tabledoc-hbadge" type="button">日期</button>
+          <button class="mn-tabledoc-colresize" type="button" aria-label="调整列宽"></button>
+        </div>
+      </div>
+
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <button class="mn-tabledoc-rowdrag mn-tabledoc-gutter-slot" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <button class="mn-tabledoc-rowopen" type="button">1</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-0"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="appshubcc/bett-rule" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Custom rules.dat for Claude Code and Codex" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><div class="mn-tcell-multi"><button class="mn-tcell-multibtn" type="button"><span class="mn-tcell-pill mn-tcell-pill-multi">link</span></button></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="2026-11-03" readonly></div></div>
+      </div>
+
+      <div class="mn-tabledoc-row demo-rowdrag" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <button class="mn-tabledoc-rowdrag mn-tabledoc-gutter-slot" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <button class="mn-tabledoc-rowopen" type="button">2</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-0"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="scenario-labs/skills" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Agent Skills for Scenarios" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><div class="mn-tcell-multi"><button class="mn-tcell-multibtn" type="button"><span class="mn-tcell-pill mn-tcell-pill-multi">skills</span><span class="mn-tcell-pill mn-tcell-pill-multi">link</span></button></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="2026-11-02" readonly></div></div>
+      </div>
+
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <button class="mn-tabledoc-rowdrag mn-tabledoc-gutter-slot" type="button" aria-label="拖动"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg></button>
+          <button class="mn-tabledoc-rowopen" type="button">3</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-0"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="cathrynlavery/diagram" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Editorial diagram design" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><div class="mn-tcell-multi"><button class="mn-tcell-multibtn" type="button"><span class="mn-tcell-pill mn-tcell-pill-multi">skills</span></button></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="2026-11-02" readonly></div></div>
+      </div>
+      <div class="mn-tabledoc-row foot" role="row">
+        <div class="mn-tabledoc-rownum" role="presentation"></div>
+        <div class="mn-tabledoc-cell ghost mn-tabledoc-colw-0"></div>
+        <div class="mn-tabledoc-cell ghost mn-tabledoc-colw-4"></div>
+        <div class="mn-tabledoc-cell ghost mn-tabledoc-colw-3"></div>
+        <div class="mn-tabledoc-cell ghost mn-tabledoc-colw-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="demo-h">2 · 多选模式：复选框只在开启后出现，自绘并跟随主题</h2>
+<p class="demo-note">工具条「多选」按下（data-on）后：左侧槽位换成复选框，表头出现全选；拖动柄暂时让位。</p>
+
+<div class="mn-tabledoc">
+  <div class="mn-tabledoc-bar">
+    <span class="mn-tabledoc-bar-meta">8 字段 · 5 行</span>
+    <div class="mn-tabledoc-bar-actions">
+      <button class="mn-textbtn" type="button">筛选</button>
+      <details class="mn-tabledoc-column-picker"><summary>显示字段</summary></details>
+      <button class="mn-textbtn" type="button" aria-pressed="true">多选</button>
+      <button class="mn-textbtn" type="button">＋ 添加字段</button>
+    </div>
+  </div>
+  <div class="mn-tabledoc-selection" role="toolbar">
+    <span>已选 2 行</span>
+    <button class="mn-textbtn" type="button">复制行</button>
+    <button class="mn-textbtn" type="button">删除行</button>
+    <span class="mn-tabledoc-selection-hint">拖动任一已选行手柄可批量重排</span>
+  </div>
+  <div class="mn-tabledoc-scroll">
+    <div class="mn-tabledoc-grid" role="grid">
+      <div class="mn-tabledoc-row head" role="row">
+        <div class="mn-tabledoc-rownum mn-tabledoc-rownum-head" role="columnheader">
+          <span class="mn-tabledoc-gutter-slot"><input class="mn-tabledoc-check" type="checkbox" checked></span>
+        </div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-4" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">名称</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-6" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">摘要</span></div>
+      </div>
+      <div class="mn-tabledoc-row selected" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <span class="mn-tabledoc-gutter-slot"><input class="mn-tabledoc-check" type="checkbox" checked></span>
+          <button class="mn-tabledoc-rowopen" type="button">1</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="appshubcc/bett-rule" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-6"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Custom rules.dat for Claude Code" readonly></div></div>
+      </div>
+      <div class="mn-tabledoc-row selected" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <span class="mn-tabledoc-gutter-slot"><input class="mn-tabledoc-check" type="checkbox" checked></span>
+          <button class="mn-tabledoc-rowopen" type="button">2</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="scenario-labs/skills" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-6"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Agent Skills for Scenarios" readonly></div></div>
+      </div>
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader">
+          <span class="mn-tabledoc-gutter-slot"><input class="mn-tabledoc-check" type="checkbox"></span>
+          <button class="mn-tabledoc-rowopen" type="button">3</button>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-4"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="emilkowalski/skills" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-6"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="Skills for Designers" readonly></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="demo-h">3 · 自动换行 vs 裁切：换行列行高随内容长高</h2>
+<p class="demo-note">「摘要」列在字段菜单里选「自动换行」，同一行其余列仍是单行；裁切列超长时省略号。</p>
+
+<div class="mn-tabledoc">
+  <div class="mn-tabledoc-scroll">
+    <div class="mn-tabledoc-grid" role="grid">
+      <div class="mn-tabledoc-row head" role="row">
+        <div class="mn-tabledoc-rownum mn-tabledoc-rownum-head" role="columnheader"></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-2" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">名称</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-5" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">摘要（自动换行）</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-3" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">标签（裁切）</span></div>
+      </div>
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader"><button class="mn-tabledoc-rowopen" type="button">1</button></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="duawqjk/margin-wc" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-5 mn-tabledoc-cell-wrap">
+          <div class="mn-tcell-editor"><textarea class="mn-tcell-textarea" rows="1">Contribute to duawqjkmargin-wc development by creating an account on GitHub，这是一段很长的摘要，用来验证自动换行后行高会跟着内容长高</textarea></div>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><div class="mn-tcell-multi"><button class="mn-tcell-multibtn" type="button"><span class="mn-tcell-pill mn-tcell-pill-multi">skills</span><span class="mn-tcell-pill mn-tcell-pill-multi">link</span></button></div></div>
+      </div>
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader"><button class="mn-tabledoc-rowopen" type="button">2</button></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><div class="mn-tcell-editor"><input class="mn-tcell-input" value="emilkowalski/skills" readonly></div></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-5 mn-tabledoc-cell-wrap">
+          <div class="mn-tcell-editor"><textarea class="mn-tcell-textarea" rows="1">Skills for Designers</textarea></div>
+        </div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><div class="mn-tcell-multi"><button class="mn-tcell-multibtn" type="button"><span class="mn-tcell-pill mn-tcell-pill-multi">skills</span></button></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="demo-h">4 · 预览态：同一套网格，只读</h2>
+<p class="demo-note">没有多选/拖动/添加字段；单元格换成纯文本（链接可点），字段名是静态文本。</p>
+
+<div class="mn-tabledoc" data-readonly="true">
+  <div class="mn-tabledoc-bar">
+    <span class="mn-tabledoc-bar-meta">4 字段 · 3 行</span>
+    <div class="mn-tabledoc-bar-actions">
+      <button class="mn-textbtn" type="button">筛选</button>
+      <details class="mn-tabledoc-column-picker"><summary>显示字段</summary></details>
+    </div>
+  </div>
+  <div class="mn-tabledoc-scroll">
+    <div class="mn-tabledoc-grid" role="grid" aria-readonly="true">
+      <div class="mn-tabledoc-row head" role="row">
+        <div class="mn-tabledoc-rownum mn-tabledoc-rownum-head" role="columnheader"></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-1" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">名称</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-3" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">网址</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-2" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">标签</span></div>
+        <div class="mn-tabledoc-hcell mn-tabledoc-colw-1" role="columnheader"><span class="mn-tabledoc-hname mn-tabledoc-hname-static">重要</span></div>
+      </div>
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader"><button class="mn-tabledoc-rowopen" type="button">1</button></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-1"><span class="mn-tcell-text" data-wrap="false">appshubcc/bett-rule</span></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><a class="mn-tcell-text mn-tcell-link" data-wrap="false" href="#">https://github.com/appshubcc/bett-rule</a></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><span class="mn-tcell-readmulti"><span class="mn-tcell-pill mn-tcell-pill-multi">link</span></span></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-1"><span class="mn-tcell-checkwrap"><span class="mn-tcell-checkmark">　</span></span></div>
+      </div>
+      <div class="mn-tabledoc-row" role="row">
+        <div class="mn-tabledoc-rownum" role="rowheader"><button class="mn-tabledoc-rowopen" type="button">2</button></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-1"><span class="mn-tcell-text" data-wrap="false">scenario-labs/skills</span></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-3"><a class="mn-tcell-text mn-tcell-link" data-wrap="false" href="#">https://github.com/scenario-labs/skills</a></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-2"><span class="mn-tcell-readmulti"><span class="mn-tcell-pill mn-tcell-pill-multi">skills</span></span></div>
+        <div class="mn-tabledoc-cell mn-tabledoc-colw-1"><span class="mn-tcell-checkwrap"><span class="mn-tcell-checkmark on">✓</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

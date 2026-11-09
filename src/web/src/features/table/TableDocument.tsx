@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
-  FIELDS_KEY, OPTION_COLORS, readDefs, removeDef, renameDef, reorderDefs, splitFrontmatter, writeDef,
+  FIELDS_KEY, readDefs, removeDef, renameDef, reorderDefs, splitFrontmatter, writeDef,
   type OptionColor, type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, joinMultiCell, renderTable, replaceTable, splitMultiCell, type ParsedTable } from "../../lib/gfmTable";
-import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { TableCellEditor } from "./TableCellEditor";
-import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
-import { compareGridValues, matchesGridFilter, parseGridClipboard, validateGridPaste } from "./tableGrid";
-import { readHiddenTableColumns, readTableColumnWidths, writeHiddenTableColumns, writeTableColumnWidths } from "../../services/tablePreferencesService";
+import { AddColumnForm, AddColumnSpacer, ColumnHeaderCell } from "./ColumnHeaderCell";
+import {
+  compareGridValues, matchesGridFilter, parseGridClipboard, validateGridPaste,
+} from "./tableGrid";
+import {
+  readHiddenTableColumns, readTableColumnWidths, readTableWrapColumns, writeHiddenTableColumns,
+  writeTableColumnWidths, writeTableWrapColumns,
+} from "../../services/tablePreferencesService";
 import { readHiddenColumnsSetting, updateHiddenColumnsSetting } from "../../services/tableViewSettingsService";
 import { TableColumnVisibility } from "./TableColumnVisibility";
 import { TableRowDetailsPanel } from "./TableRowDetailsPanel";
@@ -24,12 +28,11 @@ interface TableDocumentProps {
   onDegrade: () => void;
   /** 空白表格文档切回普通笔记（仅空白期可用，守卫在 setItemForm）。 */
   onSwitchToNote: () => void;
+  /** 预览态：沿用同一套网格与列宽，但内容只读（FR-TBL-20）。 */
+  readOnly?: boolean;
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
-const OPTION_COLOR_LABELS: Record<OptionColor, string> = {
-  neutral: "默认", red: "红", orange: "橙", yellow: "黄", green: "绿", teal: "青", blue: "蓝", purple: "紫", pink: "粉",
-};
 
 function removeFirstTable(body: string): string {
   const table = findTables(body)[0];
@@ -40,8 +43,9 @@ function removeFirstTable(body: string): string {
 }
 
 /** 多维表格整页网格（TP2）：列管理 + 行管理 + 类型化单元格编辑；载体永远是标准 GFM（FR-TBL-1）。
- *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。 */
-export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote }: TableDocumentProps) {
+ *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。
+ *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
+export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
   const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
@@ -54,6 +58,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
   const [draggingColumn, setDraggingColumn] = useState<number | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
+  const [selectMode, setSelectMode] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => readHiddenTableColumns(userId, itemId));
   const [detailRow, setDetailRow] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<number | null>(null);
@@ -65,6 +70,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [undoLabel, setUndoLabel] = useState<string | null>(null);
   const undoMarkdown = useRef<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<number[]>(() => readTableColumnWidths(userId, itemId));
+  const [wrapColumns, setWrapColumns] = useState<string[]>(() => readTableWrapColumns(userId, itemId));
   const columnWidthsRef = useRef(columnWidths);
   const resizeRef = useRef<{ col: number; startX: number; startLevel: number } | null>(null);
   const touchColumnDrag = useRef<{ source: number; target: number; after: boolean } | null>(null);
@@ -73,15 +79,18 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const pendingColumnFocus = useRef<number | null>(null);
   const pendingRowFocus = useRef<{ row: number; col: number } | null>(null);
   const hiddenColumnsLoad = useRef(0);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const widths = readTableColumnWidths(userId, itemId);
     columnWidthsRef.current = widths;
     setColumnWidths(widths);
+    setWrapColumns(readTableWrapColumns(userId, itemId));
     const cachedHidden = readHiddenTableColumns(userId, itemId);
     setHiddenColumns(cachedHidden);
     setDetailRow(null);
     setSelectedRows(new Set());
+    setSelectMode(false);
     setSortCol(null);
     setFilterValue("");
     const generation = ++hiddenColumnsLoad.current;
@@ -154,6 +163,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const scaffoldHeader = table ? null : Object.keys(fieldDefs);
   const header = table?.header ?? scaffoldHeader ?? [];
   const visibleColumnIndices = header.map((_, index) => index).filter((index) => !hiddenColumns.includes(header[index]!));
+  /** 已经填过内容：不再提供「切换为普通笔记」（FR-TBL-9 守卫的前端镜像）。 */
+  const hasData = Boolean(table?.rows.some((row) => row.some((cell) => cell.trim() !== "")));
 
   const toggleColumnVisibility = (column: string, visible: boolean) => {
     const next = visible ? hiddenColumns.filter((name) => name !== column) : [...new Set([...hiddenColumns, column])];
@@ -162,6 +173,15 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     writeHiddenTableColumns(userId, itemId, next);
     void updateHiddenColumnsSetting(userId, itemId, next);
   };
+
+  const toggleColumnWrap = (column: string, wrap: boolean) => {
+    const name = column.trim();
+    const next = wrap ? [...new Set([...wrapColumns, name])] : wrapColumns.filter((item) => item !== name);
+    setWrapColumns(next);
+    writeTableWrapColumns(userId, itemId, next);
+  };
+
+  const columnWrap = (col: number) => wrapColumns.includes((table?.header[col] ?? scaffoldHeader?.[col] ?? "").trim());
 
   const applyGrid = (header: string[], rows: string[][]) => {
     if (table) {
@@ -204,7 +224,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const toggleSort = (col: number) => {
-    if (!table) return;
+    if (!table || readOnly) return;
     const direction = sortCol === col ? (sortDirection === "asc" ? "desc" : "asc") : "asc";
     const sorted = [...table.rows].sort((a, b) => {
       const left = a[col] ?? "";
@@ -223,6 +243,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const clearSort = () => { setSortCol(null); setSelectedRows(new Set()); };
 
   const reorderColumn = (from: number, to: number, after = false) => {
+    if (readOnly) { setDraggingColumn(null); return; }
     if (from === to || from < 0 || to < 0 || from >= header.length || to >= header.length) { setDraggingColumn(null); return; }
     const order = header.map((_, index) => index);
     const [moved] = order.splice(from, 1);
@@ -256,6 +277,12 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
       !filterValue || matchesGridFilter(cells[filterCol] ?? "", filterValue, filterOperator, fieldAt(filterCol)));
   }, [table, filterCol, filterOperator, filterValue, fieldDefs]);
   const activeSelection = new Set(visibleRows.filter(({ rowIndex }) => selectedRows.has(rowIndex)).map(({ rowIndex }) => rowIndex));
+  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(({ rowIndex }) => selectedRows.has(rowIndex));
+  const someVisibleSelected = visibleRows.some(({ rowIndex }) => selectedRows.has(rowIndex));
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
+  }, [someVisibleSelected, allVisibleSelected, selectMode]);
 
   const toggleRowSelection = (row: number, checked: boolean) => {
     setSelectedRows((current) => {
@@ -335,7 +362,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   }, [moveSelectedRows]);
 
   const pasteGrid = (event: ClipboardEvent<HTMLDivElement>) => {
-    if (!table) return;
+    if (!table || readOnly) return;
     const cell = (event.target as HTMLElement).closest<HTMLElement>("[data-row-index][data-col-index]");
     if (!cell) return;
     const text = event.clipboardData.getData("text/plain");
@@ -362,6 +389,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     const target = event.target as HTMLElement;
     const cell = target.closest<HTMLElement>("[data-row-index][data-col-index]");
     if (!cell || !table) return;
@@ -371,7 +399,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     const visibleColIndex = visibleColumnIndices.indexOf(col);
     if (visibleColIndex < 0) return;
     const focusCell = (rowIndex: number, colIndex: number) => {
-      const next = document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] input, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] button`);
+      const next = document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] input, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] textarea, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] button`);
       next?.focus();
     };
     if (event.key === "Tab") {
@@ -397,7 +425,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   /* ---------- 单元格与行 ---------- */
 
   const setCell = (row: number, col: number, value: string) => {
-    if (!table) return;
+    if (!table || readOnly) return;
     clearUndo();
     setSortCol(null);
     const rows = table.rows.map((cells, r) => (r === row ? cells.map((cell, c) => (c === col ? value : cell)) : cells));
@@ -405,6 +433,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const addRow = () => {
+    if (readOnly) return;
     const header = table?.header ?? scaffoldHeader ?? [];
     if (header.length === 0) return;
     clearUndo();
@@ -415,14 +444,14 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const removeRow = (row: number) => {
-    if (!table) return;
+    if (!table || readOnly) return;
     clearUndo();
     setSortCol(null);
     applyGrid(table.header, table.rows.filter((_, index) => index !== row));
   };
 
   const moveRow = (from: number, to: number) => {
-    if (!table || from === to || from < 0 || to < 0 || from >= table.rows.length || to >= table.rows.length) return;
+    if (!table || readOnly || from === to || from < 0 || to < 0 || from >= table.rows.length || to >= table.rows.length) return;
     clearUndo();
     const rows = [...table.rows];
     const [moved] = rows.splice(from, 1);
@@ -475,7 +504,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     }
     if (pendingRow) {
       pendingRowFocus.current = null;
-      window.setTimeout(() => document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${pendingRow.row}"][data-col-index="${pendingRow.col}"] input, .mn-tabledoc-cell[data-row-index="${pendingRow.row}"][data-col-index="${pendingRow.col}"] button`)?.focus(), 0);
+      window.setTimeout(() => document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${pendingRow.row}"][data-col-index="${pendingRow.col}"] input, .mn-tabledoc-cell[data-row-index="${pendingRow.row}"][data-col-index="${pendingRow.col}"] textarea, .mn-tabledoc-cell[data-row-index="${pendingRow.row}"][data-col-index="${pendingRow.col}"] button`)?.focus(), 0);
     }
   }, [markdown, addingCol]);
 
@@ -603,33 +632,43 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   if (!table && !blank) {
     return (
       <div className="mn-tabledoc" aria-label="多维表格">
-        <div className="mn-tabledoc-degrade" role="alert">
+        <div className="mn-tabledoc-degrade" role={readOnly ? "note" : "alert"} data-readonly={readOnly ? "true" : undefined}>
           <p>表格结构无法解析（需要表头行、`---` 分隔行与行首管道符）。</p>
-          <button type="button" className="mn-auth-submit"
-            onClick={() => { if (window.confirm("封存当前版本并降级为普通笔记？降级后不可恢复为表格。")) onDegrade(); }}>
-            转为普通笔记
-          </button>
+          {!readOnly && (
+            <button type="button" className="mn-auth-submit"
+              onClick={() => { if (window.confirm("封存当前版本并降级为普通笔记？降级后不可恢复为表格。")) onDegrade(); }}>
+              转为普通笔记
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mn-tabledoc" aria-label="多维表格">
+    <div className="mn-tabledoc" aria-label="多维表格" data-readonly={readOnly ? "true" : undefined}>
       {error && !addingCol && menuCol === null && <p className="mn-tabledoc-error" role="alert">{error}</p>}
       {header.length > 0 && (
         <div className="mn-tabledoc-bar">
           <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
           <div className="mn-tabledoc-bar-actions">
-            {undoLabel && <button type="button" className="mn-textbtn" onClick={undoLastBulkAction} aria-label={`撤销${undoLabel}`}><RotateCcw aria-hidden="true" />撤销{undoLabel}</button>}
+            {!readOnly && undoLabel && <button type="button" className="mn-textbtn" onClick={undoLastBulkAction} aria-label={`撤销${undoLabel}`}><RotateCcw aria-hidden="true" />撤销{undoLabel}</button>}
             <button type="button" className="mn-textbtn" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Filter aria-hidden="true" />筛选</button>
             <TableColumnVisibility columns={header} hidden={hiddenColumns} onChange={toggleColumnVisibility} />
-            {sortCol !== null && <button type="button" className="mn-textbtn" onClick={clearSort}>清除排序</button>}
-            <button type="button" className="mn-textbtn" data-table-add-trigger aria-expanded={addingCol}
-              onClick={() => { setAddingCol((open) => !open); setMenuCol(null); setError(null); }}>
-              <Plus aria-hidden="true" /> 添加字段
-            </button>
-            <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>
+            {!readOnly && sortCol !== null && <button type="button" className="mn-textbtn" onClick={clearSort}>清除排序</button>}
+            {!readOnly && (
+              <button type="button" className="mn-textbtn" aria-pressed={selectMode}
+                onClick={() => { setSelectMode((open) => !open); setSelectedRows(new Set()); }}>
+                多选
+              </button>
+            )}
+            {!readOnly && (
+              <button type="button" className="mn-textbtn" data-table-add-trigger aria-expanded={addingCol}
+                onClick={() => { setAddingCol((open) => !open); setMenuCol(null); setError(null); }}>
+                <Plus aria-hidden="true" /> 添加字段
+              </button>
+            )}
+            {!readOnly && !hasData && <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>}
           </div>
         </div>
       )}
@@ -662,7 +701,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           {filterValue && <button type="button" className="mn-auth-link" onClick={() => setFilterValue("")}>清除</button>}
         </div>
       )}
-      {activeSelection.size > 0 && (
+      {!readOnly && activeSelection.size > 0 && (
         <div className="mn-tabledoc-selection" role="toolbar" aria-label="所选行操作">
           <span>已选 {activeSelection.size} 行</span>
           <button type="button" className="mn-textbtn" onClick={() => void copySelectedRows()}><Copy aria-hidden="true" />复制行</button>
@@ -671,6 +710,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
         </div>
       )}
       {header.length === 0 && !addingCol ? (
+        readOnly ? <p className="mn-tabledoc-empty">这张表格还没有字段。</p> : (
         <div className="mn-tabledoc-scaffold">
           <p>空白表格文档：从添加第一个字段开始（字段定义存 YAML `fields:`，内容为标准 Markdown 表格）。</p>
           <div className="mn-tabledoc-scaffold-actions">
@@ -681,15 +721,20 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
             <button type="button" className="mn-auth-link" onClick={onSwitchToNote}>切换为普通笔记</button>
           </div>
         </div>
+        )
       ) : (
         <div className="mn-tabledoc-workspace">
         <div className="mn-tabledoc-main">
         <div className="mn-tabledoc-scroll">
-      <div className="mn-tabledoc-grid" role="grid" onPaste={pasteGrid} onKeyDown={handleGridKeyDown}>
+      <div className="mn-tabledoc-grid" role="grid" aria-readonly={readOnly || undefined} data-wrap={wrapColumns.length ? "true" : undefined} onPaste={pasteGrid} onKeyDown={handleGridKeyDown}>
             <div className="mn-tabledoc-row head" role="row">
-              <div className="mn-tabledoc-rownum" role="columnheader" aria-label="选择行">
-                <input type="checkbox" aria-label="选择当前可见行" checked={visibleRows.length > 0 && visibleRows.every(({ rowIndex }) => selectedRows.has(rowIndex))}
-                  onChange={(event) => selectVisibleRows(event.target.checked)} />
+              <div className="mn-tabledoc-rownum mn-tabledoc-rownum-head" role="columnheader" aria-label="选择行">
+                {selectMode && (
+                  <span className="mn-tabledoc-gutter-slot">
+                    <input ref={selectAllRef} type="checkbox" className="mn-tabledoc-check" aria-label="选择当前可见行"
+                      checked={allVisibleSelected} onChange={(event) => selectVisibleRows(event.target.checked)} />
+                  </span>
+                )}
               </div>
               {visibleColumnIndices.map((col) => {
                 const name = header[col]!;
@@ -699,6 +744,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   name={name}
                   index={col}
                   dragging={draggingColumn === col}
+                  readOnly={readOnly}
                   onColumnDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-column", String(col)); setDraggingColumn(col); }}
                   onTouchColumnDragStart={(event) => {
                     if (event.pointerType !== "touch") return;
@@ -721,6 +767,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   type={columnType(col)}
                   def={fieldDefs[name.trim()]}
                   optionColors={fieldDefs[name.trim()]?.optionColors ?? {}}
+                  wrap={columnWrap(col)}
                   sortDirection={sortCol === col ? sortDirection : null}
                   widthLevel={columnWidths[col] ?? 0}
                   onSort={() => toggleSort(col)}
@@ -735,6 +782,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   onPick={(picked) => changeColumnType(col, picked)}
                   onOptions={(raw) => setColumnOptions(col, raw)}
                   onColor={(option, color) => setColumnOptionColor(col, option, color)}
+                  onWrapChange={(wrap) => toggleColumnWrap(name, wrap)}
                   onDelete={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}
                 />
                 );
@@ -750,34 +798,42 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
               )}
             </div>
             {visibleRows.map(({ cells, rowIndex: row }) => (
-              <div className={`mn-tabledoc-row${draggingRow === row ? " dragging" : ""}`} role="row" key={row} data-row-index={row}
+              <div className={`mn-tabledoc-row${draggingRow === row ? " dragging" : ""}${selectedRows.has(row) ? " selected" : ""}`} role="row" key={row} data-row-index={row}
                 onDragEnd={() => setDraggingRow(null)}
-                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
-                onDrop={(event) => { event.preventDefault(); if (draggingRow !== null) {
+                onDragOver={(event) => { if (readOnly) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; }}
+                onDrop={(event) => { if (readOnly) return; event.preventDefault(); if (draggingRow !== null) {
                   if (activeSelection.has(draggingRow) && activeSelection.size > 1) moveSelectedRows(row);
                   else moveRow(draggingRow, row);
                 } setDraggingRow(null); }}>
                 <div className="mn-tabledoc-rownum" role="rowheader">
-                  <input type="checkbox" aria-label={`选择第 ${row + 1} 行`} checked={selectedRows.has(row)} onChange={(event) => toggleRowSelection(row, event.target.checked)} />
-                  <button type="button" className="mn-tabledoc-drag" aria-label={`拖动第 ${row + 1} 行调整顺序`} title="拖动调整行顺序" draggable
-                    onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(row)); setDraggingRow(row); if (!selectedRows.has(row)) setSelectedRows(new Set([row])); }}
-                    onPointerDown={(event) => {
-                      if (event.pointerType !== "touch") return;
-                      event.preventDefault();
-                      event.currentTarget.setPointerCapture(event.pointerId);
-                      touchDrag.current = { source: row, target: row, rows: activeSelection.has(row) ? [...activeSelection] : [row] };
-                      setDraggingRow(row);
-                    }}
-                    onClick={(event) => event.stopPropagation()}>⠿</button>
-                  <button type="button" className="mn-tabledoc-row-open" aria-label={`查看第 ${row + 1} 行详情`} title="查看详情" onClick={() => setDetailRow(row)}>{row + 1}</button>
-                  <button type="button" className="mn-tabledoc-rowdel" aria-label={`删除第 ${row + 1} 行`} onClick={() => removeRow(row)}><Trash2 aria-hidden="true" /></button>
+                  {selectMode ? (
+                    <span className="mn-tabledoc-gutter-slot">
+                      <input type="checkbox" className="mn-tabledoc-check" aria-label={`选择第 ${row + 1} 行`}
+                        checked={selectedRows.has(row)} onChange={(event) => toggleRowSelection(row, event.target.checked)} />
+                    </span>
+                  ) : null}
+                  {!readOnly ? (
+                    <button type="button" className={`mn-tabledoc-rowdrag ${selectMode ? "mn-tabledoc-gutter-slot-end" : "mn-tabledoc-gutter-slot"}`}
+                      aria-label={`拖动第 ${row + 1} 行调整顺序`} title="拖动调整行顺序" draggable
+                      onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(row)); setDraggingRow(row); if (!selectedRows.has(row)) setSelectedRows(new Set([row])); }}
+                      onPointerDown={(event) => {
+                        if (event.pointerType !== "touch") return;
+                        event.preventDefault();
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        touchDrag.current = { source: row, target: row, rows: activeSelection.has(row) ? [...activeSelection] : [row] };
+                        setDraggingRow(row);
+                      }}
+                      onClick={(event) => event.stopPropagation()}><GripVertical aria-hidden="true" /></button>
+                  ) : null}
+                  <button type="button" className="mn-tabledoc-rowopen" aria-label={`查看第 ${row + 1} 行详情`} title="查看详情" onClick={() => setDetailRow(row)}>{row + 1}</button>
                 </div>
                 {visibleColumnIndices.map((col) => {
                   const name = header[col]!;
+                  const wrap = columnWrap(col);
                   return (
-                  <div className={`mn-tabledoc-cell mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="gridcell" key={col} data-row-index={row} data-col-index={col}>
+                  <div className={`mn-tabledoc-cell mn-tabledoc-colw-${columnWidths[col] ?? 0}${wrap ? " mn-tabledoc-cell-wrap" : ""}`} role="gridcell" key={col} data-row-index={row} data-col-index={col}>
                     <TableCellEditor
-                      value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]}
+                      value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
                       onChange={(value) => setCell(row, col, value)}
                     />
                   </div>
@@ -792,7 +848,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
               {addingCol && <AddColumnSpacer />}
             </div>
           </div>
-          {header.length > 0 && (
+          {!readOnly && header.length > 0 && (
             <div className="mn-tabledoc-actions">
               <button type="button" className="mn-auth-link" onClick={addRow}>
                 <Plus size={14} aria-hidden="true" /> 添加行
@@ -802,153 +858,16 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
         </div>
         </div>
         {detailRow !== null && table?.rows[detailRow] && (
-          <TableRowDetailsPanel rowNumber={detailRow + 1} columns={table.header} cells={table.rows[detailRow]} onClose={() => setDetailRow(null)} />
+          <TableRowDetailsPanel
+            rowNumber={detailRow + 1}
+            columns={table.header}
+            cells={table.rows[detailRow]}
+            onClose={() => setDetailRow(null)}
+            onDelete={readOnly ? undefined : () => { removeRow(detailRow); setDetailRow(null); }}
+          />
         )}
         </div>
       )}
     </div>
   );
-}
-
-/** 已有字段的表头：名称就地改，类型菜单挂到该列下方（portal，不被滚动容器裁切）。 */
-function ColumnHeaderCell({ name, index, dragging, onColumnDragStart, onTouchColumnDragStart, onColumnDragEnd, onColumnDrop, draft, type, def, optionColors, menuOpen, error, sortDirection, widthLevel, onSort, onResizeStart, onResize, onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onDelete }: {
-  name: string;
-  index: number;
-  dragging: boolean;
-  onColumnDragStart: (event: ReactDragEvent<HTMLButtonElement>) => void;
-  onTouchColumnDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onColumnDragEnd: () => void;
-  onColumnDrop: (event: ReactDragEvent<HTMLDivElement>) => void;
-  draft: string | undefined;
-  type: PropertyType;
-  def: PropertyDef | undefined;
-  optionColors: Record<string, OptionColor>;
-  menuOpen: boolean;
-  error: string | null;
-  sortDirection: "asc" | "desc" | null;
-  widthLevel: number;
-  onSort: () => void;
-  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onResize: (level: number) => void;
-  onDraft: (value: string) => void;
-  onCommit: () => void;
-  onToggle: () => void;
-  onClose: () => void;
-  onPick: (type: PropertyType) => void;
-  onOptions: (raw: string) => void;
-  onColor: (option: string, color: OptionColor | null) => void;
-  onDelete: () => void;
-}) {
-  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
-  const options = (def?.options ?? []).join("\n");
-  return (
-    <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}${dragging ? " dragging" : ""}`} role="columnheader" ref={setAnchor} data-column-index={index}
-      onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-menote-column")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={onColumnDrop}>
-      <button type="button" className="mn-tabledoc-col-drag" aria-label={`拖动第 ${index + 1} 列调整顺序`} title="拖动调整列顺序" draggable onPointerDown={onTouchColumnDragStart} onDragStart={onColumnDragStart} onDragEnd={onColumnDragEnd}><GripVertical aria-hidden="true" /></button>
-      <button type="button" className={`mn-tabledoc-sort${sortDirection ? " active" : ""}`} aria-label={`按${name}排序${sortDirection ? `，当前${sortDirection === "asc" ? "升序" : "降序"}` : ""}`}
-        title={sortDirection === "asc" ? "升序（再次点击降序）" : sortDirection === "desc" ? "降序（再次点击升序）" : "排序"} onClick={onSort}>
-        {sortDirection === "desc" ? <ArrowDown aria-hidden="true" /> : sortDirection === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowUpDown aria-hidden="true" />}
-      </button>
-      <input
-        className="mn-tabledoc-hname" value={draft ?? name} aria-label={`字段名（${name}）`}
-        onChange={(event) => onDraft(event.target.value)}
-        onBlur={onCommit}
-        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-      />
-      <button type="button" className="mn-tabledoc-hbadge" aria-label={`字段类型：${FIELD_TYPE_LABELS[type]}`}
-        aria-expanded={menuOpen} onClick={onToggle}>
-        {FIELD_TYPE_LABELS[type]}
-      </button>
-      <button type="button" className="mn-tabledoc-colresize" aria-label={`调整${name}列宽`} title="拖动调整列宽"
-        onPointerDown={(event) => { event.preventDefault(); onResizeStart(event); }}
-        onKeyDown={(event) => {
-          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-          event.preventDefault();
-          const direction = event.key === "ArrowRight" ? 1 : -1;
-          const next = Math.max(0, Math.min(7, widthLevel + direction));
-          onResize(next);
-        }} />
-      {menuOpen && anchor && (
-        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label={`字段类型：${name}`} layoutKey={`${type}:${options}:${JSON.stringify(optionColors)}:${error ?? ""}`} onClose={onClose}>
-          {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
-          <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
-          {def && (def.type === "select" || def.type === "multiselect") && (
-            <>
-              <label className="mn-tabledoc-optedit">
-                候选值（每行一个，禁含逗号）
-                <textarea rows={4} value={options} onChange={(event) => onOptions(event.target.value)} />
-              </label>
-              {(def.options ?? []).length > 0 && (
-                <div className="mn-tabledoc-colors">
-                  <span className="mn-tabledoc-colors-title">候选值颜色</span>
-                  {(def.options ?? []).map((option, index) => (
-                    <div className="mn-tabledoc-color-row" key={`${option}-${index}`}>
-                      <span className="mn-tcell-pill" data-tone={optionColors[option] ?? "neutral"}>{option}</span>
-                      <div className="mn-tabledoc-color-palette" role="group" aria-label={`${option} 的颜色`}>
-                        {OPTION_COLORS.map((color) => (
-                          <button key={color} type="button" className="mn-tabledoc-colorswatch"
-                            data-tone={color} aria-label={`${option}：${OPTION_COLOR_LABELS[color]}`}
-                            aria-pressed={(optionColors[option] ?? "neutral") === color}
-                            onClick={() => onColor(option, color === "neutral" ? null : color)} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          <button type="button" className="mn-tabledoc-hdel" onClick={onDelete}>删除字段</button>
-        </AnchoredPanel>
-      )}
-    </div>
-  );
-}
-
-/** 加字段落在表尾新列：名称在该列表头，类型和确认挂在这一列下面。 */
-function AddColumnForm({ onConfirm, onCancel, onEdit, taken, error }: {
-  onConfirm: (name: string, type: PropertyType, options?: string[]) => void;
-  onCancel: () => void;
-  onEdit: () => void;
-  taken: string[];
-  error: string | null;
-}) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<PropertyType>("text");
-  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
-  const duplicate = name.trim() !== "" && taken.includes(name.trim());
-  const canAdd = name.trim() !== "" && !duplicate;
-  const message = duplicate ? `字段名「${name.trim()}」已存在` : error;
-  useEffect(() => {
-    anchor?.scrollIntoView({ inline: "nearest", block: "nearest" });
-  }, [anchor]);
-  return (
-    <>
-      <div ref={setAnchor} className="mn-tabledoc-hcell mn-tabledoc-addcol mn-tabledoc-colw-0" role="columnheader">
-        <input
-          className="mn-tabledoc-hname" value={name} autoFocus aria-label="字段名" placeholder="字段名"
-          aria-invalid={duplicate || undefined} autoComplete="off"
-          onChange={(event) => { setName(event.target.value); onEdit(); }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && canAdd) onConfirm(name, type);
-            if (event.key === "Escape") onCancel();
-          }}
-        />
-      </div>
-      {anchor && (
-        <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label="添加字段" layoutKey={`${type}:${message ?? ""}`} onClose={onCancel}>
-          {message && <p className="mn-tabledoc-error" role="alert">{message}</p>}
-          <FieldTypeMenu value={type} onPick={setType} />
-          <div className="mn-tabledoc-addform-actions">
-            <button type="button" className="mn-auth-submit" disabled={!canAdd} onClick={() => onConfirm(name, type)}>添加</button>
-            <button type="button" className="mn-auth-link" onClick={onCancel}>取消</button>
-          </div>
-        </AnchoredPanel>
-      )}
-    </>
-  );
-}
-
-function AddColumnSpacer() {
-  return <div className="mn-tabledoc-cell mn-tabledoc-addcol mn-tabledoc-colw-0" role="presentation" />;
 }

@@ -24,6 +24,8 @@
 .mn-tabledoc-bar-meta { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); font-variant-numeric: tabular-nums; }
 .mn-tabledoc-bar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2); margin-left: auto; }
 .mn-tabledoc-bar .mn-textbtn { display: inline-flex; align-items: center; gap: var(--app-space-2); }
+/* 工具条开关（多选）按下态：与格式栏同一语言。 */
+.mn-tabledoc-bar .mn-textbtn[aria-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 .mn-tabledoc-bar .mn-textbtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-tabledoc-column-picker { position: relative; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-tabledoc-column-picker summary { min-height: var(--app-touch-target); display: inline-flex; align-items: center; padding-inline: var(--app-space-4); cursor: pointer; list-style: none; }
@@ -40,19 +42,32 @@
 .mn-tabledoc-row > *:last-child { border-right: var(--app-zero); }
 .mn-tabledoc-row.head { position: sticky; top: var(--app-zero); z-index: 2; background: var(--app-surface-sunken); }
 .mn-tabledoc-row.foot { border-bottom: var(--app-zero); }
-.mn-tabledoc-rownum { flex: none; width: var(--app-tabledoc-rownum-width); display: flex; align-items: center; justify-content: center; gap: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-micro); min-height: var(--app-prop-height); }
-.mn-tabledoc-rownum input[type="checkbox"] { width: var(--app-icon-xs); height: var(--app-icon-xs); flex: none; accent-color: var(--app-accent); }
-.mn-tabledoc-row-open { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); padding: var(--app-space-2); cursor: pointer; }
-.mn-tabledoc-row-open:hover, .mn-tabledoc-row-open:focus-visible { color: var(--app-link); text-decoration: underline; }
-.mn-tabledoc-drag { display: grid; place-items: center; flex: none; width: var(--app-touch-target); height: var(--app-touch-target); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: grab; user-select: none; touch-action: none; }
-.mn-tabledoc-drag:hover, .mn-tabledoc-drag:focus-visible { background: var(--app-hover); color: var(--app-fg); }
-.mn-tabledoc-drag:active { cursor: grabbing; }
+/* 行号槽（2026-11-09 重排）：默认只放行号，点开行详情；拖动柄与多选框共用左侧同一槽位。
+   多选不再常驻——由工具条「多选」开关控制，只在多选模式下出现复选框（FR-TBL-19）。 */
+.mn-tabledoc-rownum { position: relative; flex: none; width: var(--app-tabledoc-rownum-width); display: flex; align-items: center; min-height: var(--app-prop-height); padding-inline-start: var(--app-tabledoc-gutter-inset); padding-inline-end: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-micro); }
+.mn-tabledoc-gutter-slot { position: absolute; inset-inline-start: var(--app-space-2); inset-block: var(--app-zero); margin-block: auto; display: grid; place-items: center; width: var(--app-icon-md); height: var(--app-icon-md); margin-inline: var(--app-zero); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; appearance: none; -webkit-appearance: none; }
+/* 多选模式下复选框占了左槽，拖动柄挪到行号右侧（仍只在悬停该行时浮出），批量重排入口不断。 */
+.mn-tabledoc-gutter-slot-end { position: absolute; inset-inline-end: var(--app-space-1); inset-block: var(--app-zero); margin-block: auto; margin-inline: var(--app-zero); display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; appearance: none; -webkit-appearance: none; }
+.mn-tabledoc-rowopen { flex: 1; align-self: stretch; display: flex; align-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); font-variant-numeric: tabular-nums; padding: var(--app-zero); cursor: pointer; }
+.mn-tabledoc-rowopen:hover, .mn-tabledoc-rowopen:focus-visible { color: var(--app-link); text-decoration: underline; }
+/* 拖动柄默认隐形，悬停该行才浮出：行号槽里始终只有一个可操作元素。 */
+.mn-tabledoc-rowdrag { color: var(--app-fg-faint); cursor: grab; user-select: none; touch-action: none; opacity: var(--app-zero); pointer-events: none; transition: opacity var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); border-radius: var(--app-radius-sm); }
+.mn-tabledoc-row:hover .mn-tabledoc-rowdrag, .mn-tabledoc-rowdrag:focus-visible { opacity: 1; pointer-events: auto; }
+.mn-tabledoc-rowdrag:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-tabledoc-rowdrag:active { cursor: grabbing; }
+.mn-tabledoc-rowdrag svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-tabledoc-row.dragging { background: var(--app-selected); }
-.mn-tabledoc-rowdel { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); cursor: pointer; padding: var(--app-zero); visibility: hidden; }
-.mn-tabledoc-rowdel svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-tabledoc-row:hover .mn-tabledoc-rowdel { visibility: visible; }
-.mn-tabledoc-rowdel:hover { color: var(--app-danger); }
+.mn-tabledoc-row.selected { background: var(--app-selected); }
+/* 自绘复选框：与主题同色（原生控件在深色主题里是白底蓝勾，与页面割裂）。 */
+.mn-tabledoc-check { appearance: none; -webkit-appearance: none; width: var(--app-icon-sm); height: var(--app-icon-sm); margin: var(--app-zero); padding: var(--app-zero); display: grid; place-items: center; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-xs); background: var(--app-surface); cursor: pointer; transition: background var(--app-motion-fast) var(--app-ease), border-color var(--app-motion-fast) var(--app-ease); }
+.mn-tabledoc-check:hover { border-color: var(--app-accent); }
+.mn-tabledoc-check:checked, .mn-tabledoc-check:indeterminate { border-color: var(--app-accent); background: var(--app-accent); }
+.mn-tabledoc-check:checked::after { content: ""; width: var(--app-tabledoc-check-mark-w); height: var(--app-tabledoc-check-mark-h); border: solid var(--app-accent-text); border-width: 0 0 var(--app-tabledoc-check-stroke) var(--app-tabledoc-check-stroke); transform: rotate(-45deg) translateY(calc(var(--app-line) * -1)); }
+.mn-tabledoc-check:indeterminate::after { content: ""; width: var(--app-tabledoc-check-dash); border-top: var(--app-tabledoc-check-stroke) solid var(--app-accent-text); }
+.mn-tabledoc-check:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-tabledoc-cell { flex: 1; min-width: var(--app-table-cell-min); min-height: var(--app-prop-height); display: flex; align-items: center; padding: var(--app-space-2); }
+/* 自动换行列：单元格顶端对齐，行高由内容决定（裁切列仍居中，保持单行视觉）。 */
+.mn-tabledoc-cell-wrap { align-items: flex-start; }
 .mn-tabledoc-row > .mn-tabledoc-colw-0, .mn-tabledoc-row > .mn-tabledoc-colw-1, .mn-tabledoc-row > .mn-tabledoc-colw-2,
 .mn-tabledoc-row > .mn-tabledoc-colw-3, .mn-tabledoc-row > .mn-tabledoc-colw-4, .mn-tabledoc-row > .mn-tabledoc-colw-5,
 .mn-tabledoc-row > .mn-tabledoc-colw-6, .mn-tabledoc-row > .mn-tabledoc-colw-7 { flex: 0 0 auto; }
@@ -66,16 +81,37 @@
 .mn-tabledoc-row > .mn-tabledoc-colw-7 { width: var(--app-table-colw-7); }
 .mn-tabledoc-cell.ghost { background: transparent; }
 .mn-tabledoc-hcell { flex: 1; min-width: var(--app-table-cell-min); position: relative; display: flex; align-items: center; gap: var(--app-space-2); min-height: var(--app-prop-height); padding: var(--app-space-2); }
-.mn-tabledoc-sort { flex: none; display: grid; place-items: center; width: var(--app-space-18); min-height: var(--app-space-18); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; opacity: var(--app-zero); }
-.mn-tabledoc-hcell:hover .mn-tabledoc-sort, .mn-tabledoc-hcell:focus-within .mn-tabledoc-sort, .mn-tabledoc-sort.active { opacity: 1; }
+/* 表头默认只露字段名（2026-11-09）：拖动柄、排序、类型徽标都在悬停/聚焦该列时才浮出，
+   阻尼态用 opacity 而不是删元素——位置恒定，浮出时不抖（FR-TBL-19）。 */
+.mn-tabledoc-hcell .mn-tabledoc-col-drag,
+.mn-tabledoc-hcell .mn-tabledoc-sort,
+.mn-tabledoc-hcell .mn-tabledoc-hbadge { opacity: var(--app-zero); pointer-events: none; transition: opacity var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease), color var(--app-motion-fast) var(--app-ease); }
+.mn-tabledoc-hcell:hover .mn-tabledoc-col-drag,
+.mn-tabledoc-hcell:hover .mn-tabledoc-sort,
+.mn-tabledoc-hcell:hover .mn-tabledoc-hbadge,
+.mn-tabledoc-hcell:focus-within .mn-tabledoc-col-drag,
+.mn-tabledoc-hcell:focus-within .mn-tabledoc-sort,
+.mn-tabledoc-hcell:focus-within .mn-tabledoc-hbadge,
+.mn-tabledoc-hcell.dragging .mn-tabledoc-col-drag,
+.mn-tabledoc-sort.active { opacity: 1; pointer-events: auto; }
+.mn-tabledoc-sort { flex: none; display: grid; place-items: center; width: var(--app-space-18); min-height: var(--app-space-18); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
 .mn-tabledoc-sort.active { color: var(--app-accent-fg); }
 .mn-tabledoc-sort svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-tabledoc-sort:hover, .mn-tabledoc-sort:focus-visible { color: var(--app-accent-fg); background: var(--app-hover); }
+/* 列拖动柄：与行拖动柄同一语言，表头更密，收成图标尺寸。 */
+.mn-tabledoc-col-drag { display: grid; place-items: center; flex: none; width: var(--app-space-18); height: var(--app-space-18); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: grab; }
+.mn-tabledoc-col-drag:hover, .mn-tabledoc-col-drag:focus-visible { background: var(--app-hover); color: var(--app-fg); }
+.mn-tabledoc-col-drag:active { cursor: grabbing; }
+.mn-tabledoc-col-drag svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 列宽只在贴到列右缘时给反馈：平时是不可见的命中区，悬停才显一条竖线。 */
 .mn-tabledoc-colresize { position: absolute; z-index: 1; inset-block: var(--app-zero); right: calc(var(--app-table-resize-width) * -0.5); width: var(--app-table-resize-width); border: var(--app-zero); background: transparent; cursor: col-resize; touch-action: none; }
-.mn-tabledoc-colresize:hover, .mn-tabledoc-colresize:focus-visible { background: var(--app-accent-subtle); }
+.mn-tabledoc-colresize::after { content: ""; position: absolute; inset-block: var(--app-space-4); inset-inline: var(--app-zero); width: var(--app-line); margin-inline: auto; background: transparent; }
+.mn-tabledoc-colresize:hover::after, .mn-tabledoc-colresize:focus-visible::after { background: var(--app-accent); }
 .mn-tabledoc-colresize:focus-visible { outline: var(--app-focus-outline); }
 .mn-tabledoc-hname { flex: 1; min-width: var(--app-zero); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-weight: var(--app-weight-medium); font-size: var(--app-size-chip); padding: var(--app-zero); }
 .mn-tabledoc-hname:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+/* 预览态字段名是纯文本：与编辑态同一个字号/字重，只是不可改。 */
+.mn-tabledoc-hname-static { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 正在添加的列与各行占位同宽，避免 flex:1 把新列和已有列错开 */
 .mn-tabledoc-addcol { flex: none; width: var(--app-account-menu-min); min-width: var(--app-account-menu-min); max-width: var(--app-account-menu-min); background: var(--app-accent-subtle); }
 .mn-tabledoc-addcol .mn-tabledoc-hname { height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); }
@@ -98,6 +134,15 @@
 .mn-tabledoc-hmenu .mn-tabledoc-hdel { border-top: var(--app-line) solid var(--app-border-subtle); margin-top: var(--app-space-2); padding-top: var(--app-space-4); }
 .mn-tabledoc-optedit { display: flex; flex-direction: column; gap: var(--app-space-2); font-size: var(--app-size-kicker); color: var(--app-fg-muted); }
 .mn-tabledoc-optedit textarea { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-4); resize: vertical; }
+/* 字段菜单里的「内容显示」：裁切 / 自动换行二选一（FR-TBL-19）。 */
+.mn-tabledoc-display { display: flex; flex-direction: column; gap: var(--app-space-2); padding-top: var(--app-space-2); }
+.mn-tabledoc-display-title { color: var(--app-fg-subtle); font-size: var(--app-size-kicker); }
+.mn-tabledoc-segmented { display: flex; overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); }
+.mn-tabledoc-segmented button { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: var(--app-touch-target); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
+.mn-tabledoc-segmented button + button { border-inline-start: var(--app-line) solid var(--app-border); }
+.mn-tabledoc-segmented button:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-tabledoc-segmented button[aria-pressed="true"] { background: var(--app-selected); color: var(--app-fg); font-weight: var(--app-weight-medium); }
+.mn-tabledoc-segmented button:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 .mn-tabledoc-hdel { border: var(--app-zero); background: none; color: var(--app-danger); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-2) var(--app-zero); }
 .mn-tabledoc-hdel:hover { text-decoration: underline; }
 .mn-tabledoc-actions { display: flex; gap: var(--app-space-6); }
@@ -112,8 +157,11 @@
 .mn-tabledoc-detail-fields dd { margin: var(--app-space-2) var(--app-zero) var(--app-zero); color: var(--app-fg); font-size: var(--app-size-chip); overflow-wrap: anywhere; white-space: pre-wrap; }
 .mn-tabledoc-detail-fields a { color: var(--app-link); }
 .mn-tabledoc-detail-backdrop { display: none; }
-.mn-doc[data-form="table"][data-mode="preview"] .mn-doc-preview { overscroll-behavior-inline: contain; }
-.mn-doc[data-form="table"][data-mode="preview"] .mn-doc-preview table { width: max-content; min-width: var(--app-full-size); max-width: none; }
+.mn-tabledoc-detail-foot { margin-top: var(--app-space-10); padding-top: var(--app-space-6); border-top: var(--app-line) solid var(--app-border-subtle); }
+.mn-tabledoc-detail-del { display: inline-flex; align-items: center; gap: var(--app-space-2); color: var(--app-danger); }
+.mn-tabledoc-detail-del svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 预览态与编辑态共用同一套网格（FR-TBL-20）：预览只在组件里关掉输入入口，
+   这里不再有「预览专用表格排版」——曾经的 .mn-doc-preview table 覆盖已随实现删除。 */
 .mn-tabledoc-filter, .mn-tabledoc-selection { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); padding: var(--app-space-4) 0 var(--app-space-6); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-tabledoc-filter label { display: inline-flex; align-items: center; gap: var(--app-space-2); }
 .mn-tabledoc-filter select, .mn-tabledoc-filter input { max-width: var(--app-context-menu-min); min-height: var(--app-touch-target); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); padding: 0 var(--app-space-4); }
@@ -125,10 +173,24 @@
 .mn-tabledoc .mn-auth-link { color: var(--app-link); }
 .mn-tabledoc-scaffold { border: var(--app-line) dashed var(--app-border-subtle); border-radius: var(--app-radius-md); padding: var(--app-space-xl); text-align: left; color: var(--app-fg-muted); font-size: var(--app-size-chip); display: flex; flex-direction: column; gap: var(--app-space-5); align-items: flex-start; }
 .mn-tabledoc-scaffold-actions { display: flex; align-items: center; gap: var(--app-space-6); }
+.mn-tabledoc-empty { margin: var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-tabledoc-degrade { border: var(--app-line) solid var(--app-danger); border-radius: var(--app-radius-md); padding: var(--app-space-xl); display: flex; flex-direction: column; gap: var(--app-space-5); align-items: flex-start; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-tabledoc-degrade[data-readonly="true"] { border-color: var(--app-border-subtle); }
 .mn-tcell-input { width: var(--app-full-size); min-width: var(--app-zero); height: var(--app-prop-height); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-zero) var(--app-space-4); }
 .mn-tcell-input:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 .mn-tcell-input:focus { position: relative; z-index: 4; width: auto; min-width: var(--app-full-size); max-width: var(--app-table-long-value-max); background: var(--app-surface); outline: var(--app-focus-outline); }
+/* 自动换行列：多行控件按内容自增高（field-sizing 为主，JS 兜底），行高随内容长高。 */
+.mn-tcell-textarea { width: var(--app-full-size); min-width: var(--app-zero); min-height: var(--app-prop-height); max-height: none; resize: none; overflow: hidden; field-sizing: content; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); padding: var(--app-space-2) var(--app-space-4); }
+.mn-tcell-textarea:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
+/* 预览态只读内容：与编辑态同字号；裁切列一行省略，换行列整段显示。 */
+.mn-tcell-text { min-width: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
+.mn-tcell-text[data-wrap="false"] { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mn-tcell-text[data-wrap="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mn-tcell-link { color: var(--app-link); text-decoration: none; }
+.mn-tcell-link:hover, .mn-tcell-link:focus-visible { text-decoration: underline; }
+.mn-tcell-readmulti { display: flex; flex-wrap: wrap; gap: var(--app-space-2); min-width: var(--app-zero); }
+.mn-tcell-checkmark { display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-xs); color: var(--app-fg-faint); font-size: var(--app-size-kicker); line-height: 1; }
+.mn-tcell-checkmark.on { border-color: var(--app-accent); background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 .mn-tcell-editor { width: var(--app-full-size); min-width: var(--app-zero); }
 .mn-tcell-check { width: var(--app-icon-sm); height: var(--app-icon-sm); accent-color: var(--app-accent); cursor: pointer; }
 .mn-tcell-checkwrap { display: inline-flex; min-height: var(--app-prop-height); align-items: center; gap: var(--app-space-4); }
@@ -168,25 +230,18 @@
 .mn-ftmenu-item:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-ftmenu-item.on { background: var(--app-selected); color: var(--app-fg); }
 
-/* 列拖动柄：此前没有样式，落到浏览器默认按钮（表头里的方块图标）。
-   与行拖动柄同一语言，但表头更密，收成图标尺寸并默认半透明。 */
-.mn-tabledoc-col-drag {
-  display: grid; place-items: center; flex: none;
-  width: var(--app-space-18); height: var(--app-space-18);
-  padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm);
-  background: none; color: var(--app-fg-faint);
-  cursor: grab; opacity: var(--app-tree-guide-opacity);
-  transition: opacity var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease);
-}
-.mn-tabledoc-col-drag:hover, .mn-tabledoc-col-drag:focus-visible { opacity: 1; background: var(--app-hover); color: var(--app-fg); }
-.mn-tabledoc-col-drag:active { cursor: grabbing; }
-.mn-tabledoc-col-drag svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-
 /* 延迟离屏数据行绘制，避免数百行宽表格在滚动时持续占用布局与绘制预算。 */
 .mn-tabledoc-row:not(.head):not(.foot) { content-visibility: auto; contain-intrinsic-size: auto var(--app-prop-height); }
+/* 有「自动换行」列时关掉离屏跳过：换行单元格要按内容量高度，跳过的行量不到 scrollHeight
+   （无 field-sizing 的浏览器会停在兜底高度）。只有用户主动开了换行才付这份代价。 */
+.mn-tabledoc-grid[data-wrap="true"] .mn-tabledoc-row:not(.head):not(.foot) { content-visibility: visible; }
 
+/* 无悬停设备（触屏）：拖动柄、排序、类型徽标没有「悬停」这一刻，直接常驻。 */
 @media (hover: none) {
-  .mn-tabledoc-sort:not(.active) { opacity: 1; }
+  .mn-tabledoc-hcell .mn-tabledoc-sort:not(.active),
+  .mn-tabledoc-hcell .mn-tabledoc-hbadge,
+  .mn-tabledoc-hcell .mn-tabledoc-col-drag,
+  .mn-tabledoc-rowdrag { opacity: 1; pointer-events: auto; }
 }
 
 [data-layout="compact"] .mn-tabledoc-detail-backdrop,
