@@ -193,8 +193,16 @@
 .mn-tree-chevbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 /* 展开中的加密空间列表与主题列表之间留 14 */
 .mn-tree-space { margin-bottom: var(--app-space-14); }
-/* 行尾动作悬停才出现（低频动作不常驻） */
-.mn-treerow .mn-minibtn { opacity: 0; cursor: pointer; transition: opacity var(--app-motion-fast) var(--app-ease); }
+/* 行尾动作悬停才出现（低频动作不常驻）。几何与段标题动作同源：18 图标槽 + 12 图标，
+   不重置边框/内边距时按钮会取浏览器默认样式，把整行撑出一个大方框。 */
+.mn-treerow .mn-minibtn {
+  display: grid; place-items: center; flex: none;
+  width: var(--app-minibtn-size); height: var(--app-minibtn-size); padding: var(--app-zero);
+  border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint);
+  opacity: 0; cursor: pointer; transition: opacity var(--app-motion-fast) var(--app-ease);
+}
+.mn-treerow .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-treerow .mn-minibtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-treerow:hover .mn-minibtn, .mn-treerow:focus-within .mn-minibtn { opacity: 1; }
 .mn-treerow.priv .mn-minibtn { opacity: 1; }
 /* 连接线：起点在父级箭头中心（竖线上探 --app-space-md），终点在子项中心；多子项逐段拼接即连续 */
