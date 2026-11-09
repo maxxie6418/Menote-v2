@@ -93,7 +93,7 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
     setMemoUploading(true); setMemoUploadError(false);
     try {
       for (const file of Array.from(files)) {
-        const uploaded = await uploadAttachment(file);
+        const uploaded = await uploadAttachment(userId, file);
         if ("error" in uploaded) { setMemoUploadError(true); continue; }
         const placed = insertAttachment(markdown, caret, { sha256: uploaded.sha256, name: uploaded.name }, file.type.startsWith("image/"));
         markdown = placed.markdown; caret = placed.selectionStart;

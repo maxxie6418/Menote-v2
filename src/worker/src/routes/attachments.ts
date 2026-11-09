@@ -3,7 +3,7 @@ import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
 import {
-  deleteUserAttachment, listUserAttachments, readUserAttachment, storeAttachment,
+  deleteUserAttachment, listUserAttachments, readAttachmentPolicy, readUserAttachment, storeAttachment,
 } from "../services/attachmentService";
 
 /** 附件路由（G5）：R2 内容寻址存储 + 鉴权读取（FR-SYNC-7/8）。
@@ -28,9 +28,14 @@ attachmentRoutes.get("/api/attachments", requireSession, async (c) => {
 attachmentRoutes.post("/api/attachments", sameOriginGuard, requireSession, async (c) => {
   try {
     if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
+    const userId = c.get("authUser")!.id;
+    const contentLength = Number(c.req.header("Content-Length"));
+    const policy = await readAttachmentPolicy(c.env.DB, userId);
+    if (Number.isFinite(contentLength) && contentLength > policy.maxBytes) return c.json({ error: "invalid_attachment" }, 400);
     const body = await c.req.arrayBuffer();
+    const filename = c.req.header("X-File-Extension") ?? "";
     const result = await storeAttachment(
-      { db: c.env.DB, bucket: c.env.BUCKET }, c.get("authUser")!.id, body, c.req.header("Content-Type"),
+      { db: c.env.DB, bucket: c.env.BUCKET }, userId, body, c.req.header("Content-Type"), filename,
     );
     return c.json(result, 201);
   } catch (error) {

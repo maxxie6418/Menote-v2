@@ -11,6 +11,7 @@ import { applyPulledAiSettings } from "./aiSettingsService";
 import { applyPulledRaindropSettings } from "./raindropSettingsService";
 import { applyPulledPropertyTemplates } from "./propertyTemplateService";
 import { applyPulledTableViewSettings } from "./tableViewSettingsService";
+import { applyPulledAttachmentPolicy } from "./attachmentPolicyService";
 import { applyPulledWorkspaceSettings } from "./workspaceSettingsService";
 import { isBlankDraft } from "./contentService";
 import { outboxUpsert } from "./contentShared";
@@ -29,8 +30,15 @@ const PULL_PAGE_LIMIT = 200;
 const RETRY_CAP_MS = 60_000;
 
 export type SyncPhase = "idle" | "syncing" | "error";
+export type SyncProgress = { stage: "push" | "pull" | null; completed: number; total: number };
 const statusListeners = new Set<() => void>();
 let phase: SyncPhase = "idle";
+let progress: SyncProgress = { stage: null, completed: 0, total: 0 };
+
+function setProgress(next: SyncProgress): void {
+  progress = next;
+  statusListeners.forEach((listener) => listener());
+}
 
 function setPhase(next: SyncPhase): void {
   if (phase === next) return;
@@ -46,6 +54,8 @@ export function subscribeSyncStatus(listener: () => void): () => void {
 export function getSyncPhase(): SyncPhase {
   return phase;
 }
+
+export function getSyncProgress(): SyncProgress { return progress; }
 
 export async function itemSyncStatus(userId: string, itemId: string): Promise<{ pending: boolean; failed: boolean }> {
   const rows = await localDb.outbox.where("entityId").equals(itemId).toArray();
@@ -267,6 +277,7 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
         await markOutboxError(row.seq!, "missing_result", backoffMs(row.retries));
       }
     }
+    setProgress({ ...progress, completed: Math.min(progress.total, progress.completed + pending.length) });
     if (pending.length < PUSH_BATCH) {
       // 结果处理可能重排了设置操作（冲突重推），队列仍有到期行则继续排空，
       // 保证 flushSync 单轮内把开关推上服务端（AI 提交前依赖这一轮）。
@@ -365,6 +376,7 @@ async function pullUpdates(userId: string): Promise<void> {
       await applyPulledRaindropSettings(userId, settings);
       await applyPulledPropertyTemplates(userId, settings);
       await applyPulledTableViewSettings(userId, settings);
+      await applyPulledAttachmentPolicy(userId, settings);
     }
     const next = String(nextCursor ?? cursor);
     if (fullResync) {
@@ -389,11 +401,14 @@ export async function runSyncCycle(userId: string): Promise<void> {
   recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_started" });
   setPhase("syncing");
   try {
+    setProgress({ stage: "push", completed: 0, total: await localDb.outbox.where("userId").equals(userId).count() });
     const deviceId = await getDeviceId();
     await releaseParkedSettings(userId);
     await releaseMissingItemDeletes(userId);
     await drainOutbox(userId, deviceId);
+    setProgress({ stage: "pull", completed: 0, total: 0 });
     await pullUpdates(userId);
+    setProgress({ stage: null, completed: 0, total: 0 });
     setPhase("idle");
     recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_completed", durationMs: Date.now() - cycleStartedAt });
     notifyLocalChange();
@@ -405,6 +420,7 @@ export async function runSyncCycle(userId: string): Promise<void> {
       durationMs: Date.now() - cycleStartedAt,
     });
     setPhase("error");
+    setProgress({ stage: null, completed: 0, total: 0 });
   }
 }
 
@@ -431,4 +447,10 @@ export async function requestSync(userId: string): Promise<void> {
   await navigator.locks.request("menote-sync", { ifAvailable: true }, async (lock) => {
     if (lock) await runSyncCycle(userId);
   });
+}
+
+/** 手动立即同步：等待正在执行的标签页完成本轮，再独占执行一轮。 */
+export async function requestSyncNow(userId: string): Promise<void> {
+  if (typeof navigator === "undefined" || !navigator.locks) { await runSyncCycle(userId); return; }
+  await navigator.locks.request("menote-sync", async () => { await runSyncCycle(userId); });
 }

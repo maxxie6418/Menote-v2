@@ -228,7 +228,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
       }, async ({ name, mime, base64 }) => {
         try {
           if (!/^[\w.+-]+\/[\w.+-]+(?:\s*;[^\r\n]*)?$/.test(mime)) throw new Error("invalid_attachment");
-          const attachment = await storeAttachment({ db: c.env.DB, bucket: c.env.BUCKET }, token.userId, decodeBase64(base64), mime);
+          const attachment = await storeAttachment({ db: c.env.DB, bucket: c.env.BUCKET }, token.userId, decodeBase64(base64), mime, name);
           await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
             tool: "upload_attachment", itemId: null, resourceId: attachment.sha256, revBefore: null, revAfter: null,
             result: "uploaded", operationId: null, at: now });

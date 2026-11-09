@@ -1,7 +1,7 @@
 # Menote V2 工程结构与组件设计（v0.16）
 
 - **整理日期**：2026-10-31
-- **修订记录**：v0.15（2026-11-05，TP11）目录树按代码现状修订：没有 `stores/`、没有独立 `inbox` feature、没有 `configGuard`、MCP 是平铺的 `services/mcp*.ts` 而不是 `services/mcp/` 子目录；同步引擎在 `src/web/src/services/syncEngine.ts`；另有 `features/perf`。这是现状对齐，不改产品结论。v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）；v0.13 登记 `workspaceSettingsService`：侧栏宽度与主题树顺序按账号设置写入 IndexedDB settings/outbox，经 Worker 同步到 D1 `user_settings`；树节点内容移动继续由 `contentService` 写入本地库与 outbox；v0.14 登记 `tableViews` 账号设置同步隐藏列偏好，以及表格行详情面板/列显隐控件。
+- **修订记录**：v0.15（2026-11-05，TP11）目录树按代码现状修订：没有 `stores/`、没有独立 `inbox` feature、没有 `configGuard`、MCP 是平铺的 `services/mcp*.ts` 而不是 `services/mcp/` 子目录；同步引擎在 `src/web/src/services/syncEngine.ts`；另有 `features/perf`。这是现状对齐，不改产品结论。v0.1 初版；v0.2 单文件软上限 400 行调整为 **1000 行左右**（防失控底线而非鼓励大文件——避免过度碎片化）；v0.3 按 TP3 定义 MCP Token 管理、逐 Token 动态权限/最后调用时间、附件工具边界与权限校验；v0.4 明确 TokenManager 位于设置菜单独立「MCP 接入」栏目；v0.5 确认 MCP 地址由当前 origin + `/api/mcp` 构成，可独立复制/恢复，Token 支持事后复显/复制；v0.6 按 TP4 更新 editor 组件清单；v0.7 增加 ClipTemplateManager、模板契约校验及 Worker 模板 D1 / service / route / MCP 工具边界；v0.8 登记网址收藏的 MCP 工具、专用权限及 Note/Table 写入服务；v0.9 明确外观偏好归属账号，并经 `appearanceSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings`；v0.10 按 TP9 登记 Raindrop 连接器模块（Worker routes/services/db 三层 + 独立 D1 表 + R2 快照 + G3 定时任务 + 设置插件开关与 Raindrop 面板 + 收藏标准列「行 ID」列）；v0.11 登记本机同步诊断日志页与 `syncDiagnosticsService` / IndexedDB 有界日志表（FR-SYNC-11）；v0.12 登记表格单选/多选候选颜色与胶囊展示（FR-TBL-11）；v0.13 登记 `workspaceSettingsService`：侧栏宽度与主题树顺序按账号设置写入 IndexedDB settings/outbox，经 Worker 同步到 D1 `user_settings`；树节点内容移动继续由 `contentService` 写入本地库与 outbox；v0.14 登记 `tableViews` 账号设置同步隐藏列偏好，以及表格行详情面板/列显隐控件；v0.16（2026-11-09）登记 `attachmentPolicyService` 账号附件策略同步、`AttachmentPolicySettings`、Worker 上传策略复验，以及 `SidebarSyncControl` 手动同步/阶段进度；表格附件列由 `TableCellEditor` 承载，加密表格禁用明文上传。
 - **文档定位**：M1「工程规范前置落地」的设计成果。预先设计**改起来最贵的层**——仓库结构、模块边界、代码分层、命名、样式 token 层、组件清单与归属；**不做**逐组件的详细交互稿与 props 定义（开发中按需求说明书 FR 条目实现，以「组件清单 + DoD 结构检查」防混乱）。
 - **来源**：需求说明书 v1.20（FR/C/NFR）、主文档 v0.18（10.1/10.3/C-5/C-9）、V1 勘查教训（巨型文件、目录散乱）。
 - **约定**：`[实施定]` = 实现期可调的具体选型；结构边界本身按本文执行。
@@ -102,9 +102,9 @@ IndexedDB（运行时权威副本） ── sync 引擎（outbox/leader/broadcas
 | `sync` | 同步引擎与状态指示 | FR-SYNC |
 | `versions` | 版本历史、回收站 | FR-VER |
 | `search` | 本地检索（M2）、FTS5 客户端（M4） | FR-IA-10 |
-| `settings` | 备份目标、令牌管理、账号级外观/样式与工作区偏好编辑、凭据复显；外观经 `appearanceSettingsService`、侧栏宽度/目录顺序经 `workspaceSettingsService` → IndexedDB settings/outbox → Worker 同步至 D1 `user_settings` | FR-BAK/FR-MCP/FR-STYLE/FR-IA-14 |
+| `settings` | 备份目标、令牌管理、账号级外观/样式、工作区偏好与附件策略编辑、凭据复显；外观经 `appearanceSettingsService`、侧栏宽度/目录顺序经 `workspaceSettingsService`、附件策略经 `attachmentPolicyService` → IndexedDB settings/outbox → Worker 同步至 D1 `user_settings` | FR-BAK/FR-MCP/FR-STYLE/FR-IA-14/FR-SYNC-13 |
 | `auth` | 认证门、初始化引导（首个 owner）、登录/注册与会话状态（G1） | FR-USR、C-7 |
-| `attachments` | 附件管理面板（列表/引用计数/删除，上传与渲染在 notes/editor 内）（G5） | FR-SYNC-7/8 |
+| `attachments` | 附件管理面板（列表/引用计数/删除；Note 上传与渲染在 notes/editor，表格通过附件类型列上传/下载）（G5） | FR-SYNC-7/8 |
 | `backup` | 备份目标管理面板（逐条添加、连接测试、推送调度、远端快照浏览/删除、保留数量）（G9） | FR-BAK-1/2/4/8 |
 | `markdown` | MarkdownView 渲染组件（react-markdown+gfm，任务复选框互写、附件 URL 解析）（G5/E2） | FR-STYLE-1、FR-MEMO-3 |
 | `monitor` | Resource Monitor：官方 Worker/D1/R2 指标、应用抽样估算、刷新频率与阈值配置（独立边界，见第 5 章） | FR-MON |
@@ -133,15 +133,16 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。
 **editor/**：`EditorHost`、`MilkdownWysiwygAdapter`（M2 末已接入）、`TextareaSourceAdapter`（FR-EDT-3，仅从「更多」进入）、`FormatBar`（正文上方常驻格式栏，FR-EDT-4，TP4）、`SlashMenu`（行首 `/` 菜单，与格式栏同内容，FR-EDT-6，TP4）。预览沿用 `markdown/MarkdownView`，不在 editor 内另建。
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
-**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色）、`FieldTypeMenu`（7 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段创建落在表尾新列，类型菜单 portal 到视口以免被滚动容器裁切）、`TableColumnVisibility`（列显隐设置，只改当前账号视图）、`TableRowDetailsPanel`（行详情侧栏与封面预览）。隐藏列经 `tableViewSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings` 的 `tableViews` 键；列宽继续只保存在本机偏好（FR-TBL-17）。
+**table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色；整页表格附件列支持上传和下载）、`FieldTypeMenu`（8 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段可从文档标题栏或表格工具条创建，类型菜单 portal 到视口以免被滚动容器裁切）、`TableColumnVisibility`（列显隐设置，只改当前账号视图）、`TableRowDetailsPanel`（行详情侧栏与封面预览）。隐藏列经 `tableViewSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings` 的 `tableViews` 键；列宽继续只保存在本机偏好（FR-TBL-17）。
 **memo/**：`Timeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoDetailDialog`（评论列表与编辑）、`MemoQuoteDialog`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：本地检索查询在 `services/searchService.ts`。入口是首页与清单顶部搜索框，不另建命令面板（负责人 2026-11-02）。
 **auth/**（G1）：`AuthGate`（应用级会话门：探测/引导/登录/放行）、`CredentialsForm`（引导/登录/注册共用表单）。
-**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「同步日志」「MCP 接入」「剪藏模板」与「插件」栏目）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`SyncLogSection`（FR-SYNC-11：本机同步诊断日志查询/复制/导出）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
+**settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「同步日志」「MCP 接入」「剪藏模板」与「插件」栏目）、`AttachmentPolicySettings`（账号级单文件上限与允许扩展名设置）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`SyncLogSection`（FR-SYNC-11：本机同步诊断日志查询/复制/导出）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **同步诊断**：`services/syncDiagnosticsService.ts` 异步写入本机 IndexedDB `syncDiagnostics` 表，按账号隔离、每账号最多 2,000 条；同步引擎只记结构化阶段/回执字段，UI 经服务读取。不得写入正文、标题、附件名、完整内容哈希或密钥；诊断落库失败不可影响业务流程。
+**附件策略与同步状态**：services/attachmentPolicyService.ts 通过账号设置与 outbox 同步扩展名/大小；Worker services/attachmentService.ts 每次上传读取该策略并遵守 20 MiB 硬上限。SidebarSyncControl 读取 syncEngine 的推送队列和拉取阶段，手动同步等待 Web Lock。
 **ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 

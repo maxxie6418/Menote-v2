@@ -30,6 +30,10 @@ interface TableDocumentProps {
   onSwitchToNote: () => void;
   /** 预览态：沿用同一套网格与列宽，但内容只读（FR-TBL-20）。 */
   readOnly?: boolean;
+  /** 文档栏触发新增字段（标题栏快捷入口）。 */
+  addColumnSignal?: number;
+  /** 加密文档没有获批的附件密文上传协议时，禁止走明文附件接口。 */
+  allowAttachments?: boolean;
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
@@ -45,7 +49,7 @@ function removeFirstTable(body: string): string {
 /** 多维表格整页网格（TP2）：列管理 + 行管理 + 类型化单元格编辑；载体永远是标准 GFM（FR-TBL-1）。
  *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。
  *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
-export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false }: TableDocumentProps) {
+export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, addColumnSignal = 0, allowAttachments = true }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
   const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
@@ -53,6 +57,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   const [menuCol, setMenuCol] = useState<number | null>(null);
   const [addingCol, setAddingCol] = useState(false);
+  const seenAddColumnSignal = useRef(addColumnSignal);
   const [renames, setRenames] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
@@ -80,6 +85,12 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const pendingRowFocus = useRef<{ row: number; col: number } | null>(null);
   const hiddenColumnsLoad = useRef(0);
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (addColumnSignal <= seenAddColumnSignal.current) return;
+    seenAddColumnSignal.current = addColumnSignal;
+    if (!readOnly) { setAddingCol(true); setMenuCol(null); setError(null); }
+  }, [addColumnSignal, readOnly]);
 
   useEffect(() => {
     const widths = readTableColumnWidths(userId, itemId);
@@ -796,6 +807,12 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   error={error}
                 />
               )}
+              {!readOnly && !addingCol && (
+                <button type="button" className="mn-tabledoc-add-column" role="columnheader" aria-label="添加字段" title="添加字段"
+                  onClick={() => { setAddingCol(true); setMenuCol(null); setError(null); }}>
+                  <Plus aria-hidden="true" />
+                </button>
+              )}
             </div>
             {visibleRows.map(({ cells, rowIndex: row }) => (
               <div className={`mn-tabledoc-row${draggingRow === row ? " dragging" : ""}${selectedRows.has(row) ? " selected" : ""}`} role="row" key={row} data-row-index={row}
@@ -833,6 +850,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   return (
                   <div className={`mn-tabledoc-cell mn-tabledoc-colw-${columnWidths[col] ?? 0}${wrap ? " mn-tabledoc-cell-wrap" : ""}`} role="gridcell" key={col} data-row-index={row} data-col-index={col}>
                     <TableCellEditor
+                      userId={userId}
+                      allowAttachments={allowAttachments}
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
                       onChange={(value) => setCell(row, col, value)}
                     />
@@ -840,21 +859,18 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   );
                 })}
                 {addingCol && <AddColumnSpacer />}
+                {!readOnly && !addingCol && <div className="mn-tabledoc-add-column-cell" role="presentation" />}
               </div>
             ))}
             <div className="mn-tabledoc-row foot" role="row">
-              <div className="mn-tabledoc-rownum" role="presentation" />
-                {visibleColumnIndices.map((col) => <div className={`mn-tabledoc-cell ghost mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="presentation" key={col} />)}
+              <div className="mn-tabledoc-rownum" role="presentation">
+                {!readOnly && <button type="button" className="mn-tabledoc-add-row" aria-label="添加行" title="添加行" onClick={addRow}><Plus aria-hidden="true" /></button>}
+              </div>
+              {visibleColumnIndices.map((col) => <div className={`mn-tabledoc-cell ghost mn-tabledoc-colw-${columnWidths[col] ?? 0}`} role="presentation" key={col} />)}
               {addingCol && <AddColumnSpacer />}
+              {!readOnly && !addingCol && <div className="mn-tabledoc-add-column-cell" role="presentation" />}
             </div>
           </div>
-          {!readOnly && header.length > 0 && (
-            <div className="mn-tabledoc-actions">
-              <button type="button" className="mn-auth-link" onClick={addRow}>
-                <Plus size={14} aria-hidden="true" /> 添加行
-              </button>
-            </div>
-          )}
         </div>
         </div>
         {detailRow !== null && table?.rows[detailRow] && (

@@ -15,6 +15,7 @@ import { PluginSection } from "./PluginSection";
 import { PropertyTemplatePanel } from "./PropertyTemplatePanel";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 import { SyncLogSection } from "./SyncLogSection";
+import { AttachmentPolicySettings } from "./AttachmentPolicySettings";
 import { getSyncPhase, requestSync, subscribeSyncStatus, syncQueueStatus, type SyncPhase } from "../../services/syncEngine";
 import { subscribeLocalChanges } from "../../lib/broadcast";
 
@@ -94,7 +95,7 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
             {section === "style" && <StyleSection userId={userId} />}
             {section === "ai" && <AiSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}
-            {section === "attachments" && <AttachmentListPanel userId={userId} />}
+            {section === "attachments" && <><AttachmentPolicySettings userId={userId} /><AttachmentListPanel userId={userId} /></>}
             {section === "syncLogs" && <SyncLogSection userId={userId} />}
             {section === "recovery" && <RecoverySection userId={userId} />}
             {section === "mcp" && <McpTokenManager />}

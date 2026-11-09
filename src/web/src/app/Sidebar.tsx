@@ -7,6 +7,7 @@ import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { AccountMenu } from "./AccountMenu";
+import { SidebarSyncControl } from "../features/sync";
 import { TagManagerDialog } from "./TagManagerDialog";
 import { SectionHead } from "../components/ui/SectionHead";
 import { DEFAULT_WORKSPACE_SETTINGS, readWorkspaceSettings, updateWorkspaceSettings } from "../services/workspaceSettingsService";
@@ -170,6 +171,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         </div>
       )}
       <div className="mn-sb-foot">
+        <SidebarSyncControl userId={userId} collapsed={collapsed} />
         <AccountMenu userId={userId} username={account.username} role={account.role} collapsed={collapsed} onLogout={onLogout} onOpenSettings={onOpenSettings} onOpenStatus={onOpenStatus} />
       </div>
       {!overlayMode && !collapsed && <div className="mn-sidebar-resize" role="separator" aria-orientation="vertical" aria-label="调整侧栏宽度" tabIndex={0}

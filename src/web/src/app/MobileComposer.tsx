@@ -75,7 +75,7 @@ export function MobileComposer({ userId, mode, body, title, tags, onMode, onBody
 
   const insertAttachment = async (file?: File) => {
     if (!file) return;
-    const result = await uploadAttachment(file);
+    const result = await uploadAttachment(userId, file);
     if ("error" in result) { setError("附件上传失败，请检查网络后重试。"); return; }
     insert(`![${result.name}](attachments/${result.sha256}--${result.name})`);
     setError(null);

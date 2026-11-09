@@ -21,7 +21,21 @@ function resolveBuildCommit(): string {
 }
 
 export default defineConfig({
-  server: { proxy: { "/api": "http://127.0.0.1:8787" } },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+        // The Worker sees its own origin after the dev proxy forwards the
+        // request, so keep its same-origin CSRF guard valid in local dev.
+        configure(proxy) {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Origin", "http://127.0.0.1:8787");
+          });
+        },
+      },
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(resolveAppVersion()),
     __APP_BUILD_COMMIT__: JSON.stringify(resolveBuildCommit()),
