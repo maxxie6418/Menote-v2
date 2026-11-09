@@ -234,8 +234,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && <MarkdownView markdown={previewText ?? plain ?? ""} className="md-body markdown-content mn-doc-preview" />}
-        {plainFlow && mode === "edit" && item.type === "table" && (
+        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={previewText ?? plain ?? ""} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}
             itemId={item.id}
@@ -244,6 +244,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             onDegrade={() => { void degradeTableToNote(userId, item.id); }}
             /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
             onSwitchToNote={() => {}}
+            readOnly={mode === "preview"}
           />
         )}
         {plainFlow && mode === "edit" && item.type !== "table" && (

@@ -673,10 +673,10 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         </div>
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
-        {plain && mode === "preview" && (
+        {plain && mode === "preview" && !isTableDoc && (
           <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
         )}
-        {plain && mode === "edit" && isTableDoc && (
+        {plain && isTableDoc && (
           <TableDocument
             userId={userId}
             itemId={item.id}
@@ -684,6 +684,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onChangeMarkdown={(next) => void saveFullMarkdown(next)}
             onDegrade={degradeDoc}
             onSwitchToNote={switchToNoteForm}
+            readOnly={mode === "preview"}
           />
         )}
         {plain && mode === "edit" && !isTableDoc && (

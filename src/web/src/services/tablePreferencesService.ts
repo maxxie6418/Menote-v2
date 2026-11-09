@@ -8,6 +8,10 @@ function hiddenColumnsStorageKey(userId: string, itemId: string): string {
   return `menote:table-hidden-columns:${encodeURIComponent(userId)}:${encodeURIComponent(itemId)}`;
 }
 
+function wrapColumnsStorageKey(userId: string, itemId: string): string {
+  return `menote:table-wrap-columns:${encodeURIComponent(userId)}:${encodeURIComponent(itemId)}`;
+}
+
 /** Local-only table layout preference. It deliberately never enters IndexedDB content or sync. */
 export function readTableColumnWidths(userId: string, itemId: string): number[] {
   try {
@@ -42,6 +46,26 @@ export function readHiddenTableColumns(userId: string, itemId: string): string[]
 export function writeHiddenTableColumns(userId: string, itemId: string, columns: string[]): void {
   try {
     localStorage.setItem(hiddenColumnsStorageKey(userId, itemId), JSON.stringify(columns));
+  } catch {
+    // A blocked/full localStorage must not affect table editing or content persistence.
+  }
+}
+
+/** 列内容显示方式（裁切 / 自动换行）：按列名记录，只存本机，不进 Markdown 也不同步。
+ *  按列名而非序号，列重排后仍然跟着同一列走；列改名会退回默认的裁切。 */
+export function readTableWrapColumns(userId: string, itemId: string): string[] {
+  try {
+    const raw = localStorage.getItem(wrapColumnsStorageKey(userId, itemId));
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeTableWrapColumns(userId: string, itemId: string, columns: string[]): void {
+  try {
+    localStorage.setItem(wrapColumnsStorageKey(userId, itemId), JSON.stringify(columns));
   } catch {
     // A blocked/full localStorage must not affect table editing or content persistence.
   }

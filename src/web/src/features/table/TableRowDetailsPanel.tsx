@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
+import { safeWebUrl } from "../../lib/safeUrl";
 
 interface TableRowDetailsPanelProps {
   rowNumber: number;
   columns: string[];
   cells: string[];
   onClose: () => void;
-}
-
-function safeWebUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
-  } catch {
-    return null;
-  }
+  /** 删行入口：行号槽只留编号与拖动，删除收进详情（预览态不传）。 */
+  onDelete?: () => void;
 }
 
 function CoverPreview({ src, alt }: { src: string; alt: string }) {
@@ -24,7 +18,7 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 }
 
 /** Row detail side panel, with a large preview for Raindrop cover URLs. */
-export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: TableRowDetailsPanelProps) {
+export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose, onDelete }: TableRowDetailsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   // onClose 走 ref：父组件传内联闭包时，表格数据刷新重渲染会让陷阱 effect 反复重跑、
@@ -78,6 +72,13 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose }: Tab
             );
           })}
         </dl>
+        {onDelete && (
+          <footer className="mn-tabledoc-detail-foot">
+            <button type="button" className="mn-textbtn mn-tabledoc-detail-del" onClick={onDelete}>
+              <Trash2 aria-hidden="true" />删除本行
+            </button>
+          </footer>
+        )}
       </aside>
     </>
   );

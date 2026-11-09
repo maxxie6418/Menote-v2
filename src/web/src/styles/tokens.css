@@ -422,7 +422,12 @@
   --app-table-colw-4: 14rem; --app-table-colw-5: 17rem; --app-table-colw-6: 20rem; --app-table-colw-7: 24rem;
   --app-table-resize-width: 0.5rem;
   --app-table-long-value-max: 36rem;
-  --app-tabledoc-rownum-width: 6rem; /* 行选择 + 触控拖动 + 行号 + 删除操作 */
+  --app-tabledoc-rownum-width: 3.5rem; /* 行号槽：默认只放行号；多选框与拖动柄共用左侧槽位，按需出现 */
+  --app-tabledoc-gutter-inset: 1.25rem; /* 行号起点：让出左侧槽位，切换多选时行号不跳位 */
+  --app-tabledoc-check-mark-w: 0.375rem;  /* 自绘复选框的勾：宽 */
+  --app-tabledoc-check-mark-h: 0.1875rem; /* 自绘复选框的勾：高 */
+  --app-tabledoc-check-stroke: 0.09375rem;/* 自绘复选框的勾：线宽 1.5px */
+  --app-tabledoc-check-dash: 0.4375rem;   /* 不确定态横线长度 */
   --app-tabledoc-max-height: 62dvh; /* 表格页网格区最大高度：超出后内部滚动，表头吸顶才生效 */
   --app-table-detail-width: min(28rem, 40vw); /* 多维表格行详情侧栏宽度 */
   --app-tabledoc-menu-z: 16;        /* 字段菜单：高于表头 sticky(2)，低于遮罩(20) */
