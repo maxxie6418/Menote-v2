@@ -224,7 +224,14 @@
 .mn-tree-empty { margin: var(--app-zero); padding: var(--app-space-2) var(--app-space-xs) var(--app-space-6); font-size: var(--app-size-label); color: var(--app-fg-faint); }
 .mn-treerow .mn-locklabel { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
 .mn-tags { display: flex; flex-wrap: wrap; gap: var(--app-space-5); padding: var(--app-zero) var(--app-space-xs) var(--app-space-4); }
-.mn-sb-foot { margin-top: auto; display: flex; align-items: center; gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-4); border-top: var(--app-line) solid var(--app-border); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
+.mn-sb-foot { margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-4); border-top: var(--app-line) solid var(--app-border); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
+.mn-sidebar-sync { display: grid; gap: var(--app-space-4); min-width: var(--app-zero); }
+.mn-sidebar-sync-button { display: flex; align-items: center; justify-content: flex-start; gap: var(--app-space-6); width: var(--app-full-size); min-height: var(--app-touch-target); padding: var(--app-space-6) var(--app-space-8); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; cursor: pointer; }
+.mn-sidebar-sync-button:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
+.mn-sidebar-sync-button:disabled { color: var(--app-fg-faint); cursor: default; }
+.mn-sidebar-sync-button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
+.mn-sidebar-sync-state { overflow: hidden; color: var(--app-fg-faint); font-size: var(--app-size-kicker); text-overflow: ellipsis; white-space: nowrap; }
+.mn-sidebar-sync-progress { width: var(--app-full-size); height: var(--app-space-4); accent-color: var(--app-accent); }
 
 /* ---------- 侧栏折叠（compact 档） ---------- */
 [data-sidebar="collapsed"] .mn-sidebar { padding-inline: var(--app-space-sm); align-items: center; }
@@ -235,6 +242,8 @@
 [data-sidebar="collapsed"] .mn-treerow .mn-minibtn, [data-sidebar="collapsed"] .mn-btn-kbd { display: none; }
 [data-sidebar="collapsed"] .mn-btn { padding-inline: var(--app-zero); }
 [data-sidebar="collapsed"] .mn-sb-foot { flex-direction: column; }
+[data-sidebar="collapsed"] .mn-sidebar-sync-button { justify-content: center; padding-inline: var(--app-zero); }
+[data-sidebar="collapsed"] .mn-sidebar-sync-progress { display: none; }
 
 /* ---------- 抽屉（tablet / mobile） ---------- */
 /* 遮罩同时承担居中与滚动兜底：弹窗再高也只在遮罩内滚动，不会被视口上下切掉 */
@@ -510,7 +519,7 @@
 .mn-menu-seg button:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-menu-seg button.on { background: var(--app-seg-active); color: var(--app-fg); }
 .mn-menu-sep { border-top: var(--app-line) solid var(--app-border-subtle); margin: var(--app-space-2) var(--app-space-5); }
-.mn-menu-item { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; padding: var(--app-space-5); border-radius: var(--app-radius-sm); }
+.mn-menu-item { display: flex; align-items: center; gap: var(--app-space-6); min-height: var(--app-touch-target); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; padding: var(--app-space-6) var(--app-space-8); border-radius: var(--app-radius-sm); }
 .mn-menu-item:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-menu-item svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
 .mn-contextmenu { position: fixed; z-index: var(--app-context-menu-z); display: flex; flex-direction: column; min-width: var(--app-context-menu-min); max-width: var(--app-context-menu-max-width); max-height: var(--app-context-menu-max-height); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
@@ -722,6 +731,11 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-raindrop-advanced summary { color: var(--app-fg-muted); cursor: pointer; font-size: var(--app-size-chip); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+.mn-settings-section { display: grid; gap: var(--app-space-6); margin-bottom: var(--app-space-xl); }
+.mn-settings-section > h4, .mn-settings-section > p { margin: var(--app-zero); }
+.mn-attach-policy-input { width: min(var(--app-full-size), var(--app-field-width)); min-height: var(--app-input-height); padding: var(--app-space-4) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; }
+.mn-set-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-8); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-set-actions .mn-auth-submit { margin-top: var(--app-zero); padding-inline: var(--app-space-10); }
 .mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-10); margin: var(--app-space-10) var(--app-zero); }
 .mn-sync-log-tools label { display: grid; gap: var(--app-space-4); color: var(--app-fg-subtle); font-size: var(--app-size-kicker); }
 .mn-sync-log-search { flex: 1 1 var(--app-field-width); }
@@ -835,7 +849,7 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-editor-host .ProseMirror h3 { padding-bottom: var(--md-h3-rule-pad); }
 .mn-editor-host .ProseMirror a { color: var(--md-link-color); }
 .mn-editor-host .ProseMirror hr { border: var(--app-zero); border-top: var(--md-quote-line) solid var(--app-border); margin: var(--app-space-14) var(--app-zero); }
-.mn-editor-host .ProseMirror p { margin: 0 0 var(--app-space-14); }
+.mn-editor-host .ProseMirror p { margin: 0 0 var(--app-space-8); }
 .mn-editor-host .ProseMirror ul, .mn-editor-host .ProseMirror ol { margin: var(--app-zero) var(--app-zero) var(--md-list-gap); padding-left: var(--md-list-indent-tight); }
 .mn-editor-host .ProseMirror li::marker { color: var(--app-fg-faint); }
 .mn-editor-host .ProseMirror code { font-family: var(--md-code-font); font-size: var(--md-code-size); color: var(--md-body-color); background: var(--md-code-bg); border-radius: var(--md-code-radius-inline); padding: var(--md-code-inline-padding); }

@@ -228,12 +228,20 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
   return { operationId: operation.operationId, result: "applied", rev: comment.rev, metaRev: 0 };
 }
 
-const ORDINARY_SETTING_KEYS = new Set(["appearance", "workspace", AI_SETTING_KEY, RAINDROP_SETTING_KEY, PROPERTY_TEMPLATES_SETTING_KEY, TABLE_VIEW_SETTING_KEY]);
+const ORDINARY_SETTING_KEYS = new Set(["appearance", "workspace", "attachmentPolicy", AI_SETTING_KEY, RAINDROP_SETTING_KEY, PROPERTY_TEMPLATES_SETTING_KEY, TABLE_VIEW_SETTING_KEY]);
 
 function ordinarySettingValue(key: string, value: unknown): unknown {
   if (key === AI_SETTING_KEY) return normalizeAiSettings(value);
   if (key === RAINDROP_SETTING_KEY) return normalizeRaindropSettings(value);
   if (key === TABLE_VIEW_SETTING_KEY) return normalizeTableViewSettings(value);
+  if (key === "attachmentPolicy") {
+    const raw = typeof value === "object" && value !== null ? value as { maxBytes?: unknown; allowedExtensions?: unknown } : {};
+    const maxBytes = typeof raw.maxBytes === "number" && Number.isFinite(raw.maxBytes) ? Math.max(1, Math.min(20 * 1024 * 1024, Math.floor(raw.maxBytes))) : 20 * 1024 * 1024;
+    const allowedExtensions = Array.isArray(raw.allowedExtensions)
+      ? [...new Set(raw.allowedExtensions.filter((entry): entry is string => typeof entry === "string").map((entry) => entry.toLowerCase().replace(/^\./, "").trim()).filter((entry) => /^[a-z0-9]{1,12}$/.test(entry)))].slice(0, 64)
+      : ["png", "jpg", "jpeg", "gif", "webp", "pdf", "txt", "md"];
+    return { maxBytes, allowedExtensions };
+  }
   return value;
 }
 

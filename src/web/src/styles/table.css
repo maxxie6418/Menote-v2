@@ -80,6 +80,15 @@
 .mn-tabledoc-row > .mn-tabledoc-colw-6 { width: var(--app-table-colw-6); }
 .mn-tabledoc-row > .mn-tabledoc-colw-7 { width: var(--app-table-colw-7); }
 .mn-tabledoc-cell.ghost { background: transparent; }
+.mn-tabledoc-add-column, .mn-tabledoc-add-column-cell { flex: none; width: var(--app-touch-target); min-width: var(--app-touch-target); }
+.mn-tabledoc-add-column, .mn-tabledoc-add-row { display: grid; place-items: center; min-height: var(--app-prop-height); padding: var(--app-zero); border: var(--app-zero); background: var(--app-surface-sunken); color: var(--app-fg-faint); cursor: pointer; }
+.mn-tabledoc-add-column { border-right: var(--app-line) solid var(--app-border-subtle); }
+.mn-tabledoc-add-row { flex: 1; align-self: stretch; width: var(--app-full-size); }
+.mn-tabledoc-add-column:hover, .mn-tabledoc-add-row:hover,
+.mn-tabledoc-add-column:focus-visible, .mn-tabledoc-add-row:focus-visible { background: var(--app-hover); color: var(--app-accent-fg); }
+.mn-tabledoc-add-column:focus-visible, .mn-tabledoc-add-row:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
+.mn-tabledoc-add-column svg, .mn-tabledoc-add-row svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
+.mn-tabledoc-add-column-cell { min-height: var(--app-prop-height); }
 .mn-tabledoc-hcell { flex: 1; min-width: var(--app-table-cell-min); position: relative; display: flex; align-items: center; gap: var(--app-space-2); min-height: var(--app-prop-height); padding: var(--app-space-2); }
 /* 表头默认只露字段名（2026-11-09）：拖动柄、排序、类型徽标都在悬停/聚焦该列时才浮出，
    阻尼态用 opacity 而不是删元素——位置恒定，浮出时不抖（FR-TBL-19）。 */
@@ -145,7 +154,6 @@
 .mn-tabledoc-segmented button:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 .mn-tabledoc-hdel { border: var(--app-zero); background: none; color: var(--app-danger); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-2) var(--app-zero); }
 .mn-tabledoc-hdel:hover { text-decoration: underline; }
-.mn-tabledoc-actions { display: flex; gap: var(--app-space-6); }
 .mn-tabledoc-detail { position: absolute; z-index: var(--app-tabledoc-menu-z); inset-block: var(--app-zero); inset-inline-end: var(--app-zero); width: var(--app-table-detail-width); min-width: var(--app-zero); overflow: auto; padding: var(--app-space-10); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
 .mn-tabledoc-detail-head { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-6); }
 .mn-tabledoc-detail-head h2 { margin: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-list-title); font-weight: var(--app-weight-medium); }
@@ -200,6 +208,28 @@
 .mn-tcell-single-trigger:hover, .mn-tcell-multibtn:hover { background: var(--app-hover); }
 .mn-tcell-multibtn { flex-wrap: wrap; gap: var(--app-space-2); }
 .mn-tcell-pill { --mn-pill-bg: var(--app-pill-neutral-bg); --mn-pill-fg: var(--app-pill-neutral-fg); --mn-pill-border: var(--app-pill-neutral-border); display: inline-flex; align-items: center; min-width: var(--app-zero); max-width: var(--app-full-size); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: var(--app-space-1) var(--app-space-6); border: var(--app-line) solid var(--mn-pill-border); background: var(--mn-pill-bg); color: var(--mn-pill-fg); font-size: var(--app-size-kicker); line-height: var(--app-leading-meta); }
+.mn-tcell-attachment-editor { display: flex; align-items: center; gap: var(--app-space-4); min-width: var(--app-zero); }
+.mn-tcell-attachments { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); min-width: var(--app-zero); }
+.mn-tcell-attachment { display: inline-flex; align-items: center; gap: var(--app-space-2); min-width: var(--app-zero); max-width: var(--app-full-size); }
+.mn-tcell-attachment-name { max-width: var(--app-full-size); overflow: hidden; color: var(--app-link); font-size: var(--app-size-kicker); text-overflow: ellipsis; white-space: nowrap; }
+.mn-tcell-attachment-thumb { display: grid; place-items: center; flex: none; width: var(--app-tabledoc-attach-thumb-size); height: var(--app-tabledoc-attach-thumb-size); overflow: hidden; padding: var(--app-zero); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); cursor: zoom-in; }
+.mn-tcell-attachment-thumb:hover, .mn-tcell-attachment-thumb:focus-visible { border-color: var(--app-accent); background: var(--app-hover); }
+.mn-tcell-attachment-thumb:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-tcell-attachment-thumb img { display: block; width: var(--app-full-size); height: var(--app-full-size); object-fit: cover; }
+.mn-tcell-attachment-thumb > span { width: var(--app-icon-xs); height: var(--app-icon-xs); border-radius: var(--app-radius-pill); background: var(--app-border); }
+.mn-tcell-attachment-empty { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-tcell-image-dialog { width: var(--app-dialog-width-xl); }
+.mn-tcell-image-head { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-6); }
+.mn-tcell-image-head .mn-dialog-title { min-width: var(--app-zero); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-tcell-image-stage { display: grid; place-items: center; min-height: var(--app-zero); overflow: auto; padding: var(--app-space-8); background: var(--app-surface-sunken); }
+.mn-tcell-image-stage img { display: block; max-width: var(--app-full-size); max-height: calc(var(--app-dialog-max-height) - var(--app-space-2xl)); object-fit: contain; }
+.mn-tcell-image-actions { justify-content: flex-end; }
+.mn-tcell-image-actions .mn-auth-link { margin: var(--app-zero); }
+.mn-tcell-attach-button { display: inline-grid; place-items: center; width: var(--app-row-height); height: var(--app-row-height); flex: none; padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-muted); cursor: pointer; }
+.mn-tcell-attach-button:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
+.mn-tcell-attach-button:disabled { color: var(--app-fg-faint); cursor: default; }
+.mn-tcell-attach-button svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-tcell-attachment-error { color: var(--app-danger); font-size: var(--app-size-micro); }
 .mn-tcell-pill-single { border-radius: var(--app-radius-pill); }
 .mn-tcell-pill-multi { border-radius: var(--app-radius-sm); }
 .mn-tcell-pill[data-tone="red"], .mn-tabledoc-colorswatch[data-tone="red"] { --mn-pill-bg: var(--app-pill-red-bg); --mn-pill-fg: var(--app-pill-red-fg); --mn-pill-border: var(--app-pill-red-border); }

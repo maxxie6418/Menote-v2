@@ -54,7 +54,7 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     setError(null);
     try {
       for (const file of files) {
-        const uploaded = await uploadAttachment(file);
+        const uploaded = await uploadAttachment(userId, file);
         if ("error" in uploaded) {
           setError("图片上传失败，请检查网络后重试。");
           continue;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus, ScrollText } from "lucide-react";
+import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -48,7 +48,6 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [readError, setReadError] = useState<string | null>(null);
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
-  const [paperMode, setPaperMode] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const unlocked = isNoteUnlocked(item.id);
   const conflictSource = useItem(userId, item.conflictOf ?? null);
@@ -177,7 +176,6 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           <span className="mn-crumb">{crumb}</span>
         </span>
         <span className="mn-docbar-right">
-          {item.type !== "table" && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
           <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
           <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { const next = getMarkdownRef.current?.() ?? plain; if (next !== null) void flush(next); }} />
           {unlocked && (
@@ -245,13 +243,13 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
             onSwitchToNote={() => {}}
             readOnly={mode === "preview"}
+            allowAttachments={false}
           />
         )}
         {plainFlow && mode === "edit" && item.type !== "table" && (
           <NoteEditor
             mode="edit"
             kind="wysiwyg"
-            paperMode={paperMode}
             externalMarkdown={plain}
             onInput={() => setDirtyTick((n) => n + 1)}
             uploadFile={async () => ({ error: "加密笔记的附件不能明文上传。附件密文方案尚未定稿，请先解除加密再添加附件。" })}

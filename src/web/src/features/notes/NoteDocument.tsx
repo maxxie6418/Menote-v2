@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, ScrollText, FilePlus2, X } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "lucide-react";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -143,6 +143,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const conflictOf = item?.conflictOf ?? null;
   const conflictSource = useItem(userId, conflictOf);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [tableAddColumnSignal, setTableAddColumnSignal] = useState(0);
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const editorKindRef = useRef(editorKind);
   editorKindRef.current = editorKind;
@@ -168,7 +169,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [uploading, setUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
-  const [paperMode, setPaperMode] = useState(false);
   // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
   const [propsPos, setPropsPos] = useState(getPropsPlacement);
   const [toolbarPos, setToolbarPos] = useState(resolveToolbar);
@@ -441,7 +441,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (!file || uploading || !item) return;
     setUploading(true);
     try {
-      const result = await uploadAttachment(file);
+      const result = await uploadAttachment(userId, file);
       if ("error" in result) {
         setSaveState({ kind: "error", message: result.error });
         return;
@@ -559,10 +559,10 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         extra={(
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
+            {isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段" onClick={() => setTableAddColumnSignal((value) => value + 1)}><Plus aria-hidden="true" /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档检查器" : "打开文档检查器"} title="文档检查器" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
-            {!isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="纸张模式" title="纸张模式" aria-pressed={paperMode} onClick={() => setPaperMode((value) => !value)}><ScrollText /></button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>}
-            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="上传并插入附件（20MB 内）" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="按附件设置上传并插入文件" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
             </button>}
             {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
@@ -685,20 +685,20 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onDegrade={degradeDoc}
             onSwitchToNote={switchToNoteForm}
             readOnly={mode === "preview"}
+            addColumnSignal={tableAddColumnSignal}
           />
         )}
         {plain && mode === "edit" && !isTableDoc && (
           <NoteEditor
             mode="edit"
             kind={editorKind}
-            paperMode={paperMode}
             formatDock={formatDock}
             externalMarkdown={editorKind === "source"
               ? draft ?? plain.markdown
               : splitFrontmatter(draft ?? plain.markdown).body}
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
-            uploadFile={uploadAttachment}
+            uploadFile={(file, onProgress) => uploadAttachment(userId, file, onProgress)}
             inspectorOutline
             onHostElement={setEditorHost}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {

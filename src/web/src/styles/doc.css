@@ -20,7 +20,11 @@
 .mn-empty-key { margin-top: var(--app-space-14); font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-4) var(--app-space-10); display: inline-block; }
 
 /* ---------- E2 文档区（标题/标签/编辑器/预览） ---------- */
-.mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-xs); }
+.mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-4); }
+.mn-docbar-right > .mn-iconbtn { min-width: var(--app-touch-target); min-height: var(--app-touch-target); padding: var(--app-space-8); }
+.mn-docbar-right > .mn-iconbtn svg { width: var(--app-icon-xl); height: var(--app-icon-xl); }
+.mn-docbar-right .mn-vt button { width: var(--app-touch-target); height: var(--app-touch-target); }
+.mn-docbar-right .mn-vt svg { width: var(--app-icon-xl); height: var(--app-icon-xl); }
 .mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4); }
 .mn-savestate.err { color: var(--app-danger); cursor: pointer; }
 /* 单滚动容器：标题、属性、工具条与正文一起滚动；编辑器不再自己滚一层（否则工具条无法吸顶、滚轮还会「滚不动」标题区） */
@@ -38,9 +42,7 @@
 .mn-doc[data-form="table"] .mn-doc-main { display: flex; flex-direction: column; flex: 1; min-height: var(--app-zero); }
 .mn-doc[data-form="table"] .mn-doc-main > .mn-tabledoc { flex: 1; min-height: var(--app-zero); }
 .mn-doc[data-form="table"] .mn-docbar { padding-block: var(--app-space-6); }
-.mn-doc[data-form="table"] .mn-docbar-right { gap: var(--app-space-2); }
-.mn-doc[data-form="table"] .mn-docbar-right > .mn-iconbtn { padding: var(--app-space-2); }
-.mn-doc[data-form="table"] .mn-docbar-right > .mn-iconbtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-doc[data-form="table"] .mn-docbar-right { gap: var(--app-space-4); }
 [data-props-pos="side"] .mn-doc[data-form="table"] .mn-docbody { flex-direction: row; }
 .mn-doc[data-form="table"][data-mode="preview"] .mn-docbody { display: block; overflow: auto; padding: var(--app-doc-pad); }
 .mn-doc[data-form="table"][data-mode="preview"] .mn-doc-main > .mn-doc-preview { width: var(--app-full-size); max-width: none; overflow-x: auto; }
@@ -102,8 +104,6 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-conflictnote { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--app-space-6); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-conflictnote a { color: var(--app-link); }
 .mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
-.mn-editor-wrap[data-paper="true"] { box-sizing: border-box; width: var(--app-full-size); max-width: var(--app-doc-measure); min-height: var(--app-paper-min-height); margin-inline: auto; padding: var(--app-space-xl) var(--app-doc-pad); border-inline: var(--app-line) solid var(--app-paper-border); background: var(--app-paper-bg); box-shadow: var(--app-paper-shadow); }
-.mn-editor-wrap[data-paper="true"] .ProseMirror { --md-body-color: var(--app-paper-fg); --md-h1-color: var(--app-paper-fg); --md-h2-color: var(--app-paper-fg); --md-h3-color: var(--app-paper-fg); --md-h4-color: var(--app-paper-fg); --md-h5-color: var(--app-paper-fg); --md-h6-color: var(--app-paper-fg); --md-link-color: var(--app-link); --md-strong-color: var(--app-paper-fg); }
 .mn-colorpicker { position: relative; display: inline-flex; }
 .mn-colorpicker-trigger { position: relative; font-weight: var(--app-weight-medium); }
 .mn-colorpicker-trigger i { position: absolute; inset-inline: var(--app-space-4); bottom: var(--app-space-2); height: var(--app-line-strong); background: var(--app-accent); }

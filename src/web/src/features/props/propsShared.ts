@@ -11,6 +11,7 @@ export const TYPE_LABELS: Record<PropertyType, string> = {
   multiselect: "多选",
   checkbox: "复选框",
   link: "链接",
+  attachment: "附件",
 };
 
 /**

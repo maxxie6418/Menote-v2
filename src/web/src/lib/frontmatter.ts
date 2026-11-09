@@ -12,14 +12,14 @@ export const PROPS_KEY = "props";
 export const FIELDS_KEY = "fields";
 
 export type PropertyType =
-  | "text" | "multiline" | "number" | "date" | "select" | "multiselect" | "checkbox" | "link";
+  | "text" | "multiline" | "number" | "date" | "select" | "multiselect" | "checkbox" | "link" | "attachment";
 
 export const PROPERTY_TYPES: readonly PropertyType[] =
   ["text", "multiline", "number", "date", "select", "multiselect", "checkbox", "link"];
 
 /** 表格侧不提供多行文本（FR-PROP-4）。 */
 export const TABLE_FIELD_TYPES: readonly PropertyType[] =
-  ["text", "number", "date", "select", "multiselect", "checkbox", "link"];
+  ["text", "number", "date", "select", "multiselect", "checkbox", "link", "attachment"];
 
 export interface PropertyDef {
   type: PropertyType;
@@ -143,11 +143,12 @@ export function writeNoteMarginalia(markdown: string, annotations: NoteMarginali
 export function readDefs(markdown: string, namespace: string): Record<string, PropertyDef> {
   const raw = parseFrontmatterData(markdown)[namespace];
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const allowedTypes = namespace === FIELDS_KEY ? TABLE_FIELD_TYPES : PROPERTY_TYPES;
   const defs: Record<string, PropertyDef> = {};
   for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof value !== "object" || value === null) continue;
     const spec = value as Record<string, unknown>;
-    if (typeof spec.type !== "string" || !PROPERTY_TYPES.includes(spec.type as PropertyType)) continue;
+    if (typeof spec.type !== "string" || !allowedTypes.includes(spec.type as PropertyType)) continue;
     defs[name] = {
       type: spec.type as PropertyType,
       label: typeof spec.label === "string" ? spec.label : undefined,

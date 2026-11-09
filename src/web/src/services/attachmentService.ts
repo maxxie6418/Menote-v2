@@ -3,6 +3,7 @@ import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
 import { appRoutePath } from "../app/appRoutes";
 import { extractAttachmentRefs } from "../lib/attachmentRefs";
+import { readAttachmentPolicy } from "./attachmentPolicyService";
 
 /** 附件与导出（G5）：上传走鉴权接口；渲染经 MarkdownView 将相对引用解析为鉴权 URL（FR-SYNC-7）。 */
 
@@ -38,15 +39,21 @@ export async function listAttachmentReferences(userId: string): Promise<Record<s
  *  只有请求体发完才会有进度事件，因此成功/失败都在 load 之后收尾。 */
 export const ATTACHMENT_UPLOAD_TIMEOUT_MS = 120_000;
 
-export function uploadAttachment(
+export async function uploadAttachment(
+  userId: string,
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<{ sha256: string; name: string } | { error: string }> {
+  const policy = await readAttachmentPolicy(userId);
+  const extension = file.name.split(/[\\/]/).pop()?.match(/\.([^.]+)$/)?.[1]?.toLowerCase() ?? "";
+  if (file.size > policy.maxBytes) return { error: "size_exceeded" };
+  if (!extension || !policy.allowedExtensions.includes(extension)) return { error: "format_not_allowed" };
   return new Promise((resolve) => {
     const request = new XMLHttpRequest();
     request.open("POST", "/api/attachments");
     request.timeout = ATTACHMENT_UPLOAD_TIMEOUT_MS;
     request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    request.setRequestHeader("X-File-Extension", `.${extension}`);
     request.upload.onprogress = (event) => {
       if (!onProgress || !event.lengthComputable || event.total === 0) return;
       onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
