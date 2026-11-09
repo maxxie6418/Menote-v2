@@ -188,7 +188,7 @@
 .mn-tcell-input:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 .mn-tcell-input:focus { position: relative; z-index: 4; width: auto; min-width: var(--app-full-size); max-width: var(--app-table-long-value-max); background: var(--app-surface); outline: var(--app-focus-outline); }
 /* 自动换行列：多行控件按内容自增高（field-sizing 为主，JS 兜底），行高随内容长高。 */
-.mn-tcell-textarea { width: var(--app-full-size); min-width: var(--app-zero); min-height: var(--app-prop-height); max-height: none; resize: none; overflow: hidden; field-sizing: content; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); padding: var(--app-space-2) var(--app-space-4); }
+.mn-tcell-textarea { box-sizing: border-box; width: var(--app-full-size); min-width: var(--app-zero); min-height: var(--app-prop-height); max-height: none; resize: none; overflow: hidden; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); padding: var(--app-space-2) var(--app-space-4); }
 .mn-tcell-textarea:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 /* 预览态只读内容：与编辑态同字号；裁切列一行省略，换行列整段显示。 */
 .mn-tcell-text { min-width: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
