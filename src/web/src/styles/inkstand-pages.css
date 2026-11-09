@@ -132,7 +132,7 @@
 
 /* Note paper and its persistent inspector follow the v3 two-column reading layout. */
 .mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); align-items: start; gap: var(--app-doc-side-gap); }
-.mn-doc[data-form="note"] .mn-doc-main { grid-column: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); justify-self: end; margin: 0; }
+.mn-doc[data-form="note"] .mn-doc-main { grid-column: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); justify-self: center; margin: 0; }
 .mn-doc-inspector { position: sticky; top: var(--app-space-8); grid-column: 2; display: flex; width: var(--app-doc-inspector-width); max-height: calc(var(--app-full-viewport-height) - var(--app-space-2xl)); flex-direction: column; gap: var(--app-space-8); overflow: auto; padding-block: var(--app-space-4) var(--app-space-14); color: var(--app-fg); }
 .mn-inspector-mobile-head { display: none; }
 .mn-inspector-section { min-width: 0; padding-block: var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); }
