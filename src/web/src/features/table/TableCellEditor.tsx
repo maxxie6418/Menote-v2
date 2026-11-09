@@ -93,9 +93,11 @@ function GrowingTextarea({ value, onChange, onCommit, ariaLabel }: {
   const fit = () => {
     const element = ref.current;
     if (!element) return;
-    element.style.height = "auto";
-    // 离屏行（content-visibility: auto）量不到高度时保持 CSS 兜底高度，不要写成 0。
+    // 先清除旧高度，再按当前列宽和内容重新测量，避免旧的行高继续撑大单元格。
+    element.style.height = "0px";
+    // 离屏行量不到高度时恢复 CSS 兜底高度，不要把控件压成 0。
     if (element.scrollHeight > 0) element.style.height = `${element.scrollHeight}px`;
+    else element.style.height = "";
   };
   useLayoutEffect(fit, [value]);
   useEffect(() => {
