@@ -31,7 +31,7 @@ export interface AppearanceSettings {
 const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
 const DEFAULT_APPEARANCE: AppearanceSettings = {
-  theme: "system", skin: "default", font: "noto", measure: "narrow",
+  theme: "system", skin: "default", font: "noto", measure: "auto",
   propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: {},
 };
 

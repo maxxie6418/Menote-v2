@@ -107,7 +107,15 @@
   font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint);
   font-variant-numeric: tabular-nums; text-align: right;
 }
-.mn-memo-main .mn-memo-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--app-space-2); }
+.mn-memo-main .mn-memo-actions {
+  position: absolute; top: var(--app-space-6); right: var(--app-space-8); z-index: 1;
+  display: flex; align-items: center; gap: var(--app-space-2); padding: var(--app-space-2);
+  border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm);
+  background: var(--app-surface); box-shadow: var(--app-shadow-card);
+  opacity: 0; transform: translateY(calc(-1 * var(--app-space-2))); pointer-events: none;
+  transition: opacity var(--app-motion-fast) var(--app-ease), transform var(--app-motion-fast) var(--app-ease);
+}
+.mn-memo-main .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; transform: none; pointer-events: auto; }
 .mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
 .mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }

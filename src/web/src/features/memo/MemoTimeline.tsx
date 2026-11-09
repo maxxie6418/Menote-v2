@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, FileText, MessageCircle, Pin, Repeat2, Star, Trash2 } from "lucide-react";
+import { Check, FileText, MessageCircle, Pencil, Pin, Repeat2, Star, Trash2 } from "lucide-react";
 import type { Item } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { setTaskCheckbox } from "../../lib/markdownTasks";
@@ -88,7 +88,8 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
     >
       <div className="mn-memo-meta">
         <time>{new Date(memo.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
-        <span className="mn-memo-actions">
+      </div>
+      <span className="mn-memo-actions">
           {plain && !editing && <>
             <button type="button" className="mn-minibtn" title={memo.pinned ? "取消置顶" : "置顶"} aria-label={memo.pinned ? "取消置顶 Memo" : "置顶 Memo"} aria-pressed={memo.pinned} onClick={() => void saveItemMeta(userId, memo.id, { pinned: !memo.pinned })}>
               <Pin aria-hidden="true" />
@@ -99,14 +100,13 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
           </>}
           {plain && !editing && (
             <button type="button" className="mn-minibtn" aria-label="编辑 Memo" onClick={() => { setValue(source); setEditing(true); }}>
-              编辑
+              <Pencil aria-hidden="true" />
             </button>
           )}
           <button type="button" className="mn-minibtn" aria-label="移入回收站" onClick={() => void softDeleteItem(userId, memo.id)}>
             <Trash2 />
           </button>
-        </span>
-      </div>
+      </span>
       <div className="mn-memo-card-body">
         {editing ? (
           <textarea

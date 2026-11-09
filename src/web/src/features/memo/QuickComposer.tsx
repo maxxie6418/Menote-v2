@@ -8,8 +8,9 @@ import { insertAttachment } from "../editor";
 /** Memo 快速输入（FR-IA-5）：默认单行提示行，点击展开多行并盖住「新建笔记」按钮的共享区域
  *  （不推移导航、不弹浮窗）；支持粘贴/上传图片（FR-MEMO-2，附件引用自动插入）；
  *  保存后留在当前页；收起保留未完成草稿。 */
-export function QuickComposer({ userId, openSignal = 0 }: { userId: string; openSignal?: number }) {
-  const [expanded, setExpanded] = useState(false);
+export function QuickComposer({ userId, openSignal = 0, expandedByDefault = false, keepOpenAfterSubmit = false }: { userId: string; openSignal?: number; expandedByDefault?: boolean; keepOpenAfterSubmit?: boolean }) {
+  const [expanded, setExpanded] = useState(expandedByDefault);
+  const [focusOnExpand, setFocusOnExpand] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -22,7 +23,7 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (openSignal > 0) setExpanded(true);
+    if (openSignal > 0) { setFocusOnExpand(true); setExpanded(true); }
   }, [openSignal]);
 
   const submit = async () => {
@@ -34,7 +35,7 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
       setValue("");
       setTags([]);
       setError(null);
-      setExpanded(false);
+      setExpanded(keepOpenAfterSubmit);
     } catch {
       // 保存失败保留草稿与标签，给出可见反馈（不静默吞错）。
       setError("Memo 保存失败，请重试。");
@@ -74,7 +75,7 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
 
   if (!expanded) {
     return (
-      <button type="button" className="mn-memo-hint" onClick={() => setExpanded(true)}>
+      <button type="button" className="mn-memo-hint" onClick={() => { setFocusOnExpand(true); setExpanded(true); }}>
         <span>记一条 Memo…</span>
         <span className="mn-kbd">⌘↵</span>
       </button>
@@ -84,7 +85,7 @@ export function QuickComposer({ userId, openSignal = 0 }: { userId: string; open
   return (
     <div className="mn-composer">
       <textarea
-        ref={textRef} className="mn-composer-input" autoFocus rows={3}
+        ref={textRef} className="mn-composer-input" autoFocus={focusOnExpand} rows={3}
         placeholder="记一条 Memo…（⌘/Ctrl+Enter 保存，Esc 收起，可粘贴图片）"
         aria-label="Memo 快速输入"
         value={value}

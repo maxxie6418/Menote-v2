@@ -407,11 +407,18 @@
   position: relative;
   z-index: 2; /* 盖住紧随其后的「新建笔记」按钮 */
 }
+.mn-composer::before { content: ""; position: absolute; top: var(--app-zero); left: var(--app-space-14); width: var(--app-space-26); height: var(--app-line); border-radius: var(--app-radius-pill); background: var(--app-accent); pointer-events: none; }
+.mn-composer:focus-within { border-color: var(--app-accent); box-shadow: 0 0 0 var(--app-focus-width) var(--app-accent-subtle), var(--app-shadow-card); }
+:root .mn-shell:is([data-layout="full"], [data-layout="compact"]) .mn-sidebar .mn-composer {
+  --app-composer-open-height: var(--app-sidebar-composer-open-height);
+  --app-composer-cover: calc(var(--app-composer-open-height) - var(--app-composer-hint-height) - var(--app-space-10));
+}
 .mn-composer-input { flex: 1; min-height: var(--app-zero); width: var(--app-full-size); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-nav); line-height: var(--app-leading-nav); resize: none; }
 .mn-composer-input:focus-visible { outline: none; }
 .mn-composer-actions { display: flex; align-items: center; gap: var(--app-space-4); flex: none; }
 .mn-composer-tool {
   display: inline-flex; align-items: center; gap: var(--app-space-4);
+  flex: none;
   height: var(--app-composer-action-height);
   padding: var(--app-zero) var(--app-space-6);
   border: var(--app-line) solid var(--app-border);
@@ -431,7 +438,7 @@
 .mn-composer-tag-menu form input { min-width: var(--app-zero); flex: 1; height: var(--app-touch-target); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); color: var(--app-fg); padding-inline: var(--app-space-6); }
 .mn-composer-tag-menu form button { padding-inline: var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface-sunken); color: var(--app-fg); }
 .mn-composer-error { flex: 0 1 auto; min-width: var(--app-zero); overflow: hidden; color: var(--app-danger); font-size: var(--app-size-label); white-space: nowrap; text-overflow: ellipsis; }
-.mn-composer-actions .mn-textbtn { height: var(--app-composer-action-height); margin-left: auto; color: var(--app-fg-muted); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-zero) var(--app-space-10); font-size: var(--app-size-button); }
+.mn-composer-actions .mn-textbtn { height: var(--app-composer-action-height); margin-left: auto; color: var(--app-fg-muted); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-zero) var(--app-space-10); font-size: var(--app-size-button); white-space: nowrap; flex: none; }
 .mn-composer-actions .mn-textbtn:hover { color: var(--app-fg); border-color: var(--app-fg-faint); background: none; }
 .mn-composer-save {
   height: var(--app-composer-action-height);
@@ -441,7 +448,7 @@
   background: var(--app-accent);
   color: var(--app-accent-text);
   font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-medium);
-  white-space: nowrap; cursor: pointer;
+  white-space: nowrap; cursor: pointer; flex: none;
   box-shadow: var(--app-btn-sheen);
   transition: background var(--app-motion-fast) var(--app-ease);
 }
