@@ -107,6 +107,8 @@
 .m-mobile-document .mn-docbar { height: var(--app-mobile-header-height); padding: var(--app-zero) var(--app-space-xs); }
 .m-mobile-document .mn-docbar-right { gap: var(--app-space-2); }
 .m-mobile-document .mn-docbar .mn-iconbtn { min-width: var(--app-mobile-row-min-height); min-height: var(--app-mobile-row-min-height); }
+/* 桌面文档栏工具组收到 32 槽（doc.css），触屏仍要 44 的编辑/预览分段 */
+.m-mobile-document .mn-docbar-right .mn-vt button { width: var(--app-touch-target); height: var(--app-touch-target); }
 .m-mobile-document .mn-docbody { padding: var(--app-mobile-content-pad); }
 .m-mobile-document .mn-doc-main > * + * { margin-top: var(--app-space-xs); }
 .m-mobile-document .mn-doc-main > * { max-width: var(--app-full-size); }

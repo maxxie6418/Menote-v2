@@ -290,6 +290,12 @@
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */
   --app-touch-target: 2.75rem;     /* 44px 触控目标 */
   --app-target-min: 1.75rem;       /* 28px 桌面点击目标底线（DESIGN §8.2）；触屏仍用 44 */
+  /* 文档栏工具组（2026-11-10 收紧）：44 的点击区配 20 图标，字形之间净空 28px，
+     一排在宽屏上散成孤立符号。槽收到 32、图标保持 20（净空 16）、上下留白 14→10。 */
+  --app-docbar-btn: 2rem;          /* 32px 工具按钮槽 */
+  --app-docbar-icon: var(--app-icon-xl); /* 工具图标保持 20px，只收槽不收字 */
+  --app-docbar-pad: 0.625rem;      /* 10px 工具条上下留白（原 14） */
+  --app-docbar-vt: 1.75rem;        /* 28px 编辑/预览分段高，槽宽同 --app-docbar-btn */
   --app-chip-height: 1.4375rem;    /* 23px 标签胶囊 */
   --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
   --app-dot-size: 0.3125rem;       /* 5px 状态点 */
