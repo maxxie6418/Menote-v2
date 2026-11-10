@@ -730,7 +730,12 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-dlg-nav a { font-size: var(--app-size-nav); color: var(--app-fg-muted); padding: var(--app-space-6) var(--app-space-10); border-radius: var(--app-radius-md); text-decoration: none; }
 .mn-dlg-nav a.on { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-side); }
 .mn-dlg-content { padding: var(--app-space-md) var(--app-space-lg); overflow-y: auto; min-height: var(--app-zero); }
-.mn-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-18); padding: var(--app-space-10) var(--app-zero); border-bottom: var(--app-line) solid var(--app-border-subtle); flex-wrap: wrap; }
+/* 设置行：不再画分隔线（2026-11-10）。说明收进 ⓘ 之后每行只剩「标签 + 控件」，
+   一行一条横线会把十几行读成一张表单；改用分组留白承担分区，行内只留上下呼吸。 */
+.mn-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-18); padding: var(--app-space-8) var(--app-zero); flex-wrap: wrap; }
+/* 分组标题：比行标签更轻、更小，只做分区不抢视线 */
+.mn-setgroup { margin: var(--app-space-18) var(--app-zero) var(--app-space-2); font-size: var(--app-size-sechead); font-weight: var(--app-weight-regular); color: var(--app-fg-faint); letter-spacing: var(--app-memo-letter-spacing); }
+.mn-setgroup:first-child { margin-top: var(--app-zero); }
 /* 说明文字占满剩余宽度、控件留在右侧同一行：文字长了就自己折行，不把控件挤到下一行 */
 .mn-setrow > div:first-child { flex: 1 1 var(--app-field-width); min-width: var(--app-zero); }
 .mn-setrow:last-child { border-bottom: var(--app-zero); }

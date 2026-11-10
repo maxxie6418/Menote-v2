@@ -162,6 +162,7 @@ function AppearanceSection({ userId }: { userId: string }) {
   }, [userId]);
   return (
     <div>
+      <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">界面主题<InfoHint>选择墨台界面或柔纸界面；再单独设置浅色 / 深色主题。界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
@@ -202,6 +203,47 @@ function AppearanceSection({ userId }: { userId: string }) {
           <option value="spacious">宽松（18px 基准）</option>
         </select>
       </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">界面字体<InfoHint>默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</InfoHint></p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="界面字体"
+          value={font}
+          onChange={(event) => {
+            const value = event.target.value as FontPreference;
+            setFontPreference(value);
+            setFont(value);
+            void updateAppearance(userId, { font: value });
+          }}
+        >
+          <option value="noto">Noto Sans SC（默认）</option>
+          <option value="system">系统字体</option>
+        </select>
+      </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">阅读宽度<InfoHint>跟随主题默认宽度；也可选窄、加宽或撑满，所选宽度在所有主题生效并覆盖主题默认值。</InfoHint></p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="阅读宽度"
+          value={measure}
+          onChange={(event) => {
+            const value = event.target.value as MeasurePreference;
+            setMeasurePreference(value);
+            setMeasure(value);
+            void updateAppearance(userId, { measure: value });
+          }}
+        >
+          <option value="auto">跟随主题默认</option>
+          <option value="narrow">窄</option>
+          <option value="wide">加宽</option>
+          <option value="full">撑满</option>
+        </select>
+      </div>
+      <p className="mn-setgroup">布局</p>
       <div className="mn-setrow">
         <div><p className="mn-setlabel">导航布局<InfoHint>完整侧栏保留主题与标签；书脊布局将其移到笔记清单顶部。窄屏仍使用抽屉。</InfoHint></p></div>
         <select className="mn-propselect" aria-label="导航布局" value={railMode} onChange={(event) => {
@@ -263,46 +305,6 @@ function AppearanceSection({ userId }: { userId: string }) {
           <option value="auto">跟随主题</option>
           <option value="top">顶部固定</option>
           <option value="bottom">底部浮动</option>
-        </select>
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">界面字体<InfoHint>默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</InfoHint></p>
-        </div>
-        <select
-          className="mn-propselect"
-          aria-label="界面字体"
-          value={font}
-          onChange={(event) => {
-            const value = event.target.value as FontPreference;
-            setFontPreference(value);
-            setFont(value);
-            void updateAppearance(userId, { font: value });
-          }}
-        >
-          <option value="noto">Noto Sans SC（默认）</option>
-          <option value="system">系统字体</option>
-        </select>
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">阅读宽度<InfoHint>跟随主题默认宽度；也可选窄、加宽或撑满，所选宽度在所有主题生效并覆盖主题默认值。</InfoHint></p>
-        </div>
-        <select
-          className="mn-propselect"
-          aria-label="阅读宽度"
-          value={measure}
-          onChange={(event) => {
-            const value = event.target.value as MeasurePreference;
-            setMeasurePreference(value);
-            setMeasure(value);
-            void updateAppearance(userId, { measure: value });
-          }}
-        >
-          <option value="auto">跟随主题默认</option>
-          <option value="narrow">窄</option>
-          <option value="wide">加宽</option>
-          <option value="full">撑满</option>
         </select>
       </div>
       <section className="mn-appearance-preview" aria-label="当前外观组合预览">
