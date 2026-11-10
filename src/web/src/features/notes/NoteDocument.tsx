@@ -762,7 +762,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           tags={item.tags}
           markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
           autoRun={autoSummary ? "summary" : undefined}
-          onApplySummary={(summary) => saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary))}
+          onApplySummary={async (summary) => {
+            const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
+            if (saved && propsPos === "side") setInspectorOpen(true);
+            return saved;
+          }}
           onApplyTags={async (recommended) => {
             const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
             await saveItemMeta(userId, item.id, { tags: merged });
