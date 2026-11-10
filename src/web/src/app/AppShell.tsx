@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser, Item } from "@menote/shared";
 import { Sidebar } from "./Sidebar";
+import { InboxRefresh } from "../features/sync";
 import { MainLayout } from "./MainLayout";
 import { SystemStatusPage } from "./SystemStatusPage";
 import { MemoWorkspace } from "../features/memo";
@@ -568,6 +569,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         viewMode={viewMode}
         onViewMode={setViewMode}
         title={title}
+        headerExtra={section.kind === "inbox" ? <InboxRefresh userId={userId} /> : undefined}
         items={items}
         selectedNoteId={noteId}
         onSelectNote={(id) => {

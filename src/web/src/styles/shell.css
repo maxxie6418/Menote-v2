@@ -961,3 +961,6 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-ai-commands { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-sm); }
 .mn-ai-dialog .mn-dialog-body { gap: var(--app-space-md); }
 .mn-ai-dialog .mn-btn:disabled { cursor: default; }
+
+.mn-inbox-refresh-status { font-size: var(--app-size-micro); color: var(--app-fg-muted); }
+.mn-inbox-refresh-status:empty { display: none; }
