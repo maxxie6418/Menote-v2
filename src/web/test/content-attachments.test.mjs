@@ -31,6 +31,7 @@ async function reset() {
 }
 
 test("attachment upload times out and returns a retryable error", async () => {
+  await reset();
   const original = globalThis.XMLHttpRequest;
   let request;
   globalThis.XMLHttpRequest = class {
@@ -41,7 +42,9 @@ test("attachment upload times out and returns a retryable error", async () => {
     constructor() { request = this; }
   };
   try {
-    const result = await attachmentModule.uploadAttachment({ type: "image/png", name: "image.png" });
+    /* 上传接口后来加了首个参数 userId（账号级附件策略，FR-SYNC-13），
+       本用例此前仍按旧签名只传 file，导致 userId 收到对象、读策略时 IndexedDB 抛 DataError。 */
+    const result = await attachmentModule.uploadAttachment(USER, { type: "image/png", name: "image.png", size: 1024 });
     assert.equal(request.timeout, 120_000);
     assert.deepEqual(result, { error: "timeout" });
   } finally {

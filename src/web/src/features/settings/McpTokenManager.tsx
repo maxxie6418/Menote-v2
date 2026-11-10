@@ -11,6 +11,7 @@ import {
   createMcpToken, listMcpScopeTopics, listMcpTokens, revealMcpToken, revokeMcpToken, updateMcpToken,
 } from "../../services/mcpTokenService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -121,8 +122,7 @@ export function McpTokenManager() {
     <section className="mn-mcp-manager" aria-label="MCP 接入管理">
       <div className="mn-setrow mn-mcp-endpoint">
         <div>
-          <p className="mn-setlabel">MCP 服务地址</p>
-          <p className="mn-sethint">配置丢失时可在此复制地址，并重新查看已有 Token；无需重建。</p>
+          <p className="mn-setlabel">MCP 服务地址<InfoHint>配置丢失时可在此复制地址，并重新查看已有 Token；无需重建。</InfoHint></p>
         </div>
         <code className="mn-mcp-address">{endpoint}</code>
         <button type="button" className="mn-statuslink" onClick={() => void copyEndpoint()}>复制地址</button>
@@ -130,8 +130,7 @@ export function McpTokenManager() {
 
       <div className="mn-mcp-heading">
         <div>
-          <p className="mn-setlabel">访问 Token</p>
-          <p className="mn-sethint">每个 Token 可单独授权。内容读取关闭时仍可执行已授权的写入。</p>
+          <p className="mn-setlabel">访问 Token<InfoHint>每个 Token 可单独授权。内容读取关闭时仍可执行已授权的写入。</InfoHint></p>
         </div>
         <button type="button" className="app-button" onClick={() => { setCreating((value) => !value); setEditingId(null); setMessage(""); }}>
           {creating ? "取消创建" : "创建 Token"}

@@ -10,7 +10,7 @@
 :root .mn-brand { gap: var(--app-space-8); font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); }
 :root .mn-logo { width: var(--app-space-24); height: var(--app-space-24); }
 :root .mn-formseg { margin: var(--app-space-8) 0 0; padding: var(--app-space-2); gap: var(--app-space-2); background: var(--app-border-subtle); border-radius: var(--app-radius-md); }
-:root .mn-formseg button { height: var(--app-space-24); border-radius: var(--app-radius-sm); font-size: var(--app-size-label); }
+:root .mn-formseg button { height: var(--app-target-min); border-radius: var(--app-radius-sm); font-size: var(--app-size-label); }
 :root .mn-btn { height: var(--app-space-30); margin: var(--app-space-8) 0 var(--app-space-8); border-radius: var(--app-radius-sm); box-shadow: none; font-size: var(--app-size-nav); }
 :root .mn-memo-hint { height: var(--app-space-30); border-color: var(--app-border); border-radius: var(--app-radius-sm); }
 :root .mn-quick { margin-bottom: var(--app-space-8); }

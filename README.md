@@ -1,24 +1,83 @@
 # Menote V2
 
-Menote V2 是一款通过浏览器使用的本地优先笔记应用，面向个人记录、整理与阅读。它将随手记录的 Memo 与适合长期整理的 Note 放在同一套工作空间中。
+Menote V2 是一款通过浏览器使用的本地优先笔记应用，将随手记录的 Memo 与适合长期整理的 Note 放在同一工作空间。内容以本地数据库为基础，可通过自部署服务在设备间同步。
 
-项目计划支持离线编辑与多设备同步、Markdown 内容管理、加密笔记和远程备份，并提供 MCP 接口供 AI 工具在授权范围内访问内容。
+项目仍在开发中，正式数据进场验收尚未完成。当前版本与工作进度以 [项目总规划](todo/20261031-M0-总体开发规划与进度总表.md)为准；上线前请仅使用可丢弃的测试数据。
 
-应用基于 Cloudflare Workers、D1 和 R2 构建，目标是简化自部署，让用户掌握自己的数据。
+## 功能概览
 
+### Memo：随手记录
 
-## M1 本地开发骨架
+- 在时间线中快速记录和浏览 Memo，支持标签、置顶、筛选、图册及 Todo 视图。
+- 为 Memo 添加评论、收藏或引述；评论与引述可在卡片内编辑，也可将 Memo 转为 Note。
 
-需要 Node.js 22 与 pnpm 11。运行 `pnpm install --frozen-lockfile` 安装依赖，`pnpm typecheck` 检查类型，`pnpm build` 构建。分别运行 `pnpm dev:web` 和 `pnpm dev:worker` 启动前端与本地 Worker，前端将 `/api` 请求代理到本地 Worker。运行 `pnpm test` 执行本地测试。缺少 `AUTH_PEPPER` 时就绪检查返回不可用。
+### Note：写作与整理
 
-## 部署入口（开发中）
+- 使用 Markdown 所见即所得编辑、源码模式和阅读预览；选中文本后可通过快捷工具栏或右键菜单设置格式。
+- 支持文档属性、附件、Markdown 表格操作、文档大纲及专注模式，并可导入 Markdown 文档。
+- 用主题和分组组织笔记，支持拖动调整目录和移动笔记，以及批量移动或移入回收站。
+- 提供默认与柔纸界面主题、阅读宽度和属性位置等外观设置。
+
+### 多维表格
+
+- 在表格中管理不同类型的字段，支持单选、多选标签及图片附件；图片可查看缩略图和原图。
+- 支持行列增删、列宽调整与拖动重排、隐藏列、排序筛选、批量操作和剪贴板粘贴。
+- 可打开行详情查看字段，按列选择裁切或自动换行；表格隐藏列等偏好可随账号同步。
+
+### 数据、隐私与恢复
+
+- 内容先保存在浏览器本地，联网后与服务端同步；支持手动同步、冲突副本和本机同步诊断日志。
+- 支持私人空间和单篇笔记加密，以及回收站、历史版本、备份与恢复。
+- 提供服务状态和资源监控界面，帮助查看部署与运行状况。
+
+### 连接与扩展
+
+- **MCP**：通过令牌授权 AI 工具访问允许的内容；私人空间和单篇加密内容受可见性规则限制。
+- **Workers AI**：可启用摘要和标签建议，配置模型与每日额度；生成的概述可经确认写入笔记属性。
+- **Raindrop**：可将收藏夹绑定到明文表格，拉取收藏、查看同步记录，并在预览后手动反推变更。
+- **浏览器扩展**：独立仓库开发网页剪藏、划选存 Memo、阅读模式与摘录等功能。
+
+部分功能仍需真实环境验收，尤其是备份恢复、一键部署、AI 推理、Raindrop 和浏览器扩展的端到端流程；移动端和部分交互也有待实机走查。具体范围与遗留事项详见[项目总规划](todo/20261031-M0-总体开发规划与进度总表.md)。
+
+## 本地开发
+
+需要 Node.js 22 和 pnpm 11；项目声明的包管理器版本为 `pnpm@11.9.0`。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev:worker
+```
+
+在另一个终端启动前端：
+
+```bash
+pnpm dev:web
+```
+
+前端开发服务器会将 `/api` 代理到本地 Worker（`127.0.0.1:8787`）。本地 Worker 需要 `AUTH_PEPPER`；可在仓库根目录的 `.dev.vars` 中配置本地专用值，该文件已被 Git 忽略。缺少该密钥时就绪检查不可用。
+
+```bash
+pnpm typecheck  # 类型检查
+pnpm test       # 运行工作区测试
+pnpm build      # 构建前端并检查 Worker 部署包
+```
+
+## 部署
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmaxxie6418%2FMenote-v2)
 
-该入口使用仓库默认分支；当前远端默认分支为 `dev`，`main` 已按负责人要求建立。此入口目前取默认的 `dev`，只用于隔离测试，不应连接生产 D1/R2；正式环境应单独绑定 `main`。云端一键导入尚未完成验收。Deploy to Cloudflare 会在你的 GitHub 账号中创建仓库副本，并尝试配置资源和构建。
+该入口使用仓库默认分支 `dev`，目前仅用于隔离测试，一键导入尚未完成验收。正式部署应单独跟踪 `main`；测试和预览资源不得连接生产 D1/R2。
 
-当前开发版已有登录、笔记、同步、加密、备份、MCP 与 Raindrop。健康检查仍公开。正式数据进场门（含附件与加密内容的恢复演练）尚未通过，上线前只使用可丢弃的测试数据。
+应用使用 Cloudflare Workers、D1、R2、Workers AI 和 Queues。构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`，应在 Worker 的 Secrets 中安全设置，不要提交或设为公开变量；R2 可能需要先在账号级开通。
 
-Cloudflare 构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`：在 Cloudflare Worker 的 Secrets 中安全设置，不要将值提交到仓库或作为公开变量。R2 可能需要在 Cloudflare 账号级先开通；生产部署应跟踪 `main`。预览或测试资源必须与生产 D1/R2 隔离，未验证前不要启用预览环境。仓库配置显式关闭版本 URL；Workers Builds 的分支预览是独立开关，应在 Worker 的 Build → Branch control 中确认关闭，直到完成隔离验证。已部署的旧版本是否启用上述功能，需要在 Cloudflare 控制台单独检查。
+仓库配置关闭了版本 URL；Workers Builds 的分支预览是独立开关，启用前须验证资源隔离。`AUTH_PEPPER` 遗失或轮换涉及安全迁移，兼容轮换方案完成前不要将重置密钥当作普通恢复步骤。
 
-`AUTH_PEPPER` 遗失或轮换涉及安全迁移；在兼容轮换方案完成前，不要将重置 Secret 当作普通故障恢复步骤。
+## 项目结构与文档
+
+- `src/web`：React 前端及本地数据库。
+- `src/worker`：Cloudflare Worker API、数据库访问与后台任务。
+- `src/shared`：前后端共享类型与契约。
+- `wiki`：需求、工程结构与产品设计文档。
+- `todo`：开发计划、记录与进度总表。
+
+开发约定见 [AGENTS.md](AGENTS.md)，视觉规范见 [DESIGN.md](DESIGN.md)。

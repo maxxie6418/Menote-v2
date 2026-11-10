@@ -4,6 +4,7 @@ import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
+import { getDensityPreference, setDensityPreference, type DensityPreference } from "../../lib/density";
 import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../../lib/measurePreference";
 import { getThemeSkin, setThemeSkin, type ThemeSkin } from "../../lib/themeSkin";
 import { getPropsPlacement, getToolbarPlacement, resolveToolbar, setPropsPlacement, setToolbarPlacement, type PropsPlacement, type ToolbarPlacement } from "../../lib/docLayout";
@@ -18,6 +19,7 @@ import { SyncLogSection } from "./SyncLogSection";
 import { AttachmentPolicySettings } from "./AttachmentPolicySettings";
 import { getSyncPhase, requestSync, subscribeSyncStatus, syncQueueStatus, type SyncPhase } from "../../services/syncEngine";
 import { subscribeLocalChanges } from "../../lib/broadcast";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 export type SettingsSection = "appearance" | "sync" | "style" | "ai" | "backup" | "attachments" | "syncLogs" | "recovery" | "mcp" | "clipTemplates" | "plugins" | "propertyTemplates";
 
@@ -134,6 +136,7 @@ function SyncSection({ userId, onOpenLogs }: { userId: string; onOpenLogs: () =>
 function AppearanceSection({ userId }: { userId: string }) {
   const [skin, setSkin] = useState<ThemeSkin>(getThemeSkin);
   const [font, setFont] = useState<FontPreference>(getFontPreference);
+  const [density, setDensity] = useState<DensityPreference>(getDensityPreference);
   const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
   const [propsPos, setPropsPos] = useState<PropsPlacement>(getPropsPlacement);
   const [toolbar, setToolbar] = useState<ToolbarPlacement>(getToolbarPlacement);
@@ -145,6 +148,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       if (!value) return;
       if (value.skin) setSkin(value.skin);
       if (value.font) setFont(value.font);
+      if (value.density) setDensity(value.density);
       if (value.measure) setMeasure(value.measure);
       if (value.propsPos) setPropsPos(value.propsPos);
       if (value.toolbar) setToolbar(value.toolbar);
@@ -158,10 +162,10 @@ function AppearanceSection({ userId }: { userId: string }) {
   }, [userId]);
   return (
     <div>
+      <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">界面主题</p>
-          <p className="mn-sethint">选择墨台界面或柔纸界面；再单独设置浅色 / 深色主题。界面布局与编辑阅读偏好即时生效并随账号同步。</p>
+          <p className="mn-setlabel">界面主题<InfoHint>选择墨台界面或柔纸界面；再单独设置浅色 / 深色主题。界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"
@@ -179,74 +183,29 @@ function AppearanceSection({ userId }: { userId: string }) {
         </select>
       </div>
       <div className="mn-setrow">
-        <div><p className="mn-setlabel">导航布局</p><p className="mn-sethint">完整侧栏保留主题与标签；书脊布局将其移到笔记清单顶部。窄屏仍使用抽屉。</p></div>
-        <select className="mn-propselect" aria-label="导航布局" value={railMode} onChange={(event) => {
-          const value = event.target.value as "bar" | "rail";
-          setRailMode(value);
-          void updateAppearance(userId, { railMode: value });
-        }}><option value="bar">完整侧栏</option><option value="rail">书脊 + 清单导航</option></select>
-      </div>
-      <div className="mn-setrow">
-        <div><p className="mn-setlabel">Memo 侧记栏位置</p><p className="mn-sethint">选择统计、热力图与筛选栏位于时间轴的哪一侧。</p></div>
-        <select className="mn-propselect" aria-label="Memo 侧记栏位置" value={memoWorkbarSide} onChange={(event) => {
-          const value = event.target.value as "left" | "right";
-          setMemoWorkbarSide(value);
-          void updateAppearance(userId, { memoWorkbarSide: value });
-        }}><option value="left">左侧</option><option value="right">右侧</option></select>
-      </div>
-      <div className="mn-setrow">
-        <div><p className="mn-setlabel">Memo Todo 默认状态</p><p className="mn-sethint">控制进入 Memo 时 Todo 侧板默认展开或收起；之后仍可在页面中切换。</p></div>
-        <select className="mn-propselect" aria-label="Memo Todo 默认状态" value={memoTodoDefault} onChange={(event) => {
-          const value = event.target.value as "open" | "closed";
-          setMemoTodoDefault(value);
-          void updateAppearance(userId, { memoTodoDefault: value });
-        }}><option value="open">展开</option><option value="closed">收起</option></select>
-      </div>
-      <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">属性显示位置</p>
-          <p className="mn-sethint">顶部：属性在标题与正文之间（项目现状）。侧边：属性移到纸面右侧页边注，窄窗口或移动端会自动落回顶部。</p>
+          <p className="mn-setlabel">界面密度<InfoHint>整站按比例缩放：字号、间距、按钮与图标一起变，不是单独放大字号。高分屏觉得字小选「舒适」或「宽松」；窄屏想多放内容选「紧凑」。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"
-          aria-label="属性显示位置"
-          value={propsPos}
+          aria-label="界面密度"
+          value={density}
           onChange={(event) => {
-            const value = event.target.value as PropsPlacement;
-            setPropsPlacement(value);
-            setPropsPos(value);
-            void updateAppearance(userId, { propsPos: value });
+            const value = event.target.value as DensityPreference;
+            setDensityPreference(value);
+            setDensity(value);
+            void updateAppearance(userId, { density: value });
           }}
         >
-          <option value="top">顶部（标题下方）</option>
-          <option value="side">侧边（页边注）</option>
+          <option value="compact">紧凑（15px 基准）</option>
+          <option value="standard">标准（16px 基准）</option>
+          <option value="cozy">舒适（17px 基准）</option>
+          <option value="spacious">宽松（18px 基准）</option>
         </select>
       </div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">编辑工具栏</p>
-          <p className="mn-sethint">跟随主题时：柔纸模式浮动在纸面底部，其余主题固定在正文顶部（现状）。当前解析为「{resolveToolbar() === "bottom" ? "底部浮动" : "顶部固定"}」。</p>
-        </div>
-        <select
-          className="mn-propselect"
-          aria-label="编辑工具栏"
-          value={toolbar}
-          onChange={(event) => {
-            const value = event.target.value as ToolbarPlacement;
-            setToolbarPlacement(value);
-            setToolbar(value);
-            void updateAppearance(userId, { toolbar: value });
-          }}
-        >
-          <option value="auto">跟随主题</option>
-          <option value="top">顶部固定</option>
-          <option value="bottom">底部浮动</option>
-        </select>
-      </div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">界面字体</p>
-          <p className="mn-sethint">默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</p>
+          <p className="mn-setlabel">界面字体<InfoHint>默认使用内置的 Noto Sans SC（随应用分发，无需联网加载）；切换为系统字体后由设备决定渲染。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"
@@ -265,8 +224,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       </div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">阅读宽度</p>
-          <p className="mn-sethint">跟随主题默认宽度；也可选窄、加宽或撑满，所选宽度在所有主题生效并覆盖主题默认值。</p>
+          <p className="mn-setlabel">阅读宽度<InfoHint>跟随主题默认宽度；也可选窄、加宽或撑满，所选宽度在所有主题生效并覆盖主题默认值。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"
@@ -283,6 +241,70 @@ function AppearanceSection({ userId }: { userId: string }) {
           <option value="narrow">窄</option>
           <option value="wide">加宽</option>
           <option value="full">撑满</option>
+        </select>
+      </div>
+      <p className="mn-setgroup">布局</p>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">导航布局<InfoHint>完整侧栏保留主题与标签；书脊布局将其移到笔记清单顶部。窄屏仍使用抽屉。</InfoHint></p></div>
+        <select className="mn-propselect" aria-label="导航布局" value={railMode} onChange={(event) => {
+          const value = event.target.value as "bar" | "rail";
+          setRailMode(value);
+          void updateAppearance(userId, { railMode: value });
+        }}><option value="bar">完整侧栏</option><option value="rail">书脊 + 清单导航</option></select>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">Memo 侧记栏位置<InfoHint>选择统计、热力图与筛选栏位于时间轴的哪一侧。</InfoHint></p></div>
+        <select className="mn-propselect" aria-label="Memo 侧记栏位置" value={memoWorkbarSide} onChange={(event) => {
+          const value = event.target.value as "left" | "right";
+          setMemoWorkbarSide(value);
+          void updateAppearance(userId, { memoWorkbarSide: value });
+        }}><option value="left">左侧</option><option value="right">右侧</option></select>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">Memo Todo 默认状态<InfoHint>控制进入 Memo 时 Todo 侧板默认展开或收起；之后仍可在页面中切换。</InfoHint></p></div>
+        <select className="mn-propselect" aria-label="Memo Todo 默认状态" value={memoTodoDefault} onChange={(event) => {
+          const value = event.target.value as "open" | "closed";
+          setMemoTodoDefault(value);
+          void updateAppearance(userId, { memoTodoDefault: value });
+        }}><option value="open">展开</option><option value="closed">收起</option></select>
+      </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">属性显示位置<InfoHint>顶部：属性在标题与正文之间（项目现状）。侧边：属性移到纸面右侧页边注，窄窗口或移动端会自动落回顶部。</InfoHint></p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="属性显示位置"
+          value={propsPos}
+          onChange={(event) => {
+            const value = event.target.value as PropsPlacement;
+            setPropsPlacement(value);
+            setPropsPos(value);
+            void updateAppearance(userId, { propsPos: value });
+          }}
+        >
+          <option value="top">顶部（标题下方）</option>
+          <option value="side">侧边（页边注）</option>
+        </select>
+      </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">编辑工具栏<InfoHint>跟随主题时：柔纸模式浮动在纸面底部，其余主题固定在正文顶部（现状）。当前解析为「{resolveToolbar() === "bottom" ? "底部浮动" : "顶部固定"}」。</InfoHint></p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="编辑工具栏"
+          value={toolbar}
+          onChange={(event) => {
+            const value = event.target.value as ToolbarPlacement;
+            setToolbarPlacement(value);
+            setToolbar(value);
+            void updateAppearance(userId, { toolbar: value });
+          }}
+        >
+          <option value="auto">跟随主题</option>
+          <option value="top">顶部固定</option>
+          <option value="bottom">底部浮动</option>
         </select>
       </div>
       <section className="mn-appearance-preview" aria-label="当前外观组合预览">
@@ -305,11 +327,10 @@ function RecoverySection({ userId }: { userId: string }) {
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">恢复码</p>
-          <p className="mn-sethint">
+          <p className="mn-setlabel">恢复码<InfoHint>
             恢复码在首次启用加密时一次性展示，明文永不入库、无法事后查看；
             遗失 = 对应内容永久不可解。轮换恢复码（统一重包装全部内容密钥）将随后续版本开放。
-          </p>
+          </InfoHint></p>
         </div>
       </div>
       <div className="mn-setrow">

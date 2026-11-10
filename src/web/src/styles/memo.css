@@ -46,7 +46,7 @@
 .mn-memo-bar-left { display: flex; align-items: center; gap: var(--app-space-10); min-width: 0; }
 .mn-memo-back {
   display: inline-flex; align-items: center; gap: var(--app-space-5);
-  height: var(--app-space-lg); padding: var(--app-zero) var(--app-space-10) var(--app-zero) var(--app-space-6);
+  height: var(--app-target-min); padding: var(--app-zero) var(--app-space-10) var(--app-zero) var(--app-space-6);
   border: var(--app-zero); border-radius: var(--app-radius-md);
   background: none; color: var(--app-fg-muted);
   font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer;
@@ -116,8 +116,8 @@
   transition: opacity var(--app-motion-fast) var(--app-ease), transform var(--app-motion-fast) var(--app-ease);
 }
 .mn-memo-main .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; transform: none; pointer-events: auto; }
-.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
-.mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 互动卡片动作：几何沿用 .mn-minibtn 基类（28 槽 + 14 图标），此处只管状态色与排布 */
+.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; }
 .mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
 .mn-memo-main .mn-memo-actions .mn-minibtn[aria-pressed="true"] { color: var(--app-accent-fg); }
 .mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
@@ -280,8 +280,8 @@
 .mn-memo-comment { padding: var(--app-space-6) var(--app-zero); }
 .mn-memo-comment + .mn-memo-comment { border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-comment-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-memo-comment-time-size); }
-.mn-memo-comment-actions { margin-left: auto; display: inline-flex; gap: var(--app-space-2); }
-.mn-memo-comment-actions button { width: var(--app-space-18); height: var(--app-space-18); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-comment-actions { margin-left: auto; display: inline-flex; gap: var(--app-space-4); }
+.mn-memo-comment-actions button { width: var(--app-target-min); height: var(--app-target-min); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
 .mn-memo-comment-actions button:hover { background: var(--app-hover); color: var(--app-fg-muted); }
 .mn-memo-comment-actions svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-comment-content { margin-top: var(--app-space-2); color: var(--app-fg-muted); font-size: var(--app-memo-comment-content-size); line-height: var(--app-leading-summary); }
@@ -298,7 +298,7 @@
 .mn-memo-comment-edit button { border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; cursor: pointer; }
 .mn-memo-comment-compose { display: flex; align-items: end; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-comment-compose textarea { flex: 1; min-height: var(--app-space-34); max-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: var(--app-surface-sunken); border-radius: var(--app-radius-lg); padding: var(--app-space-10); color: var(--app-fg); font: inherit; }
-.mn-memo-comment-compose button { width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
+.mn-memo-comment-compose button { width: var(--app-target-min); height: var(--app-target-min); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
 .mn-memo-comment-compose button:disabled { background: var(--app-border); color: var(--app-fg-faint); cursor: default; }
 .mn-memo-comment-compose svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-quote-input { width: var(--app-full-size); min-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: none; color: var(--app-fg); font: inherit; line-height: var(--app-leading-summary); }
@@ -313,7 +313,7 @@
 .mn-memo-card-body > .mn-memo-quote-snapshot .mn-memo-quote-content { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .mn-memo-quote-snapshot.is-source-deleted .mn-memo-quote-head > span:last-child { margin-left: auto; }
 .mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
-.mn-memo-quote-footer button { margin-left: auto; height: var(--app-space-22); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
+.mn-memo-quote-footer button { margin-left: auto; height: var(--app-target-min); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
 .mn-memo-quote-footer button:disabled { opacity: var(--app-mobile-disabled-opacity); cursor: default; }
 .mn-memo-comments-toggle { display: inline-flex; align-items: center; gap: var(--app-space-5); margin: var(--app-space-6) var(--app-zero) var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-space-4) var(--app-space-10); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer; }
 .mn-memo-comments-toggle:hover { background: var(--app-accent-subtle); }

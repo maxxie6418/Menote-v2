@@ -6,7 +6,7 @@
 /* ---------- 文档区 ---------- */
 .mn-doc { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; }
 .mn-doc[data-focus="true"] { position: fixed; inset: var(--app-zero); z-index: var(--app-immersive-z); width: var(--app-full-size); height: var(--app-full-viewport-height); background: var(--app-bg-side); }
-.mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-space-14) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
+.mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-docbar-pad) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-docbar-left { display: flex; align-items: center; gap: var(--app-space-sm); min-width: 0; }
 .mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 路径条与标题同轴：原先用左右 padding 的外边距，宽屏下会比居中的版心左出一截（两个主题共有）。 */
@@ -20,11 +20,14 @@
 .mn-empty-key { margin-top: var(--app-space-14); font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-4) var(--app-space-10); display: inline-block; }
 
 /* ---------- E2 文档区（标题/标签/编辑器/预览） ---------- */
+/* 工具组：32 槽 + 18 图标。此前是 44 的点击区配 20 图标，字形之间净空 28px，
+   一整排在宽屏上读成散落的符号而不是一组动作；收紧后净空 18px，起手仍高于 28 底线。 */
 .mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-4); }
-.mn-docbar-right > .mn-iconbtn { min-width: var(--app-touch-target); min-height: var(--app-touch-target); padding: var(--app-space-8); }
-.mn-docbar-right > .mn-iconbtn svg { width: var(--app-icon-xl); height: var(--app-icon-xl); }
-.mn-docbar-right .mn-vt button { width: var(--app-touch-target); height: var(--app-touch-target); }
-.mn-docbar-right .mn-vt svg { width: var(--app-icon-xl); height: var(--app-icon-xl); }
+.mn-docbar-right > .mn-iconbtn { min-width: var(--app-docbar-btn); min-height: var(--app-docbar-btn); padding: var(--app-zero); }
+.mn-docbar-right > .mn-iconbtn svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
+.mn-docbar-right .mn-vt { padding: var(--app-space-2); }
+.mn-docbar-right .mn-vt button { width: var(--app-docbar-btn); height: var(--app-docbar-vt); }
+.mn-docbar-right .mn-vt svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
 .mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4); }
 .mn-savestate.err { color: var(--app-danger); cursor: pointer; }
 /* 单滚动容器：标题、属性、工具条与正文一起滚动；编辑器不再自己滚一层（否则工具条无法吸顶、滚轮还会「滚不动」标题区） */
@@ -127,8 +130,9 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-outline-entry:hover { background: var(--app-hover); }
 .mn-outline-empty { margin: var(--app-zero); padding: var(--app-space-6); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-editor-wrap[data-dragging] { outline: var(--app-line) dashed var(--app-accent); outline-offset: calc(var(--app-line) * -1); }
-/* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器） */
-.mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+/* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器）。
+   按钮 28 见方后，按钮间距从 2 提到 4：槽放大而间隙不动会读成一整块色带。 */
+.mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
 .mn-selection-formatbar { position: fixed; z-index: var(--app-context-menu-z); transform: translate(-50%, -100%); }
 .mn-selection-formatbar .mn-formatbar { position: static; flex-wrap: nowrap; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); box-shadow: var(--app-shadow-dialog); }

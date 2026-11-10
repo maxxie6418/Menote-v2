@@ -1,3 +1,12 @@
+/* ---------- 界面密度（设置·外观，2026-11-10） ----------
+   全站尺寸以 rem 计，所以密度只动根字号一档：字号、间距、控件槽、图标同时按比例走。
+   这是"逐个令牌把 24 改成 28"之后剩下的根因 —— 控件小不是某几个令牌取值错，是整站基准偏小。
+   用百分比而非 px：尊重浏览器默认字号偏好（用户基准 18px 时紧凑档仍按比例缩）。
+   standard 不写属性（= 浏览器默认 16px），保持老用户视觉不变。 */
+:root[data-density="compact"] { font-size: 93.75%; }   /* 15px */
+:root[data-density="cozy"] { font-size: 106.25%; }     /* 17px */
+:root[data-density="spacious"] { font-size: 112.5%; }  /* 18px */
+
 /* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
    取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
 :root {
@@ -118,7 +127,7 @@
   --app-home-capture-bar: 2.625rem;
   --app-home-tag-input-width: 11rem;
   --app-home-accent-mark: 2rem;
-  --app-home-save-height: 1.5625rem;
+  --app-home-save-height: 1.75rem;  /* 28px 首页快速输入的保存按钮（原 25） */
   --app-home-actions-top: 1rem;
   --app-home-action-pad: 0.875rem 0;
   --app-home-action-gap: 1.125rem;
@@ -234,7 +243,7 @@
   --app-btn-height: 2rem;          /* 32px 主按钮 */
   --app-cta-height: 2.125rem;      /* 34px 侧栏「新建笔记」 */
   --app-input-height: 2.125rem;    /* 34px 侧栏 Memo 快速输入（收起态） */
-  --app-sechead-height: 1.25rem;   /* 20px 段标题行 */
+  --app-sechead-height: 1.75rem;   /* 28px 段标题行：原 20px 装不下 28 的行尾动作按钮（DESIGN §8.2） */
   --app-count-width: 1rem;         /* 16px 计数列（等宽数字右对齐） */
   --app-tree-guide-x: 0.8125rem;   /* 13px 树连接线 x（父级箭头中心） */
   --app-tree-guide-stub: 0.9375rem;/* 15px 树连接线肘线长 */
@@ -255,16 +264,17 @@
   --app-doc-measure-paper-default: 48rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
-  --app-icon-2xs: 0.5rem;          /* 8px */
-  --app-icon-xs: 0.75rem;          /* 12px */
-  --app-icon-xxs: 0.625rem;        /* 10px 树箭头 */
-  --app-icon-sm: 0.8125rem;        /* 13px */
-  --app-icon-md: 0.875rem;         /* 14px */
-  --app-minibtn-size: 1.125rem;    /* 18px 侧栏分组小按钮（图标槽，不可放文字） */
+  --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
+  --app-icon-xxs: 0.625rem;        /* 10px 树箭头/拖柄：这是字形槽不是按钮图标，尺寸被树连接线
+                                      几何锁死（--app-tree-guide-x = 行内边距 + 槽中心），不可上抬 */
+  --app-icon-sm: 0.875rem;         /* 14px：13/14 两档只差 1px，没有区分意义，与 xs 合并 */
+  --app-icon-md: 0.875rem;         /* 14px 图标按钮 */
+  /* 桌面点击目标底线（DESIGN §8.2「桌面 28px 起」）：所有可点控件的槽不小于 --app-target-min */
+  --app-minibtn-size: 1.75rem;     /* 28px 小按钮图标槽（树行尾 / 段标题动作），原 18px */
   --app-attach-thumb-size: 3.5rem;
-  --app-textbtn-height: 1.25rem;   /* 20px 行内文字按钮 */
-  --app-vt-size: 1.25rem;          /* 20px 视图切换段 */
-  --app-vt-height: 1.125rem;       /* 18px 视图切换段高 */
+  --app-textbtn-height: 1.5rem;    /* 24px 行内文字按钮（WCAG 2.2 AA 最小目标），原 20px */
+  --app-vt-size: 1.75rem;          /* 28px 视图切换段宽 */
+  --app-vt-height: 1.75rem;        /* 28px 视图切换段高：凹槽 2+28+2=32，对齐 --app-formseg-height */
   --app-tree-indent: 1.625rem;     /* 26px 树二级缩进 */
   --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
   --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
@@ -272,9 +282,9 @@
   --app-prop-key-width: 7.5rem;    /* 120px 属性键名列：外部剪藏的键是 parent_url / clipped_at 这类长键，30px 会被切成 pa… */
   /* 属性区双列重做（2026-11-04）：双列键列 96、行尾 ⋯ 22、多选胶囊 20、控件 28、浮层 320/252 */
   --app-props-key-duo: 6rem;
-  --app-props-more: 1.375rem;
+  --app-props-more: 1.75rem;   /* 28px 行尾 ⋯（原 22px）：属性行 32 高，上下各留 2 */
   --app-props-chip: 1.25rem;
-  --app-props-btn: 1.5rem;
+  --app-props-btn: 1.75rem;    /* 28px 属性区按钮（原 24px） */
   --app-props-ctrl: 1.75rem;
   --app-props-form-label: 3.5rem;
   --app-props-pop: 20rem;
@@ -286,7 +296,15 @@
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
   --app-kicker-line-height: 0.09375rem; /* 1.5px */
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */
+  --app-infohint-width: 18rem;     /* 288px 设置项说明浮层最大宽（约三行） */
   --app-touch-target: 2.75rem;     /* 44px 触控目标 */
+  --app-target-min: 1.75rem;       /* 28px 桌面点击目标底线（DESIGN §8.2）；触屏仍用 44 */
+  /* 文档栏工具组（2026-11-10 收紧）：44 的点击区配 20 图标，字形之间净空 28px，
+     一排在宽屏上散成孤立符号。槽收到 32、图标保持 20（净空 16）、上下留白 14→10。 */
+  --app-docbar-btn: 2rem;          /* 32px 工具按钮槽 */
+  --app-docbar-icon: var(--app-icon-xl); /* 工具图标保持 20px，只收槽不收字 */
+  --app-docbar-pad: 0.625rem;      /* 10px 工具条上下留白（原 14） */
+  --app-docbar-vt: 1.75rem;        /* 28px 编辑/预览分段高，槽宽同 --app-docbar-btn */
   --app-chip-height: 1.4375rem;    /* 23px 标签胶囊 */
   --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
   --app-dot-size: 0.3125rem;       /* 5px 状态点 */
@@ -331,7 +349,7 @@
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
   --app-memo-card-pad-y: 0.8125rem;
   --app-memo-card-pad-x: 1rem;
-  --app-memo-action-size: 1.625rem;
+  --app-memo-action-size: 1.75rem;   /* 28px Memo 互动按钮（原 26，低于 §8.2 底线） */
   --app-memo-action-gap: 0.75rem;
   --app-memo-action-radius: 0.5rem;
   --app-memo-thread-indent: 0.875rem;
@@ -411,13 +429,13 @@
   --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
   --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */
-  --app-dlg-head-height: 50px;      /* 设置对话框头 */
-  --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
+  --app-dlg-head-height: 3.125rem;  /* 设置对话框头（50px，改 rem 以便随界面密度缩放） */
+  --app-dlg-nav-width: 9.875rem;    /* 设置对话框左导航（158px） */
   --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
-  --app-formatbtn-size: 1.5rem;     /* 格式栏图标按钮 24px 见方 */
+  --app-formatbtn-size: 1.75rem;    /* 格式栏图标按钮 28px 见方（原 24px） */
   --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
   --app-table-colw-0: 7.5rem; --app-table-colw-1: 9rem; --app-table-colw-2: 10.5rem; --app-table-colw-3: 12rem;
   --app-table-colw-4: 14rem; --app-table-colw-5: 17rem; --app-table-colw-6: 20rem; --app-table-colw-7: 24rem;
