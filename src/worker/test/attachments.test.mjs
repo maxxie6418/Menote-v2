@@ -52,7 +52,7 @@ test("元数据落库失败时清理本次新建的孤儿 R2 对象", async () =
     const sha256 = createHash("sha256").update(PNG).digest("hex");
     const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
     const response = await req(mf, "/api/attachments", {
-      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+      method: "POST", headers: { "content-type": "image/png", "X-File-Extension": ".png", origin: "http://localhost", cookie }, body: PNG,
     });
     assert.equal(response.status, 503);
     assert.equal(await bucket.head(`${user.id}/${sha256}`), null);
@@ -63,7 +63,7 @@ test("附件上传后可用会话读回（图片不再 401）", async () => {
   await withWorker(async (mf) => {
     const cookie = await login(mf);
     const uploaded = await req(mf, "/api/attachments", {
-      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+      method: "POST", headers: { "content-type": "image/png", "X-File-Extension": ".png", origin: "http://localhost", cookie }, body: PNG,
     });
     assert.equal(uploaded.status, 201);
     const { sha256 } = await uploaded.json();
@@ -80,5 +80,20 @@ test("附件上传后可用会话读回（图片不再 401）", async () => {
     assert.equal((await req(mf, `/api/attachments/${sha256}`)).status, 401);
     // 会话可用但对象不存在 → 404，而不是被鉴权拦成 401
     assert.equal((await req(mf, `/api/attachments/${"0".repeat(64)}`, { headers: { cookie } })).status, 404);
+  });
+});
+
+
+test("附件上传缺少扩展名时被策略拒绝且不写入对象", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const response = await req(mf, "/api/attachments", {
+      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+    });
+    assert.equal(response.status, 400);
+    const db = await mf.getD1Database("DB");
+    const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const sha256 = createHash("sha256").update(PNG).digest("hex");
+    assert.equal(await (await mf.getR2Bucket("BUCKET")).head(`${user.id}/${sha256}`), null);
   });
 });

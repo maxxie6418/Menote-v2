@@ -955,3 +955,9 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-perftable th, .mn-perftable td { padding: var(--app-space-2) var(--app-space-4); text-align: right; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-perftable th:first-child, .mn-perftable td:first-child { text-align: left; }
 .mn-perftable th { color: var(--app-fg-subtle); font-weight: normal; }
+
+/* AI 助手使用标准对话框与按钮，操作留在内容区。 */
+.mn-ai-dialog .mn-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); }
+.mn-ai-commands { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-sm); }
+.mn-ai-dialog .mn-dialog-body { gap: var(--app-space-md); }
+.mn-ai-dialog .mn-btn:disabled { cursor: default; }

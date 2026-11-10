@@ -4,7 +4,7 @@ import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
-import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia } from "../../lib/frontmatter";
+import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia, writeSummaryProperty } from "../../lib/frontmatter";
 import { newId } from "../../lib/hash";
 import { TableDocument } from "../table";
 import { AiAssistDialog } from "../ai";
@@ -762,7 +762,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           tags={item.tags}
           markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
           autoRun={autoSummary ? "summary" : undefined}
-          onApplySummary={(next) => { void saveFullMarkdown(next); }}
+          onApplySummary={(summary) => saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary))}
           onApplyTags={async (recommended) => {
             const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
             await saveItemMeta(userId, item.id, { tags: merged });
