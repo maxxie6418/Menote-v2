@@ -743,6 +743,23 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-raindrop-advanced summary { color: var(--app-fg-muted); cursor: pointer; font-size: var(--app-size-chip); }
 .mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
 .mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+/* 设置项说明收成 ⓘ（2026-11-10）：说明文字不再占行，悬停/聚焦浮出。
+   浮层向右展开并垂直居中，避开对话框的滚动上沿；max-width 控制在三行以内。 */
+.mn-infohint { position: relative; display: inline-flex; align-items: center; margin: calc(var(--app-space-4) * -1) var(--app-zero) calc(var(--app-space-4) * -1) var(--app-space-4); vertical-align: middle; }
+.mn-infohint-btn { display: grid; place-items: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-pill); background: none; color: var(--app-fg-faint); cursor: help; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
+.mn-infohint-btn:hover { color: var(--app-fg); background: var(--app-hover); }
+.mn-infohint-btn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-infohint-btn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-infohint-tip {
+  position: absolute; z-index: var(--app-context-menu-z); top: var(--app-half-size); left: calc(var(--app-full-size) + var(--app-space-6));
+  width: max-content; max-width: var(--app-infohint-width); transform: translateY(calc(var(--app-half-size) * -1));
+  padding: var(--app-space-8) var(--app-space-10); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius);
+  background: var(--app-surface-raised, var(--app-surface)); box-shadow: var(--app-shadow-card);
+  color: var(--app-fg-muted); font-size: var(--app-size-chip); font-weight: var(--app-weight-regular); line-height: var(--app-leading-summary);
+  text-align: left; white-space: normal; opacity: 0; pointer-events: none;
+  transition: opacity var(--app-motion-fast) var(--app-ease);
+}
+.mn-infohint:hover .mn-infohint-tip, .mn-infohint:focus-within .mn-infohint-tip { opacity: 1; }
 .mn-settings-section { display: grid; gap: var(--app-space-6); margin-bottom: var(--app-space-xl); }
 .mn-settings-section > h4, .mn-settings-section > p { margin: var(--app-zero); }
 .mn-attach-policy-input { width: min(var(--app-full-size), var(--app-field-width)); min-height: var(--app-input-height); padding: var(--app-space-4) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; }

@@ -296,6 +296,7 @@
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
   --app-kicker-line-height: 0.09375rem; /* 1.5px */
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */
+  --app-infohint-width: 18rem;     /* 288px 设置项说明浮层最大宽（约三行） */
   --app-touch-target: 2.75rem;     /* 44px 触控目标 */
   --app-target-min: 1.75rem;       /* 28px 桌面点击目标底线（DESIGN §8.2）；触屏仍用 44 */
   /* 文档栏工具组（2026-11-10 收紧）：44 的点击区配 20 图标，字形之间净空 28px，

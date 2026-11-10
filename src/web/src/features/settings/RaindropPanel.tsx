@@ -7,6 +7,7 @@ import {
   readRaindropStatus, saveRaindropToken, unbindRaindropTable,
 } from "../../services/raindropService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 const INTERVAL_LABELS: Record<number, string> = { 1: "每小时", 6: "每 6 小时", 24: "每天" };
 const DIFF_LABELS: Record<string, string> = {
@@ -171,10 +172,9 @@ export function RaindropPanel({ userId }: { userId: string }) {
 
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">Raindrop 访问令牌</p>
-          <p className="mn-sethint">
+          <p className="mn-setlabel">Raindrop 访问令牌<InfoHint>
             粘贴 Test Token 后自动验证并加密保存；也可手动输入后点“验证并保存”。令牌不会显示或回传。
-          </p>
+          </InfoHint></p>
         </div>
         {status?.hasToken
           ? <button type="button" className="mn-statuslink" disabled={busy}
@@ -193,11 +193,10 @@ export function RaindropPanel({ userId }: { userId: string }) {
 
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">绑定中间件表格</p>
-          <p className="mn-sethint">
+          <p className="mn-setlabel">绑定中间件表格<InfoHint>
             搜索并点选一张明文多维表格。也可以把复制的 /n/ 链接贴进搜索框，会自动对上那张表。
             选择后点“连接并拉取”；系统会补齐「行 ID」列并自动完成首轮拉取。
-          </p>
+          </InfoHint></p>
         </div>
       </div>
       <div className="mn-tablepick">
@@ -284,11 +283,10 @@ export function RaindropPanel({ userId }: { userId: string }) {
         ? <>
             <div className="mn-setrow">
               <div>
-                <p className="mn-setlabel">反推云端备份（手动确认）</p>
-                <p className="mn-sethint">
+                <p className="mn-setlabel">反推云端备份（手动确认）<InfoHint>
                   基于同步基线计算差异：未绑定行将创建、已修改行将更新（只推差异字段）；推送前逐条回读远端，
                   远端有新改动时标记冲突跳过，不静默覆盖；远端已消失的行默认不重建。本地删除不会删除远端。
-                </p>
+                </InfoHint></p>
               </div>
               <button type="button" className="app-button" disabled={busy}
                 onClick={() => void run(async () => {
