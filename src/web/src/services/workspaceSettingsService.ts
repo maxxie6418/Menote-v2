@@ -24,7 +24,9 @@ function normalize(value: unknown): WorkspaceSettings {
 }
 
 export function applyWorkspaceSettings(value: WorkspaceSettings): void {
-  if (typeof document !== "undefined") document.documentElement.style.setProperty("--mn-sidebar-width", `${value.sidebarWidth}px`);
+  /* 存的是「标准档下的 px」，渲染时折成 rem：界面密度放大后侧栏跟着一起长，
+     否则字号变大而侧栏不变宽，树标签会被挤断。 */
+  if (typeof document !== "undefined") document.documentElement.style.setProperty("--mn-sidebar-width", `${value.sidebarWidth / 16}rem`);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("menote:workspace-settings"));
 }
 

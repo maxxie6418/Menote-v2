@@ -1,3 +1,12 @@
+/* ---------- 界面密度（设置·外观，2026-11-10） ----------
+   全站尺寸以 rem 计，所以密度只动根字号一档：字号、间距、控件槽、图标同时按比例走。
+   这是"逐个令牌把 24 改成 28"之后剩下的根因 —— 控件小不是某几个令牌取值错，是整站基准偏小。
+   用百分比而非 px：尊重浏览器默认字号偏好（用户基准 18px 时紧凑档仍按比例缩）。
+   standard 不写属性（= 浏览器默认 16px），保持老用户视觉不变。 */
+:root[data-density="compact"] { font-size: 93.75%; }   /* 15px */
+:root[data-density="cozy"] { font-size: 106.25%; }     /* 17px */
+:root[data-density="spacious"] { font-size: 112.5%; }  /* 18px */
+
 /* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
    取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
 :root {
@@ -419,8 +428,8 @@
   --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
   --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */
-  --app-dlg-head-height: 50px;      /* 设置对话框头 */
-  --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
+  --app-dlg-head-height: 3.125rem;  /* 设置对话框头（50px，改 rem 以便随界面密度缩放） */
+  --app-dlg-nav-width: 9.875rem;    /* 设置对话框左导航（158px） */
   --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */

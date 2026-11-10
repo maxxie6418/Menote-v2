@@ -25,12 +25,15 @@ import { readAppearance } from "../services/appearanceSettingsService";
 
 /* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
 import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
+import { getDensityScale, subscribeDensity } from "../lib/density";
 export type { LayoutMode, MainView, MobilePane, ViewMode };
 export { BREAKPOINTS };
 
 function detectLayoutMode(): LayoutMode {
   if (typeof window === "undefined") return "full";
-  const width = window.innerWidth;
+  /* 断点是按 16px 根字号量的；界面密度放大后同一窗口装不下同样多的列，
+     所以拿「等效宽度」（窗口宽 / 密度比例）去比：18px 时 1280 的阈值实际相当于 1440。 */
+  const width = window.innerWidth / getDensityScale();
   if (width >= BREAKPOINTS.full) return "full";
   if (width >= BREAKPOINTS.compact) return "compact";
   if (width >= BREAKPOINTS.tablet) return "tablet";
@@ -42,7 +45,11 @@ function useLayoutMode(): LayoutMode {
   useEffect(() => {
     const update = () => setMode(detectLayoutMode());
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const unsubscribeDensity = subscribeDensity(update);
+    return () => {
+      window.removeEventListener("resize", update);
+      unsubscribeDensity();
+    };
   }, []);
   return mode;
 }

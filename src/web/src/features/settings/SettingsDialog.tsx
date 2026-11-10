@@ -4,6 +4,7 @@ import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
 import { getFontPreference, setFontPreference, type FontPreference } from "../../lib/fontPreference";
+import { getDensityPreference, setDensityPreference, type DensityPreference } from "../../lib/density";
 import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../../lib/measurePreference";
 import { getThemeSkin, setThemeSkin, type ThemeSkin } from "../../lib/themeSkin";
 import { getPropsPlacement, getToolbarPlacement, resolveToolbar, setPropsPlacement, setToolbarPlacement, type PropsPlacement, type ToolbarPlacement } from "../../lib/docLayout";
@@ -134,6 +135,7 @@ function SyncSection({ userId, onOpenLogs }: { userId: string; onOpenLogs: () =>
 function AppearanceSection({ userId }: { userId: string }) {
   const [skin, setSkin] = useState<ThemeSkin>(getThemeSkin);
   const [font, setFont] = useState<FontPreference>(getFontPreference);
+  const [density, setDensity] = useState<DensityPreference>(getDensityPreference);
   const [measure, setMeasure] = useState<MeasurePreference>(getMeasurePreference);
   const [propsPos, setPropsPos] = useState<PropsPlacement>(getPropsPlacement);
   const [toolbar, setToolbar] = useState<ToolbarPlacement>(getToolbarPlacement);
@@ -145,6 +147,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       if (!value) return;
       if (value.skin) setSkin(value.skin);
       if (value.font) setFont(value.font);
+      if (value.density) setDensity(value.density);
       if (value.measure) setMeasure(value.measure);
       if (value.propsPos) setPropsPos(value.propsPos);
       if (value.toolbar) setToolbar(value.toolbar);
@@ -261,6 +264,28 @@ function AppearanceSection({ userId }: { userId: string }) {
         >
           <option value="noto">Noto Sans SC（默认）</option>
           <option value="system">系统字体</option>
+        </select>
+      </div>
+      <div className="mn-setrow">
+        <div>
+          <p className="mn-setlabel">界面密度</p>
+          <p className="mn-sethint">整站按比例缩放：字号、间距、按钮与图标一起变，不是单独放大字号。高分屏觉得字小选「舒适」或「宽松」；窄屏想多放内容选「紧凑」。</p>
+        </div>
+        <select
+          className="mn-propselect"
+          aria-label="界面密度"
+          value={density}
+          onChange={(event) => {
+            const value = event.target.value as DensityPreference;
+            setDensityPreference(value);
+            setDensity(value);
+            void updateAppearance(userId, { density: value });
+          }}
+        >
+          <option value="compact">紧凑（15px 基准）</option>
+          <option value="standard">标准（16px 基准）</option>
+          <option value="cozy">舒适（17px 基准）</option>
+          <option value="spacious">宽松（18px 基准）</option>
         </select>
       </div>
       <div className="mn-setrow">
