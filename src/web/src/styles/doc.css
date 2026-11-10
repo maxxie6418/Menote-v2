@@ -127,8 +127,9 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-outline-entry:hover { background: var(--app-hover); }
 .mn-outline-empty { margin: var(--app-zero); padding: var(--app-space-6); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-editor-wrap[data-dragging] { outline: var(--app-line) dashed var(--app-accent); outline-offset: calc(var(--app-line) * -1); }
-/* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器） */
-.mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
+/* 吸顶：滚到正文中段仍然够得到格式按钮（.mn-docbody 是唯一滚动容器）。
+   按钮 28 见方后，按钮间距从 2 提到 4：槽放大而间隙不动会读成一整块色带。 */
+.mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
 .mn-selection-formatbar { position: fixed; z-index: var(--app-context-menu-z); transform: translate(-50%, -100%); }
 .mn-selection-formatbar .mn-formatbar { position: static; flex-wrap: nowrap; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); box-shadow: var(--app-shadow-dialog); }

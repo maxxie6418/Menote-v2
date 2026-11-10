@@ -116,8 +116,8 @@
   transition: opacity var(--app-motion-fast) var(--app-ease), transform var(--app-motion-fast) var(--app-ease);
 }
 .mn-memo-main .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; transform: none; pointer-events: auto; }
-.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
-.mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 互动卡片动作：几何沿用 .mn-minibtn 基类（28 槽 + 14 图标），此处只管状态色与排布 */
+.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; }
 .mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
 .mn-memo-main .mn-memo-actions .mn-minibtn[aria-pressed="true"] { color: var(--app-accent-fg); }
 .mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }

@@ -103,12 +103,12 @@
 .mn-tabledoc-hcell:focus-within .mn-tabledoc-hbadge,
 .mn-tabledoc-hcell.dragging .mn-tabledoc-col-drag,
 .mn-tabledoc-sort.active { opacity: 1; pointer-events: auto; }
-.mn-tabledoc-sort { flex: none; display: grid; place-items: center; width: var(--app-space-18); min-height: var(--app-space-18); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
+.mn-tabledoc-sort { flex: none; display: grid; place-items: center; width: var(--app-space-24); min-height: var(--app-space-24); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
 .mn-tabledoc-sort.active { color: var(--app-accent-fg); }
 .mn-tabledoc-sort svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-tabledoc-sort:hover, .mn-tabledoc-sort:focus-visible { color: var(--app-accent-fg); background: var(--app-hover); }
 /* 列拖动柄：与行拖动柄同一语言，表头更密，收成图标尺寸。 */
-.mn-tabledoc-col-drag { display: grid; place-items: center; flex: none; width: var(--app-space-18); height: var(--app-space-18); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: grab; }
+.mn-tabledoc-col-drag { display: grid; place-items: center; flex: none; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: grab; }
 .mn-tabledoc-col-drag:hover, .mn-tabledoc-col-drag:focus-visible { background: var(--app-hover); color: var(--app-fg); }
 .mn-tabledoc-col-drag:active { cursor: grabbing; }
 .mn-tabledoc-col-drag svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }

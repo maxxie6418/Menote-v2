@@ -46,6 +46,7 @@
    （快速输入的收起/保存、属性行的添加按钮）。 */
 .mn-textbtn {
   display: inline-flex; align-items: center; gap: var(--app-space-4);
+  min-height: var(--app-textbtn-height);
   padding: var(--app-zero) var(--app-space-xs);
   border: var(--app-zero); border-radius: var(--app-radius-sm);
   background: none; color: var(--app-fg-muted);
@@ -56,7 +57,9 @@
 .mn-textbtn:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-textbtn:disabled { color: var(--app-fg-faint); cursor: default; }
 .mn-textbtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); flex: none; }
-.mn-iconbtn { display: grid; place-items: center; border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-space-4); border-radius: var(--app-radius-sm); }
+/* 图标按钮基类（2026-11-10）：此前只有 padding、没有尺寸，落到 14 图标 + 8 内边距 = 22px，
+   低于 DESIGN §8.2 的 28px 桌面底线；换成 28 见方的槽，图标 14 居中，各上下文只覆盖颜色。 */
+.mn-iconbtn { display: grid; place-items: center; min-width: var(--app-target-min); min-height: var(--app-target-min); border: var(--app-zero); background: none; color: var(--app-fg-subtle); cursor: pointer; padding: var(--app-zero); border-radius: var(--app-radius-sm); }
 .mn-iconbtn:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-iconbtn svg { width: var(--app-icon-md); height: var(--app-icon-md); }
 .mn-iconbtn[aria-disabled="true"] { cursor: default; }
@@ -193,15 +196,12 @@
 .mn-tree-chevbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 /* 展开中的加密空间列表与主题列表之间留 14 */
 .mn-tree-space { margin-bottom: var(--app-space-14); }
-/* 行尾动作悬停才出现（低频动作不常驻）。几何与段标题动作同源：18 图标槽 + 12 图标，
-   不重置边框/内边距时按钮会取浏览器默认样式，把整行撑出一个大方框。 */
+/* 行尾动作悬停才出现（低频动作不常驻）。几何统一由 .mn-minibtn 基类提供（28 图标槽 + 14 图标），
+   此处只负责显隐，避免同一类按钮在各上下文各写一套尺寸。 */
 .mn-treerow .mn-minibtn {
-  display: grid; place-items: center; flex: none;
-  width: var(--app-minibtn-size); height: var(--app-minibtn-size); padding: var(--app-zero);
-  border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint);
-  opacity: 0; cursor: pointer; transition: opacity var(--app-motion-fast) var(--app-ease);
+  opacity: 0;
+  transition: opacity var(--app-motion-fast) var(--app-ease);
 }
-.mn-treerow .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-treerow .mn-minibtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-treerow:hover .mn-minibtn, .mn-treerow:focus-within .mn-minibtn { opacity: 1; }
 .mn-treerow.priv .mn-minibtn { opacity: 1; }
@@ -392,7 +392,17 @@
 .mn-tag-manager-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-label); }
 
 /* ---------- E2 主题树扩展 ---------- */
-.mn-minibtn { cursor: pointer; }
+/* 小按钮基类（2026-11-10）：此前只有 cursor，尺寸全靠使用处各写一遍，同一个图标按钮在树行是
+   18、Memo 互动区是 24、文档栏是 44。现统一为 28 见方的槽 + 14 图标（DESIGN §8.2 桌面底线），
+   使用处只覆盖颜色、显隐或文字按钮形态。 */
+.mn-minibtn {
+  display: grid; place-items: center; flex: none;
+  width: var(--app-minibtn-size); height: var(--app-minibtn-size); padding: var(--app-zero);
+  border: var(--app-zero); border-radius: var(--app-radius-sm); background: none;
+  color: var(--app-fg-faint); cursor: pointer;
+}
+.mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-minibtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-minibtn:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-tree-list { list-style: none; margin: var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-line); }
 .mn-tree-sublist { list-style: none; margin: var(--app-zero); padding: var(--app-zero) var(--app-zero) var(--app-zero) var(--app-tree-indent); display: flex; flex-direction: column; gap: var(--app-line); }
@@ -405,7 +415,7 @@
 .mn-tree-new { width: var(--app-full-size); height: var(--app-nav-height); margin-bottom: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-nav); padding: var(--app-zero) var(--app-space-xs); }
 .mn-tree-new:focus { border-color: var(--app-border); }
 .mn-tree-new.indent { margin-left: var(--app-tree-indent); width: var(--app-tree-indent-rest); }
-.mn-tree-actions { display: flex; gap: var(--app-space-2); padding: var(--app-space-2) var(--app-space-xs); }
+.mn-tree-actions { display: flex; gap: var(--app-space-4); padding: var(--app-space-2) var(--app-space-xs); }
 .mn-taglink { color: var(--app-fg-subtle); font-size: var(--app-size-chip); text-decoration: none; border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-10); background: var(--app-surface-sunken); }
 .mn-taglink:hover, .mn-taglink.on { color: var(--app-fg); box-shadow: var(--app-hairline-inset); }
 
