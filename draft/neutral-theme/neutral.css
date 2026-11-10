@@ -1,0 +1,346 @@
+/* ==========================================================================
+   素灰 / SLATE —— Menote 中性主题（草案 v1.1，2026-11-10）
+   --------------------------------------------------------------------------
+   为什么要有它：默认「墨台」是暖砂底 + 朱砂，柔纸是米黄底 + 松烟绿，
+   两者同属暖白纸族（衬线标题、纸面卡片、颗粒纹理），并排看几乎是同一套东西。
+   素灰走另一个坐标：冷石板灰 + 靛蓝强调 + 纯白文档墙 + 全无衬线。
+
+   四条规则：
+   1. 表面冷而中立：侧栏/清单是带一点蓝的冷灰（不是纯灰也不是米白），文档区纯白；
+   2. 强调克制：靛蓝只给「当前 / 主操作 / 焦点」，其余一律灰阶；
+   3. 去掉物的质感：无纸卡、无阴影堆叠、无颗粒、无页边竖线，结构靠 1px 线与留白；
+   4. 排版全无衬线：标题交回界面字体，元数据仍走等宽——构成「图表 / 仪表」的语气。
+
+   取值参考：中性灰取 Radix slate / Tailwind slate 的色阶（浅 1–4、深 11–12），
+   强调取 Radix indigo 的 9 / 11 两级（9 做实底、11 做文字），
+   组件形态（1px 边 + 3px 焦点环、6/8px 圆角、按钮内高光）对齐 shadcn/ui 的默认语汇。
+   本文件是叠加层：只覆盖 design-v3 的皮肤变量与少量形态，不动结构。
+   预览开关「墨台 / 柔纸 / 素灰」中，柔纸为近似值（仅用于对照，非实现口径）。
+   ========================================================================== */
+
+/* ---------- 1. 素灰 · 浅色 ---------- */
+:root[data-skin="neutral"] {
+  --rail-bg:      #e9ebf1;   /* 侧栏：冷石板，比清单深一档 */
+  --panel-bg:     #f4f5f9;   /* 清单：中性浅灰（略带蓝） */
+  --canvas-bg:    #fdfdff;   /* 文档墙：近白，不是象牙 */
+  --sheet-bg:     #ffffff;
+  --raise-bg:     #ffffff;
+
+  --ink:          #1a1d24;
+  --ink-2:        #454b57;
+  --ink-3:        #5d6472;   /* 5.6:1 on #fff */
+  --ink-4:        #68707f;   /* 5.0:1 on #fff / 4.5:1 on 清单底，元信息也过 AA */
+
+  --line-faint:   #e8ebf1;
+  --line:         #dde1e9;
+  --line-strong:  #bcc2ce;
+
+  /* 强调＝靛蓝：当前项、主按钮、焦点环 */
+  --accent:       #3e63dd;
+  --accent-ink:   #3451b2;
+  --accent-soft:  rgba(62, 99, 221, .09);
+  --accent-line:  rgba(62, 99, 221, .28);
+
+  /* 语义色：只在状态位出现，与靛蓝分开色相 */
+  --moss:         #4a7a5c;
+  --moss-soft:    rgba(74, 122, 92, .10);
+  --amber:        #8a6a24;
+  --amber-soft:   rgba(138, 106, 36, .10);
+  --sky:          #3f6f99;
+  --sky-soft:     rgba(63, 111, 153, .09);
+  --iris:         #6d5aa8;
+  --iris-soft:    rgba(109, 90, 168, .09);
+
+  --shadow-pop:   0 0 0 1px rgba(20, 24, 33, .05), 0 16px 40px -20px rgba(20, 24, 33, .30);
+  --shadow-sheet: none;
+  --paper-shadow: none;
+  --noise-op:     0;
+
+  --hover-wash:   rgba(26, 29, 36, .035);
+  --on-accent:    #ffffff;
+
+  /* 圆角取 shadcn 的 6 / 8 系：控件 6、容器 8、弹层 12 */
+  --r-1: 4px;  --r-2: 6px;  --r-3: 8px;  --r-4: 12px;
+
+  /* 全站无衬线：标题位也交回界面字体，避免残留「纸感」 */
+  --font-serif: var(--font-sans);
+
+  /* 示例照片也用冷色，避免暖色块破坏整体温度 */
+  --art-a: linear-gradient(150deg, #c3cbd8, #97a2b3);
+  --art-b: linear-gradient(150deg, #d3d9e4, #a9b3c4);
+  --art-c: linear-gradient(150deg, #adb8c7, #7f8b9e);
+  --art-d: linear-gradient(150deg, #c8cfdb, #9aa5b6);
+  --art-e: linear-gradient(150deg, #9faabb, #737f92);
+}
+
+/* ---------- 2. 素灰 · 深色 ---------- */
+:root[data-skin="neutral"][data-theme="dark"] {
+  --rail-bg:      #0b0d13;
+  --panel-bg:     #13161e;
+  --canvas-bg:    #0e1117;
+  --sheet-bg:     #0e1117;
+  --raise-bg:     #1b1f29;
+
+  --ink:          #e8eaf0;
+  --ink-2:        #a9b0bd;
+  --ink-3:        #8a92a1;
+  --ink-4:        #7d8595;
+
+  --line-faint:   #1d212b;
+  --line:         #282d38;
+  --line-strong:  #3c4250;
+
+  /* 深色下靛蓝降饱和、提亮度，避免整块发光 */
+  --accent:       #4a5fd6;
+  --accent-ink:   #9daaff;
+  --accent-soft:  rgba(94, 113, 240, .16);
+  --accent-line:  rgba(94, 113, 240, .45);
+
+  --moss:         #8fb79f;
+  --moss-soft:    rgba(143, 183, 159, .12);
+  --amber:        #d6b073;
+  --amber-soft:   rgba(214, 176, 115, .12);
+  --sky:          #8fb3d0;
+  --sky-soft:     rgba(143, 179, 208, .12);
+  --iris:         #b0a6dd;
+  --iris-soft:    rgba(176, 166, 221, .13);
+
+  --shadow-pop:   0 0 0 1px rgba(255, 255, 255, .06), 0 20px 48px -22px #000;
+  --shadow-sheet: none;
+  --paper-shadow: none;
+
+  --hover-wash:   rgba(255, 255, 255, .045);
+  --on-accent:    #ffffff;
+
+  --art-a: linear-gradient(150deg, #3b4657, #1e2531);
+  --art-b: linear-gradient(150deg, #4a5566, #262e3b);
+  --art-c: linear-gradient(150deg, #333e4e, #1a212b);
+  --art-d: linear-gradient(150deg, #414c5d, #232a35);
+  --art-e: linear-gradient(150deg, #2c3542, #161c25);
+}
+
+/* ---------- 3. 形态：把「纸」拿掉，只留结构 ---------- */
+:root[data-skin="neutral"] .grain::after { display: none; }
+
+/* 文档＝白墙：无卡片、无阴影、无页边竖线、无角标装饰条 */
+:root[data-skin="neutral"] .paper {
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  padding: 40px 72px 96px;
+}
+:root[data-skin="neutral"] .paper::before { display: none; }
+:root[data-skin="neutral"] .doc-cover { display: none; }
+
+/* 标题全无衬线；头信息下方压一条 1px 结构线（本主题的「文档抬头」记号） */
+:root[data-skin="neutral"] .doc-title {
+  font-family: var(--font-sans); font-size: 34px; font-weight: 600;
+  letter-spacing: -.022em; line-height: 1.24; margin-bottom: 14px;
+}
+:root[data-skin="neutral"] .doc-meta {
+  padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 28px;
+}
+/* 抬头角标留一点靛蓝，是整页唯一的彩色引子 */
+:root[data-skin="neutral"] .doc-kicker .sec { color: var(--accent-ink); }
+:root[data-skin="neutral"] .doc-kicker .rule { background: var(--accent-line); }
+:root[data-skin="neutral"] .doc-kicker .st { border-radius: 4px; color: var(--ink-3); }
+
+/* 正文：比柔纸紧、比默认硬；标题不用衬线，用字重分层 */
+:root[data-skin="neutral"] .prose {
+  font-size: 15px; line-height: 1.78; letter-spacing: 0;
+}
+:root[data-skin="neutral"] .prose h2 {
+  font-family: var(--font-sans); font-size: 19px; font-weight: 600;
+  letter-spacing: -.012em; margin: 34px 0 12px;
+}
+:root[data-skin="neutral"] .prose h2 .n { color: var(--accent-ink); letter-spacing: .12em; }
+:root[data-skin="neutral"] .prose .lead { font-size: 16px; line-height: 1.76; color: var(--ink-2); }
+:root[data-skin="neutral"] .prose blockquote {
+  font-family: var(--font-sans); font-style: normal; font-size: 14.5px;
+  color: var(--ink-3); border-left: 2px solid var(--accent-line); padding-left: 16px;
+}
+:root[data-skin="neutral"] .prose blockquote cite { color: var(--ink-4); }
+:root[data-skin="neutral"] .prose code { border-radius: 4px; background: var(--panel-bg); }
+
+/* 侧栏视图切换：凹槽分段 → 下划线页签（去掉「胶囊槽」的语言） */
+:root[data-skin="neutral"] .sb-seg {
+  gap: 0; padding: 0; background: transparent; border-radius: 0;
+  border-bottom: 1px solid var(--line); margin-top: 10px;
+}
+:root[data-skin="neutral"] .sb-seg button {
+  height: 30px; border-radius: 0; font-size: 11.5px; color: var(--ink-4);
+  box-shadow: inset 0 -2px 0 transparent; transition: color .12s ease;
+}
+:root[data-skin="neutral"] .sb-seg button:hover { background: transparent; color: var(--ink-2); }
+:root[data-skin="neutral"] .sb-seg button.is-on {
+  background: transparent; color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* 主操作：靛蓝实底 + 顶部内高光（shadcn 的按钮材质），无外发光 */
+:root[data-skin="neutral"] .sb-new {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, #fff), var(--accent));
+  color: var(--on-accent); border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 2px rgba(20, 24, 33, .14);
+}
+:root[data-skin="neutral"] .sb-new:hover {
+  background: var(--accent-ink); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+:root[data-skin="neutral"] .sb-new .kbd {
+  background: rgba(255, 255, 255, .18); border-color: transparent;
+  color: rgba(255, 255, 255, .92); border-radius: 4px;
+}
+:root[data-skin="neutral"] .btn--primary,
+:root[data-skin="neutral"] .home-drop-bar .send {
+  background: var(--accent); color: var(--on-accent); border-color: transparent;
+  border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 1px 2px rgba(20, 24, 33, .10);
+}
+:root[data-skin="neutral"] .btn--primary:hover,
+:root[data-skin="neutral"] .home-drop-bar .send:hover {
+  background: var(--accent-ink); color: var(--on-accent);
+}
+:root[data-skin="neutral"] .btn--danger { background: var(--accent); color: var(--on-accent); border-radius: 6px; }
+:root[data-skin="neutral"] .composer-send .go,
+:root[data-skin="neutral"] .mt-send { color: var(--on-accent); }
+
+/* 输入类：1px 边 + 3px 焦点环（shadcn Input / Search 的默认形态） */
+:root[data-skin="neutral"] .sb-cap,
+:root[data-skin="neutral"] .lst-search,
+:root[data-skin="neutral"] .searchbox {
+  background: var(--sheet-bg); border-color: var(--line); border-radius: 6px;
+}
+:root[data-skin="neutral"] .sb-cap:hover { border-color: var(--line-strong); }
+:root[data-skin="neutral"] .lst-search:focus-within {
+  border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+:root[data-skin="neutral"] :where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* 行与容器：统一 6px 圆角，靠底色差而不是描边分层 */
+:root[data-skin="neutral"] .sb-queue button { border-radius: 6px; }
+:root[data-skin="neutral"] .sb-row,
+:root[data-skin="neutral"] .pn-item { border-radius: 6px; }
+/* 侧栏选中：白底浮在灰栏上 + 2px 靛蓝条，靠「抬起」而不是「加深」表示当前 */
+:root[data-skin="neutral"] .sb-row.is-on,
+:root[data-skin="neutral"] .pn-item.is-on {
+  background: var(--raise-bg); color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-skin="neutral"] .lst-item { border-radius: 6px; }
+/* 清单选中：只加深一档灰 + 2px 靛蓝条，不给整行上色，避免一片淡紫 */
+:root[data-skin="neutral"] .lst-item.is-on { background: var(--line-faint); }
+:root[data-skin="neutral"] .lst-item.is-on .tt { font-weight: 600; }
+:root[data-skin="neutral"] .kbd {
+  border-radius: 4px; background: var(--raise-bg); border-color: var(--line);
+  border-bottom-color: var(--line-strong);
+}
+:root[data-skin="neutral"] .menu,
+:root[data-skin="neutral"] .theme-pop,
+:root[data-skin="neutral"] .sel-menu { border-radius: 8px; }
+:root[data-skin="neutral"] .menu-item,
+:root[data-skin="neutral"] .tp-item,
+:root[data-skin="neutral"] .sel-menu li { border-radius: 6px; }
+:root[data-skin="neutral"] .inspector { border-radius: 8px; }
+:root[data-skin="neutral"] .inspector .ins-tab,
+:root[data-skin="neutral"] .inspector .ins-mini { border-radius: 6px; }
+:root[data-skin="neutral"] .confirm-card { border-radius: 12px; }
+:root[data-skin="neutral"] .confirm-card h4 { font-family: var(--font-sans); }
+:root[data-skin="neutral"] .confirm-card .ics { background: var(--accent-soft); color: var(--accent-ink); }
+
+/* 标签：去掉彩色底，只留一个语义圆点——一排标签不再像糖果盘 */
+:root[data-skin="neutral"] .tag,
+:root[data-skin="neutral"] .tag--acc,
+:root[data-skin="neutral"] .tag--moss,
+:root[data-skin="neutral"] .tag--sky,
+:root[data-skin="neutral"] .tag--iris {
+  color: var(--ink-3); background: var(--line-faint); border-radius: 4px;
+}
+:root[data-skin="neutral"] .tag--acc { background: var(--accent-soft); color: var(--accent-ink); }
+:root[data-skin="neutral"] .tag--acc .dot { background: var(--accent); }
+:root[data-skin="neutral"] .tag--moss .dot { background: var(--moss); }
+:root[data-skin="neutral"] .tag--sky .dot { background: var(--sky); }
+:root[data-skin="neutral"] .tag--iris .dot { background: var(--iris); }
+:root[data-skin="neutral"] .pill { border-radius: 4px; letter-spacing: .02em; }
+
+/* 头像：暖棕 → 冷石板 */
+:root[data-skin="neutral"] .sb-ava,
+:root[data-skin="neutral"] .modal-nav .acc .av {
+  background: linear-gradient(150deg, #5a6478, #262c38);
+}
+:root[data-skin="neutral"] .sb-brand .bm {
+  background: var(--raise-bg); border-color: var(--line-strong); border-radius: 6px;
+}
+
+/* 提示块：信息用冷蓝，不用苔绿（绿在本主题只表示「已完成 / 已保存」） */
+:root[data-skin="neutral"] .callout {
+  background: var(--sky-soft); border-left-color: var(--sky); border-radius: 4px;
+}
+:root[data-skin="neutral"] .callout .ci { color: var(--sky); }
+
+:root[data-skin="neutral"] .codeblk { border-radius: 8px; background: var(--panel-bg); }
+:root[data-skin="neutral"] .fig { border-radius: 8px; }
+:root[data-skin="neutral"] .todo.done .bx::after { border-color: var(--canvas-bg); }
+:root[data-skin="neutral"] .hs-bars i.on { opacity: .45; }
+
+/* 选中文字：淡靛蓝，不用暖橙 */
+:root[data-skin="neutral"] ::selection {
+  background: rgba(62, 99, 221, .16); color: var(--ink);
+}
+
+/* ---------- 4. 对照用：柔纸（近似值，仅本预览） ---------- */
+:root[data-skin="paper"] {
+  --rail-bg:      #efebde;
+  --panel-bg:     #f7f5ec;
+  --canvas-bg:    #e9e5d9;
+  --sheet-bg:     #fcfbf6;
+  --raise-bg:     #fcfbf6;
+
+  --ink:          #1a1b18;
+  --ink-2:        #4f5249;
+  --ink-3:        #6c6f64;
+  --ink-4:        #8b8d82;
+
+  --line-faint:   #ede8da;
+  --line:         #e4dfd0;
+  --line-strong:  #cfc8b7;
+
+  --accent:       #2e5b4c;
+  --accent-ink:   #22483c;
+  --accent-soft:  rgba(46, 91, 76, .09);
+  --accent-line:  rgba(46, 91, 76, .28);
+
+  --moss:         #4f6b45;
+  --moss-soft:    rgba(79, 107, 69, .08);
+  --sky:          #2c4a73;
+  --sky-soft:     rgba(44, 74, 115, .08);
+  --iris:         #6b4fa0;
+  --iris-soft:    rgba(107, 79, 160, .08);
+  --amber:        #8a6a24;
+  --amber-soft:   rgba(138, 106, 36, .09);
+
+  --shadow-pop:   0 16px 44px -14px rgba(60, 50, 30, .26), 0 2px 6px rgba(60, 50, 30, .08);
+  --shadow-sheet: 0 18px 44px -34px rgba(26, 27, 24, .5);
+  --paper-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 1px 2px rgba(26, 27, 24, .04), 0 18px 40px -32px rgba(26, 27, 24, .5);
+  --noise-op:     .03;
+  --hover-wash:   rgba(26, 27, 24, .032);
+
+  --r-1: 6px;  --r-2: 8px;  --r-3: 10px;  --r-4: 14px;
+}
+:root[data-skin="paper"] .paper {
+  border-radius: 13px; padding: 54px 82px 96px 86px;
+}
+:root[data-skin="paper"] .doc-title { font-size: 33px; }
+:root[data-skin="paper"] .prose { font-size: 17px; line-height: 1.85; }
+:root[data-skin="paper"] .prose h2 { font-size: 20.5px; }
+
+/* ---------- 5. 预览用的皮肤切换（塞进底座右下角检视条，不另起浮层） ---------- */
+.ins-skin {
+  height: 26px; padding: 0 9px; border-radius: 6px; font-size: 11.5px; font-weight: 500;
+  letter-spacing: .01em; white-space: nowrap; color: var(--ink-3);
+  display: flex; align-items: center; gap: 6px; transition: .13s ease;
+}
+.ins-skin:hover { color: var(--ink); background: var(--line-faint); }
+.ins-skin.is-on { background: var(--ink); color: var(--canvas-bg); }
+.ins-skin i { width: 7px; height: 7px; border-radius: 50%; display: block; flex: none; }
+.ins-skin i[data-tone="default"] { background: #d8381a; }
+.ins-skin i[data-tone="paper"] { background: #2e5b4c; }
+.ins-skin i[data-tone="neutral"] { background: #3e63dd; }

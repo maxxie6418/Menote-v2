@@ -87,7 +87,8 @@ test("Worker SQL stays in db and style values stay in tokens", async () => {
       });
     }
     if (rel.startsWith("src/web/src/") && rel.endsWith(".css") && rel !== "src/web/src/styles/tokens.css") {
-      const text = await readFile(file, "utf8");
+      // 注释里写「28px 的槽」是说明文字，不是声明；先剥掉注释再查，否则门禁会被注释误判。
+      const text = (await readFile(file, "utf8")).replace(/\/\*[\s\S]*?\*\//g, " ");
       if (/(?:^|[^\w-])(?:#[\da-fA-F]{3,8}\b|\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%))/m.test(text)) findings.push(`${rel}: literal style value outside tokens`);
     }
   }

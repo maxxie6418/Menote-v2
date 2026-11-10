@@ -1,0 +1,246 @@
+/* ==========================================================================
+   墨台 INKSTAND — 一套为 Menote 独立建立的视觉语言
+   三条原则：
+   1. 用栏线（hairline）与留白建立秩序，而不是堆叠浮起的卡片；
+   2. 双声部排版：衬线负责内容与标题，无衬线负责界面骨架，等宽负责元数据；
+   3. 朱砂只有一个用途——标记"此刻正在发生的事"（光标、选中、当前动作）。
+   ========================================================================== */
+
+/* ---------- 1. 令牌 ---------- */
+:root {
+  --rail-bg:      #0a0a09;
+  --panel-bg:     #101110;
+  --canvas-bg:    #151614;
+  --sheet-bg:     #1b1c19;
+  --raise-bg:     #232420;
+
+  --ink:          #eae8e2;
+  --ink-2:        #b3b0a7;
+  --ink-3:        #929087;
+  --ink-4:        #8d8b82;
+
+  --line-faint:   #1e1f1c;
+  --line:         #2a2b27;
+  --line-strong:  #3a3b35;
+
+  --accent:       #ff5a3c;
+  --accent-ink:   #ff7a5e;
+  --accent-soft:  rgba(255, 90, 60, .13);
+  --accent-line:  rgba(255, 90, 60, .38);
+
+  --moss:         #9dc08f;
+  --moss-soft:    rgba(157, 192, 143, .085);
+  --amber:        #e6b155;
+  --amber-soft:   rgba(230, 177, 85, .12);
+  --sky:          #82b0d3;
+  --sky-soft:     rgba(130, 176, 211, .12);
+  --iris:         #b39ce0;
+  --iris-soft:    rgba(179, 156, 224, .13);
+
+  --shadow-pop:   0 1px 0 rgba(255,255,255,.04) inset, 0 18px 48px -12px rgba(0,0,0,.72), 0 2px 8px rgba(0,0,0,.4);
+  --shadow-sheet: 0 1px 0 rgba(255,255,255,.03) inset, 0 24px 64px -24px rgba(0,0,0,.8);
+  --noise-op:     .045;
+  /* 图片占位：仅用于示例照片的表面，不参与语义配色 */
+  --art-a: linear-gradient(150deg, #3a4a40, #1e2a25);
+  --art-b: linear-gradient(150deg, #6f5c47, #3a3027);
+  --art-c: linear-gradient(150deg, #4c5762, #252c31);
+  --art-d: linear-gradient(150deg, #7d6c56, #453b30);
+  --art-e: linear-gradient(150deg, #40505a, #20272b);
+
+
+  --r-1: 3px;
+  --r-2: 5px;
+  --r-3: 8px;
+  --r-4: 12px;
+
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", -apple-system,
+               "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-serif: Georgia, "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC",
+                "Songti SC", SimSun, serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", "Cascadia Code",
+               Consolas, "Liberation Mono", monospace;
+
+  --panel-w: 264px;
+  --topbar-h: 52px;
+}
+
+:root[data-theme="light"] {
+  --rail-bg:      #e2ddce;
+  --panel-bg:     #eee9de;
+  --canvas-bg:    #f7f4ec;
+  --sheet-bg:     #fffdf9;
+  --raise-bg:     #ffffff;
+
+  --ink:          #191a17;
+  --ink-2:        #4d4e48;
+  --ink-3:        #61625b;
+  --ink-4:        #686961;
+
+  --line-faint:   #e6e1d3;
+  --line:         #d8d2c2;
+  --line-strong:  #c1baa9;
+
+  --accent:       #d8381a;
+  --accent-ink:   #b82d12;
+  --accent-soft:  rgba(216, 56, 26, .08);
+  --accent-line:  rgba(216, 56, 26, .3);
+
+  --moss:         #49693f;
+  --moss-soft:    rgba(73, 105, 63, .07);
+  --amber:        #815a0d;
+  --amber-soft:   rgba(129, 90, 13, .09);
+  --sky:          #2f6287;
+  --sky-soft:     rgba(47, 98, 135, .08);
+  --iris:         #6b4fa0;
+  --iris-soft:    rgba(107, 79, 160, .08);
+
+  --shadow-pop:   0 16px 44px -14px rgba(60, 50, 30, .28), 0 2px 6px rgba(60, 50, 30, .08);
+  --shadow-sheet: 0 18px 48px -28px rgba(60, 50, 30, .35);
+  --noise-op:     .028;
+}
+
+/* ---------- 2. 基础 ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--rail-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input, textarea { font: inherit; color: inherit; background: none; border: 0; outline: none; resize: none; }
+::selection { background: var(--accent-soft); color: var(--ink); }
+a { color: inherit; text-decoration: none; }
+
+.i { width: 16px; height: 16px; stroke: currentColor; fill: none;
+     stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; flex: none; }
+.i--sm { width: 13px; height: 13px; stroke-width: 1.8; }
+
+.mono { font-family: var(--font-mono); font-variant-ligatures: none; }
+
+.t-label {
+  font-size: 10px; line-height: 1; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+}
+.t-serif { font-family: var(--font-serif); }
+
+/* 滚动条：细、无声 */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); background-clip: content-box; }
+
+/* ---------- 3. 通用微件 ---------- */
+.kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  font-family: var(--font-mono); font-size: 10px; line-height: 1; color: var(--ink-3);
+  background: var(--raise-bg); border: 1px solid var(--line);
+  border-bottom-color: var(--line-strong); border-radius: var(--r-1);
+}
+
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px 0 5px; border-radius: var(--r-1); font-size: 11px; color: var(--ink-2); background: var(--line-faint); }
+.tag .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+.tag--acc { color: var(--accent-ink); background: var(--accent-soft); }
+.tag--moss { color: var(--moss); background: var(--moss-soft); }
+.tag--sky { color: var(--sky); background: var(--sky-soft); }
+.tag--iris { color: var(--iris); background: var(--iris-soft); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px;
+  border-radius: 11px; font-size: 11px; font-weight: 500; letter-spacing: .01em;
+  background: var(--line-faint); color: var(--ink-2); white-space: nowrap;
+}
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill--run   { background: var(--accent-soft); color: var(--accent-ink); }
+.pill--wait  { background: var(--line-faint); color: var(--ink-2); }
+.pill--done  { background: var(--moss-soft);   color: var(--moss); }
+
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--r-2); color: var(--ink-3);
+  transition: .13s ease;
+}
+.icon-btn:hover { background: var(--line-faint); color: var(--ink); }
+.icon-btn:active { background: var(--line); }
+.icon-btn.is-on { background: var(--accent-soft); color: var(--accent-ink); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px;
+  border-radius: var(--r-2); font-size: 12px; font-weight: 500; color: var(--ink-2);
+  border: 1px solid var(--line); transition: .13s ease;
+}
+.btn:hover { border-color: var(--line-strong); color: var(--ink); background: var(--line-faint); }
+.btn--primary {
+  background: var(--accent); border-color: transparent; color: #fff; font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 4px 12px -4px rgba(255,90,60,.5);
+}
+:root[data-theme="light"] .btn--primary { color: #fffaf5; }
+.btn--primary:hover { background: var(--accent-ink); color: #fff; }
+.btn--sm { height: 24px; padding: 0 8px; font-size: 11.5px; }
+
+.seg {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--line-faint); border-radius: var(--r-2);
+}
+.seg button {
+  height: 22px; padding: 0 9px; border-radius: var(--r-1); white-space: nowrap;
+  font-size: 11.5px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 5px;
+  transition: .13s ease;
+}
+.seg button:hover { color: var(--ink-2); }
+.seg button.is-on { background: var(--raise-bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+
+.hr { height: 1px; background: var(--line-faint); border: 0; }
+.hr--fade { background: linear-gradient(90deg, transparent, var(--line) 12%, var(--line) 88%, transparent); }
+
+
+/* ---------- 4. 焦点与动效降级 ---------- */
+/* 键盘焦点：全站同源，2px 强调环 + 2px 偏移；不用 color 变化代替焦点提示 */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* 容器已承担焦点描边的输入框不再叠加双环 */
+.mt-input:focus-visible,
+.mq-input:focus-visible,
+.composer-input:focus-visible,
+.home-slot-input:focus-visible {
+  outline: none;
+}
+/* 卡片、行、菜单项：内描边，避免被滚动容器裁掉 */
+.memo:focus-visible,
+.grow:focus-visible,
+.lst-item:focus-visible,
+.sb-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--r-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

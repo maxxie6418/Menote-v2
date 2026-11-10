@@ -134,7 +134,7 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
    按钮 28 见方后，按钮间距从 2 提到 4：槽放大而间隙不动会读成一整块色带。 */
 .mn-formatbar { position: sticky; top: calc(var(--app-doc-pad) * -1); z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); padding: var(--app-space-4) var(--app-zero); background: var(--app-surface); border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
-.mn-selection-formatbar { position: fixed; z-index: var(--app-context-menu-z); transform: translate(-50%, -100%); }
+.mn-selection-formatbar { position: fixed; z-index: var(--app-context-menu-z); transform: var(--app-popover-shift-up); }
 .mn-selection-formatbar .mn-formatbar { position: static; flex-wrap: nowrap; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); box-shadow: var(--app-shadow-dialog); }
 .mn-formatbtn { display: grid; place-items: center; width: var(--app-formatbtn-size); height: var(--app-formatbtn-size); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); cursor: pointer; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
 .mn-formatbtn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }

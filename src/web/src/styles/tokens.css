@@ -456,6 +456,7 @@
   --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
   --app-visually-hidden: 1px;       /* 读屏隐藏通用尺寸 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
+  --app-popover-shift-up: translate(-50%, -100%); /* 选区格式栏：贴选区上沿居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
   --app-tree-indent-rest: calc(100% - var(--app-tree-indent)); /* E2 分组输入缩进余宽 */
@@ -711,8 +712,9 @@
   --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -34px #000;
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
 }
-/* 墨台 v3 → app token 映射。纸张皮肤独立保留；默认视觉按 v3 深浅主题取值。 */
-:root:not([data-skin="paper"])[data-theme="light"] {
+/* 墨台 v3 → app token 映射。三种皮肤各自独立：墨台块排除 paper 与 slate，
+   否则它（权重更高）会盖住素灰皮肤块的取值。 */
+:root:not([data-skin="paper"]):not([data-skin="slate"])[data-theme="light"] {
   color-scheme: light;
   --app-bg-side: #e2ddce;
   --app-surface: #fffdf9;
@@ -745,7 +747,7 @@
   --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
 }
 
-:root:not([data-skin="paper"])[data-theme="dark"] {
+:root:not([data-skin="paper"]):not([data-skin="slate"])[data-theme="dark"] {
   color-scheme: dark;
   --app-bg-side: #0a0a09;
   --app-surface: #151614;
@@ -808,6 +810,160 @@
   --app-chart-height-4: 100%;
   --app-font-serif: Georgia, "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
   --app-shadow-seg: 0 1px 2px rgba(0, 0, 0, .16);
+}
+
+/* ---------- 素灰 / SLATE（默认主题，2026-11-10） ----------
+   与墨台、柔纸正交：data-skin="slate" 只换取值，结构覆盖在 styles/slate.css。
+   取值依据：中性灰取 Radix / Tailwind slate 色阶（浅 1–4、深 11–12），
+   强调取 Radix indigo 的 9（实底）与 11（文字）两级，白字压 #3e63dd 为 5.2:1；
+   元信息灰在纯白上 5.0:1、在清单底上 4.5:1，四档文字都过 AA。
+   放在文件末尾：与上方 v3 墨台块同权重（0,3,0），靠顺序取胜，勿前移。 */
+:root[data-skin="slate"] {
+  /* 表面：侧栏（冷石板）→ 清单（浅灰）→ 文档墙（近白） */
+  --app-bg-side: #e9ebf1;
+  --app-surface: #ffffff;
+  --app-surface-sunken: #f4f5f9;
+  --app-canvas-bg: #fdfdff;
+  --app-raised-on-side: #ffffff;
+  --app-seg-active: #ffffff;
+  --app-selected: #eef1f6;
+  --app-hover: #f2f4f7;
+  --app-border: #dde1e9;
+  --app-border-subtle: #e8ebf1;
+  /* 文字四档 */
+  --app-fg: #1a1d24;
+  --app-fg-muted: #454b57;
+  --app-fg-subtle: #5d6472;
+  --app-fg-faint: #68707f;
+  /* 强调：靛蓝；实底配白字，文字色压深一档 */
+  --app-accent: #3e63dd;
+  --app-accent-hover: #3451b2;
+  --app-accent-text: #ffffff;
+  --app-accent-fg: #3451b2;
+  --app-accent-subtle: rgba(62, 99, 221, .09);
+  --app-accent-soft: rgba(62, 99, 221, .18);
+  --app-link: #2f5bc4;
+  --app-success: #4a7a5c;
+  --app-danger: #b3261e;
+  --app-surface-raised: #ffffff;
+  /* 文档墙没有纸卡：纸面即画布 */
+  --app-paper-bg: transparent;
+  --app-paper-fg: #1a1d24;
+  --app-paper-border: transparent;
+  --app-paper-shadow: none;
+  --app-shadow-card: 0 1px 2px rgba(20, 24, 33, .05);
+  --app-shadow-dialog: 0 18px 44px -22px rgba(20, 24, 33, .30);
+  --app-shadow-seg: 0 1px 2px rgba(20, 24, 33, .10);
+  --app-shadow-seg-lift: 0 1px 2px rgba(20, 24, 33, .12);
+  --app-dock-shadow: 0 0 0 1px rgba(20, 24, 33, .06), 0 12px 28px -14px rgba(20, 24, 33, .30);
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(20, 24, 33, .12);
+  --app-btn-kbd-bg: rgba(255, 255, 255, .18);
+  --app-btn-kbd-line: transparent;
+  --app-btn-kbd-fg: rgba(255, 255, 255, .92);
+  --app-focus-ring: 0 0 0 0.1875rem rgba(62, 99, 221, .32);
+  --app-focus-outline: 0.1875rem solid rgba(62, 99, 221, .32);
+  --app-scrollbar-thumb: #c3c8d2;
+  --app-scrollbar-thumb-hover: #8f96a3;
+  --app-overlay-bg: rgba(18, 22, 30, .42);
+  /* 角与字：控件 6、容器 8、弹层 12；标题位交回界面字体（全站无衬线） */
+  --app-radius-xs: .125rem;
+  --app-radius-sm: .25rem;
+  --app-radius-md: .375rem;
+  --app-radius: .375rem;
+  --app-radius-lg: .5rem;
+  --app-radius-xl: .75rem;
+  --app-font-serif: var(--app-font);
+  --app-weight-serif: 600;
+  --app-doc-title-size: 2.125rem;
+  /* 编辑器默认文字色板 */
+  --app-text-color-red: #c2412d;
+  --app-text-color-orange: #b45309;
+  --app-text-color-yellow: #8a6d00;
+  --app-text-color-green: #2f6b4a;
+  --app-text-color-blue: #3451b2;
+  --app-text-color-purple: #6d4fb3;
+  --app-text-color-gray: #5d6472;
+  /* 多维表格胶囊：底色压到近灰，靠色点与文字承相 */
+  --app-pill-neutral-bg: #eef1f6; --app-pill-neutral-fg: #454b57; --app-pill-neutral-border: #dde1e9;
+  --app-pill-red-bg: #fdeceb; --app-pill-red-fg: #94231c; --app-pill-red-border: #f3c4c0;
+  --app-pill-orange-bg: #fdf0e3; --app-pill-orange-fg: #8a3b00; --app-pill-orange-border: #f0cfae;
+  --app-pill-yellow-bg: #fbf5dd; --app-pill-yellow-fg: #715400; --app-pill-yellow-border: #e6d9a3;
+  --app-pill-green-bg: #eaf3ec; --app-pill-green-fg: #315b41; --app-pill-green-border: #bdd5c4;
+  --app-pill-teal-bg: #e8f3f4; --app-pill-teal-fg: #155b5f; --app-pill-teal-border: #b4d7d9;
+  --app-pill-blue-bg: #eaeefe; --app-pill-blue-fg: #2f4aa0; --app-pill-blue-border: #c2cdf5;
+  --app-pill-purple-bg: #f1edfd; --app-pill-purple-fg: #55408f; --app-pill-purple-border: #d5c9f2;
+  --app-pill-pink-bg: #fdecf2; --app-pill-pink-fg: #8a3559; --app-pill-pink-border: #f0c4d4;
+  /* 正文渲染：比墨台紧一档、比柔纸硬一档 */
+  --md-body-size: .9375rem;     /* 15px */
+  --md-body-leading: 1.78;
+  --md-body-color: var(--app-fg);
+  --md-h1-size: 1.8125rem;
+  --md-h1-weight: 600;
+  --md-h2-size: 1.1875rem;      /* 19px */
+  --md-h2-weight: 600;
+  --md-h3-size: .9375rem;
+  --md-h3-weight: 600;
+  --md-code-bg: var(--app-surface-sunken);
+  --md-quote-color: var(--app-fg-faint);
+  --md-table-head-bg: var(--app-surface-sunken);
+}
+:root[data-skin="slate"][data-theme="light"] { color-scheme: light; }
+
+:root[data-skin="slate"][data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg-side: #0a0c11;
+  --app-surface: #13161d;
+  --app-surface-sunken: #101319;
+  --app-canvas-bg: #13161d;
+  --app-raised-on-side: #191d26;
+  --app-seg-active: #222834;
+  --app-selected: #1a2030;
+  --app-hover: #171b23;
+  --app-border: #282d38;
+  --app-border-subtle: #1d212b;
+  --app-fg: #e8eaf0;
+  --app-fg-muted: #a9b0bd;
+  --app-fg-subtle: #8a92a1;
+  --app-fg-faint: #7d8595;
+  --app-accent: #4a5fd6;
+  --app-accent-hover: #5b70e4;
+  --app-accent-text: #ffffff;
+  --app-accent-fg: #9daaff;
+  --app-accent-subtle: rgba(94, 113, 240, .16);
+  --app-accent-soft: rgba(94, 113, 240, .26);
+  --app-link: #8ba4ff;
+  --app-success: #8fb79f;
+  --app-danger: #ff8a80;
+  --app-surface-raised: #1b1f29;
+  --app-paper-bg: transparent;
+  --app-paper-fg: #e8eaf0;
+  --app-paper-border: transparent;
+  --app-paper-shadow: none;
+  --app-shadow-card: 0 1px 2px rgba(0, 0, 0, .40);
+  --app-shadow-dialog: 0 20px 48px -22px #000;
+  --app-shadow-seg: 0 1px 2px rgba(0, 0, 0, .42);
+  --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, .48);
+  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 12px 28px -14px #000;
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(0, 0, 0, .40);
+  --app-scrollbar-thumb: #3a414c;
+  --app-scrollbar-thumb-hover: #59616e;
+  --app-overlay-bg: rgba(4, 6, 10, .62);
+  --app-text-color-red: #f0948a;
+  --app-text-color-orange: #e3b077;
+  --app-text-color-yellow: #d9c47a;
+  --app-text-color-green: #8fbfa2;
+  --app-text-color-blue: #9db0ff;
+  --app-text-color-purple: #b8a9e8;
+  --app-text-color-gray: #9aa2af;
+  --app-pill-neutral-bg: #232936; --app-pill-neutral-fg: #cfd6e2; --app-pill-neutral-border: #333b49;
+  --app-pill-red-bg: #3f2323; --app-pill-red-fg: #ffd9d7; --app-pill-red-border: #63383a;
+  --app-pill-orange-bg: #3f2c1d; --app-pill-orange-fg: #ffdfbd; --app-pill-orange-border: #63482f;
+  --app-pill-yellow-bg: #38331c; --app-pill-yellow-fg: #f4e5a8; --app-pill-yellow-border: #5a522c;
+  --app-pill-green-bg: #223327; --app-pill-green-fg: #cfe8d7; --app-pill-green-border: #385340;
+  --app-pill-teal-bg: #1c3436; --app-pill-teal-fg: #c3e6e8; --app-pill-teal-border: #325256;
+  --app-pill-blue-bg: #1f2942; --app-pill-blue-fg: #d3dcff; --app-pill-blue-border: #354668;
+  --app-pill-purple-bg: #2b2540; --app-pill-purple-fg: #e0d6ff; --app-pill-purple-border: #463a66;
+  --app-pill-pink-bg: #3a2530; --app-pill-pink-fg: #ffd6e6; --app-pill-pink-border: #5c3a49;
 }
 
 @media (prefers-reduced-motion: reduce) {
