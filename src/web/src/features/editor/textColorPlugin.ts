@@ -1,4 +1,5 @@
 import { $markSchema, $remark } from "@milkdown/kit/utils";
+import type { Processor } from "unified";
 
 type MarkdownNode = {
   type: string;
@@ -52,11 +53,27 @@ function convertColorSpans(nodes: MarkdownNode[], destination: "bridge" | "html"
 }
 
 /** Milkdown bridge: raw HTML spans ↔ a ProseMirror text mark ↔ standard Markdown inline HTML. */
-export const textColorRemark = $remark("menoteTextColor", () => () => (tree) => {
-  const root = tree as unknown as MarkdownNode;
-  if (root.children) root.children = convertColorSpans(root.children, "bridge");
-  return tree;
-});
+export function remarkTextColorBridge(this: Processor) {
+  const data = this.data();
+  const extensions = data.toMarkdownExtensions ?? (data.toMarkdownExtensions = []);
+  const extension = {
+    handlers: {
+      textColor(node: MarkdownNode, _parent: unknown, state: { containerPhrasing: (node: MarkdownNode, info: unknown) => string }, info: unknown) {
+        const color = node.color?.toLowerCase();
+        const content = state.containerPhrasing(node, info);
+        return color && ALLOWED_COLORS.has(color) ? `<span style="color:${color}">${content}</span>` : content;
+      },
+    },
+  };
+  // 自定义 mdast 节点不在默认 Handlers 类型联合中。
+  extensions.push(extension as unknown as (typeof extensions)[number]);
+  return (tree: unknown) => {
+    const root = tree as unknown as MarkdownNode;
+    if (root.children) root.children = convertColorSpans(root.children, "bridge");
+  };
+}
+
+export const textColorRemark = $remark("menoteTextColor", () => remarkTextColorBridge);
 
 export const textColorMark = $markSchema("menoteTextColor", () => ({
   attrs: { color: { default: "#2459a6" } },

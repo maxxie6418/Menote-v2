@@ -101,6 +101,18 @@ function GrowingTextarea({ value, onChange, onCommit, ariaLabel }: {
   };
   useLayoutEffect(fit, [value]);
   useEffect(() => {
+    const element = ref.current;
+    if (element && typeof ResizeObserver !== "undefined") {
+      let width: number | undefined;
+      const observer = new ResizeObserver((entries) => {
+        const nextWidth = entries[0]?.contentRect.width;
+        if (nextWidth === undefined || nextWidth === width) return;
+        width = nextWidth;
+        fit();
+      });
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
   }, []);
