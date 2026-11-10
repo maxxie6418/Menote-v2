@@ -10,7 +10,7 @@ import { NoteDocument } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
 import { setTaskCheckbox } from "../lib/markdownTasks";
-import { SyncBadge } from "../features/sync";
+import { InboxRefresh, SyncBadge } from "../features/sync";
 import type { SettingsSection } from "../features/settings";
 
 export type MobilePage = "home" | "memo" | "notes" | "me";
@@ -159,7 +159,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
     /></div>;
 
   return <div className="m-screen m-notes-screen">
-    <header className="m-topbar m-notes-topbar"><button type="button" className="m-ptitle" onClick={onTopicSheet}><span>{title}</span><ChevronDown /></button><span className="grow" /><button type="button" className="m-icon-btn" aria-label="新建笔记" onClick={onCreate}><Plus /></button></header>
+    <header className="m-topbar m-notes-topbar"><button type="button" className="m-ptitle" onClick={onTopicSheet}><span>{title}</span><ChevronDown /></button><span className="grow" />{section.kind === "inbox" && <InboxRefresh userId={userId} mobile />}<button type="button" className="m-icon-btn" aria-label="新建笔记" onClick={onCreate}><Plus /></button></header>
     <label className="m-search"><Search aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索当前清单" aria-label="搜索当前清单" /></label>
     <div className="m-list">
       {items.length ? items.map((item) => <MobileItemRow key={item.id} item={item} current={item.id === selectedId} onOpen={() => onSelect(item)} onLongPress={onLongPress} />)
