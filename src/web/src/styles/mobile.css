@@ -40,8 +40,10 @@
 .m-home { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
 .m-sechead { display: flex; height: var(--app-space-34); flex: none; align-items: center; justify-content: space-between; padding: var(--app-zero) var(--app-mobile-content-pad); }
 .m-sechead b { color: var(--app-fg); font-size: var(--app-size-nav); font-weight: var(--app-weight-medium); }
-.m-sechead button { display: inline-flex; align-items: center; gap: var(--app-space-2); padding: var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
-.m-sechead button svg { width: var(--app-icon-2xs); height: var(--app-icon-2xs); }
+/* 段标题的「＋」：图标抬到 14 后按钮自己得撑起来（原先 8 图标 + 零内边距 = 8×8 的命中区）。
+   行高只有 34，命中区顶到 34；右侧用负外边距抵掉内边距，字形仍贴原来的右边线。 */
+.m-sechead button { display: inline-flex; align-items: center; justify-content: center; min-height: var(--app-space-34); margin-inline-end: calc(var(--app-space-8) * -1); padding: var(--app-zero) var(--app-space-8); border: var(--app-zero); background: transparent; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.m-sechead button svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .m-cardrail { display: flex; flex: none; gap: var(--app-space-xs); overflow-x: auto; padding: var(--app-zero) var(--app-mobile-content-pad) var(--app-space-4); scroll-snap-type: x proximity; scrollbar-width: none; }
 .m-cardrail::-webkit-scrollbar { display: none; }
 .m-ncard { display: flex; width: var(--app-mobile-card-width); min-height: var(--app-mobile-card-height); flex: none; flex-direction: column; align-items: flex-start; padding: var(--app-space-10) var(--app-space-10); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); text-align: left; scroll-snap-align: start; }
@@ -93,7 +95,7 @@
 .m-meta .more { display: grid; width: var(--app-touch-target); height: var(--app-touch-target); place-items: center; margin-left: auto; border: var(--app-zero); background: transparent; color: var(--app-fg-faint); }
 .m-todo-head { display: flex; width: var(--app-full-size); height: var(--app-mobile-row-min-height); align-items: center; gap: var(--app-space-6); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); background: var(--app-surface); color: var(--app-fg-subtle); font-size: var(--app-size-label); text-align: left; }
 .m-todo-head span { color: var(--app-fg-faint); font-family: var(--app-font-mono); }
-.m-todo-head svg { width: var(--app-icon-2xs); height: var(--app-icon-2xs); margin-left: auto; }
+.m-todo-head svg { width: var(--app-icon-xs); height: var(--app-icon-xs); margin-left: auto; }
 .m-gallery .mn-memo-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-10); }
 .m-gallery .mn-memo-gal-item { min-width: 0; }
 
@@ -175,7 +177,7 @@
 .m-status-choice { display: flex; gap: var(--app-space-6); }
 .m-status-choice button { display: flex; min-height: var(--app-touch-target); flex: 1; align-items: center; justify-content: center; gap: var(--app-space-2); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: transparent; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .m-status-choice button.on { border-color: var(--app-accent); background: var(--app-accent-subtle); color: var(--app-accent-fg); }
-.m-status-choice svg { width: var(--app-icon-2xs); height: var(--app-icon-2xs); }
+.m-status-choice svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .m-action-tags { display: flex; min-height: var(--app-mobile-row-height); align-items: center; gap: var(--app-space-sm); border-bottom: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .m-action-tags input { min-width: 0; flex: 1; border: var(--app-zero); outline: none; background: transparent; color: var(--app-fg); }
 .m-action-buttons { display: flex; gap: var(--app-space-6); padding-top: var(--app-space-sm); }

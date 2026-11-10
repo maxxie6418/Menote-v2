@@ -190,9 +190,11 @@
 .mn-tree-chev { width: var(--app-icon-xxs); height: var(--app-icon-xxs); color: var(--app-fg-faint); flex: none; transition: transform var(--app-motion-fast) var(--app-ease); }
 .mn-tree-chev[data-open="false"] { transform: rotate(-90deg); }
 .mn-tree-slot { width: var(--app-icon-xxs); height: var(--app-icon-xxs); flex: none; }
-/* 箭头按钮视觉见 --app-icon-xxs、命中区伪元素外扩 --app-space-4，不破坏竖轴对齐 */
+/* 箭头按钮视觉见 --app-icon-xxs、命中区用伪元素外扩，不破坏竖轴对齐。
+   纵向放到 28（行高 30 容得下）；横向只放到 22 —— 右侧 6px 就是标签按钮的起点，
+   再扩就会把标签左缘的点击吃掉。横向 22 + 整行本身可点，够用。 */
 .mn-tree-chevbtn { position: relative; width: var(--app-icon-xxs); height: var(--app-icon-xxs); display: grid; place-items: center; flex: none; border: var(--app-zero); background: none; padding: var(--app-zero); color: inherit; cursor: pointer; }
-.mn-tree-chevbtn::after { content: ""; position: absolute; inset: calc(var(--app-space-4) * -1); }
+.mn-tree-chevbtn::after { content: ""; position: absolute; inset-block: calc((var(--app-target-min) - var(--app-icon-xxs)) / -2); inset-inline: calc(var(--app-space-6) * -1); }
 .mn-tree-chevbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
 /* 展开中的加密空间列表与主题列表之间留 14 */
 .mn-tree-space { margin-bottom: var(--app-space-14); }
@@ -535,7 +537,7 @@
 .mn-contextmenu { position: fixed; z-index: var(--app-context-menu-z); display: flex; flex-direction: column; min-width: var(--app-context-menu-min); max-width: var(--app-context-menu-max-width); max-height: var(--app-context-menu-max-height); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
 .mn-contextmenu-entry { display: contents; }
 .mn-contextmenu-separator { height: var(--app-line); margin: var(--app-space-4) var(--app-space-5); background: var(--app-border-subtle); }
-.mn-contextmenu-item { width: var(--app-full-size); min-height: var(--app-chip-height); border: var(--app-zero); border-radius: var(--app-radius-sm); padding: var(--app-space-5) var(--app-space-6); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; }
+.mn-contextmenu-item { width: var(--app-full-size); min-height: var(--app-target-min); border: var(--app-zero); border-radius: var(--app-radius-sm); padding: var(--app-space-5) var(--app-space-6); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; }
 .mn-contextmenu-item:hover, .mn-contextmenu-item:focus-visible { outline: none; background: var(--app-hover); color: var(--app-fg); }
 .mn-contextmenu-item.danger { color: var(--app-danger); }
 .mn-contextmenu-item:disabled { color: var(--app-fg-subtle); cursor: not-allowed; }
@@ -581,9 +583,9 @@
 /* 多选值：胶囊 + × / ＋，不再在行内铺一排复选框 */
 .mn-props-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); }
 .mn-props-chip { display: inline-flex; align-items: center; gap: var(--app-space-2); height: var(--app-props-chip); padding-inline: var(--app-space-6); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
-.mn-props-chip button, .mn-props-chipadd { display: grid; place-items: center; width: var(--app-space-md); height: var(--app-space-md); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: pointer; }
+.mn-props-chip button, .mn-props-chipadd { display: grid; place-items: center; width: var(--app-props-chip); height: var(--app-props-chip); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-faint); cursor: pointer; }
 .mn-props-chip button:hover { color: var(--app-danger); background: var(--app-hover); }
-.mn-props-chip button svg, .mn-props-chipadd svg { width: var(--app-size-micro); height: var(--app-size-micro); }
+.mn-props-chip button svg, .mn-props-chipadd svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-props-chipadd { border: var(--app-line) dashed var(--app-border); }
 .mn-props-chipadd:hover { color: var(--app-fg); border-color: var(--app-fg-faint); }
 /* 链接：文本即链接，改值另给入口（换值与跳转不互相顶掉） */

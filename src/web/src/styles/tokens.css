@@ -118,7 +118,7 @@
   --app-home-capture-bar: 2.625rem;
   --app-home-tag-input-width: 11rem;
   --app-home-accent-mark: 2rem;
-  --app-home-save-height: 1.5625rem;
+  --app-home-save-height: 1.75rem;  /* 28px 首页快速输入的保存按钮（原 25） */
   --app-home-actions-top: 1rem;
   --app-home-action-pad: 0.875rem 0;
   --app-home-action-gap: 1.125rem;
@@ -255,7 +255,6 @@
   --app-doc-measure-paper-default: 48rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
-  --app-icon-2xs: 0.5rem;          /* 8px */
   --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
   --app-icon-xxs: 0.625rem;        /* 10px 树箭头/拖柄：这是字形槽不是按钮图标，尺寸被树连接线
                                       几何锁死（--app-tree-guide-x = 行内边距 + 槽中心），不可上抬 */
@@ -340,7 +339,7 @@
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
   --app-memo-card-pad-y: 0.8125rem;
   --app-memo-card-pad-x: 1rem;
-  --app-memo-action-size: 1.625rem;
+  --app-memo-action-size: 1.75rem;   /* 28px Memo 互动按钮（原 26，低于 §8.2 底线） */
   --app-memo-action-gap: 0.75rem;
   --app-memo-action-radius: 0.5rem;
   --app-memo-thread-indent: 0.875rem;
