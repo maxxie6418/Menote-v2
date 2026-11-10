@@ -165,7 +165,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">界面主题<InfoHint>选择墨台界面或柔纸界面；再单独设置浅色 / 深色主题。界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
+          <p className="mn-setlabel">界面主题<InfoHint>三套皮肤：素灰（默认，冷灰底 + 靛蓝强调）、墨台（暖砂底 + 朱砂）、柔纸（米黄底 + 松烟绿）。皮肤与浅色 / 深色互相独立，界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"
@@ -178,7 +178,8 @@ function AppearanceSection({ userId }: { userId: string }) {
             void updateAppearance(userId, { skin: value });
           }}
         >
-          <option value="default">默认</option>
+          <option value="slate">素灰（默认）</option>
+          <option value="ink">墨台</option>
           <option value="paper">柔纸模式</option>
         </select>
       </div>
@@ -314,7 +315,7 @@ function AppearanceSection({ userId }: { userId: string }) {
           <div className="mn-appearance-preview-cols"><div className="mn-appearance-preview-nav"><i /><i /><i /><i /></div><div className="mn-appearance-preview-list"><i /><i /><i /><i /></div><div className="mn-appearance-preview-paper"><i className="is-heading" /><i /><i /><i className="is-short" /><i />{propsPos === "side" && <i className="is-props" />}</div></div>
           <div className="mn-appearance-preview-toolbar"><i /><i /><i /></div>
         </div>
-        <div className="mn-appearance-preview-chips"><span>{skin === "paper" ? "柔纸模式" : "默认皮肤"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "auto" ? "跟随主题版心" : measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
+        <div className="mn-appearance-preview-chips"><span>{skin === "paper" ? "柔纸模式" : skin === "ink" ? "墨台" : "素灰"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "auto" ? "跟随主题版心" : measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
       </section>
     </div>
   );

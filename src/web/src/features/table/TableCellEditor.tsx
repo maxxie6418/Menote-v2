@@ -5,7 +5,7 @@ import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatt
 import { safeWebUrl } from "../../lib/safeUrl";
 import { Paperclip, X } from "lucide-react";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
-import { attachmentUrl, uploadAttachment } from "../../services/attachmentService";
+import { attachmentUrl, fetchAttachmentBlob, uploadAttachment } from "../../services/attachmentService";
 import { readAttachmentPolicy } from "../../services/attachmentPolicyService";
 
 interface TableCellEditorProps {
@@ -243,9 +243,9 @@ function AttachmentThumbnail({ refItem, onOpen }: { refItem: { sha256: string; n
       const cached = thumbnailCache.get(refItem.sha256);
       if (cached) { setSrc(cached); return; }
       try {
-        const response = await fetch(attachmentUrl(refItem.sha256), { cache: "force-cache" });
-        if (!response.ok) return;
-        const bitmap = await createImageBitmap(await response.blob());
+        const imageBlob = await fetchAttachmentBlob(refItem.sha256);
+        if (!imageBlob) return;
+        const bitmap = await createImageBitmap(imageBlob);
         const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(bitmap.width * scale));

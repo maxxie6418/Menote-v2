@@ -1,0 +1,80 @@
+/* 素灰 / SLATE（默认主题，2026-11-10）：视觉皮肤。
+   全部规则以 :root[data-skin="slate"] 前缀，未切到素灰时一条都不命中；
+   颜色与圆角取值来自 tokens.css 的同名皮肤块，本文件只负责结构与形态。
+   与墨台的冲突点集中在：四层暖砂表面、纸面卡片、衬线标题、凹槽分段、
+   彩色标签底。素灰把它们换成：三层冷灰表面、无卡片的文档墙、全无衬线、
+   下划线页签、只留语义色点的标签。 */
+
+/* ---------- 1. 三层表面：侧栏（冷石板）→ 清单（浅灰）→ 文档墙（近白） ---------- */
+:root[data-skin="slate"] body { background: var(--app-bg-side); }
+:root[data-skin="slate"] .mn-shell { background: var(--app-canvas-bg); }
+:root[data-skin="slate"] .mn-sidebar { background: var(--app-bg-side); border-right-color: var(--app-border); }
+:root[data-skin="slate"] .mn-listcol { background: var(--app-surface-sunken); border-right-color: var(--app-border); }
+:root[data-skin="slate"] .mn-home { background: var(--app-canvas-bg); }
+:root[data-skin="slate"] .mn-doc { background: var(--app-canvas-bg); }
+
+/* ---------- 2. 文档墙：没有纸卡，标题与正文直接落在墙上 ---------- */
+:root[data-skin="slate"] .mn-doc-main {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-skin="slate"] .mn-docbar { border-bottom-color: var(--app-border-subtle); }
+:root[data-skin="slate"] .mn-doc-foot { border-top-color: var(--app-border-subtle); }
+/* 抬头收束：标签行下方压一条 1px 线，把「角标 / 标题 / 日期 / 属性 / 标签」关成一块 */
+:root[data-skin="slate"] .mn-doc[data-form="note"] .mn-doc-tags {
+  padding-bottom: var(--app-space-12);
+  border-bottom: var(--app-line) solid var(--app-border);
+}
+:root[data-skin="slate"] .mn-doc-kicker { color: var(--app-accent-fg); }
+:root[data-skin="slate"] .mn-doc-kicker > i { background: var(--app-border); }
+
+/* ---------- 3. 侧栏视图切换：凹槽分段 → 下划线页签 ---------- */
+:root[data-skin="slate"] .mn-formseg {
+  height: auto;
+  gap: 0;
+  padding: 0;
+  border-bottom: var(--app-line) solid var(--app-border);
+  border-radius: 0;
+  background: transparent;
+}
+:root[data-skin="slate"] .mn-formseg button {
+  height: var(--app-space-30);
+  border-radius: 0;
+  box-shadow: inset 0 calc(var(--app-line) * -2) 0 transparent;
+  color: var(--app-fg-faint);
+  transition: color var(--app-motion-fast) var(--app-ease);
+}
+:root[data-skin="slate"] .mn-formseg button:hover { background: transparent; color: var(--app-fg-muted); }
+:root[data-skin="slate"] .mn-formseg button[aria-pressed="true"] {
+  background: transparent;
+  color: var(--app-fg);
+  box-shadow: inset 0 calc(var(--app-line) * -2) 0 var(--app-accent);
+}
+:root[data-skin="slate"] .mn-formseg button[aria-pressed="true"] svg { color: var(--app-accent); }
+
+/* ---------- 4. 控件：单色实底、1px 发丝边、6px 圆角 ---------- */
+:root[data-skin="slate"] .mn-btn { border-radius: var(--app-radius-md); }
+:root[data-skin="slate"] .mn-kbd { border-radius: var(--app-radius-xs); background: transparent; }
+:root[data-skin="slate"] .mn-listsearch { border-radius: var(--app-radius-md); }
+:root[data-skin="slate"] .mn-listsearch:focus-within { border-color: var(--app-accent); box-shadow: 0 0 0 var(--app-space-3) var(--app-accent-subtle); }
+:root[data-skin="slate"] .mn-vt { border-radius: var(--app-radius-md); }
+:root[data-skin="slate"] .mn-vt button { border-radius: var(--app-radius-sm); }
+:root[data-skin="slate"] .mn-tagchip { border-radius: var(--app-radius-sm); }
+:root[data-skin="slate"] .mn-propselect,
+:root[data-skin="slate"] .mn-propinput { border-radius: var(--app-radius-sm); }
+/* 设置·外观里的示意小图：真实文档没有纸卡，但示意图需要一块能读的「纸」，否则和画布糊在一起 */
+:root[data-skin="slate"] .mn-appearance-preview-paper { background: var(--app-surface); }
+/* 清单选中：行底压深一档 + 2px 靛蓝条，不给整行上淡色 */
+:root[data-skin="slate"] .mn-note-row.on { background: var(--app-selected); }
+:root[data-skin="slate"] .mn-treerow.on { background: var(--app-raised-on-side); }
+
+/* ---------- 5. 正文：编辑态与预览态同一套（字体族交给 --app-font-serif） ---------- */
+:root[data-skin="slate"] .mn-editor-host .ProseMirror,
+:root[data-skin="slate"] .markdown-content { letter-spacing: normal; }
+:root[data-skin="slate"] .mn-editor-host .ProseMirror blockquote,
+:root[data-skin="slate"] .markdown-content blockquote {
+  border-inline-start-color: var(--app-border);
+  font-style: normal;
+}

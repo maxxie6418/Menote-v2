@@ -9,6 +9,7 @@ import "@fontsource/noto-sans-sc/600.css";
 import "@fontsource/noto-sans-sc/700.css";
 import "./styles/tokens.css";
 import "./styles/paper.css";
+import "./styles/slate.css";
 import "./styles/app.css";
 import "./styles/shell.css";
 import "./styles/doc.css";

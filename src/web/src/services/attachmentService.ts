@@ -13,6 +13,12 @@ export function attachmentUrl(sha256: string): string {
   return `/api/attachments/${sha256}`;
 }
 
+/** 取附件原始字节（缓存优先）：缩略图生成在 UI 侧做，但网络访问必须留在 services 层。 */
+export async function fetchAttachmentBlob(sha256: string): Promise<Blob | null> {
+  const response = await fetch(attachmentUrl(sha256), { cache: "force-cache" });
+  return response.ok ? response.blob() : null;
+}
+
 export interface AttachmentReference { id: string; title: string; href: string }
 export interface AttachmentDetails { name: string; references: AttachmentReference[] }
 export async function listAttachmentReferences(userId: string): Promise<Record<string, AttachmentDetails>> {
