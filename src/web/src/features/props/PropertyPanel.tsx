@@ -4,7 +4,7 @@ import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/fron
 import {
   PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue, type PropRow,
 } from "../../lib/frontmatter";
-import { readPropertyTemplates } from "../../services/propertyTemplateService";
+import { readPropertyTemplates, DEFAULT_PROPERTY_TEMPLATES } from "../../services/propertyTemplateService";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { AddPropertyPopover } from "./AddPropertyPopover";
 import { PropertySettingsPopover } from "./PropertySettingsPopover";
@@ -70,6 +70,20 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
 
   const existing = useMemo(() => new Set(rows.map((row) => row.key)), [rows]);
 
+  /**
+   * 显示名回落（FR-PROP-9）：文档里的属性没有定义（典型：剪藏管线只写值键）或定义里没写
+   * 显示名时，按键名查预设——用户预设优先，出厂预设兜底；都查不到才露出键名。
+   * 只影响展示，不回写文档。
+   */
+  const presetLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const template of [...DEFAULT_PROPERTY_TEMPLATES, ...templates]) {
+      if (template.label && !map.has(template.name)) map.set(template.name, template.label);
+    }
+    return map;
+  }, [templates]);
+  const labelOf = (row: PropRow): string => row.def?.label ?? presetLabels.get(row.key) ?? row.key;
+
   const writeCell = (row: PropRow, value: string | boolean | string[]) => {
     const next = writeValue(markdown, row.key, value);
     if (next !== markdown) onSave(next);
@@ -113,7 +127,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
     const index = rows.findIndex((entry) => entry.key === row.key);
     onSave(removePropDef(markdown, PROPS_KEY, row.key));
     setSettings(null);
-    setUndo({ text: `已删除「${row.def?.label ?? row.key}」`, key: row.key, previousMarkdown: markdown, index });
+    setUndo({ text: `已删除「${labelOf(row)}」`, key: row.key, previousMarkdown: markdown, index });
   };
 
   const settingsRow = settings ? rows.find((row) => row.key === settings.key) ?? null : null;
@@ -141,6 +155,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         )}
         {rows.map((row, index) => {
           const type = row.def?.type ?? inferType(row);
+          const label = labelOf(row);
           return (
             <Fragment key={row.key}>
               {undo?.index === index && (
@@ -150,10 +165,10 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
                 </div>
               )}
               <div className={`mn-props-row${SPAN_TYPES.has(type) ? " span" : ""}${flash === row.key ? " flash" : ""}`}>
-                <span className="mn-props-key" title={row.key}>{row.def?.label ?? row.key}</span>
+                <span className="mn-props-key" title={row.key}>{label}</span>
                 <div className="mn-props-value">
                   <PropertyValue
-                    row={row} type={type} editing={editing === row.key}
+                    row={row} type={type} label={label} editing={editing === row.key}
                     onStartEdit={() => { setEditing(row.key); setSettings(null); }}
                     onCommit={(value) => { setEditing(null); writeCell(row, value); }}
                     onCancel={() => setEditing(null)}
@@ -162,7 +177,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
                 </div>
                 <button
                   type="button" className="mn-props-more" data-panel-trigger
-                  aria-expanded={settings?.key === row.key} aria-label={`属性设置：${row.def?.label ?? row.key}`}
+                  aria-expanded={settings?.key === row.key} aria-label={`属性设置：${label}`}
                   title="属性设置"
                   onClick={(event) => {
                     const anchor = event.currentTarget;
@@ -213,16 +228,18 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
 }
 
 /** 值单元格：默认以文本呈现，点一下就地换控件；复选框与多选直接在原地操作。 */
-function PropertyValue({ row, type, editing, onStartEdit, onCommit, onCancel, onPickOptions }: {
+function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCancel, onPickOptions }: {
   row: PropRow;
   type: PropertyType;
+  /** 展示用显示名（含预设回落），只作无障碍标签。 */
+  label: string;
   editing: boolean;
   onStartEdit: () => void;
   onCommit: (value: string | boolean | string[]) => void;
   onCancel: () => void;
   onPickOptions: (anchor: HTMLElement) => void;
 }) {
-  if (editing) return <ValueEditor row={row} type={type} onCommit={onCommit} onCancel={onCancel} />;
+  if (editing) return <ValueEditor row={row} type={type} label={label} onCommit={onCommit} onCancel={onCancel} />;
 
   if (type === "checkbox") {
     const on = row.raw === "true";
@@ -286,9 +303,10 @@ function PropertyValue({ row, type, editing, onStartEdit, onCommit, onCancel, on
 }
 
 /** 就地控件：本地存草稿，回车 / 失焦提交，Esc 还原。 */
-function ValueEditor({ row, type, onCommit, onCancel }: {
+function ValueEditor({ row, type, label, onCommit, onCancel }: {
   row: PropRow;
   type: PropertyType;
+  label: string;
   onCommit: (value: string | boolean | string[]) => void;
   onCancel: () => void;
 }) {
@@ -298,7 +316,7 @@ function ValueEditor({ row, type, onCommit, onCancel }: {
     const options = row.def?.options ?? [];
     return (
       <select
-        className="mn-props-ctrl" value={row.raw} autoFocus aria-label={row.def?.label ?? row.key}
+        className="mn-props-ctrl" value={row.raw} autoFocus aria-label={label}
         onChange={(event) => onCommit(event.target.value)}
         onBlur={onCancel}
       >
@@ -313,7 +331,7 @@ function ValueEditor({ row, type, onCommit, onCancel }: {
     return (
       <textarea
         className="mn-props-ctrl mn-props-ctrl-area" rows={3} value={text} autoFocus
-        aria-label={row.def?.label ?? row.key}
+        aria-label={label}
         onChange={(event) => setText(event.target.value)}
         onBlur={() => onCommit(text)}
         onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }}
@@ -329,7 +347,7 @@ function ValueEditor({ row, type, onCommit, onCancel }: {
   return (
     <input
       type={inputType} className="mn-props-ctrl" value={text} autoFocus
-      aria-label={row.def?.label ?? row.key}
+      aria-label={label}
       onChange={(event) => setText(event.target.value)}
       onBlur={() => onCommit(text)}
       onKeyDown={(event) => {

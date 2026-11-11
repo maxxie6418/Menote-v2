@@ -41,7 +41,8 @@ test("attachment upload times out and returns a retryable error", async () => {
     constructor() { request = this; }
   };
   try {
-    const result = await attachmentModule.uploadAttachment({ type: "image/png", name: "image.png" });
+    // 0.2.44 起上传前读附件策略，签名带 userId；缺失会在策略读取处抛 Dexie DataError。
+    const result = await attachmentModule.uploadAttachment(USER, { type: "image/png", name: "image.png" });
     assert.equal(request.timeout, 120_000);
     assert.deepEqual(result, { error: "timeout" });
   } finally {

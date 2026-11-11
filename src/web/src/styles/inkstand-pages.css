@@ -15,7 +15,6 @@
 :root .mn-home-capture textarea::placeholder { color: var(--app-fg-faint); }
 :root .mn-home-capture form > div { display: flex; align-items: center; justify-content: flex-end; gap: var(--app-space-8); padding: var(--app-space-6) var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
 :root .mn-home-capture form > div > span { margin-right: auto; }
-:root .mn-home-capture kbd { color: var(--app-fg-faint); font-family: var(--app-font-mono); }
 :root .mn-home-capture button { min-height: var(--app-touch-target); padding-inline: var(--app-space-12); border: 0; border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
 :root .mn-home-capture button:disabled { opacity: var(--app-disabled-opacity); cursor: default; }
 :root .mn-home-section + .mn-home-section { margin-top: var(--app-space-20); }

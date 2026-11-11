@@ -52,7 +52,7 @@ test("元数据落库失败时清理本次新建的孤儿 R2 对象", async () =
     const sha256 = createHash("sha256").update(PNG).digest("hex");
     const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
     const response = await req(mf, "/api/attachments", {
-      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+      method: "POST", headers: { "content-type": "image/png", "x-file-extension": ".png", origin: "http://localhost", cookie }, body: PNG,
     });
     assert.equal(response.status, 503);
     assert.equal(await bucket.head(`${user.id}/${sha256}`), null);
@@ -63,7 +63,7 @@ test("附件上传后可用会话读回（图片不再 401）", async () => {
   await withWorker(async (mf) => {
     const cookie = await login(mf);
     const uploaded = await req(mf, "/api/attachments", {
-      method: "POST", headers: { "content-type": "image/png", origin: "http://localhost", cookie }, body: PNG,
+      method: "POST", headers: { "content-type": "image/png", "x-file-extension": ".png", origin: "http://localhost", cookie }, body: PNG,
     });
     assert.equal(uploaded.status, 201);
     const { sha256 } = await uploaded.json();

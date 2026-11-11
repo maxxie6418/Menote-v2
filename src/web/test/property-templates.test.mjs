@@ -64,6 +64,21 @@ test("预设键名口径：Raindrop 组用连接器标准列名，其余用英�
   }
 });
 
+test("剪藏预设键名与 Worker 剪藏管线写出的 frontmatter 键一致（mcpClipService.buildClipMarkdown）", async () => {
+  await reset();
+  const presets = await readPropertyTemplates(USER);
+  const clip = presets.filter((item) => item.group === "剪藏");
+  // 与 mcpClipService 的 page_title/source_url/clipped_at + META_KEYS(author/published_at/site_name/canonical_url/description) 对齐；
+  // 键名漂移会让剪藏笔记在属性面板露出机器键名，显示名回落失效。
+  assert.deepEqual(clip.map((item) => item.name), [
+    "page_title", "source_url", "clipped_at", "author",
+    "published_at", "site_name", "canonical_url", "description",
+  ]);
+  for (const item of clip) {
+    assert.ok(item.label, `剪藏预设 ${item.name} 应带中文显示名`);
+  }
+});
+
 test("预设清洗：丢掉结构不对的项，缺 id 的补一个", () => {
   const cleaned = normalizePropertyTemplates([
     { id: "a", name: "状态", type: "select", options: ["进行中"], value: "进行中" },

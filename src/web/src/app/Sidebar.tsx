@@ -112,7 +112,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
       {!collapsed && <QuickComposer userId={userId} openSignal={memoComposerSignal} />}
       <button type="button" className="mn-btn" aria-label="新建笔记" title="新建笔记" onClick={onCreateNote}>
         <Plus />
-        {!collapsed && <>新建笔记<span className="mn-kbd mn-btn-kbd" aria-hidden="true">⌘N</span></>}
+        {!collapsed && "新建笔记"}
       </button>
       <nav className="mn-quick" aria-label="回看">
         <a href="#" title="最近编辑" aria-label="最近编辑" className={isSection(section, "recent") ? "on" : ""}

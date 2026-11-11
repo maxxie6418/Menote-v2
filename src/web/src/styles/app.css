@@ -1,4 +1,9 @@
 * { box-sizing: border-box; }
+/* 区块元素 UA 默认 margin 全局清零（:where 特异性为 0，组件显式规则不受影响）。
+   根治「有些地方间距异常大」：裸 <p>/标题漏写 margin 就会吃到浏览器默认外边距；
+   markdown 显示与编辑器已有显式间距（markdown.css / shell.css .ProseMirror），
+   组件层间距一律由容器 gap 或 token 化 margin 管理，不再依赖 UA 默认。 */
+:where(p, h2, h3, h4, h5, h6) { margin: var(--app-zero); }
 :focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 html, body, #root { min-height: var(--app-full-size); margin: var(--app-zero); }
 body { background: var(--app-bg-side); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-font-body); line-height: var(--app-leading-body); }

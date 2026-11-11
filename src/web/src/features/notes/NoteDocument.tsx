@@ -731,7 +731,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                 <textarea autoFocus value={annotationDraft} onChange={(event) => setAnnotationDraft(event.target.value)} aria-label="页边注内容" placeholder="写下这段文字的批注…" maxLength={4_000} />
                 {annotationError && <p role="alert">{annotationError}</p>}
                 <div><button type="button" className="mn-textbtn" onClick={() => { setAnnotationOpen(false); setAnnotationDraft(""); setAnnotationId(null); setAnnotationError(null); }}>取消</button><button type="submit" className="mn-textbtn" disabled={!annotationDraft.trim()}>保存批注</button></div>
-              </form> : <button type="button" className="mn-inspector-add-annotation" disabled={!selectedQuote} title={selectedQuote ? "添加页边注" : "选中正文后添加页边注"} onClick={() => { setAnnotationId(newId()); setAnnotationError(null); setAnnotationOpen(true); }}><MessageSquarePlus aria-hidden="true" />新建页边注 · 选中文字后按 ⌥⌘M</button>}
+              </form> : <button type="button" className="mn-inspector-add-annotation" disabled={!selectedQuote} title={selectedQuote ? "添加页边注" : "选中正文后添加页边注"} onClick={() => { setAnnotationId(newId()); setAnnotationError(null); setAnnotationOpen(true); }}><MessageSquarePlus aria-hidden="true" />新建页边注</button>}
             </section>
             <section className="mn-inspector-section mn-inspector-versions" aria-label="版本">
               <header className="mn-inspector-section-head"><h2>版本</h2><button type="button" className="mn-textbtn" onClick={() => setHistory(true)}>全部</button></header>
