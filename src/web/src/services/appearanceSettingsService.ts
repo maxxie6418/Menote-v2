@@ -12,7 +12,7 @@ import { getDocStyle, setDocStyle, type DocStyleVars } from "../lib/docStyle";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
-  /** 皮肤：slate = 素灰（默认）、ink = 墨台、paper = 柔纸。 */
+  /** 皮肤：slate = 素灰（默认）、ink = 墨台（柔纸已于 2026-11-11 并入墨台）。 */
   skin: ThemeSkin;
   font: FontPreference;
   /** 界面密度：整站按根字号等比缩放（字号/间距/控件一起走），非逐项改尺寸。 */
@@ -39,12 +39,12 @@ const DEFAULT_APPEARANCE: AppearanceSettings = {
 };
 
 const DENSITY_MODES: readonly DensityPreference[] = ["compact", "standard", "cozy", "spacious"];
-const SKIN_MODES: readonly ThemeSkin[] = ["slate", "ink", "paper"];
+const SKIN_MODES: readonly ThemeSkin[] = ["slate", "ink"];
 
-/** 旧同步值 "default" 曾指墨台；素灰转正后统一按新默认（slate）解释，
- *  想继续用墨台的人改用 "ink"（设置·外观 → 界面主题 → 墨台）。 */
+/** 旧同步值迁移：`"default"` 曾指墨台，素灰转正后统一按新默认（slate）解释；
+ *  `"paper"`（柔纸）已并入墨台，按 `"ink"` 落地，避免老账号同步回来落回默认冷灰。 */
 function normalizeSkin(value: unknown): ThemeSkin {
-  if (value === "ink" || value === "paper") return value;
+  if (value === "paper") return "ink";
   return SKIN_MODES.includes(value as ThemeSkin) ? (value as ThemeSkin) : "slate";
 }
 
@@ -64,7 +64,7 @@ function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSett
 export function applyAppearance(value: AppearanceSettings): void {
   value = normalizeAppearance(value);
   setThemeMode(value.theme);
-  // 皮肤先落定：工具栏的 auto 解析依赖当前皮肤。
+  // 皮肤先落定再写布局属性：皮肤变化可能带来结构覆盖，早于布局偏好落属性可少一次重排。
   setThemeSkin(value.skin);
   setFontPreference(value.font);
   setDensityPreference(value.density);

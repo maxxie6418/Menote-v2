@@ -261,7 +261,6 @@
   /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
   --app-doc-measure-narrow: 42rem;
   --app-doc-measure-wide: 56rem;
-  --app-doc-measure-paper-default: 48rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
   --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
@@ -385,15 +384,18 @@
   /* 焦点环（DESIGN §8.2：统一 3px 橙 35%，不用浏览器默认；outline 形态避免覆盖选中条阴影） */
   --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, 0.35);
   --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, 0.35);
-  /* 滚动条（DESIGN §4.3：极细发丝线，悬停提高对比度）
-     槽宽 10px；滑块以 2px 透明边内缩，可见宽 6px，两端圆角。
-     常态对比度 浅 1.75:1（纸面）/ 深 1.88:1（纸面），保持克制；
-     悬停 浅 3.29:1 / 深 3.46:1，达到非文本 3:1 门槛。 */
-  --app-scrollbar-size: 10px;        /* 槽宽（纵向为 width，横向为 height） */
+  /* 滚动条（DESIGN §4.3：常态近乎隐形，指针进入滚动区才浮现）
+     槽宽 9px；滑块以 2px 透明边内缩，可见宽 5px，两端圆角。
+     常态用 8% 半透明墨色而非实色：同一 alpha 在纸面（浅）与侧栏（深）上
+     合成后都只剩约 1.2:1，滑块不会因为落到更深的那一层表面而突然变显眼。
+     指针进入滚动区（容器 :hover）才升到可辨识的 3.29:1，离开即隐去。
+     2026-11-11：负责人连续两轮弱化——先收窄（10→9px、6→5px），
+     再把常态改为半透明、悬停判定放宽到容器。 */
+  --app-scrollbar-size: 9px;         /* 槽宽（纵向为 width，横向为 height） */
   --app-scrollbar-inset: 2px;        /* 滑块与槽边的透明内缩 */
   --app-scrollbar-track: transparent;
-  --app-scrollbar-thumb: #c4c4c0;            /* 常态滑块 */
-  --app-scrollbar-thumb-hover: #8e8e8a;      /* 悬停/拖拽滑块 */
+  --app-scrollbar-thumb: rgba(26, 27, 24, 0.08);      /* 常态：约 1.2:1，日常浏览几乎不可见 */
+  --app-scrollbar-thumb-hover: #8e8e8a;               /* 指针进入滚动区 / 拖拽：3.29:1 */
   /* 动效（DESIGN §4.6 关键 CSS） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
@@ -581,8 +583,8 @@
   --app-pill-pink-bg: #462b37; --app-pill-pink-fg: #ffd6e6; --app-pill-pink-border: #704157;
   /* 分段选中项的抬升阴影：深色下槽底与纸面差小，靠阴影把选中项托起来 */
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, 0.42);
-  /* 滚动条深色：常态 1.88:1 保持克制，悬停 3.46:1 保证可发现 */
-  --app-scrollbar-thumb: #45494d;
+  /* 滚动条深色：常态 9% 白光（约 1.2:1），指针进入滚动区才升到 3.46:1 */
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
   --app-scrollbar-thumb-hover: #6b7176;
 }
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
@@ -602,119 +604,34 @@
   --app-doc-measure: var(--app-full-size);
 }
 
-/* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。 */
+/* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。
+   2026-11-11 柔纸合并：--app-doc-side-gap / side-top 与底部坞三项（bottom / pad / clear）
+   原先只在柔纸令牌块里定义，墨台与素灰下是未定义变量（声明被浏览器丢弃），此处提到主题无关层统一。 */
 :root {
   --app-doc-side-width: 9.25rem;   /* 148px 页边注 */
   --app-doc-inspector-width: 16rem; /* 256px Note 检查器 */
+  --app-doc-side-gap: 0.75rem;
+  --app-doc-side-top: 0.25rem;
   --app-dock-left: 50%;
   --app-dock-shift: translateX(-50%);
+  --app-dock-bottom: 1.125rem;
+  --app-dock-pad: 0.3125rem;
+  --app-dock-clear: 4.5rem;
   --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
 }
 :root[data-theme="dark"] {
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
 }
 
-/* ---------- 柔纸模式（设置·外观，负责人 2026-11-04） ----------
-   皮肤与深色/浅色正交：data-skin="paper" 只换令牌取值，结构覆盖在 styles/paper.css。
-   不切到柔纸时以下规则一条都不命中，默认主题不受影响。
-   无显式版心偏好时采用 48rem 默认值；用户的 narrow / wide / full 选项在所有皮肤生效。 */
-:root[data-skin="paper"]:not([data-measure]) {
-  --app-doc-measure: var(--app-doc-measure-paper-default);
-}
-:root[data-skin="paper"] {
-  /* 四层表面：侧栏 → 清单 → 纸面 → 案头（缝） */
-  --app-bg-side: #efebde;
-  --app-bg-list: #f7f5ec;
-  --app-bg-desk: #e9e5d9;
-  --app-surface: #fcfbf6;
-  --app-surface-sunken: #f5f2e8;
-  --app-raised-on-side: #fcfbf6;
-  --app-seg-active: #fcfbf6;
-  --app-selected: #e7eee8;
-  --app-hover: #f3f0e5;
-  --app-border: #e4dfd0;
-  --app-border-subtle: #ede8da;
-  /* 墨四档 */
-  --app-fg: #1a1b18;
-  --app-fg-muted: #4f5249;
-  --app-fg-subtle: #6c6f64;
-  --app-fg-faint: #8b8d82;
-  /* 强调：松烟绿；朱砂仍只给危险态 */
-  --app-accent: #2e5b4c;
-  --app-accent-hover: #264c40;
-  --app-accent-text: #f7f5ec;
-  --app-accent-fg: #22483c;
-  --app-accent-subtle: #e7eee8;
-  --app-link: #2c4a73;
-  /* 字体：标题走衬线（系统栈，未额外分发字包） */
-  --app-font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, Georgia, serif;
-  /* 版面 */
-  --app-list-width: 16.5rem;
-  --app-list-width-compact: 16.5rem;
-  --app-doc-inspector-width: 19.75rem;
-  --app-note-paper-pad-block-start: 3.375rem;
-  --app-note-paper-pad-inline-start: 5.125rem;
-  --app-note-paper-pad-inline-end: 4.875rem;
-  --app-note-paper-pad-block-end: 6rem;
-  --app-doc-title-size: 2.5rem;
-  --app-paper-radius: 0.8125rem;
-  --app-paper-inset: 0.625rem;
-  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 1px 2px rgba(26, 27, 24, 0.04), 0 18px 40px -32px rgba(26, 27, 24, 0.5);
-  --app-doc-side-gap: 0.75rem;
-  --app-doc-side-top: 0.25rem;
-  --app-dock-bottom: 1.125rem;
-  --app-dock-pad: 0.3125rem;
-  --app-dock-clear: 4.5rem;
-  --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
-  /* 正文与标记（编辑态与预览态共用 --md-*） */
-  --md-body-size: 1.0625rem;
-  --md-body-leading: 1.85;
-  --md-body-color: var(--app-fg);
-  --md-h1-size: 1.4375rem;
-  --md-h1-weight: 600;
-  --md-h2-size: 1.4375rem;
-  --md-h2-weight: 600;
-  --md-h3-size: 1.0625rem;
-  --md-h3-weight: 700;
-  --md-list-indent: 1.25rem;
-  --md-list-gap: 0.875rem;
-  --md-quote-color: var(--app-accent);
-  --md-quote-padding: 1.125rem;
-  --md-quote-padding-tight: 1.125rem;
-  --md-code-bg: var(--app-surface-sunken);
-  --md-code-size: 0.875rem;
-  --md-table-head-bg: var(--app-surface-sunken);
-  --md-table-padding: 0.5rem 0.75rem;
-}
+/* ---------- 柔纸模式已下线（2026-11-11 与墨台合并） ----------
+   两者同属暖色纸质皮肤，合并为单一「墨台」：原 data-skin="paper" 的令牌块、
+   styles/paper.css 的结构覆盖、preview 的 48rem 默认版心全部移除；
+   旧值 paper 在 lib/themeSkin.ts 与外观设置服务里迁移到 ink。 */
 
-:root[data-skin="paper"][data-theme="dark"] {
-  --app-bg-side: #1b1b1a;
-  --app-bg-list: #20201e;
-  --app-bg-desk: #161615;
-  --app-surface: #262624;
-  --app-surface-sunken: #2e2e2b;
-  --app-raised-on-side: #262624;
-  --app-seg-active: #33332f;
-  --app-selected: #2e2f2b;
-  --app-hover: #2c2c2a;
-  --app-border: #363634;
-  --app-border-subtle: #2c2c2a;
-  --app-fg: #eaeae7;
-  --app-fg-muted: #b6b6b1;
-  --app-fg-subtle: #8e8e89;
-  --app-fg-faint: #6c6c67;
-  --app-accent: #9acbb4;
-  --app-accent-hover: #aed8c3;
-  --app-accent-text: #11231a;
-  --app-accent-fg: #cde7da;
-  --app-accent-subtle: #2e2f2b;
-  --app-link: #9db6da;
-  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -34px #000;
-  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
-}
-/* 墨台 v3 → app token 映射。三种皮肤各自独立：墨台块排除 paper 与 slate，
-   否则它（权重更高）会盖住素灰皮肤块的取值。 */
-:root:not([data-skin="paper"]):not([data-skin="slate"])[data-theme="light"] {
+/* 墨台 v3 → app token 映射。两种皮肤各自独立：墨台块排除 slate，
+   否则它（权重更高）会盖住素灰皮肤块的取值。
+   柔纸已于 2026-11-11 并入墨台（暖色纸质合并为一种皮肤），原 paper 令牌块整体下线。 */
+:root:not([data-skin="slate"])[data-theme="light"] {
   color-scheme: light;
   --app-bg-side: #e2ddce;
   --app-surface: #fffdf9;
@@ -747,7 +664,7 @@
   --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
 }
 
-:root:not([data-skin="paper"]):not([data-skin="slate"])[data-theme="dark"] {
+:root:not([data-skin="slate"])[data-theme="dark"] {
   color-scheme: dark;
   --app-bg-side: #0a0a09;
   --app-surface: #151614;
@@ -779,9 +696,9 @@
   --app-shadow-card: 0 1.125rem 3rem -.75rem rgba(0, 0, 0, .48), 0 .125rem .5rem rgba(0, 0, 0, .24);
 }
 
-:root:not([data-skin="paper"]) {
-  /* v3 几何基线（栏宽/圆角/间距/高度）与主题无关：放在无主题块，
-     深浅主题共用同一套刻度，不再出现切主题变栏宽的漂移。 */
+/* v3 几何基线（栏宽/圆角/间距/高度）与主题无关：两种皮肤共用同一套刻度，
+   不再出现切主题变栏宽的漂移。 */
+:root {
   --app-radius-xs: .125rem;
   --app-radius-sm: .1875rem;
   --app-radius-md: .3125rem;
@@ -813,7 +730,7 @@
 }
 
 /* ---------- 素灰 / SLATE（默认主题，2026-11-10） ----------
-   与墨台、柔纸正交：data-skin="slate" 只换取值，结构覆盖在 styles/slate.css。
+   与墨台正交：data-skin="slate" 只换取值，结构覆盖在 styles/slate.css。
    取值依据：中性灰取 Radix / Tailwind slate 色阶（浅 1–4、深 11–12），
    强调取 Radix indigo 的 9（实底）与 11（文字）两级，白字压 #3e63dd 为 5.2:1；
    元信息灰在纯白上 5.0:1、在清单底上 4.5:1，四档文字都过 AA。
@@ -862,7 +779,7 @@
   --app-btn-kbd-fg: rgba(255, 255, 255, .92);
   --app-focus-ring: 0 0 0 0.1875rem rgba(62, 99, 221, .32);
   --app-focus-outline: 0.1875rem solid rgba(62, 99, 221, .32);
-  --app-scrollbar-thumb: #c3c8d2;
+  --app-scrollbar-thumb: rgba(20, 24, 33, 0.08);
   --app-scrollbar-thumb-hover: #8f96a3;
   --app-overlay-bg: rgba(18, 22, 30, .42);
   /* 角与字：控件 6、容器 8、弹层 12；标题位交回界面字体（全站无衬线） */
@@ -893,7 +810,7 @@
   --app-pill-blue-bg: #eaeefe; --app-pill-blue-fg: #2f4aa0; --app-pill-blue-border: #c2cdf5;
   --app-pill-purple-bg: #f1edfd; --app-pill-purple-fg: #55408f; --app-pill-purple-border: #d5c9f2;
   --app-pill-pink-bg: #fdecf2; --app-pill-pink-fg: #8a3559; --app-pill-pink-border: #f0c4d4;
-  /* 正文渲染：比墨台紧一档、比柔纸硬一档 */
+  /* 正文渲染：比墨台紧一档 */
   --md-body-size: .9375rem;     /* 15px */
   --md-body-leading: 1.78;
   --md-body-color: var(--app-fg);
@@ -945,7 +862,7 @@
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, .48);
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 12px 28px -14px #000;
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(0, 0, 0, .40);
-  --app-scrollbar-thumb: #3a414c;
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
   --app-scrollbar-thumb-hover: #59616e;
   --app-overlay-bg: rgba(4, 6, 10, .62);
   --app-text-color-red: #f0948a;
@@ -967,7 +884,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-skin="paper"]) *, :root:not([data-skin="paper"]) *::before, :root:not([data-skin="paper"]) *::after {
+  :root *, :root *::before, :root *::after {
     scroll-behavior: auto !important;
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
