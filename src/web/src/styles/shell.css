@@ -719,10 +719,12 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 /* 设置内容区的节标题：对齐对话框字号阶梯（此前 BackupPanel/附件面板的 h2 吃浏览器默认标题字号，与规范不符） */
 .mn-dlg-content :is(h2, h3, h4) { margin: var(--app-space-md) var(--app-zero) var(--app-space-6); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); color: var(--app-fg); }
 /* 设置行：不再画分隔线（2026-11-10）。说明收进 ⓘ 之后每行只剩「标签 + 控件」，
-   一行一条横线会把十几行读成一张表单；改用分组留白承担分区，行内只留上下呼吸。 */
-.mn-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-18); padding: var(--app-space-8) var(--app-zero); flex-wrap: wrap; }
+   一行一条横线会把十几行读成一张表单；改用分组留白承担分区，行内只留上下呼吸。
+   2026-11-11 收紧：12.5px 标签 + 30px 控件 + 上下 8px 使行高到 48px，负责人反馈仍偏松；
+   行内呼吸收到 4px（行高 40px，行间纯留白 8px），分组标题与分节留白同步收一档。 */
+.mn-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-18); padding: var(--app-space-4) var(--app-zero); flex-wrap: wrap; }
 /* 分组标题：比行标签更轻、更小，只做分区不抢视线 */
-.mn-setgroup { margin: var(--app-space-18) var(--app-zero) var(--app-space-2); font-size: var(--app-size-chip); font-weight: var(--app-weight-regular); color: var(--app-fg-faint); letter-spacing: var(--app-memo-letter-spacing); }
+.mn-setgroup { margin: var(--app-space-12) var(--app-zero) var(--app-space-2); font-size: var(--app-size-chip); font-weight: var(--app-weight-regular); color: var(--app-fg-faint); letter-spacing: var(--app-memo-letter-spacing); }
 .mn-setgroup:first-child { margin-top: var(--app-zero); }
 /* 说明文字占满剩余宽度、控件留在右侧同一行：文字长了就自己折行，不把控件挤到下一行 */
 .mn-setrow > div:first-child { flex: 1 1 var(--app-field-width); min-width: var(--app-zero); }
@@ -754,7 +756,8 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
   transition: opacity var(--app-motion-fast) var(--app-ease);
 }
 .mn-infohint:hover .mn-infohint-tip, .mn-infohint:focus-within .mn-infohint-tip { opacity: 1; }
-.mn-settings-section { display: grid; gap: var(--app-space-6); margin-bottom: var(--app-space-xl); }
+.mn-settings-section { display: grid; gap: var(--app-space-6); margin: var(--app-space-md) var(--app-zero) var(--app-space-lg); }
+.mn-settings-section:first-child { margin-top: var(--app-zero); }
 .mn-settings-section > h4, .mn-settings-section > p { margin: var(--app-zero); }
 .mn-attach-policy-input { width: min(var(--app-full-size), var(--app-field-width)); min-height: var(--app-input-height); padding: var(--app-space-4) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; }
 .mn-set-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-8); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
