@@ -197,6 +197,18 @@ export function ClipTemplateManager() {
       </div>
       {listState === "loading" && <p className="mn-sethint" role="status">正在读取账号规则…</p>}
       {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败：{listError}</p>}
+      {listState === "ready" && templates.length === 0 && (
+        <p className="mn-sethint" role="status">
+          当前账号还没有剪藏规则。声明式模板可在下方新增或导入；四平台（推特 / 小红书 / 知乎 / GitHub / 微信公众号）
+          的专用管线条目由剪藏扩展自动登记，规则同下。
+        </p>
+      )}
+      {listState === "ready" && templates.length > 0 && !templates.some(({ template }) => template.pipeline === "capture-clip") && (
+        <p className="mn-sethint" role="status">
+          未检测到专用管线条目。它由剪藏扩展登记：请确认扩展为 0.1.35 或更新版本，
+          MCP 令牌勾选「保存剪藏模板」，然后在扩展弹窗里点一次「同步模板」（扩展安装/启动时也会自动补登记）。
+        </p>
+      )}
       {templates.map(({ template, version }) => {
         const isAdapter = template.pipeline === "capture-clip";
         return <article className="mn-cliptemplate-card" key={template.id}>
