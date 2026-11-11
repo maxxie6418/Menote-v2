@@ -18,14 +18,39 @@ const bundle = await build({
 const mod = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 const { localDb, createNote, saveItemContent } = mod;
 const attachmentBundle = await build({
-  entryPoints: [fileURLToPath(new URL("../src/services/attachmentService.ts", import.meta.url))],
+  stdin: {
+    contents: `export { uploadAttachment, ATTACHMENT_UPLOAD_TIMEOUT_MS } from "./src/services/attachmentService";
+               export { saveEditors } from "./src/services/editorSaveService";`,
+    resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+  },
   bundle: true, write: false, format: "esm", platform: "browser",
 });
-const attachmentModule = await import(`data:text/javascript;base64,${Buffer.from(attachmentBundle.outputFiles[0].text).toString("base64")}`);
 
+const attachmentModule = await import(`data:text/javascript;base64,${Buffer.from(attachmentBundle.outputFiles[0].text).toString("base64")}`);
 const USER = "user-a";
 const SHA = "a".repeat(64);
 
+test("an attachment still uploading prevents an all-uploaded acknowledgement", async () => {
+  const original = globalThis.XMLHttpRequest;
+  let request;
+  let sent;
+  const ready = new Promise((resolve) => { sent = resolve; });
+  globalThis.XMLHttpRequest = class {
+    upload = {};
+    open() {}
+    setRequestHeader() {}
+    send() { request = this; sent(); }
+  };
+  try {
+    const uploading = attachmentModule.uploadAttachment(USER, { type: "image/png", name: "pending.png", size: 1024 });
+    await ready;
+    assert.equal(await attachmentModule.saveEditors(USER), false);
+    assert.equal(await attachmentModule.saveEditors("another-user"), true);
+    request.ontimeout();
+    assert.deepEqual(await uploading, { error: "timeout" });
+    assert.equal(await attachmentModule.saveEditors(USER), true, "请求结束后解除传输中的阻挡");
+  } finally { globalThis.XMLHttpRequest = original; }
+});
 async function reset() {
   await Promise.all(localDb.tables.map((table) => table.clear()));
 }

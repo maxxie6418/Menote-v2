@@ -142,7 +142,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **settings/**：`SettingsPage`、`SettingsDialog`（左导航包含「同步日志」「MCP 接入」「剪藏模板」与「插件」栏目）、`AttachmentPolicySettings`（账号级单文件上限与允许扩展名设置）、`BackupTargetForm`、`TokenManager`（逐 Token 管理剪藏模板读写与网址收藏写权限）、`ClipTemplateManager`（列表、JSON 编辑/导入、启停和删除；调用 services）、`SyncLogSection`（FR-SYNC-11：本机同步诊断日志查询/复制/导出）、`StyleEditor`（M4）、`CredentialField`（默认脱敏+查看复用，通用件）、`PluginSection`（插件开关，TP9：默认关闭，启用才渲染 `RaindropPanel`——令牌录入/绑定配置/拉取频率/立即拉取/同步记录/快照信息；开关关闭时整块隐藏且不影响应用其余功能）。
 **monitor/**：`MonitorPanel`、Cloudflare API 设置与资源卡片、刷新/阈值设置（独立边界；UI 只调用 services）。`services/monitorService.ts` 负责前端 API 与应用抽样汇总，Worker `services/monitorCloudflareService.ts` 查询官方 Analytics GraphQL，Worker `db/monitor.ts` 管理加密凭据配置；Cloudflare Token 以 `AUTH_PEPPER` 派生密钥加密并按 userId 隔离。
 **同步诊断**：`services/syncDiagnosticsService.ts` 异步写入本机 IndexedDB `syncDiagnostics` 表，按账号隔离、每账号最多 2,000 条；同步引擎只记结构化阶段/回执字段，UI 经服务读取。不得写入正文、标题、附件名、完整内容哈希或密钥；诊断落库失败不可影响业务流程。
-**附件策略与同步状态**：services/attachmentPolicyService.ts 通过账号设置与 outbox 同步扩展名/大小；Worker services/attachmentService.ts 每次上传读取该策略并遵守 20 MiB 硬上限。SidebarSyncControl 读取 syncEngine 的推送队列和拉取阶段，手动同步等待 Web Lock。
+**附件策略与同步状态**：services/attachmentPolicyService.ts 通过账号设置与 outbox 同步扩展名/大小；Worker services/attachmentService.ts 每次上传读取该策略并遵守 20 MiB 硬上限。SidebarSyncControl 读取 syncEngine 的推送队列和拉取阶段，手动同步等待 Web Lock。services/editorSaveService.ts 管理当前标签页按账号注册的编辑保存回调与变更序号（不缓存正文或密钥）；手动同步先调用该出口完成普通/加密编辑保存，再等待内容命令队列与同步锁；contentHooks 的队列订阅同时覆盖本标签页与跨标签页变化。
 **ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
 **components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
 
@@ -157,6 +157,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - Cron（jobs/）：snapshot 物化、backup-push 状态机、cleanup（孤儿附件 30 天、审计清理）。
 - MCP 模块（services/mcp/）：registry（工具注册）、token auth（每次请求读取最新权限）、permissions/scope（内容读取开关、创建/编辑/回收站/附件权限、用户范围与私人空间/单篇加密谓词）、attachments（受权限约束的上传/读取映射）、audit——独立子目录，不与其他服务交叉引用。MCP 协议发现、鉴权和范围解析可执行必需的内部读取；内容读取关闭时不得暴露既有条目。
 - 剪藏模板模块：shared 定义 `ClipTemplateV1` 与纯数据校验；Worker `routes/clipTemplates.ts` → `services/clipTemplateService.ts` → `db/clipTemplates.ts` 管理按 userId 隔离的规则；设置页只处理 Menote 声明式模板 JSON；EdgeEver 源码转换是 Menote-clients 的独立离线 CLI，不进入 Worker/Web 运行时；MCP 模板工具只接触模板数据并使用独立权限；浏览器扩展是 MCP 客户端，不被 Worker/UI 反向依赖。
+- Menote-clients 的浏览器扩展仍是独立 MCP 客户端，不进入本仓库构建依赖。其阅读样式采集与净化位于 `capture/sourcePresentation.ts`、`reader/articleStyle.ts`；用户偏好/进度位于 `reader/preferences.ts`，交互增强位于 `reader/enhancements.ts`；本地转存结果由 `queue/outbox.ts` 管理，记录展示位于 `history/`，弹窗结果卡位于 `popup/transferStatus.ts`。这些本机元数据不进入 Menote 服务端契约。
 - MCP 网址收藏：`routes/mcp.ts` 在 `bookmark:write` 已授权时注册 `append_bookmark`；`services/mcpBookmarkService.ts` 只读取用户指定且在 Token 范围内的明文 Note/Table，`services/mcpBookmarkFormat.ts` 负责追加收藏行/记录；`db/mcpBookmarks.ts` 执行用户归属、加密与范围过滤。仅返回目标 ID 和操作回执，不依赖内容读取权限；写入经同步服务维护 rev、日志和幂等。
 - Monitor 模块：`services/monitor/` 采集归一化 + 额度配置；数据写独立表，**不与业务表耦合**（FR-MON-1 复用边界）。
 - AI 模块（FR-AI-2，TP8）：shared `contracts/ai.ts` 契约单源；Worker `routes/ai.ts` → `services/aiService.ts` → `db/ai.ts`（`ai_tasks`/`ai_usage_daily` 独立表，不与业务表耦合）；推理经 Workers AI 原生绑定 `AI`，任务队列 `ai-tasks`（生产者/消费者同 Worker，`index.ts` queue 入口 → `dispatchAiQueue` 逐条 ack/retry）；提交链路固定为 开关 → 加密排除（SQL 侧谓词）→ 复用/去重 → 每日预算 → 入队；AI 设置随 `user_settings` 同步（`ai` 键），不经 REST。

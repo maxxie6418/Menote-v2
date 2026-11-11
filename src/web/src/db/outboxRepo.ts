@@ -76,6 +76,15 @@ export async function countPendingOutbox(): Promise<number> {
   return localDb.outbox.count();
 }
 
+/** 用户手动同步时提前重试暂时性失败；确定性拒绝继续保留，避免反复发送无效操作。 */
+export async function retryOutboxNow(userId: string): Promise<void> {
+  const rows = await localDb.outbox.where("userId").equals(userId).toArray();
+  const retryable = rows.filter((row) => row.lastError && !row.lastError.startsWith("rejected:"));
+  await localDb.transaction("rw", localDb.outbox, async () => {
+    for (const row of retryable) await localDb.outbox.update(row.seq!, { nextRetryAt: null });
+  });
+}
+
 export async function markOutboxError(seq: number, lastError: string, retryInMs: number): Promise<void> {
   const current = await localDb.outbox.get(seq);
   await localDb.outbox.update(seq, {
