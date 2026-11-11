@@ -2,18 +2,18 @@
 :root .mn-home { background: var(--app-surface-sunken); }
 :root .mn-home-bar { min-height: var(--app-topbar-height); padding: 0 var(--app-space-18); align-items: center; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 :root .mn-home-heading h1 { font-family: var(--app-font); font-size: var(--app-size-nav); font-weight: var(--app-weight-medium); letter-spacing: 0; }
-:root .mn-home-sub { font-family: var(--app-font); font-size: var(--app-size-kicker); }
+:root .mn-home-sub { font-family: var(--app-font); font-size: var(--app-size-chip); }
 :root .mn-home-search { height: var(--app-space-30); border-color: var(--app-border-subtle); background: var(--app-surface); }
 :root .mn-home-content { width: min(var(--app-full-size), var(--app-home-content-max)); margin-inline: auto; padding: var(--app-space-24) var(--app-space-18); }
 :root .mn-home-capture { margin: 0 auto var(--app-space-24); max-width: var(--app-home-capture-max); }
 :root .mn-home-greeting { margin: 0 0 var(--app-space-10); color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-size-page-title); }
 :root .mn-home-stamp { display: flex; align-items: baseline; gap: var(--app-space-8); margin-bottom: var(--app-space-8); }
 :root .mn-home-stamp time { color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-page-title); font-variant-numeric: tabular-nums; }
-:root .mn-home-stamp span { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+:root .mn-home-stamp span { color: var(--app-fg-faint); font-size: var(--app-size-nav); }
 :root .mn-home-capture form { overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
 :root .mn-home-capture textarea { display: block; width: var(--app-full-size); min-height: var(--app-space-34); resize: vertical; padding: var(--app-space-12); border: 0; outline: 0; background: transparent; color: var(--app-fg); font: inherit; }
 :root .mn-home-capture textarea::placeholder { color: var(--app-fg-faint); }
-:root .mn-home-capture form > div { display: flex; align-items: center; justify-content: flex-end; gap: var(--app-space-8); padding: var(--app-space-6) var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+:root .mn-home-capture form > div { display: flex; align-items: center; justify-content: flex-end; gap: var(--app-space-8); padding: var(--app-space-6) var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 :root .mn-home-capture form > div > span { margin-right: auto; }
 :root .mn-home-capture kbd { color: var(--app-fg-faint); font-family: var(--app-font-mono); }
 :root .mn-home-capture button { min-height: var(--app-touch-target); padding-inline: var(--app-space-12); border: 0; border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
@@ -55,7 +55,7 @@
 :root .mn-home-greeting { margin: var(--app-home-greeting-margin); color: var(--app-fg-muted); font-family: var(--app-font-serif); font-size: var(--app-home-greeting-size); font-weight: var(--app-weight-regular); letter-spacing: var(--app-home-greeting-track); }
 :root .mn-home-stamp { gap: var(--app-space-lg); margin-bottom: 0; }
 :root .mn-home-stamp time { font-size: var(--app-home-clock-size); }
-:root .mn-home-stamp span { font-family: var(--app-font-mono); font-size: var(--app-size-label); }
+:root .mn-home-stamp span { font-family: var(--app-font-mono); font-size: var(--app-size-nav); }
 :root .mn-home-capture { max-width: none; margin: 0; box-shadow: none; }
 :root .mn-home-capture textarea { min-height: var(--app-home-capture-height); padding: var(--app-home-capture-pad); font-size: var(--app-home-capture-size); line-height: var(--app-leading-editor); }
 :root .mn-home-capture > div { min-height: var(--app-home-capture-bar); justify-content: initial; padding: 0 var(--app-space-md); }
