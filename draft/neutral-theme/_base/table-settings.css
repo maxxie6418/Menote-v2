@@ -1,0 +1,41 @@
+/* 补充表格筛选/排序示例与设置中心页面。 */
+.settings-admin-card { width:min(940px,calc(100vw - 48px)); height:min(650px,calc(100vh - 48px)); }
+#appearanceModal .modal-nav { height:auto; }
+#appearanceModal .modal-foot { min-height:52px; }
+#appearanceModal .modal-body { min-height:0; }
+.settings-admin-card > .modal-nav { overflow-y:auto; }
+.settings-admin-card .modal-main { min-width:0; }
+.db-demo-panel { display:flex; align-items:end; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line-faint); background:var(--panel-bg); }
+.db-demo-panel[hidden] { display:none; }
+.db-demo-panel label { display:grid; gap:4px; color:var(--ink-3); font-size:10px; }
+.db-demo-panel input { min-width:112px; height:28px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-1); background:var(--sheet-bg); color:var(--ink); font:inherit; }
+.db-demo-panel .sel-btn { min-width:112px; height:28px; }
+.db-demo-panel .hint { margin-left:auto; color:var(--ink-4); font-size:10px; }
+.settings-page { display:none; }
+.settings-page.is-on { display:block; }
+.settings-page .modal-hd p { max-width:620px; }
+.settings-nav .mnav { width:100%; text-align:left; }
+.settings-nav .group-label { padding:14px 10px 5px; color:var(--ink-4); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+.settings-nav .mnav.is-on { background:var(--accent-soft); color:var(--accent-ink); }
+.settings-setting-row { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:16px 0; border-bottom:1px solid var(--line-faint); }
+.settings-setting-row p { margin:0; }
+.settings-setting-row .title { font-size:12px; font-weight:600; }
+.settings-setting-row .desc { margin-top:4px; color:var(--ink-3); font-size:10.5px; line-height:1.6; }
+.settings-setting-row input { min-width:130px; height:30px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-1); background:var(--sheet-bg); color:var(--ink); }
+.settings-setting-row .sel-btn { min-width:130px; }
+.settings-state { display:flex; align-items:center; gap:8px; margin:14px 0; padding:12px; border:1px solid var(--line-faint); border-radius:var(--r-2); background:var(--panel-bg); font-size:11px; }
+.settings-state .led { width:7px; height:7px; border-radius:50%; background:var(--moss); }
+.settings-action { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.settings-action button { min-height:30px; padding:0 10px; border:1px solid var(--line); border-radius:var(--r-1); background:var(--paper-bg); color:var(--ink-2); font-size:10.5px; }
+.settings-placeholder { padding:14px; border:1px dashed var(--line); border-radius:var(--r-2); color:var(--ink-3); font-size:11px; line-height:1.7; }
+.settings-table { width:100%; border-collapse:collapse; font-size:10.5px; }
+.settings-table th,.settings-table td { padding:9px 8px; border-bottom:1px solid var(--line-faint); text-align:left; }
+.settings-table th { color:var(--ink-3); font-weight:500; }
+@media(max-width: 768px) { .db-demo-panel { flex-wrap:wrap; } .db-demo-panel .hint { width:100%; margin:0; } .settings-setting-row { align-items:flex-start; flex-direction:column; } }
+.appearance-preview { margin-top: 16px; padding: 12px; border: 1px solid var(--line-faint); border-radius: var(--r-2); background: var(--panel-bg); }
+.appearance-preview .viewport-sample { margin: 8px 0 10px; height: 104px; max-width: 320px; }
+.ap-head { display: flex; align-items: baseline; gap: 8px; }
+.ap-head b { font-size: 11.5px; font-weight: 600; color: var(--ink-2); }
+.ap-head span { margin-left: auto; color: var(--ink-4); font-size: 9.5px; }
+.ap-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ap-chips .pill { height: 20px; font-size: 10px; background: var(--canvas-bg); color: var(--ink-3); }

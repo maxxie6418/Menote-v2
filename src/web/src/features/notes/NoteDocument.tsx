@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
-import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia } from "../../lib/frontmatter";
+import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia, writeSummaryProperty } from "../../lib/frontmatter";
 import { newId } from "../../lib/hash";
 import { TableDocument } from "../table";
 import { AiAssistDialog } from "../ai";
@@ -24,6 +24,7 @@ import { itemRoutePath } from "../../app/appRoutes";
 import { clipSourceFromMarkdown } from "../../lib/clipSource";
 import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, shouldOfferRecovery, writeRecovery } from "../../services/recoveryService";
 import { DocSyncStatus } from "../sync";
+import { notifyEditorChange, registerEditorSave } from "../../services/editorSaveService";
 import { ConflictCompare } from "./ConflictCompare";
 import { getPropsPlacement, resolveToolbar, setPropsPlacement, subscribeDocLayout } from "../../lib/docLayout";
 
@@ -167,6 +168,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [encrypting, setEncrypting] = useState(false);
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editorUploading, setEditorUploading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
   // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
@@ -385,16 +387,28 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   }, [noteId, userId]);
 
   const flushTitle = useCallback(async (nextTitle: string) => {
-    if (!item) return;
+    if (!item) return false;
     const clean = nextTitle.trim() || "无标题";
-    if (clean === item.title) return;
+    if (clean === item.title) return true;
     try {
       await saveItemMeta(userId, item.id, { title: clean });
       setSaveState({ kind: "idle" });
+      return true;
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
+      return false;
     }
   }, [item, userId]);
+
+  useEffect(() => {
+    if (!item || item.content.scope !== "plain") return;
+    return registerEditorSave(userId, async () => {
+      if (uploading || editorUploading || !await flush()) return false;
+      return title === null || await flushTitle(title);
+    });
+  }, [userId, item, flush, flushTitle, title, uploading, editorUploading]);
+
+  useEffect(() => { notifyEditorChange(); }, [dirtyTick, title, uploading, editorUploading]);
 
   useEffect(() => {
     if (title === null || !item) return;
@@ -699,6 +713,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             uploadFile={(file, onProgress) => uploadAttachment(userId, file, onProgress)}
+            onUploadStateChange={setEditorUploading}
             inspectorOutline
             onHostElement={setEditorHost}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
@@ -762,7 +777,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           tags={item.tags}
           markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
           autoRun={autoSummary ? "summary" : undefined}
-          onApplySummary={(next) => { void saveFullMarkdown(next); }}
+          onApplySummary={async (summary) => {
+            const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
+            if (saved && propsPos === "side") setInspectorOpen(true);
+            return saved;
+          }}
           onApplyTags={async (recommended) => {
             const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
             await saveItemMeta(userId, item.id, { tags: merged });

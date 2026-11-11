@@ -1,8 +1,6 @@
 import { useState } from "react";
-import {
-  Bold, Code, Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered, ListTodo, Minus, Quote, SquareCode, Strikethrough, Table2,
-  type LucideIcon,
-} from "lucide-react";
+import { Bold, Code, Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered, ListTodo, Minus, Quote, SquareCode, Strikethrough, Table2 } from "../../icons";
+import type { LucideIcon } from "lucide-react";
 import { FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import type { InlineAction } from "./markdownEdit";
 import { colorValueFromCss, DEFAULT_TEXT_COLORS } from "./textColor";

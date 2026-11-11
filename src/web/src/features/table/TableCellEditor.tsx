@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { joinMultiCell, normalizeCellValue, splitMultiCell } from "../../lib/gfmTable";
 import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
 import { safeWebUrl } from "../../lib/safeUrl";
-import { Paperclip, X } from "lucide-react";
+import { Paperclip, X } from "../../icons";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
-import { attachmentUrl, cachedAttachmentThumbnail, readAttachmentThumbnail, uploadAttachment } from "../../services/attachmentService";
+import { attachmentUrl, fetchAttachmentBlob, uploadAttachment } from "../../services/attachmentService";
 import { readAttachmentPolicy } from "../../services/attachmentPolicyService";
 
 interface TableCellEditorProps {
@@ -101,6 +101,18 @@ function GrowingTextarea({ value, onChange, onCommit, ariaLabel }: {
   };
   useLayoutEffect(fit, [value]);
   useEffect(() => {
+    const element = ref.current;
+    if (element && typeof ResizeObserver !== "undefined") {
+      let width: number | undefined;
+      const observer = new ResizeObserver((entries) => {
+        const nextWidth = entries[0]?.contentRect.width;
+        if (nextWidth === undefined || nextWidth === width) return;
+        width = nextWidth;
+        fit();
+      });
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
   }, []);
@@ -162,6 +174,18 @@ function CellContent({ value, type, def, wrap }: { value: string; type: Property
 }
 
 const IMAGE_ATTACHMENT = /\.(?:avif|bmp|gif|jpe?g|png|webp)$/i;
+const THUMBNAIL_MAX_EDGE = 96;
+const THUMBNAIL_CACHE_LIMIT = 256;
+const thumbnailCache = new Map<string, string>();
+
+function rememberThumbnail(sha256: string, dataUrl: string): void {
+  if (thumbnailCache.has(sha256)) thumbnailCache.delete(sha256);
+  thumbnailCache.set(sha256, dataUrl);
+  if (thumbnailCache.size > THUMBNAIL_CACHE_LIMIT) {
+    const first = thumbnailCache.keys().next().value;
+    if (first) thumbnailCache.delete(first);
+  }
+}
 
 function AttachmentList({ value }: { value: string }) {
   const refs = extractAttachmentRefs(value);
@@ -212,20 +236,45 @@ function AttachmentList({ value }: { value: string }) {
 
 function AttachmentThumbnail({ refItem, onOpen }: { refItem: { sha256: string; name: string }; onOpen: () => void }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [src, setSrc] = useState(() => cachedAttachmentThumbnail(refItem.sha256));
+  const [src, setSrc] = useState(() => thumbnailCache.get(refItem.sha256) ?? "");
   useEffect(() => {
     let cancelled = false;
-    // 取图与压缩在 services 层（AGENTS §3）：命中缓存即刻返回，未命中回落原图 URL。
-    const load = async () => {
-      const dataUrl = await readAttachmentThumbnail(refItem.sha256);
-      if (!cancelled) setSrc(dataUrl);
+    const makeThumbnail = async () => {
+      const cached = thumbnailCache.get(refItem.sha256);
+      if (cached) { setSrc(cached); return; }
+      try {
+        const imageBlob = await fetchAttachmentBlob(refItem.sha256);
+        if (!imageBlob) return;
+        const bitmap = await createImageBitmap(imageBlob);
+        const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) { bitmap.close(); return; }
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.48));
+        if (!blob) return;
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("thumbnail_read_failed"));
+          reader.onerror = () => reject(reader.error ?? new Error("thumbnail_read_failed"));
+          reader.readAsDataURL(blob);
+        });
+        rememberThumbnail(refItem.sha256, dataUrl);
+        if (!cancelled) setSrc(dataUrl);
+      } catch {
+        // Older browsers can still display the original scaled by CSS.
+        if (!cancelled) setSrc(attachmentUrl(refItem.sha256));
+      }
     };
     const button = buttonRef.current;
     if (!button) return () => { cancelled = true; };
-    if (typeof IntersectionObserver === "undefined") void load();
+    if (typeof IntersectionObserver === "undefined") void makeThumbnail();
     else {
       const observer = new IntersectionObserver((entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) { observer.disconnect(); void load(); }
+        if (entries.some((entry) => entry.isIntersecting)) { observer.disconnect(); void makeThumbnail(); }
       }, { rootMargin: "80px" });
       observer.observe(button);
       return () => { cancelled = true; observer.disconnect(); };

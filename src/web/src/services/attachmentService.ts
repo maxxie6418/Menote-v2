@@ -1,4 +1,5 @@
 import type { Attachment, Item } from "@menote/shared";
+import { notifyEditorChange, registerEditorSave } from "./editorSaveService";
 import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
 import { appRoutePath } from "../app/appRoutes";
@@ -13,56 +14,10 @@ export function attachmentUrl(sha256: string): string {
   return `/api/attachments/${sha256}`;
 }
 
-/* ---------- 表格附件缩略图（UI 层禁止直连网络，AGENTS §3）：取图并压成数据 URL，失败回落原图 ---------- */
-
-const THUMBNAIL_MAX_EDGE = 96;
-const THUMBNAIL_CACHE_LIMIT = 256;
-const thumbnailCache = new Map<string, string>();
-
-function rememberThumbnail(sha256: string, dataUrl: string): void {
-  if (thumbnailCache.has(sha256)) thumbnailCache.delete(sha256);
-  thumbnailCache.set(sha256, dataUrl);
-  if (thumbnailCache.size > THUMBNAIL_CACHE_LIMIT) {
-    const first = thumbnailCache.keys().next().value;
-    if (first) thumbnailCache.delete(first);
-  }
-}
-
-/** 已缓存的缩略图数据 URL；未命中返回空串（调用方先渲染占位）。 */
-export function cachedAttachmentThumbnail(sha256: string): string {
-  return thumbnailCache.get(sha256) ?? "";
-}
-
-/** 取附件缩略图：命中缓存直接返回；否则下载原图、等比压边、转 webp 数据 URL 并入缓存。
- *  位图缩放不可用或请求失败时回落原图 URL（由 CSS 控制显示尺寸）。 */
-export async function readAttachmentThumbnail(sha256: string): Promise<string> {
-  const cached = thumbnailCache.get(sha256);
-  if (cached) return cached;
-  try {
-    const response = await fetch(attachmentUrl(sha256), { cache: "force-cache" });
-    if (!response.ok) return attachmentUrl(sha256);
-    const bitmap = await createImageBitmap(await response.blob());
-    const scale = Math.min(1, THUMBNAIL_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) { bitmap.close(); return attachmentUrl(sha256); }
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.48));
-    if (!blob) return attachmentUrl(sha256);
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("thumbnail_read_failed"));
-      reader.onerror = () => reject(reader.error ?? new Error("thumbnail_read_failed"));
-      reader.readAsDataURL(blob);
-    });
-    rememberThumbnail(sha256, dataUrl);
-    return dataUrl;
-  } catch {
-    return attachmentUrl(sha256);
-  }
+/** 取附件原始字节（缓存优先）：缩略图生成在 UI 侧做，但网络访问必须留在 services 层。 */
+export async function fetchAttachmentBlob(sha256: string): Promise<Blob | null> {
+  const response = await fetch(attachmentUrl(sha256), { cache: "force-cache" });
+  return response.ok ? response.blob() : null;
 }
 
 export interface AttachmentReference { id: string; title: string; href: string }
@@ -92,6 +47,22 @@ export async function listAttachmentReferences(userId: string): Promise<Record<s
 export const ATTACHMENT_UPLOAD_TIMEOUT_MS = 120_000;
 
 export async function uploadAttachment(
+  userId: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ sha256: string; name: string } | { error: string }> {
+  // 表格和编辑器共用上传服务；附件仍在传输时，手动同步不能误报全部完成。
+  const unregister = registerEditorSave(userId, async () => false);
+  notifyEditorChange();
+  try {
+    return await uploadAttachmentInner(userId, file, onProgress);
+  } finally {
+    unregister();
+    notifyEditorChange();
+  }
+}
+
+async function uploadAttachmentInner(
   userId: string,
   file: File,
   onProgress?: (percent: number) => void,

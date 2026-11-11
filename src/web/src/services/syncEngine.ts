@@ -3,7 +3,7 @@ import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
 import { bulkPutMemoComments, deleteMemoComments } from "../db/memoCommentsRepo";
-import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseMissingItemDeletes, releaseParkedSettings, settleSettingResult } from "../db/outboxRepo";
+import { deleteOutboxRows, listPendingOutbox, markOutboxError, releaseMissingItemDeletes, releaseParkedSettings, retryOutboxNow, settleSettingResult } from "../db/outboxRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId } from "../lib/hash";
 import { applyPulledSettings } from "./appearanceSettingsService";
@@ -14,7 +14,8 @@ import { applyPulledTableViewSettings } from "./tableViewSettingsService";
 import { applyPulledAttachmentPolicy } from "./attachmentPolicyService";
 import { applyPulledWorkspaceSettings } from "./workspaceSettingsService";
 import { isBlankDraft } from "./contentService";
-import { outboxUpsert } from "./contentShared";
+import { enqueueWrite, outboxUpsert } from "./contentShared";
+import { getEditorRevision, saveEditors } from "./editorSaveService";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 
 /**
@@ -207,7 +208,7 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
       }
       pending.push(row);
     }
-    if (pending.length === 0) return;
+    if (pending.length === 0) continue;
     // 加密条目：随操作携带本地包装块（G7）。
     for (const row of pending) {
       if (row.entity === "topic" && row.action === "upsert") {
@@ -396,7 +397,7 @@ async function pullUpdates(userId: string): Promise<void> {
 }
 
 /** 单轮同步；由调度器（主锁持有者）调用。 */
-export async function runSyncCycle(userId: string): Promise<void> {
+export async function runSyncCycle(userId: string): Promise<boolean> {
   const cycleStartedAt = Date.now();
   recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_started" });
   setPhase("syncing");
@@ -412,7 +413,7 @@ export async function runSyncCycle(userId: string): Promise<void> {
     setPhase("idle");
     recordSyncDiagnostic(userId, { category: "cycle", event: "sync_cycle_completed", durationMs: Date.now() - cycleStartedAt });
     notifyLocalChange();
-    void userId;
+    return true;
   } catch (error) {
     recordSyncDiagnostic(userId, {
       category: "error", event: "sync_cycle_failed",
@@ -421,6 +422,7 @@ export async function runSyncCycle(userId: string): Promise<void> {
     });
     setPhase("error");
     setProgress({ stage: null, completed: 0, total: 0 });
+    return false;
   }
 }
 
@@ -450,7 +452,21 @@ export async function requestSync(userId: string): Promise<void> {
 }
 
 /** 手动立即同步：等待正在执行的标签页完成本轮，再独占执行一轮。 */
-export async function requestSyncNow(userId: string): Promise<void> {
-  if (typeof navigator === "undefined" || !navigator.locks) { await runSyncCycle(userId); return; }
-  await navigator.locks.request("menote-sync", async () => { await runSyncCycle(userId); });
+export async function requestSyncNow(userId: string): Promise<boolean> {
+  try {
+    const revision = getEditorRevision();
+    if (!await saveEditors(userId)) return false;
+    // 等待表格、属性等已经提交的本地写入完成，再取上传队列。
+    await enqueueWrite(async () => {});
+    const sync = async () => {
+      await retryOutboxNow(userId);
+      if (!await runSyncCycle(userId)) return false;
+      const queue = await syncQueueStatus(userId);
+      return queue.pending === 0 && getEditorRevision() === revision;
+    };
+    if (typeof navigator === "undefined" || !navigator.locks) return await sync();
+    return await navigator.locks.request("menote-sync", sync);
+  } catch {
+    return false;
+  }
 }

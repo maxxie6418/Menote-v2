@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, MessageCircle, Table2 } from "lucide-react";
+import { FileText, MessageCircle, Table2 } from "../../icons";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
 import { formatItemMeta, noteSnippet } from "./format";

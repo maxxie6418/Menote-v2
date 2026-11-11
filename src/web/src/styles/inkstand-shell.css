@@ -10,19 +10,19 @@
 :root .mn-brand { gap: var(--app-space-8); font-family: var(--app-font); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); }
 :root .mn-logo { width: var(--app-space-24); height: var(--app-space-24); }
 :root .mn-formseg { margin: var(--app-space-8) 0 0; padding: var(--app-space-2); gap: var(--app-space-2); background: var(--app-border-subtle); border-radius: var(--app-radius-md); }
-:root .mn-formseg button { height: var(--app-space-24); border-radius: var(--app-radius-sm); font-size: var(--app-size-label); }
+:root .mn-formseg button { height: var(--app-target-min); border-radius: var(--app-radius-sm); font-size: var(--app-size-nav); }
 :root .mn-btn { height: var(--app-space-30); margin: var(--app-space-8) 0 var(--app-space-8); border-radius: var(--app-radius-sm); box-shadow: none; font-size: var(--app-size-nav); }
 :root .mn-memo-hint { height: var(--app-space-30); border-color: var(--app-border); border-radius: var(--app-radius-sm); }
 :root .mn-quick { margin-bottom: var(--app-space-8); }
-:root .mn-quick a { height: var(--app-space-32); flex-direction: column; gap: var(--app-space-2); border-radius: var(--app-radius-sm); font-size: var(--app-size-kicker); }
+:root .mn-quick a { height: var(--app-space-32); flex-direction: column; gap: var(--app-space-2); border-radius: var(--app-radius-sm); font-size: var(--app-size-chip); }
 :root .mn-quick a svg { width: var(--app-space-14); height: var(--app-space-14); }
 :root .mn-queue { gap: var(--app-space-4); margin-bottom: var(--app-space-8); }
 :root .mn-queue a { height: var(--app-space-30); padding-inline: var(--app-space-8); border-radius: var(--app-radius-sm); }
 :root .mn-zone { margin: var(--app-space-8) 0; background: var(--app-border-subtle); }
 :root .mn-tree { gap: var(--app-space-2); margin-bottom: var(--app-space-8); }
 :root .mn-treerow { height: var(--app-space-26); border-radius: var(--app-radius-sm); font-size: var(--app-size-nav); }
-:root .mn-tree-sublist .mn-treerow { font-size: var(--app-size-label); }
-:root .mn-tree-count { margin-left: auto; flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); font-variant-numeric: tabular-nums; }
+:root .mn-tree-sublist .mn-treerow { font-size: var(--app-size-nav); }
+:root .mn-tree-count { margin-left: auto; flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 :root .mn-treerow.on { background: var(--app-border-subtle); box-shadow: inset var(--app-space-2) 0 0 var(--app-accent); }
 :root .mn-tags { gap: var(--app-space-4); }
 :root .mn-sb-foot { border-top-color: var(--app-border-subtle); }
@@ -68,11 +68,11 @@
 :root .mn-list-navigation { padding: var(--app-space-10); border-bottom: var(--app-line) solid var(--app-border-subtle); overflow: auto; max-height: var(--app-list-nav-max-height); }
 :root .mn-list-navigation .mn-tree { margin: 0; }
 :root .mn-list-navigation-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-4); margin-top: var(--app-space-10); }
-:root .mn-list-navigation-label { display: flex; align-items: center; gap: var(--app-space-4); width: var(--app-full-size); color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+:root .mn-list-navigation-label { display: flex; align-items: center; gap: var(--app-space-4); width: var(--app-full-size); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 :root .mn-list-navigation-label svg { width: var(--app-space-12); height: var(--app-space-12); }
-:root .mn-list-navigation-tags button { padding: var(--app-space-2) var(--app-space-6); border: 0; border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-kicker); cursor: pointer; }
+:root .mn-list-navigation-tags button { padding: var(--app-space-2) var(--app-space-6); border: 0; border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-chip); cursor: pointer; }
 :root .mn-list-navigation-tags button.on { color: var(--app-accent-fg); background: var(--app-accent-subtle); }
-:root .mn-list-navigation-tags p { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+:root .mn-list-navigation-tags p { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"])[data-rail="rail"] .mn-sidebar { width: min(var(--app-drawer-width), calc(var(--app-viewport-width) - var(--app-space-24))); padding: var(--app-space-12) var(--app-space-10); align-items: stretch; }
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"])[data-rail="rail"] .mn-brand,

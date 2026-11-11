@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-douban-review",
+  "name": "豆瓣评论（影/书/乐）",
+  "enabled": false,
+  "match": { "hosts": ["movie.douban.com", "book.douban.com", "music.douban.com"], "paths": ["/review/*"] },
+  "selectors": {
+    "title": { "selector": "#content h1", "value": "text" },
+    "content": { "selector": "#link-report .review-content", "value": "html" },
+    "author": { "selector": ".main-hd > a[href*='/people/']", "value": "text" },
+    "publishedAt": { "selector": ".main-meta span[content]", "value": "attribute", "attribute": "content" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/douban-clip.ts", "license": "AGPL-3.0" }
+}

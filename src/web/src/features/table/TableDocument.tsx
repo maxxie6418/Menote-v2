@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "../../icons";
 import {
   FIELDS_KEY, readDefs, removeDef, renameDef, reorderDefs, splitFrontmatter, writeDef,
   type OptionColor, type PropertyDef, type PropertyType,

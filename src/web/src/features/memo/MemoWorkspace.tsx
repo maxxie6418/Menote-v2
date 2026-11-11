@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu } from "../../icons";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos, useTopics } from "../../services/contentHooks";
 import { alwaysHiddenPrivateTopicIds } from "../../services/privateSpaceService";

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X } from "../../icons";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
@@ -49,6 +49,7 @@ interface NoteEditorProps {
   registerApplyExternal: (apply: ((markdown: string) => void) | null) => void;
   /** 上传一个文件并返回内容寻址结果；失败时返回错误文案，由底栏显示。 */
   uploadFile?: (file: File, onProgress?: (percent: number) => void) => Promise<{ sha256: string; name: string } | { error: string }>;
+  onUploadStateChange?: (pending: boolean) => void;
   /** 底部浮动坞容器（设置·外观）：非空时格式栏 portal 到纸面底部，否则留在正文顶部。 */
   formatDock?: HTMLElement | null;
   /** 页面检查器负责展示大纲时，隐藏编辑器内的大纲浮钮并注册实际编辑宿主。 */
@@ -57,7 +58,7 @@ interface NoteEditorProps {
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, formatDock = null, inspectorOutline = false, onHostElement }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bindHost = useCallback((host: HTMLDivElement | null) => {
     hostRef.current = host;
@@ -74,6 +75,8 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const [slash, setSlash] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadTask[]>([]);
+  const uploadPending = uploads.length > 0;
+  useEffect(() => { onUploadStateChange?.(uploadPending); }, [onUploadStateChange, uploadPending]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onInputRef = useRef(onInput);
   onInputRef.current = onInput;

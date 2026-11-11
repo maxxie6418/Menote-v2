@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search } from "../../icons";
 import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import { PROPERTY_TYPES, parseOptionList } from "../../lib/frontmatter";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";

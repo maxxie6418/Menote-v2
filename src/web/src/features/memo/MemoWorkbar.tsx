@@ -1,4 +1,4 @@
-import { ChevronRight, Zap } from "lucide-react";
+import { ChevronRight, Zap } from "../../icons";
 import type { Item } from "@menote/shared";
 import { heatGrid, memoCalendar, memoStats, memoText, onThisDay, tagCounts, type MemoRange } from "./memoView";
 import { MemoViewToggle, type MemoView } from "./MemoBar";

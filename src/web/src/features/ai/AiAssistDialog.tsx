@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, X } from "../../icons";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiTaskKind, type AiTaskView, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings } from "../../services/aiSettingsService";
 import { pollAiTask, readAiUsage, submitAiTask } from "../../services/aiService";
 import { flushSync } from "../../services/syncEngine";
-import { splitFrontmatter, writeSummaryProperty } from "../../lib/frontmatter";
+import { splitFrontmatter } from "../../lib/frontmatter";
 
 export interface AiAssistDialogProps {
   userId: string;
@@ -15,7 +15,7 @@ export interface AiAssistDialogProps {
   markdown: string;
   /** 从清单「AI 概述」进入时自动提交一次摘要，仍须确认后才写入。 */
   autoRun?: AiTaskKind;
-  onApplySummary: (nextMarkdown: string) => void;
+  onApplySummary: (summary: string) => Promise<boolean>;
   onApplyTags: (tags: string[]) => Promise<void>;
   onClose: () => void;
 }
@@ -29,6 +29,7 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
   const [task, setTask] = useState<AiTaskView | null>(null);
   const [usage, setUsage] = useState<AiUsageSummary | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,9 +92,10 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
 
   return (
     <div className="mn-overlay" role="presentation">
-      <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="AI 助手">
+      <div className="mn-dialog mn-ai-dialog" role="dialog" aria-modal="true" aria-label="AI 助手">
         <div className="mn-dialog-head">
           <p className="mn-dialog-title">AI 助手 · {title || "无标题"}</p>
+          <button type="button" className="mn-iconbtn" aria-label="关闭" onClick={onClose}><X /></button>
         </div>
         <div className="mn-dialog-body">
           {settings && !settings.enabled && (
@@ -101,16 +103,15 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
           )}
           {settings?.enabled && (
             <>
-              <div className="mn-dialog-actions">
-                <button type="button" className="mn-auth-submit" disabled={run.kind === "running"}
+              <div className="mn-ai-commands">
+                <button type="button" className="mn-btn" disabled={run.kind === "running" || saving}
                   onClick={() => { void runTask("summary"); }}>
                   <Sparkles /> 生成概述
                 </button>
-                <button type="button" className="mn-auth-submit" disabled={run.kind === "running"}
+                <button type="button" className="mn-btn" disabled={run.kind === "running" || saving}
                   onClick={() => { void runTask("tags"); }}>
                   <Sparkles /> 推荐标签
                 </button>
-                <button type="button" className="mn-auth-link" onClick={onClose}>关闭</button>
               </div>
               {run.kind === "running" && <p className="mn-auth-hint" role="status">推理进行中，通常几秒内完成…</p>}
               {run.kind === "error" && <p className="mn-auth-hint" role="alert">{run.message}</p>}
@@ -118,11 +119,17 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
                 <div>
                   <p className="mn-setlabel">概述建议（确认后保存到标题下的属性「概述」，原文不变，可再编辑）</p>
                   <p className="mn-sethint">{summary}</p>
-                  <div className="mn-dialog-actions">
-                    <button type="button" className="mn-auth-submit" onClick={() => { onApplySummary(writeSummaryProperty(markdown, summary)); onClose(); }}>
+                  <div className="mn-ai-commands">
+                    <button type="button" className="mn-btn" disabled={saving} onClick={() => {
+                      setSaving(true);
+                      void onApplySummary(summary).then((saved) => {
+                        if (saved) onClose();
+                        else setRun({ kind: "error", message: "概述保存失败，请检查文档属性后重试。" });
+                      }).catch(() => setRun({ kind: "error", message: "概述保存失败，请重试。" })).finally(() => setSaving(false));
+                    }}>
                       保存到属性区
                     </button>
-                    <button type="button" className="mn-auth-link" onClick={() => { void runTask("summary", true); }}>重新生成</button>
+                    <button type="button" className="mn-textbtn" disabled={saving} onClick={() => { void runTask("summary", true); }}>重新生成</button>
                   </div>
                 </div>
               )}
@@ -145,12 +152,12 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
                       </div>
                     );
                   })}
-                  <div className="mn-dialog-actions">
-                    <button type="button" className="mn-auth-submit" disabled={picked.length === 0}
-                      onClick={() => { void onApplyTags(picked).then(onClose); }}>
+                  <div className="mn-ai-commands">
+                    <button type="button" className="mn-btn" disabled={picked.length === 0 || saving}
+                      onClick={() => { setSaving(true); void onApplyTags(picked).then(onClose).catch(() => setRun({ kind: "error", message: "标签保存失败，请重试。" })).finally(() => setSaving(false)); }}>
                       采用所选{picked.length > 0 ? `（${picked.length} 个）` : ""}
                     </button>
-                    <button type="button" className="mn-auth-link" onClick={() => { void runTask("tags", true); }}>重新推荐</button>
+                    <button type="button" className="mn-textbtn" disabled={saving} onClick={() => { void runTask("tags", true); }}>重新推荐</button>
                   </div>
                 </div>
               )}

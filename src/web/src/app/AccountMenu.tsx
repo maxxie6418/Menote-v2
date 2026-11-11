@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Activity, LogOut, SlidersHorizontal } from "lucide-react";
+import { Activity, LogOut, SlidersHorizontal } from "../icons";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
 import { updateAppearance } from "../services/appearanceSettingsService";

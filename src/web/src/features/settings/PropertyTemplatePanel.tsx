@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "../../icons";
 import type { PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import { PROPERTY_TYPES, parseOptionList } from "../../lib/frontmatter";
 import {
@@ -7,6 +7,7 @@ import {
 } from "../../services/propertyTemplateService";
 import { ContextMenu } from "../../components/ui/ContextMenu";
 import { groupTemplates, TYPE_LABELS } from "../props";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 interface Draft {
   name: string;
@@ -150,17 +151,15 @@ export function PropertyTemplatePanel({ userId }: { userId: string }) {
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">默认属性预设</p>
-          <p className="mn-sethint">
-            添加属性时可直接选用；改动只影响之后添加的属性，已经加进文档的不受影响。
-            <details className="mn-setdetails">
-              <summary>为什么键名用英文？</summary>
-              <p>
-                键名是可互通的机器名：Raindrop 组沿用连接器写死的标准列名，其余沿用 Obsidian 社区惯例。
-                中文只作显示名，导出到 Obsidian 不用改键。
-              </p>
-            </details>
-          </p>
+          <p className="mn-setlabel">默认属性预设<InfoHint>添加属性时可直接选用；改动只影响之后添加的属性，已经加进文档的不受影响。</InfoHint></p>
+          {/* 键名口径是可展开的独立说明，不塞进 ⓘ：浮层里放 <details> 点不到。 */}
+          <details className="mn-setdetails">
+            <summary>为什么键名用英文？</summary>
+            <p>
+              键名是可互通的机器名：Raindrop 组沿用连接器写死的标准列名，其余沿用 Obsidian 社区惯例。
+              中文只作显示名，导出到 Obsidian 不用改键。
+            </p>
+          </details>
         </div>
       </div>
 

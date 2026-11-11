@@ -46,7 +46,7 @@
 .mn-memo-bar-left { display: flex; align-items: center; gap: var(--app-space-10); min-width: 0; }
 .mn-memo-back {
   display: inline-flex; align-items: center; gap: var(--app-space-5);
-  height: var(--app-space-lg); padding: var(--app-zero) var(--app-space-10) var(--app-zero) var(--app-space-6);
+  height: var(--app-target-min); padding: var(--app-zero) var(--app-space-10) var(--app-zero) var(--app-space-6);
   border: var(--app-zero); border-radius: var(--app-radius-md);
   background: none; color: var(--app-fg-muted);
   font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer;
@@ -55,7 +55,7 @@
 .mn-memo-back svg { width: var(--app-icon-xs); height: var(--app-icon-xs); color: var(--app-fg-faint); }
 .mn-memo-bar-div { width: var(--app-line); height: var(--app-space-14); background: var(--app-border); }
 .mn-memo-bar-title { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-muted); text-transform: uppercase; }
-.mn-memo-bar-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); font-variant-numeric: tabular-nums; }
+.mn-memo-bar-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); font-variant-numeric: tabular-nums; }
 
 .mn-memo-scroll { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 /* 版心约束（负责人 2026-11-02）：时间轴不再无限拉宽，与编辑器同受阅读宽度档位（data-measure）
@@ -74,7 +74,7 @@
   background: var(--app-fg-faint);
   opacity: 0.32;
 }
-.mn-mgroup { font-size: var(--app-size-label); color: var(--app-fg-subtle); padding: var(--app-space-14) var(--app-zero) var(--app-space-6); display: flex; align-items: center; gap: var(--app-space-10); }
+.mn-mgroup { font-size: var(--app-size-nav); color: var(--app-fg-subtle); padding: var(--app-space-14) var(--app-zero) var(--app-space-6); display: flex; align-items: center; gap: var(--app-space-10); }
 .mn-mgroup::after { content: ""; flex: 1; height: var(--app-line); background: var(--app-border-subtle); }
 
 .mn-memo-main .mn-memo-card {
@@ -104,7 +104,7 @@
   display: flex; flex-direction: column; align-items: flex-end;
   gap: var(--app-space-2);
   padding: var(--app-space-14) var(--app-space-10) var(--app-zero) var(--app-zero);
-  font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint);
+  font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint);
   font-variant-numeric: tabular-nums; text-align: right;
 }
 .mn-memo-main .mn-memo-actions {
@@ -116,8 +116,8 @@
   transition: opacity var(--app-motion-fast) var(--app-ease), transform var(--app-motion-fast) var(--app-ease);
 }
 .mn-memo-main .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; transform: none; pointer-events: auto; }
-.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; width: var(--app-space-24); height: var(--app-space-24); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-faint); cursor: pointer; }
-.mn-memo-main .mn-memo-actions .mn-minibtn svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+/* 互动卡片动作：几何沿用 .mn-minibtn 基类（28 槽 + 14 图标），此处只管状态色与排布 */
+.mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; }
 .mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
 .mn-memo-main .mn-memo-actions .mn-minibtn[aria-pressed="true"] { color: var(--app-accent-fg); }
 .mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
@@ -140,7 +140,7 @@
   min-width: var(--app-memo-action-size); height: var(--app-memo-action-size);
   margin: var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-zero) var(--app-space-10);
   border: var(--app-zero); border-radius: var(--app-memo-action-radius); background: none;
-  color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer;
+  color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-nav); cursor: pointer;
   transition: background var(--app-duration-fast) var(--app-ease), color var(--app-duration-fast) var(--app-ease);
 }
 .mn-memo-interactions button:hover { background: var(--app-hover); color: var(--app-fg-muted); }
@@ -163,7 +163,7 @@
 .mn-memo-body li::marker { color: var(--app-fg-faint); }
 .mn-memo-body blockquote { padding-left: var(--app-space-14); border-left: var(--app-focus-width) solid var(--app-accent); color: var(--app-fg-subtle); }
 .mn-memo-body pre { padding: var(--app-space-xs) var(--app-space-10); background: var(--app-surface-sunken); border-radius: var(--app-radius-sm); overflow: auto; }
-.mn-memo-body pre code { background: none; padding: var(--app-zero); font-size: var(--app-size-micro); line-height: var(--app-leading-meta); }
+.mn-memo-body pre code { background: none; padding: var(--app-zero); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
 .mn-memo-body hr { border: var(--app-zero); height: var(--app-line); background: var(--app-border-subtle); margin: var(--app-space-10) var(--app-zero); }
 .mn-memo-body img { width: var(--app-space-2xl); height: var(--app-space-2xl); object-fit: cover; border-radius: var(--app-radius-sm); border: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-body :is(h1, h2, h3, h4, h5, h6, table) { display: none; }
@@ -171,8 +171,8 @@
 .mn-memo-locked { margin: var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-list-title); }
 
 .mn-memo-tags { display: flex; flex-wrap: wrap; gap: var(--app-space-5); margin: var(--app-space-xs) var(--app-zero) var(--app-zero); }
-.mn-memo-tag { font-size: var(--app-size-label); color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-xs); }
-.mn-memo-status { display: inline-flex; align-items: center; gap: var(--app-space-4); height: var(--app-space-18); margin-top: var(--app-space-xs); padding: var(--app-zero) var(--app-space-6); border-radius: var(--app-radius-pill); background: var(--app-accent-subtle); color: var(--app-accent-fg); font-size: var(--app-size-label); }
+.mn-memo-tag { font-size: var(--app-size-nav); color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-xs); }
+.mn-memo-status { display: inline-flex; align-items: center; gap: var(--app-space-4); height: var(--app-space-18); margin-top: var(--app-space-xs); padding: var(--app-zero) var(--app-space-6); border-radius: var(--app-radius-pill); background: var(--app-accent-subtle); color: var(--app-accent-fg); font-size: var(--app-size-nav); }
 .mn-memo-status i { width: var(--app-space-4); height: var(--app-space-4); border-radius: var(--app-radius-pill); background: var(--app-accent); }
 .mn-memo-edit { width: var(--app-full-size); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface-sunken); color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-list-title); line-height: var(--app-leading-meta); padding: var(--app-space-10); resize: vertical; }
 
@@ -187,30 +187,30 @@
 }
 .mn-memo-work-block { display: flex; flex-direction: column; gap: var(--app-space-6); padding-bottom: var(--app-space-sm); }
 .mn-memo-work-block + .mn-memo-work-block { padding-top: var(--app-space-sm); border-top: var(--app-line) solid var(--app-border-subtle); }
-.mn-memo-work h2 { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-subtle); font-size: var(--app-size-label); font-weight: var(--app-weight-medium); letter-spacing: var(--app-memo-letter-spacing); }
+.mn-memo-work h2 { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-subtle); font-size: var(--app-size-nav); font-weight: var(--app-weight-medium); letter-spacing: var(--app-memo-letter-spacing); }
 .mn-memo-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); overflow: hidden; }
 .mn-memo-stats div { display: flex; flex-direction: column; align-items: center; gap: var(--app-space-2); padding: var(--app-space-6) var(--app-space-4); min-width: 0; }
 .mn-memo-stats div + div { border-left: var(--app-line) solid var(--app-border); }
 .mn-memo-stats b { color: var(--app-fg); font-size: var(--app-font-body); font-weight: var(--app-weight-medium); line-height: var(--app-leading-nav); font-variant-numeric: tabular-nums; }
-.mn-memo-stats span { max-width: var(--app-full-size); overflow: hidden; color: var(--app-fg-subtle); font-size: var(--app-size-label); white-space: nowrap; text-overflow: ellipsis; }
-.mn-memo-heat-sum { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-subtle); font-size: var(--app-size-label); }
+.mn-memo-stats span { max-width: var(--app-full-size); overflow: hidden; color: var(--app-fg-subtle); font-size: var(--app-size-nav); white-space: nowrap; text-overflow: ellipsis; }
+.mn-memo-heat-sum { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-subtle); font-size: var(--app-size-nav); }
 .mn-memo-heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); grid-auto-columns: 1fr; gap: var(--app-space-2); aspect-ratio: 12 / 6; padding: var(--app-zero) var(--app-space-xs); }
 .mn-memo-heat i, .mn-memo-heat-legend i { border-radius: var(--app-space-2); background: var(--app-border); }
 .mn-memo-heat i[data-level="1"], .mn-memo-heat-legend i[data-level="1"] { background: color-mix(in srgb, var(--app-accent) var(--app-memo-heat-level-1), var(--app-surface)); }
 .mn-memo-heat i[data-level="2"], .mn-memo-heat-legend i[data-level="2"] { background: color-mix(in srgb, var(--app-accent) var(--app-memo-heat-level-2), var(--app-surface)); }
 .mn-memo-heat i[data-level="3"], .mn-memo-heat-legend i[data-level="3"] { background: color-mix(in srgb, var(--app-accent) var(--app-memo-heat-level-3), var(--app-surface)); }
 .mn-memo-heat i[data-level="4"], .mn-memo-heat-legend i[data-level="4"] { background: var(--app-accent); }
-.mn-memo-heat-legend { display: flex; align-items: center; gap: var(--app-space-4); margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-memo-heat-legend { display: flex; align-items: center; gap: var(--app-space-4); margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-memo-heat-legend i { width: var(--app-space-10); height: var(--app-space-10); }
 .mn-memo-range { display: flex; gap: var(--app-space-2); padding: var(--app-space-2); height: var(--app-space-lg); background: var(--app-surface-sunken); border-radius: var(--app-radius); }
-.mn-memo-range button { flex: 1; border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-label); cursor: pointer; white-space: nowrap; }
+.mn-memo-range button { flex: 1; border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-nav); cursor: pointer; white-space: nowrap; }
 .mn-memo-range button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-shadow-seg); }
 .mn-memo-taglist { display: flex; flex-direction: column; }
 .mn-memo-taglist button { position: relative; display: flex; align-items: center; gap: var(--app-space-xs); width: var(--app-full-size); padding: var(--app-space-6) var(--app-space-xs); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-list-title); text-align: left; cursor: pointer; }
 .mn-memo-taglist button:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-memo-taglist button[aria-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); font-weight: var(--app-weight-medium); }
 .mn-memo-taglist button[aria-pressed="true"]::before { content: ""; position: absolute; left: var(--app-zero); top: var(--app-space-xs); bottom: var(--app-space-xs); width: var(--app-focus-width); border-radius: var(--app-space-2); background: var(--app-accent); }
-.mn-memo-taglist span { margin-left: auto; color: var(--app-fg-faint); font-size: var(--app-size-label); font-variant-numeric: tabular-nums; }
+.mn-memo-taglist span { margin-left: auto; color: var(--app-fg-faint); font-size: var(--app-size-nav); font-variant-numeric: tabular-nums; }
 
 .mn-memo-todo {
   position: absolute; right: var(--app-space-14); top: var(--app-space-4); bottom: auto;
@@ -223,12 +223,12 @@
   overflow-y: auto;
 }
 .mn-memo-todo-head { display: flex; align-items: center; gap: var(--app-space-6); padding: var(--app-zero) var(--app-space-6) var(--app-space-xs); border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-memo-todo-head > span:first-child { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); letter-spacing: var(--app-memo-letter-spacing); text-transform: uppercase; color: var(--app-fg-faint); }
-.mn-memo-todo-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-memo-todo-head > span:first-child { font-family: var(--app-font-mono); font-size: var(--app-size-chip); letter-spacing: var(--app-memo-letter-spacing); text-transform: uppercase; color: var(--app-fg-faint); }
+.mn-memo-todo-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-memo-todo-head button { border: var(--app-zero); background: none; color: var(--app-fg-faint); padding: var(--app-zero); cursor: pointer; display: flex; }
 .mn-memo-todo-head button svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-memo-todo-group { display: flex; align-items: center; gap: var(--app-space-6); width: var(--app-full-size); padding: var(--app-zero) var(--app-space-6) var(--app-space-2); border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-label); cursor: pointer; }
-.mn-memo-todo-group span { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
+.mn-memo-todo-group { display: flex; align-items: center; gap: var(--app-space-6); width: var(--app-full-size); padding: var(--app-zero) var(--app-space-6) var(--app-space-2); border: var(--app-zero); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-nav); cursor: pointer; }
+.mn-memo-todo-group span { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-memo-todo ul { list-style: none; margin: var(--app-zero); padding: var(--app-zero); }
 .mn-memo-todo li { display: flex; align-items: flex-start; gap: var(--app-space-6); padding: var(--app-space-5) var(--app-space-6); border-radius: var(--app-radius-md); font-size: var(--app-size-nav); line-height: var(--app-leading-summary); color: var(--app-fg-muted); }
 .mn-memo-todo li:hover { background: var(--app-hover); }
@@ -239,8 +239,8 @@
 .mn-memo-todo li.done button { text-decoration: line-through; text-decoration-color: var(--app-border); }
 .mn-memo-todo li button { flex: 1; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: inherit; text-align: left; cursor: pointer; padding: var(--app-zero); }
 .mn-memo-todo li input { margin-top: var(--app-space-2); accent-color: var(--app-accent); }
-.mn-memo-todo-empty { margin: var(--app-zero); padding: var(--app-space-6); color: var(--app-fg-faint); font-size: var(--app-size-label); }
-.mn-memo-todo-toggle { position: absolute; right: var(--app-space-14); top: var(--app-space-10); z-index: 2; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-pill); background: var(--app-surface); color: var(--app-fg-subtle); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4) var(--app-space-10); cursor: pointer; box-shadow: var(--app-shadow-card); }
+.mn-memo-todo-empty { margin: var(--app-zero); padding: var(--app-space-6); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
+.mn-memo-todo-toggle { position: absolute; right: var(--app-space-14); top: var(--app-space-10); z-index: 2; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-pill); background: var(--app-surface); color: var(--app-fg-subtle); font-family: var(--app-font-mono); font-size: var(--app-size-chip); padding: var(--app-space-4) var(--app-space-10); cursor: pointer; box-shadow: var(--app-shadow-card); }
 .mn-memo-drawer { margin: var(--app-space-xs) var(--app-zero) var(--app-zero) var(--app-space-lg); }
 
 .mn-memo-view { display: flex; gap: var(--app-space-2); padding: var(--app-space-2); height: var(--app-space-22); background: var(--app-surface-sunken); border-radius: var(--app-radius); flex: none; }
@@ -253,10 +253,10 @@
 .mn-memo-wander:hover { border-color: var(--app-accent); background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 .mn-memo-otd { display: flex; flex-direction: column; gap: var(--app-space-2); width: var(--app-full-size); padding: var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); text-align: left; cursor: pointer; }
 .mn-memo-otd:hover { background: var(--app-hover); }
-.mn-memo-otd-head { display: flex; align-items: baseline; gap: var(--app-space-xs); font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint); }
+.mn-memo-otd-head { display: flex; align-items: baseline; gap: var(--app-space-xs); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-memo-otd-head span:last-child { margin-left: auto; }
 .mn-memo-otd-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--app-size-nav); line-height: var(--app-leading-summary); color: var(--app-fg-muted); }
-.mn-memo-otd-empty { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-label); }
+.mn-memo-otd-empty { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
 
 .mn-memo-main.is-gallery .mn-timeline { display: none; }
 /* 图册与时间轴同宽同轴心：切换视图时内容列的左缘不跳，图册列宽同样吃阅读宽度档位。 */
@@ -271,8 +271,8 @@
 .mn-memo-gal-thumb { display: block; width: var(--app-full-size); aspect-ratio: var(--mn-memo-gallery-ratio, var(--app-memo-gallery-default-ratio)); border-radius: var(--app-radius); overflow: hidden; background: var(--app-surface-sunken); border: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-gal-thumb[data-loaded="false"] { background: linear-gradient(90deg, var(--app-surface-sunken), var(--app-border-subtle), var(--app-surface-sunken)); }
 .mn-memo-gal-thumb img { display: block; width: var(--app-full-size); height: auto; }
-.mn-memo-gal-cap { display: flex; align-items: center; gap: var(--app-space-xs); margin-top: var(--app-space-6); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-faint); }
-.mn-memo-gal-cap span { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-label); }
+.mn-memo-gal-cap { display: flex; align-items: center; gap: var(--app-space-xs); margin-top: var(--app-space-6); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
+.mn-memo-gal-cap span { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-nav); }
 
 /* 评论与引述（FR-MEMO-7/8）：卡片内原位编辑、平铺评论、不可变来源快照。 */
 .mn-memo-interactions button:disabled { cursor: default; opacity: var(--app-mobile-disabled-opacity); }
@@ -280,8 +280,8 @@
 .mn-memo-comment { padding: var(--app-space-6) var(--app-zero); }
 .mn-memo-comment + .mn-memo-comment { border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-comment-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-memo-comment-time-size); }
-.mn-memo-comment-actions { margin-left: auto; display: inline-flex; gap: var(--app-space-2); }
-.mn-memo-comment-actions button { width: var(--app-space-18); height: var(--app-space-18); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
+.mn-memo-comment-actions { margin-left: auto; display: inline-flex; gap: var(--app-space-4); }
+.mn-memo-comment-actions button { width: var(--app-target-min); height: var(--app-target-min); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-faint); cursor: pointer; }
 .mn-memo-comment-actions button:hover { background: var(--app-hover); color: var(--app-fg-muted); }
 .mn-memo-comment-actions svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-comment-content { margin-top: var(--app-space-2); color: var(--app-fg-muted); font-size: var(--app-memo-comment-content-size); line-height: var(--app-leading-summary); }
@@ -289,7 +289,7 @@
 .mn-memo-comment-content :last-child { margin-bottom: var(--app-zero); }
 .mn-memo-comments-empty { margin: var(--app-zero); padding: var(--app-space-sm) var(--app-zero); color: var(--app-fg-faint); font-size: var(--app-size-button); }
 .mn-memo-inline-editor { margin-top: var(--app-space-8); padding: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
-.mn-memo-action-error { margin: var(--app-space-6) var(--app-zero) var(--app-zero); color: var(--app-danger); font-size: var(--app-size-label); }
+.mn-memo-action-error { margin: var(--app-space-6) var(--app-zero) var(--app-zero); color: var(--app-danger); font-size: var(--app-size-nav); }
 .mn-memo-inline-editor .mn-memo-comment-compose { padding: var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-inline-editor .mn-memo-quote-footer { padding: var(--app-space-8) var(--app-zero) var(--app-zero); border-top: var(--app-zero); }
 .mn-memo-comment-edit { display: flex; flex-direction: column; gap: var(--app-space-6); margin-top: var(--app-space-4); }
@@ -298,12 +298,12 @@
 .mn-memo-comment-edit button { border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; cursor: pointer; }
 .mn-memo-comment-compose { display: flex; align-items: end; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-comment-compose textarea { flex: 1; min-height: var(--app-space-34); max-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: var(--app-surface-sunken); border-radius: var(--app-radius-lg); padding: var(--app-space-10); color: var(--app-fg); font: inherit; }
-.mn-memo-comment-compose button { width: var(--app-space-22); height: var(--app-space-22); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
+.mn-memo-comment-compose button { width: var(--app-target-min); height: var(--app-target-min); display: grid; place-items: center; border: var(--app-zero); border-radius: var(--app-radius-pill); background: var(--app-accent); color: var(--app-accent-text); cursor: pointer; }
 .mn-memo-comment-compose button:disabled { background: var(--app-border); color: var(--app-fg-faint); cursor: default; }
 .mn-memo-comment-compose svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-quote-input { width: var(--app-full-size); min-height: var(--app-space-2xl); resize: vertical; border: var(--app-zero); outline: none; background: none; color: var(--app-fg); font: inherit; line-height: var(--app-leading-summary); }
 .mn-memo-quote-snapshot { margin-top: var(--app-space-10); padding: var(--app-space-10) var(--app-space-14); border-radius: var(--app-memo-quote-radius); background: var(--app-surface-sunken); }
-.mn-memo-quote-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-label); }
+.mn-memo-quote-head { display: flex; align-items: center; gap: var(--app-space-6); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-nav); }
 .mn-memo-quote-head > span { display: inline-flex; align-items: center; gap: var(--app-space-5); }
 .mn-memo-quote-head svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-quote-head button { margin-left: auto; border: var(--app-zero); background: none; color: var(--app-link); font: inherit; cursor: pointer; }
@@ -312,12 +312,12 @@
 .mn-memo-quote-content :last-child { margin-bottom: var(--app-zero); }
 .mn-memo-card-body > .mn-memo-quote-snapshot .mn-memo-quote-content { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .mn-memo-quote-snapshot.is-source-deleted .mn-memo-quote-head > span:last-child { margin-left: auto; }
-.mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
-.mn-memo-quote-footer button { margin-left: auto; height: var(--app-space-22); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
+.mn-memo-quote-footer { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-sm) var(--app-space-lg) var(--app-space-lg); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
+.mn-memo-quote-footer button { margin-left: auto; height: var(--app-target-min); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); border-radius: var(--app-radius-sm); background: var(--app-accent); color: var(--app-accent-text); font: inherit; cursor: pointer; }
 .mn-memo-quote-footer button:disabled { opacity: var(--app-mobile-disabled-opacity); cursor: default; }
-.mn-memo-comments-toggle { display: inline-flex; align-items: center; gap: var(--app-space-5); margin: var(--app-space-6) var(--app-zero) var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-space-4) var(--app-space-10); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-label); cursor: pointer; }
+.mn-memo-comments-toggle { display: inline-flex; align-items: center; gap: var(--app-space-5); margin: var(--app-space-6) var(--app-zero) var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-space-4) var(--app-space-10); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-nav); cursor: pointer; }
 .mn-memo-comments-toggle:hover { background: var(--app-accent-subtle); }
 .mn-memo-comments-toggle svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-memo-inline-comments { margin-top: var(--app-space-2); padding-left: var(--app-memo-thread-indent); border-left: var(--app-memo-comment-indent-line) solid var(--app-border-subtle); }
 .mn-memo-inline-comments button { display: flex; gap: var(--app-space-10); width: var(--app-full-size); padding: var(--app-space-4) var(--app-zero); overflow: hidden; border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.mn-memo-inline-comments time { flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); }
+.mn-memo-inline-comments time { flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }

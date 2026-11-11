@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "lucide-react";
+import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "../../icons";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -13,6 +13,7 @@ import { UnlockPanel } from "../encryption";
 import { DocTitle } from "./DocTitle";
 import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, shouldOfferRecovery, writeRecovery } from "../../services/recoveryService";
 import { DocSyncStatus } from "../sync";
+import { notifyEditorChange, registerEditorSave } from "../../services/editorSaveService";
 import { ConflictCompare } from "./ConflictCompare";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
@@ -90,17 +91,27 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   useEffect(() => () => lockOnLeave(item.id), [item.id]);
 
   const flush = useCallback(async (value: string | null) => {
-    if (value === null || !isNoteUnlocked(item.id)) return;
+    if (value === null || !isNoteUnlocked(item.id)) return false;
+    const savingTick = dirtyTickRef.current;
     setSaveState({ kind: "saving" });
     try {
       await saveEncryptedContent(userId, item.id, value);
       setPlain(value);
-      setSavedTick(dirtyTickRef.current);
+      setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
+      return true;
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
+      return false;
     }
   }, [item.id, userId]);
+
+  useEffect(() => registerEditorSave(userId, async () => {
+    if (dirtyTick <= savedTick && saveState.kind !== "error") return true;
+    return flush(getMarkdownRef.current?.() ?? plainRef.current);
+  }), [userId, dirtyTick, savedTick, saveState.kind, flush]);
+
+  useEffect(() => { notifyEditorChange(); }, [dirtyTick]);
 
   useEffect(() => {
     if (!unlocked || plain === null) return;
@@ -137,14 +148,14 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   // 自动保存：键入只给脏信号，800ms 后从编辑器取全量明文再存（FR-EDT-10）。
   // 编辑器未挂载（表格形态 / 预览态）时退回 plain 的最新值。
   useEffect(() => {
-    if (plainRef.current === null || !unlocked) return;
+    if (plainRef.current === null || !unlocked || dirtyTick <= savedTick) return;
     const timer = setTimeout(() => {
       const next = getMarkdownRef.current?.() ?? plainRef.current;
     if (next === null) return;
     void flush(next);
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dirtyTick, unlocked, flush]);
+  }, [dirtyTick, savedTick, unlocked, flush]);
 
   const onUnlock = async (credential: string, useRecovery: boolean) => {
     setUnlockError(null);

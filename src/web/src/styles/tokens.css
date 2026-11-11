@@ -1,3 +1,12 @@
+/* ---------- 界面密度（设置·外观，2026-11-10） ----------
+   全站尺寸以 rem 计，所以密度只动根字号一档：字号、间距、控件槽、图标同时按比例走。
+   这是"逐个令牌把 24 改成 28"之后剩下的根因 —— 控件小不是某几个令牌取值错，是整站基准偏小。
+   用百分比而非 px：尊重浏览器默认字号偏好（用户基准 18px 时紧凑档仍按比例缩）。
+   standard 不写属性（= 浏览器默认 16px），保持老用户视觉不变。 */
+:root[data-density="compact"] { font-size: 93.75%; }   /* 15px */
+:root[data-density="cozy"] { font-size: 106.25%; }     /* 17px */
+:root[data-density="spacious"] { font-size: 112.5%; }  /* 18px */
+
 /* 应用外壳与文档渲染 design tokens（AGENTS.md §5：业务组件禁止硬编码样式值）。
    取值依据根目录 DESIGN.md §2/§3/§4；断点常量在 AppShell 以 matchMedia 管理，CSS 不写媒体查询。 */
 :root {
@@ -71,16 +80,15 @@
   --app-leading-list-title: 1.45;
   --app-leading-doc-title: 1.32;
   --app-leading-editor: 1.7;
-  /* 字号档位（DESIGN §3.2：9.5/10/10.5/11.5/12/12.5/13.5/14/17/32） */
+  /* 字号档位（DESIGN §3.2：11.5 / 12 / 12.5 / 13 / 13.5 / 14 / 17 / 32）
+     2026-11-11 收敛：9.5 角标、10 元信息、10.5 分组标题、11 段标题四档全部并入
+     11.5（chip）与 12（nav）——中文在 11px 以下辨识成本过高，负责人确认全站按此规则。
+     原 kicker / micro / sechead 引用改为 chip，label 引用改为 nav。 */
   --app-font-small: 0.8125rem;
   --app-font-body: 0.875rem;
   --app-font-title: 2rem;
-  --app-size-kicker: 0.59375rem;   /* 9.5px 角标 */
-  --app-size-micro: 0.625rem;      /* 10px 日期元信息 */
-  --app-size-label: 0.65625rem;    /* 10.5px 分组标题 */
-  --app-size-sechead: 0.6875rem;   /* 11px 侧栏段标题（主题 / 标签） */
-  --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
-  --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-chip: 0.71875rem;     /* 11.5px 最小档：胶囊、键名、元信息、角标 */
+  --app-size-nav: 0.75rem;         /* 12px 侧栏项、分组标题、日期 */
   --app-size-body: 0.875rem;       /* 14px 正文 */
   --app-size-page-title: 2.375rem; /* 38px 页面标题/首页时钟 */
   --app-size-tree-l1: 0.8125rem;   /* 13px 主题树一级 */
@@ -118,7 +126,7 @@
   --app-home-capture-bar: 2.625rem;
   --app-home-tag-input-width: 11rem;
   --app-home-accent-mark: 2rem;
-  --app-home-save-height: 1.5625rem;
+  --app-home-save-height: 1.75rem;  /* 28px 首页快速输入的保存按钮（原 25） */
   --app-home-actions-top: 1rem;
   --app-home-action-pad: 0.875rem 0;
   --app-home-action-gap: 1.125rem;
@@ -234,7 +242,7 @@
   --app-btn-height: 2rem;          /* 32px 主按钮 */
   --app-cta-height: 2.125rem;      /* 34px 侧栏「新建笔记」 */
   --app-input-height: 2.125rem;    /* 34px 侧栏 Memo 快速输入（收起态） */
-  --app-sechead-height: 1.25rem;   /* 20px 段标题行 */
+  --app-sechead-height: 1.75rem;   /* 28px 段标题行：原 20px 装不下 28 的行尾动作按钮（DESIGN §8.2） */
   --app-count-width: 1rem;         /* 16px 计数列（等宽数字右对齐） */
   --app-tree-guide-x: 0.8125rem;   /* 13px 树连接线 x（父级箭头中心） */
   --app-tree-guide-stub: 0.9375rem;/* 15px 树连接线肘线长 */
@@ -252,19 +260,19 @@
   /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */
   --app-doc-measure-narrow: 42rem;
   --app-doc-measure-wide: 56rem;
-  --app-doc-measure-paper-default: 48rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
   --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
-  --app-icon-2xs: 0.5rem;          /* 8px */
-  --app-icon-xs: 0.75rem;          /* 12px */
-  --app-icon-xxs: 0.625rem;        /* 10px 树箭头 */
-  --app-icon-sm: 0.8125rem;        /* 13px */
-  --app-icon-md: 0.875rem;         /* 14px */
-  --app-minibtn-size: 1.125rem;    /* 18px 侧栏分组小按钮（图标槽，不可放文字） */
+  --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
+  --app-icon-xxs: 0.625rem;        /* 10px 树箭头/拖柄：这是字形槽不是按钮图标，尺寸被树连接线
+                                      几何锁死（--app-tree-guide-x = 行内边距 + 槽中心），不可上抬 */
+  --app-icon-sm: 0.875rem;         /* 14px：13/14 两档只差 1px，没有区分意义，与 xs 合并 */
+  --app-icon-md: 0.875rem;         /* 14px 图标按钮 */
+  /* 桌面点击目标底线（DESIGN §8.2「桌面 28px 起」）：所有可点控件的槽不小于 --app-target-min */
+  --app-minibtn-size: 1.75rem;     /* 28px 小按钮图标槽（树行尾 / 段标题动作），原 18px */
   --app-attach-thumb-size: 3.5rem;
-  --app-textbtn-height: 1.25rem;   /* 20px 行内文字按钮 */
-  --app-vt-size: 1.25rem;          /* 20px 视图切换段 */
-  --app-vt-height: 1.125rem;       /* 18px 视图切换段高 */
+  --app-textbtn-height: 1.5rem;    /* 24px 行内文字按钮（WCAG 2.2 AA 最小目标），原 20px */
+  --app-vt-size: 1.75rem;          /* 28px 视图切换段宽 */
+  --app-vt-height: 1.75rem;        /* 28px 视图切换段高：凹槽 2+28+2=32，对齐 --app-formseg-height */
   --app-tree-indent: 1.625rem;     /* 26px 树二级缩进 */
   --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
   --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
@@ -272,9 +280,9 @@
   --app-prop-key-width: 7.5rem;    /* 120px 属性键名列：外部剪藏的键是 parent_url / clipped_at 这类长键，30px 会被切成 pa… */
   /* 属性区双列重做（2026-11-04）：双列键列 96、行尾 ⋯ 22、多选胶囊 20、控件 28、浮层 320/252 */
   --app-props-key-duo: 6rem;
-  --app-props-more: 1.375rem;
+  --app-props-more: 1.75rem;   /* 28px 行尾 ⋯（原 22px）：属性行 32 高，上下各留 2 */
   --app-props-chip: 1.25rem;
-  --app-props-btn: 1.5rem;
+  --app-props-btn: 1.75rem;    /* 28px 属性区按钮（原 24px） */
   --app-props-ctrl: 1.75rem;
   --app-props-form-label: 3.5rem;
   --app-props-pop: 20rem;
@@ -286,7 +294,15 @@
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */
   --app-kicker-line-height: 0.09375rem; /* 1.5px */
   --app-empty-max: 15rem;          /* 240px 空态文案宽 */
+  --app-infohint-width: 18rem;     /* 288px 设置项说明浮层最大宽（约三行） */
   --app-touch-target: 2.75rem;     /* 44px 触控目标 */
+  --app-target-min: 1.75rem;       /* 28px 桌面点击目标底线（DESIGN §8.2）；触屏仍用 44 */
+  /* 文档栏工具组（2026-11-10 收紧）：44 的点击区配 20 图标，字形之间净空 28px，
+     一排在宽屏上散成孤立符号。槽收到 32、图标保持 20（净空 16）、上下留白 14→10。 */
+  --app-docbar-btn: 2rem;          /* 32px 工具按钮槽 */
+  --app-docbar-icon: var(--app-icon-xl); /* 工具图标保持 20px，只收槽不收字 */
+  --app-docbar-pad: 0.625rem;      /* 10px 工具条上下留白（原 14） */
+  --app-docbar-vt: 1.75rem;        /* 28px 编辑/预览分段高，槽宽同 --app-docbar-btn */
   --app-chip-height: 1.4375rem;    /* 23px 标签胶囊 */
   --app-pill-height: 1.1875rem;    /* 19px 状态胶囊 */
   --app-dot-size: 0.3125rem;       /* 5px 状态点 */
@@ -331,14 +347,14 @@
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
   --app-memo-card-pad-y: 0.8125rem;
   --app-memo-card-pad-x: 1rem;
-  --app-memo-action-size: 1.625rem;
+  --app-memo-action-size: 1.75rem;   /* 28px Memo 互动按钮（原 26，低于 §8.2 底线） */
   --app-memo-action-gap: 0.75rem;
   --app-memo-action-radius: 0.5rem;
   --app-memo-thread-indent: 0.875rem;
   --app-memo-quote-radius: 0.75rem;
   --app-memo-comment-indent-line: 1.5px;
   --app-memo-comment-content-size: var(--app-size-button);
-  --app-memo-comment-time-size: var(--app-size-label);
+  --app-memo-comment-time-size: var(--app-size-nav);
   --app-memo-quote-text-size: var(--app-size-button);
   --app-radius-sm: 0.25rem;        /* 4px */
   --app-radius-md: 0.3125rem;      /* 5px */
@@ -363,15 +379,18 @@
   /* 焦点环（DESIGN §8.2：统一 3px 橙 35%，不用浏览器默认；outline 形态避免覆盖选中条阴影） */
   --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, 0.35);
   --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, 0.35);
-  /* 滚动条（DESIGN §4.3：极细发丝线，悬停提高对比度）
-     槽宽 10px；滑块以 2px 透明边内缩，可见宽 6px，两端圆角。
-     常态对比度 浅 1.75:1（纸面）/ 深 1.88:1（纸面），保持克制；
-     悬停 浅 3.29:1 / 深 3.46:1，达到非文本 3:1 门槛。 */
-  --app-scrollbar-size: 10px;        /* 槽宽（纵向为 width，横向为 height） */
+  /* 滚动条（DESIGN §4.3：常态近乎隐形，指针进入滚动区才浮现）
+     槽宽 9px；滑块以 2px 透明边内缩，可见宽 5px，两端圆角。
+     常态用 8% 半透明墨色而非实色：同一 alpha 在纸面（浅）与侧栏（深）上
+     合成后都只剩约 1.2:1，滑块不会因为落到更深的那一层表面而突然变显眼。
+     指针进入滚动区（容器 :hover）才升到可辨识的 3.29:1，离开即隐去。
+     2026-11-11：负责人连续两轮弱化——先收窄（10→9px、6→5px），
+     再把常态改为半透明、悬停判定放宽到容器。 */
+  --app-scrollbar-size: 9px;         /* 槽宽（纵向为 width，横向为 height） */
   --app-scrollbar-inset: 2px;        /* 滑块与槽边的透明内缩 */
   --app-scrollbar-track: transparent;
-  --app-scrollbar-thumb: #c4c4c0;            /* 常态滑块 */
-  --app-scrollbar-thumb-hover: #8e8e8a;      /* 悬停/拖拽滑块 */
+  --app-scrollbar-thumb: rgba(26, 27, 24, 0.08);      /* 常态：约 1.2:1，日常浏览几乎不可见 */
+  --app-scrollbar-thumb-hover: #8e8e8a;               /* 指针进入滚动区 / 拖拽：3.29:1 */
   /* 动效（DESIGN §4.6 关键 CSS） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
@@ -407,13 +426,13 @@
   --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
   --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */
-  --app-dlg-head-height: 50px;      /* 设置对话框头 */
-  --app-dlg-nav-width: 158px;       /* 设置对话框左导航 */
+  --app-dlg-head-height: 3.125rem;  /* 设置对话框头（50px，改 rem 以便随界面密度缩放） */
+  --app-dlg-nav-width: 9.875rem;    /* 设置对话框左导航（158px） */
   --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
-  --app-formatbtn-size: 1.5rem;     /* 格式栏图标按钮 24px 见方 */
+  --app-formatbtn-size: 1.75rem;    /* 格式栏图标按钮 28px 见方（原 24px） */
   --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
   --app-table-colw-0: 7.5rem; --app-table-colw-1: 9rem; --app-table-colw-2: 10.5rem; --app-table-colw-3: 12rem;
   --app-table-colw-4: 14rem; --app-table-colw-5: 17rem; --app-table-colw-6: 20rem; --app-table-colw-7: 24rem;
@@ -434,6 +453,7 @@
   --app-authload-shift: 1rem;       /* 登录加载动画竖直幅度（SVG 用户坐标系） */
   --app-visually-hidden: 1px;       /* 读屏隐藏通用尺寸 */
   --app-dialog-center: translate(-50%, -50%); /* E2 对话框居中 */
+  --app-popover-shift-up: translate(-50%, -100%); /* 选区格式栏：贴选区上沿居中 */
   --app-dialog-offset: 50%;        /* E2 对话框定位锚点 */
   --app-dialog-wide: min(40rem, 100%); /* E3 表格编辑对话框 */
   --app-tree-indent-rest: calc(100% - var(--app-tree-indent)); /* E2 分组输入缩进余宽 */
@@ -481,7 +501,7 @@
   --md-table-border: var(--app-line) solid var(--app-border);
   --md-table-padding: 0.5rem 0.75rem;
   --md-table-head-bg: var(--app-surface-sunken);
-  --md-table-head-size: 0.59375rem; /* 9.5px 表头 */
+  --md-table-head-size: 0.71875rem; /* 11.5px 表头（2026-11-11 与最小档对齐，原 9.5px） */
   --md-table-size: 0.75rem;          /* 12px，design.html .prose table */
   --md-table-gap: 0.75rem;           /* 12px，design.html .prose table 下边距 */
   --md-table-cell-pad: 0.3125rem 0.5rem 0.3125rem 0; /* 5px 8px 5px 0 */
@@ -558,8 +578,8 @@
   --app-pill-pink-bg: #462b37; --app-pill-pink-fg: #ffd6e6; --app-pill-pink-border: #704157;
   /* 分段选中项的抬升阴影：深色下槽底与纸面差小，靠阴影把选中项托起来 */
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, 0.42);
-  /* 滚动条深色：常态 1.88:1 保持克制，悬停 3.46:1 保证可发现 */
-  --app-scrollbar-thumb: #45494d;
+  /* 滚动条深色：常态 9% 白光（约 1.2:1），指针进入滚动区才升到 3.46:1 */
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
   --app-scrollbar-thumb-hover: #6b7176;
 }
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
@@ -579,118 +599,34 @@
   --app-doc-measure: var(--app-full-size);
 }
 
-/* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。 */
+/* 文档区布局（设置·外观）：属性侧栏与底部工具坞的几何。皮肤层只换颜色。
+   2026-11-11 柔纸合并：--app-doc-side-gap / side-top 与底部坞三项（bottom / pad / clear）
+   原先只在柔纸令牌块里定义，墨台与素灰下是未定义变量（声明被浏览器丢弃），此处提到主题无关层统一。 */
 :root {
   --app-doc-side-width: 9.25rem;   /* 148px 页边注 */
   --app-doc-inspector-width: 16rem; /* 256px Note 检查器 */
+  --app-doc-side-gap: 0.75rem;
+  --app-doc-side-top: 0.25rem;
   --app-dock-left: 50%;
   --app-dock-shift: translateX(-50%);
+  --app-dock-bottom: 1.125rem;
+  --app-dock-pad: 0.3125rem;
+  --app-dock-clear: 4.5rem;
   --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
 }
 :root[data-theme="dark"] {
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
 }
 
-/* ---------- 柔纸模式（设置·外观，负责人 2026-11-04） ----------
-   皮肤与深色/浅色正交：data-skin="paper" 只换令牌取值，结构覆盖在 styles/paper.css。
-   不切到柔纸时以下规则一条都不命中，默认主题不受影响。
-   无显式版心偏好时采用 48rem 默认值；用户的 narrow / wide / full 选项在所有皮肤生效。 */
-:root[data-skin="paper"]:not([data-measure]) {
-  --app-doc-measure: var(--app-doc-measure-paper-default);
-}
-:root[data-skin="paper"] {
-  /* 四层表面：侧栏 → 清单 → 纸面 → 案头（缝） */
-  --app-bg-side: #efebde;
-  --app-bg-list: #f7f5ec;
-  --app-bg-desk: #e9e5d9;
-  --app-surface: #fcfbf6;
-  --app-surface-sunken: #f5f2e8;
-  --app-raised-on-side: #fcfbf6;
-  --app-seg-active: #fcfbf6;
-  --app-selected: #e7eee8;
-  --app-hover: #f3f0e5;
-  --app-border: #e4dfd0;
-  --app-border-subtle: #ede8da;
-  /* 墨四档 */
-  --app-fg: #1a1b18;
-  --app-fg-muted: #4f5249;
-  --app-fg-subtle: #6c6f64;
-  --app-fg-faint: #8b8d82;
-  /* 强调：松烟绿；朱砂仍只给危险态 */
-  --app-accent: #2e5b4c;
-  --app-accent-hover: #264c40;
-  --app-accent-text: #f7f5ec;
-  --app-accent-fg: #22483c;
-  --app-accent-subtle: #e7eee8;
-  --app-link: #2c4a73;
-  /* 字体：标题走衬线（系统栈，未额外分发字包） */
-  --app-font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, Georgia, serif;
-  /* 版面 */
-  --app-list-width: 16.5rem;
-  --app-list-width-compact: 16.5rem;
-  --app-doc-inspector-width: 19.75rem;
-  --app-note-paper-pad-block-start: 3.375rem;
-  --app-note-paper-pad-inline-start: 5.125rem;
-  --app-note-paper-pad-inline-end: 4.875rem;
-  --app-note-paper-pad-block-end: 6rem;
-  --app-doc-title-size: 2.5rem;
-  --app-paper-radius: 0.8125rem;
-  --app-paper-inset: 0.625rem;
-  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 1px 2px rgba(26, 27, 24, 0.04), 0 18px 40px -32px rgba(26, 27, 24, 0.5);
-  --app-doc-side-gap: 0.75rem;
-  --app-doc-side-top: 0.25rem;
-  --app-dock-bottom: 1.125rem;
-  --app-dock-pad: 0.3125rem;
-  --app-dock-clear: 4.5rem;
-  --app-dock-shadow: 0 0 0 1px rgba(26, 27, 24, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 12px 28px -14px rgba(26, 27, 24, 0.4);
-  /* 正文与标记（编辑态与预览态共用 --md-*） */
-  --md-body-size: 1.0625rem;
-  --md-body-leading: 1.85;
-  --md-body-color: var(--app-fg);
-  --md-h1-size: 1.4375rem;
-  --md-h1-weight: 600;
-  --md-h2-size: 1.4375rem;
-  --md-h2-weight: 600;
-  --md-h3-size: 1.0625rem;
-  --md-h3-weight: 700;
-  --md-list-indent: 1.25rem;
-  --md-list-gap: 0.875rem;
-  --md-quote-color: var(--app-accent);
-  --md-quote-padding: 1.125rem;
-  --md-quote-padding-tight: 1.125rem;
-  --md-code-bg: var(--app-surface-sunken);
-  --md-code-size: 0.875rem;
-  --md-table-head-bg: var(--app-surface-sunken);
-  --md-table-padding: 0.5rem 0.75rem;
-}
+/* ---------- 柔纸模式已下线（2026-11-11 与墨台合并） ----------
+   两者同属暖色纸质皮肤，合并为单一「墨台」：原 data-skin="paper" 的令牌块、
+   styles/paper.css 的结构覆盖、preview 的 48rem 默认版心全部移除；
+   旧值 paper 在 lib/themeSkin.ts 与外观设置服务里迁移到 ink。 */
 
-:root[data-skin="paper"][data-theme="dark"] {
-  --app-bg-side: #1b1b1a;
-  --app-bg-list: #20201e;
-  --app-bg-desk: #161615;
-  --app-surface: #262624;
-  --app-surface-sunken: #2e2e2b;
-  --app-raised-on-side: #262624;
-  --app-seg-active: #33332f;
-  --app-selected: #2e2f2b;
-  --app-hover: #2c2c2a;
-  --app-border: #363634;
-  --app-border-subtle: #2c2c2a;
-  --app-fg: #eaeae7;
-  --app-fg-muted: #b6b6b1;
-  --app-fg-subtle: #8e8e89;
-  --app-fg-faint: #6c6c67;
-  --app-accent: #9acbb4;
-  --app-accent-hover: #aed8c3;
-  --app-accent-text: #11231a;
-  --app-accent-fg: #cde7da;
-  --app-accent-subtle: #2e2f2b;
-  --app-link: #9db6da;
-  --app-paper-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -34px #000;
-  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 28px -14px #000;
-}
-/* 墨台 v3 → app token 映射。纸张皮肤独立保留；默认视觉按 v3 深浅主题取值。 */
-:root:not([data-skin="paper"])[data-theme="light"] {
+/* 墨台 v3 → app token 映射。两种皮肤各自独立：墨台块排除 slate，
+   否则它（权重更高）会盖住素灰皮肤块的取值。
+   柔纸已于 2026-11-11 并入墨台（暖色纸质合并为一种皮肤），原 paper 令牌块整体下线。 */
+:root:not([data-skin="slate"])[data-theme="light"] {
   color-scheme: light;
   --app-bg-side: #e2ddce;
   --app-surface: #fffdf9;
@@ -723,7 +659,7 @@
   --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
 }
 
-:root:not([data-skin="paper"])[data-theme="dark"] {
+:root:not([data-skin="slate"])[data-theme="dark"] {
   color-scheme: dark;
   --app-bg-side: #0a0a09;
   --app-surface: #151614;
@@ -755,9 +691,9 @@
   --app-shadow-card: 0 1.125rem 3rem -.75rem rgba(0, 0, 0, .48), 0 .125rem .5rem rgba(0, 0, 0, .24);
 }
 
-:root:not([data-skin="paper"]) {
-  /* v3 几何基线（栏宽/圆角/间距/高度）与主题无关：放在无主题块，
-     深浅主题共用同一套刻度，不再出现切主题变栏宽的漂移。 */
+/* v3 几何基线（栏宽/圆角/间距/高度）与主题无关：两种皮肤共用同一套刻度，
+   不再出现切主题变栏宽的漂移。 */
+:root {
   --app-radius-xs: .125rem;
   --app-radius-sm: .1875rem;
   --app-radius-md: .3125rem;
@@ -788,8 +724,159 @@
   --app-shadow-seg: 0 1px 2px rgba(0, 0, 0, .16);
 }
 
+/* ---------- 素灰 / SLATE（默认主题，2026-11-10） ----------
+   与墨台正交：data-skin="slate" 只换取值，结构覆盖在 styles/slate.css。
+   取值依据：中性灰取 Radix / Tailwind slate 色阶（浅 1–4、深 11–12），
+   强调取 Radix indigo 的 9（实底）与 11（文字）两级，白字压 #3e63dd 为 5.2:1；
+   元信息灰在纯白上 5.0:1、在清单底上 4.5:1，四档文字都过 AA。
+   放在文件末尾：与上方 v3 墨台块同权重（0,3,0），靠顺序取胜，勿前移。 */
+:root[data-skin="slate"] {
+  /* 表面：侧栏（冷石板）→ 清单（浅灰）→ 文档墙（近白） */
+  --app-bg-side: #e9ebf1;
+  --app-surface: #ffffff;
+  --app-surface-sunken: #f4f5f9;
+  --app-canvas-bg: #fdfdff;
+  --app-raised-on-side: #ffffff;
+  --app-seg-active: #ffffff;
+  --app-selected: #eef1f6;
+  --app-hover: #f2f4f7;
+  --app-border: #dde1e9;
+  --app-border-subtle: #e8ebf1;
+  /* 文字四档 */
+  --app-fg: #1a1d24;
+  --app-fg-muted: #454b57;
+  --app-fg-subtle: #5d6472;
+  --app-fg-faint: #68707f;
+  /* 强调：靛蓝；实底配白字，文字色压深一档 */
+  --app-accent: #3e63dd;
+  --app-accent-hover: #3451b2;
+  --app-accent-text: #ffffff;
+  --app-accent-fg: #3451b2;
+  --app-accent-subtle: rgba(62, 99, 221, .09);
+  --app-accent-soft: rgba(62, 99, 221, .18);
+  --app-link: #2f5bc4;
+  --app-success: #4a7a5c;
+  --app-danger: #b3261e;
+  --app-surface-raised: #ffffff;
+  /* 文档墙没有纸卡：纸面即画布 */
+  --app-paper-bg: transparent;
+  --app-paper-fg: #1a1d24;
+  --app-paper-border: transparent;
+  --app-paper-shadow: none;
+  --app-shadow-card: 0 1px 2px rgba(20, 24, 33, .05);
+  --app-shadow-dialog: 0 18px 44px -22px rgba(20, 24, 33, .30);
+  --app-shadow-seg: 0 1px 2px rgba(20, 24, 33, .10);
+  --app-shadow-seg-lift: 0 1px 2px rgba(20, 24, 33, .12);
+  --app-dock-shadow: 0 0 0 1px rgba(20, 24, 33, .06), 0 12px 28px -14px rgba(20, 24, 33, .30);
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(20, 24, 33, .12);
+  --app-focus-ring: 0 0 0 0.1875rem rgba(62, 99, 221, .32);
+  --app-focus-outline: 0.1875rem solid rgba(62, 99, 221, .32);
+  --app-scrollbar-thumb: rgba(20, 24, 33, 0.08);
+  --app-scrollbar-thumb-hover: #8f96a3;
+  --app-overlay-bg: rgba(18, 22, 30, .42);
+  /* 角与字：控件 6、容器 8、弹层 12；标题位交回界面字体（全站无衬线） */
+  --app-radius-xs: .125rem;
+  --app-radius-sm: .25rem;
+  --app-radius-md: .375rem;
+  --app-radius: .375rem;
+  --app-radius-lg: .5rem;
+  --app-radius-xl: .75rem;
+  --app-font-serif: var(--app-font);
+  --app-weight-serif: 600;
+  --app-doc-title-size: 2.125rem;
+  /* 编辑器默认文字色板 */
+  --app-text-color-red: #c2412d;
+  --app-text-color-orange: #b45309;
+  --app-text-color-yellow: #8a6d00;
+  --app-text-color-green: #2f6b4a;
+  --app-text-color-blue: #3451b2;
+  --app-text-color-purple: #6d4fb3;
+  --app-text-color-gray: #5d6472;
+  /* 多维表格胶囊：底色压到近灰，靠色点与文字承相 */
+  --app-pill-neutral-bg: #eef1f6; --app-pill-neutral-fg: #454b57; --app-pill-neutral-border: #dde1e9;
+  --app-pill-red-bg: #fdeceb; --app-pill-red-fg: #94231c; --app-pill-red-border: #f3c4c0;
+  --app-pill-orange-bg: #fdf0e3; --app-pill-orange-fg: #8a3b00; --app-pill-orange-border: #f0cfae;
+  --app-pill-yellow-bg: #fbf5dd; --app-pill-yellow-fg: #715400; --app-pill-yellow-border: #e6d9a3;
+  --app-pill-green-bg: #eaf3ec; --app-pill-green-fg: #315b41; --app-pill-green-border: #bdd5c4;
+  --app-pill-teal-bg: #e8f3f4; --app-pill-teal-fg: #155b5f; --app-pill-teal-border: #b4d7d9;
+  --app-pill-blue-bg: #eaeefe; --app-pill-blue-fg: #2f4aa0; --app-pill-blue-border: #c2cdf5;
+  --app-pill-purple-bg: #f1edfd; --app-pill-purple-fg: #55408f; --app-pill-purple-border: #d5c9f2;
+  --app-pill-pink-bg: #fdecf2; --app-pill-pink-fg: #8a3559; --app-pill-pink-border: #f0c4d4;
+  /* 正文渲染：比墨台紧一档 */
+  --md-body-size: .9375rem;     /* 15px */
+  --md-body-leading: 1.78;
+  --md-body-color: var(--app-fg);
+  --md-h1-size: 1.8125rem;
+  --md-h1-weight: 600;
+  --md-h2-size: 1.1875rem;      /* 19px */
+  --md-h2-weight: 600;
+  --md-h3-size: .9375rem;
+  --md-h3-weight: 600;
+  --md-code-bg: var(--app-surface-sunken);
+  --md-quote-color: var(--app-fg-faint);
+  --md-table-head-bg: var(--app-surface-sunken);
+}
+:root[data-skin="slate"][data-theme="light"] { color-scheme: light; }
+
+:root[data-skin="slate"][data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg-side: #0a0c11;
+  --app-surface: #13161d;
+  --app-surface-sunken: #101319;
+  --app-canvas-bg: #13161d;
+  --app-raised-on-side: #191d26;
+  --app-seg-active: #222834;
+  --app-selected: #1a2030;
+  --app-hover: #171b23;
+  --app-border: #282d38;
+  --app-border-subtle: #1d212b;
+  --app-fg: #e8eaf0;
+  --app-fg-muted: #a9b0bd;
+  --app-fg-subtle: #8a92a1;
+  --app-fg-faint: #7d8595;
+  --app-accent: #4a5fd6;
+  --app-accent-hover: #5b70e4;
+  --app-accent-text: #ffffff;
+  --app-accent-fg: #9daaff;
+  --app-accent-subtle: rgba(94, 113, 240, .16);
+  --app-accent-soft: rgba(94, 113, 240, .26);
+  --app-link: #8ba4ff;
+  --app-success: #8fb79f;
+  --app-danger: #ff8a80;
+  --app-surface-raised: #1b1f29;
+  --app-paper-bg: transparent;
+  --app-paper-fg: #e8eaf0;
+  --app-paper-border: transparent;
+  --app-paper-shadow: none;
+  --app-shadow-card: 0 1px 2px rgba(0, 0, 0, .40);
+  --app-shadow-dialog: 0 20px 48px -22px #000;
+  --app-shadow-seg: 0 1px 2px rgba(0, 0, 0, .42);
+  --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, .48);
+  --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 12px 28px -14px #000;
+  --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(0, 0, 0, .40);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
+  --app-scrollbar-thumb-hover: #59616e;
+  --app-overlay-bg: rgba(4, 6, 10, .62);
+  --app-text-color-red: #f0948a;
+  --app-text-color-orange: #e3b077;
+  --app-text-color-yellow: #d9c47a;
+  --app-text-color-green: #8fbfa2;
+  --app-text-color-blue: #9db0ff;
+  --app-text-color-purple: #b8a9e8;
+  --app-text-color-gray: #9aa2af;
+  --app-pill-neutral-bg: #232936; --app-pill-neutral-fg: #cfd6e2; --app-pill-neutral-border: #333b49;
+  --app-pill-red-bg: #3f2323; --app-pill-red-fg: #ffd9d7; --app-pill-red-border: #63383a;
+  --app-pill-orange-bg: #3f2c1d; --app-pill-orange-fg: #ffdfbd; --app-pill-orange-border: #63482f;
+  --app-pill-yellow-bg: #38331c; --app-pill-yellow-fg: #f4e5a8; --app-pill-yellow-border: #5a522c;
+  --app-pill-green-bg: #223327; --app-pill-green-fg: #cfe8d7; --app-pill-green-border: #385340;
+  --app-pill-teal-bg: #1c3436; --app-pill-teal-fg: #c3e6e8; --app-pill-teal-border: #325256;
+  --app-pill-blue-bg: #1f2942; --app-pill-blue-fg: #d3dcff; --app-pill-blue-border: #354668;
+  --app-pill-purple-bg: #2b2540; --app-pill-purple-fg: #e0d6ff; --app-pill-purple-border: #463a66;
+  --app-pill-pink-bg: #3a2530; --app-pill-pink-fg: #ffd6e6; --app-pill-pink-border: #5c3a49;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-skin="paper"]) *, :root:not([data-skin="paper"]) *::before, :root:not([data-skin="paper"]) *::after {
+  :root *, :root *::before, :root *::after {
     scroll-behavior: auto !important;
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;

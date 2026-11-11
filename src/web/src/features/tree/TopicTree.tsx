@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { ChevronDown, GripVertical, Lock, Plus } from "lucide-react";
+import { ChevronDown, GripVertical, Lock, Plus } from "../../icons";
 import { useLockVersion, useTopicItemCounts, useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, moveGroupToTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
 import { isTopicUnlocked } from "../../services/keyringService";

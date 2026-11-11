@@ -3,6 +3,7 @@ import { DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings, type RaindropSett
 import { readRaindropSettings, updateRaindropSettings } from "../../services/raindropSettingsService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { RaindropPanel } from "./RaindropPanel";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 /** 插件设置节（FR-EXT-3，TP9）：默认关闭；启用才渲染 Raindrop 面板。开关不影响应用其余功能。 */
 export function PluginSection({ userId }: { userId: string }) {
@@ -32,11 +33,10 @@ export function PluginSection({ userId }: { userId: string }) {
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">启用插件</p>
-          <p className="mn-sethint">
+          <p className="mn-setlabel">启用插件<InfoHint>
             首个内置插件为 Raindrop 连接器：把指定表格作为网页收藏中间件，自动定时拉取远端收藏，
             并支持手动预览确认后反推远端作为云端备份。关闭后设置页隐藏、定时拉取跳过，应用其余功能不受影响。
-          </p>
+          </InfoHint></p>
         </div>
         <input type="checkbox" aria-label="启用插件" checked={enabled} disabled={!settings}
           onChange={(event) => void updateRaindropSettings(userId, { enabled: event.target.checked }).then(setSettings)} />

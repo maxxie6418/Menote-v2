@@ -1,7 +1,8 @@
-import { Clock, FileText, Home, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, StickyNote, Trash2 } from "lucide-react";
+import { Clock, FileText, Home, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, StickyNote, Trash2 } from "../icons";
 import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "../lib/layout";
+import { getDensityScale } from "../lib/density";
 import type { BrowseSection } from "../services/contentHooks";
 import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
@@ -48,7 +49,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
   useEffect(() => {
     const refresh = () => { void readWorkspaceSettings(userId).then((settings) => {
       setSidebarWidth(settings.sidebarWidth);
-      document.documentElement.style.setProperty("--mn-sidebar-width", `${settings.sidebarWidth}px`);
+      document.documentElement.style.setProperty("--mn-sidebar-width", `${settings.sidebarWidth / 16}rem`);
     }); };
     refresh();
     window.addEventListener("menote:workspace-settings", refresh);
@@ -57,9 +58,11 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
   useEffect(() => {
     const move = (event: PointerEvent) => {
       if (!resizeStart.current) return;
-      const width = Math.max(200, Math.min(420, resizeStart.current.width + event.clientX - resizeStart.current.x));
+      /* 存的宽度是「标准档 px」，而指针位移是真实 px：除以密度比例，分隔条才跟手。 */
+      const scale = getDensityScale();
+      const width = Math.max(200, Math.min(420, resizeStart.current.width + (event.clientX - resizeStart.current.x) / scale));
       setSidebarWidth(width);
-      document.documentElement.style.setProperty("--mn-sidebar-width", `${width}px`);
+      document.documentElement.style.setProperty("--mn-sidebar-width", `${width / 16}rem`);
     };
     const up = () => {
       const start = resizeStart.current;

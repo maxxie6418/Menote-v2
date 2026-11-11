@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-douban-note",
+  "name": "豆瓣日记",
+  "enabled": false,
+  "match": { "hosts": ["www.douban.com"], "paths": ["/note/*"] },
+  "selectors": {
+    "title": { "selector": "#content h1", "value": "text" },
+    "content": { "selector": "#link-report", "value": "html" },
+    "publishedAt": { "selector": ".note-header .pub-date", "value": "text" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/douban-clip.ts", "license": "AGPL-3.0" }
+}

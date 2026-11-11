@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "../../icons";
 import type { Item } from "@menote/shared";
 import { saveItemMeta } from "../../services/contentService";
 import { isPlainMemo, memoText } from "./memoView";

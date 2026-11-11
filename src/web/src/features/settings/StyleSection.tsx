@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { updateAppearance } from "../../services/appearanceSettingsService";
 import { DOC_STYLE_DEFAULTS, effectiveDocStyle, resetDocStyle, updateDocStyle, type DocStyleVars } from "../../lib/docStyle";
+import { InfoHint } from "../../components/ui/InfoHint";
 
 /**
  * 设置·样式（FR-STYLE-2）：只改正文渲染的 `--md-*` 变量，不动外壳配色。
@@ -173,10 +174,9 @@ export function StyleSection({ userId }: { userId: string }) {
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">文档样式</p>
-          <p className="mn-sethint">
+          <p className="mn-setlabel">文档样式<InfoHint>
             只影响正文渲染，不改界面配色；即时生效、不进 Markdown，数字可手填，留空即继承正文。
-          </p>
+          </InfoHint></p>
         </div>
         <button type="button" className="mn-textbtn" onClick={reset}>恢复默认</button>
       </div>

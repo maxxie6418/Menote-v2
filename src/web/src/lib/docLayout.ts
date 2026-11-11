@@ -1,13 +1,11 @@
 /** 文档区布局偏好（设置·外观）。
  *
  *  1. 属性显示位置：top = 标题与正文之间（默认，项目现状）；side = 纸面右侧页边注。
- *  2. 编辑工具栏位置：auto = 跟随主题（柔纸模式浮动在底部，其余主题在顶部）；top / bottom 强制。
+ *  2. 编辑工具栏位置：auto = 跟随主题（当前两套皮肤都落在顶部）；top / bottom 强制。
  *
  *  与 lib/fontPreference.ts 同模式：localStorage 持久化 + `<html data-props-pos>` / `<html data-toolbar>` 生效。
  *  工具栏写的是**解析后**的位置，样式只需读 `data-toolbar="bottom"`，不必在 CSS 里判断主题。
- *  首屏防闪烁解析在 main.tsx 与 index.html 引导脚本，逻辑与此一致。 */
-
-import { getThemeSkin, subscribeSkin } from "./themeSkin";
+ *  首屏防闪烁解析在 main.tsx。 */
 
 export type PropsPlacement = "top" | "side";
 export type ToolbarPlacement = "auto" | "top" | "bottom";
@@ -41,11 +39,11 @@ export function getToolbarPlacement(): ToolbarPlacement {
   return toolbar;
 }
 
-/** auto 在柔纸模式下落到 bottom，其余主题维持顶栏（即项目现状）。 */
+/** auto 落到顶部：柔纸已于 2026-11-11 并入墨台，不再有「皮肤默认底浮」这一层。
+ *  保留 auto 值本身，是为了兼容已同步的旧偏好——用户显式选「底部浮动」时才底浮。 */
 export function resolveToolbar(): ResolvedToolbar {
   const mode = getToolbarPlacement();
-  if (mode !== "auto") return mode;
-  return getThemeSkin() === "paper" ? "bottom" : "top";
+  return mode === "bottom" ? "bottom" : "top";
 }
 
 function apply(): void {
@@ -84,9 +82,3 @@ export function subscribeDocLayout(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
-
-// 主题切换会改变 auto 的解析结果，订阅皮肤变化后重算属性。
-subscribeSkin(() => {
-  apply();
-  notify();
-});

@@ -4,6 +4,7 @@ import { enqueueOutbox } from "../db/outboxRepo";
 import { newId } from "../lib/hash";
 import { getThemeMode, setThemeMode, type ThemeMode } from "../lib/theme";
 import { getFontPreference, setFontPreference, type FontPreference } from "../lib/fontPreference";
+import { getDensityPreference, setDensityPreference, type DensityPreference } from "../lib/density";
 import { getMeasurePreference, setMeasurePreference, type MeasurePreference } from "../lib/measurePreference";
 import { getThemeSkin, setThemeSkin, type ThemeSkin } from "../lib/themeSkin";
 import { getPropsPlacement, getToolbarPlacement, setPropsPlacement, setToolbarPlacement, type PropsPlacement, type ToolbarPlacement } from "../lib/docLayout";
@@ -11,9 +12,11 @@ import { getDocStyle, setDocStyle, type DocStyleVars } from "../lib/docStyle";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
-  /** 皮肤：default = 纸白（现状），paper = 柔纸模式。 */
+  /** 皮肤：slate = 素灰（默认）、ink = 墨台（柔纸已于 2026-11-11 并入墨台）。 */
   skin: ThemeSkin;
   font: FontPreference;
+  /** 界面密度：整站按根字号等比缩放（字号/间距/控件一起走），非逐项改尺寸。 */
+  density: DensityPreference;
   measure: MeasurePreference;
   /** 属性显示位置：top = 标题与正文之间，side = 纸面右侧页边注。 */
   propsPos: PropsPlacement;
@@ -31,14 +34,26 @@ export interface AppearanceSettings {
 const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
 const DEFAULT_APPEARANCE: AppearanceSettings = {
-  theme: "system", skin: "default", font: "noto", measure: "auto",
+  theme: "system", skin: "slate", font: "noto", density: "standard", measure: "auto",
   propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: {},
 };
+
+const DENSITY_MODES: readonly DensityPreference[] = ["compact", "standard", "cozy", "spacious"];
+const SKIN_MODES: readonly ThemeSkin[] = ["slate", "ink"];
+
+/** 旧同步值迁移：`"default"` 曾指墨台，素灰转正后统一按新默认（slate）解释；
+ *  `"paper"`（柔纸）已并入墨台，按 `"ink"` 落地，避免老账号同步回来落回默认冷灰。 */
+function normalizeSkin(value: unknown): ThemeSkin {
+  if (value === "paper") return "ink";
+  return SKIN_MODES.includes(value as ThemeSkin) ? (value as ThemeSkin) : "slate";
+}
 
 function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSettings {
   return {
     ...DEFAULT_APPEARANCE,
     ...value,
+    skin: normalizeSkin(value.skin),
+    density: DENSITY_MODES.includes(value.density as DensityPreference) ? (value.density as DensityPreference) : "standard",
     railMode: value.railMode === "rail" ? "rail" : "bar",
     memoWorkbarSide: value.memoWorkbarSide === "right" ? "right" : "left",
     memoTodoDefault: value.memoTodoDefault === "closed" ? "closed" : "open",
@@ -49,9 +64,10 @@ function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSett
 export function applyAppearance(value: AppearanceSettings): void {
   value = normalizeAppearance(value);
   setThemeMode(value.theme);
-  // 皮肤先落定：工具栏的 auto 解析依赖当前皮肤。
-  setThemeSkin(value.skin ?? "default");
+  // 皮肤先落定再写布局属性：皮肤变化可能带来结构覆盖，早于布局偏好落属性可少一次重排。
+  setThemeSkin(value.skin);
   setFontPreference(value.font);
+  setDensityPreference(value.density);
   setMeasurePreference(value.measure);
   setPropsPlacement(value.propsPos ?? "top");
   setToolbarPlacement(value.toolbar ?? "auto");
@@ -104,7 +120,7 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
 
   // Import old browser-only preferences once, into the first account that signs in on this device.
   const legacy: AppearanceSettings = {
-    theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
+    theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), density: getDensityPreference(), measure: getMeasurePreference(),
     propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
   };
   await saveAppearance(userId, legacy);
@@ -116,7 +132,7 @@ export async function updateAppearance(userId: string, patch: Partial<Appearance
   const base: AppearanceSettings = current?.sensitivity === "ordinary"
     ? normalizeAppearance(current.value as Partial<AppearanceSettings>)
     : {
-        theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), measure: getMeasurePreference(),
+        theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), density: getDensityPreference(), measure: getMeasurePreference(),
         propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
       };
   await saveAppearance(userId, normalizeAppearance({ ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle }));

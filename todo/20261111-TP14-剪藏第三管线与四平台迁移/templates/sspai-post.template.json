@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-sspai-post",
+  "name": "少数派文章",
+  "enabled": false,
+  "match": { "hosts": ["sspai.com"], "paths": ["/post/*"] },
+  "selectors": {
+    "title": { "selector": "#article-title", "value": "text" },
+    "content": { "selector": ".article__main__content", "value": "html" },
+    "author": { "selector": ".article__header__author .ss__user__nickname > span", "value": "text" },
+    "publishedAt": { "selector": ".article__header__date", "value": "text" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/article-clip.ts", "license": "AGPL-3.0" }
+}
