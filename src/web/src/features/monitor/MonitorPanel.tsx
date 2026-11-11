@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { DEFAULT_MONITOR_PREFERENCES, type AiUsageSummary, type CloudflareMonitorConnection, type CloudflareMonitorMetrics, type CloudflareMonitorSetup, type MonitorPreferences, type MonitorSummary } from "@menote/shared";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "../../icons";
 import { deleteCloudflareConnection, getCloudflareConnection, getCloudflareMetrics, getMonitorSummary, getSavedCloudflareToken, saveCloudflareConnection } from "../../services/monitorService";
 import { loadMonitorPreferences, saveMonitorPreferences, validPreferences } from "../../services/monitorPreferencesService";
 import { readAiUsage } from "../../services/aiService";

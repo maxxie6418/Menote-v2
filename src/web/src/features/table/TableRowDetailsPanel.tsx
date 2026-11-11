@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X } from "../../icons";
 import { safeWebUrl } from "../../lib/safeUrl";
 
 interface TableRowDetailsPanelProps {

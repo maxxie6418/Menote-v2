@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "../../icons";
 import type { Item } from "@menote/shared";
 import { formatItemMeta } from "./format";
 import { purgeItemsPermanently, restoreFromTrash } from "../../services/versionService";

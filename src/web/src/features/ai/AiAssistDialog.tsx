@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X } from "../../icons";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiTaskKind, type AiTaskView, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings } from "../../services/aiSettingsService";
 import { pollAiTask, readAiUsage, submitAiTask } from "../../services/aiService";

@@ -1,4 +1,4 @@
-import { Clock, FileText, Home, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, StickyNote, Trash2 } from "lucide-react";
+import { Clock, FileText, Home, Inbox, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Star, StickyNote, Trash2 } from "../icons";
 import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "../lib/layout";

@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from "../../icons";
 import { OPTION_COLORS, type OptionColor, type PropertyDef, type PropertyType } from "../../lib/frontmatter";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Eraser, Rows3, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Eraser, Rows3, Trash2 } from "../../icons";
 import { ContextMenu } from "../../components/ui/ContextMenu";
 import type { EditorAdapter } from "./EditorAdapter";
 import type { TableAlign, TableCommandId, TableContext } from "./tableCommands";

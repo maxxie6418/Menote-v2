@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Menu, Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Menu, Plus, Search } from "../icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Item } from "@menote/shared";
 import type { LayoutMode, MobilePane, ViewMode } from "../lib/layout";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "../icons";
 import { useHomeSnapshot } from "../services/contentHooks";
 import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { saveItemMeta } from "../services/contentService";

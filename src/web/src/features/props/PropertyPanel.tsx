@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Check, MoreHorizontal, Plus, X } from "lucide-react";
+import { Check, MoreHorizontal, Plus, X } from "../../icons";
 import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import {
   PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue, type PropRow,

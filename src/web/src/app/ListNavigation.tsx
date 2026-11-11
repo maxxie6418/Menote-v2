@@ -1,4 +1,4 @@
-import { Tag } from "lucide-react";
+import { Tag } from "../icons";
 import { useAllTags, type BrowseSection } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 

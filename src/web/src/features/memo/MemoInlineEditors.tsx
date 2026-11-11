@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Pencil, Quote, Trash2 } from "lucide-react";
+import { ArrowUp, Pencil, Quote, Trash2 } from "../../icons";
 import type { Item, MemoComment } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { addMemoComment, createQuoteMemo, deleteMemoComment, editMemoComment } from "../../services/memoService";
