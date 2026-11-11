@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Tags } from "lucide-react";
+import { ImagePlus, Tags } from "../../icons";
 import { createMemo } from "../../services/contentService";
 import { useAllTags } from "../../services/contentHooks";
 import { uploadAttachment } from "../../services/attachmentService";

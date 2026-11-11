@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "../../icons";
 import { getSyncPhase, getSyncProgress, requestSyncNow, subscribeSyncStatus, syncQueueStatus, type SyncPhase, type SyncProgress } from "../../services/syncEngine";
 import { subscribeLocalChanges } from "../../lib/broadcast";
 

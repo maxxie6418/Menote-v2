@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X } from "../../icons";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";

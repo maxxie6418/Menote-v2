@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock } from "lucide-react";
+import { Lock } from "../../icons";
 import { generateRecoveryCode } from "../../services/cryptoService";
 import { NOTE_PASSWORD_MIN } from "../../services/encryptionCommandService";
 

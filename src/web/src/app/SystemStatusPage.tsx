@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { HealthResponse } from "@menote/shared";
-import { ArrowLeft, CircleCheck, CircleHelp, CircleX } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleHelp, CircleX } from "../icons";
 import { getReadiness } from "../services/healthService";
 import { MonitorPanel } from "../features/monitor";
 import { SyncBadge } from "../features/sync";

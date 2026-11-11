@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "lucide-react";
+import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "../icons";
 import type { AuthUser, Item } from "@menote/shared";
 import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";

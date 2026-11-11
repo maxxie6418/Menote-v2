@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Bold, CheckSquare, ChevronDown, ImagePlus, Italic, Paperclip, Tag, Type } from "lucide-react";
+import { Bold, CheckSquare, ChevronDown, ImagePlus, Italic, Paperclip, Tag, Type } from "../icons";
 import type { Item } from "@menote/shared";
 import { createMemo, createNote, saveItemContent, saveItemMeta } from "../services/contentService";
 import { uploadAttachment } from "../services/attachmentService";

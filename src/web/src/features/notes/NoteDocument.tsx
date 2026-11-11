@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "lucide-react";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";

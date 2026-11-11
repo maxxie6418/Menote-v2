@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "../../icons";
 import { getSyncPhase, requestSyncNow } from "../../services/syncEngine";
 
 /** 手动同步并拉取剪藏；同步完成后本地订阅会更新收件箱。 */

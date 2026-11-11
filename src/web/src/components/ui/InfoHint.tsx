@@ -5,7 +5,7 @@
  *  读屏仍能读到；显隐只切 opacity，不加 visibility/display，避免把文本从可访问性树里摘掉。
  *  触屏没有 hover：点按按钮即 :focus-visible，同样能展开。 */
 import { useId, type ReactNode } from "react";
-import { Info } from "lucide-react";
+import { Info } from "../../icons";
 
 export interface InfoHintProps {
   children: ReactNode;

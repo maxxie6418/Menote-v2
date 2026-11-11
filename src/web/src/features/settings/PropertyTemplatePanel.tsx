@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus } from "../../icons";
 import type { PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import { PROPERTY_TYPES, parseOptionList } from "../../lib/frontmatter";
 import {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import { ListTree } from "lucide-react";
+import { ListTree } from "../../icons";
 
 interface OutlineEntry { level: number; text: string; index: number }
 

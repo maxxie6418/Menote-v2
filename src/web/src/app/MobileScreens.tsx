@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "lucide-react";
+import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "../icons";
 import type { Item } from "@menote/shared";
 import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
 import { isTopicUnlocked } from "../services/keyringService";

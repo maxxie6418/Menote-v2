@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { joinMultiCell, normalizeCellValue, splitMultiCell } from "../../lib/gfmTable";
 import type { OptionColor, PropertyDef, PropertyType } from "../../lib/frontmatter";
 import { safeWebUrl } from "../../lib/safeUrl";
-import { Paperclip, X } from "lucide-react";
+import { Paperclip, X } from "../../icons";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
 import { attachmentUrl, fetchAttachmentBlob, uploadAttachment } from "../../services/attachmentService";
 import { readAttachmentPolicy } from "../../services/attachmentPolicyService";

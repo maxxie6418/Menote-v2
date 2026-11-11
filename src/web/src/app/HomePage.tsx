@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, Download, FilePlus2, LockKeyhole, Paperclip, Search, Table2, Tag } from "lucide-react";
+import { ArrowUpRight, Download, FilePlus2, LockKeyhole, Paperclip, Search, Table2, Tag } from "../icons";
 import type { Item } from "@menote/shared";
 import type { BrowseSection } from "../services/contentHooks";
 import { useHomeSnapshot, useLocalSearch, useRecentItems } from "../services/contentHooks";

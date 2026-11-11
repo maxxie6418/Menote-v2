@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, FileText, MessageCircle, Pencil, Pin, Repeat2, Star, Trash2 } from "lucide-react";
+import { Check, FileText, MessageCircle, Pencil, Pin, Repeat2, Star, Trash2 } from "../../icons";
 import type { Item } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { setTaskCheckbox } from "../../lib/markdownTasks";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "lucide-react";
+import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "../../icons";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";

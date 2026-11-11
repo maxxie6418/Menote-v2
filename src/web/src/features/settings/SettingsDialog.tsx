@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "../../icons";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
 import { useEncryptedCount } from "../../services/contentHooks";
