@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-v2ex-topic",
+  "name": "V2EX 主题帖",
+  "enabled": false,
+  "match": { "hosts": ["www.v2ex.com", "v2ex.com"], "paths": ["/t/*"] },
+  "selectors": {
+    "title": { "selector": "#Main .header h1", "value": "text" },
+    "content": { "selector": ".topic_content", "value": "html" },
+    "author": { "selector": "#Main .header small.gray a[href^='/member/']", "value": "text" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/v2ex-clip.ts", "license": "AGPL-3.0" }
+}

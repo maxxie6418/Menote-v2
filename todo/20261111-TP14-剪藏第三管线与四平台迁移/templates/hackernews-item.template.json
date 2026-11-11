@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-hackernews-item",
+  "name": "Hacker News 帖子",
+  "enabled": false,
+  "match": { "hosts": ["news.ycombinator.com"], "paths": ["/item"] },
+  "selectors": {
+    "title": { "selector": ".titleline > a", "value": "text" },
+    "content": { "selector": ".toptext", "value": "html" },
+    "author": { "selector": ".hnuser", "value": "text" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/hacker-news-clip.ts", "license": "AGPL-3.0" }
+}

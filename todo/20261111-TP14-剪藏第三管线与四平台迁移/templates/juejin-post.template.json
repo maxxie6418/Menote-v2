@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "builtin-juejin-post",
+  "name": "掘金文章",
+  "enabled": false,
+  "match": { "hosts": ["juejin.cn"], "paths": ["/post/*"] },
+  "selectors": {
+    "title": { "selector": "h1.article-title", "value": "text" },
+    "content": { "selector": ".article-viewer.markdown-body", "value": "html" },
+    "author": { "selector": ".author-name .name", "value": "text" },
+    "publishedAt": { "selector": "meta[itemprop='datePublished']", "value": "attribute", "attribute": "content" }
+  },
+  "exclude": [],
+  "source": { "kind": "edgeever", "repository": "tianma-if/edgeever", "commit": "c0668ebeff327c5dc6d17128bb59df7190c7f5f0", "path": "apps/extension/src/article-clip.ts", "license": "AGPL-3.0" }
+}
