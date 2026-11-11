@@ -8,16 +8,16 @@
 .mn-doc[data-focus="true"] { position: fixed; inset: var(--app-zero); z-index: var(--app-immersive-z); width: var(--app-full-size); height: var(--app-full-viewport-height); background: var(--app-bg-side); }
 .mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-docbar-pad) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-docbar-left { display: flex; align-items: center; gap: var(--app-space-sm); min-width: 0; }
-.mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-kicker); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 路径条与标题同轴：原先用左右 padding 的外边距，宽屏下会比居中的版心左出一截（两个主题共有）。 */
-.mn-doc-path { display: flex; align-items: center; gap: var(--app-space-6); margin: var(--app-zero) auto; color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
-.mn-doc-path .mn-textbtn { padding: var(--app-zero) var(--app-space-4); font-size: var(--app-size-kicker); }
+.mn-doc-path { display: flex; align-items: center; gap: var(--app-space-6); margin: var(--app-zero) auto; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-doc-path .mn-textbtn { padding: var(--app-zero) var(--app-space-4); font-size: var(--app-size-chip); }
 
 /* ---------- 空状态（DESIGN §8.3：一句说明 + 快捷键提示，不放插画） ---------- */
 .mn-empty { display: grid; place-items: center; flex: 1; padding: var(--app-space-lg); text-align: center; min-height: 0; }
 .mn-empty-title { font-size: var(--app-font-small); color: var(--app-fg-muted); margin: var(--app-zero) var(--app-zero) var(--app-space-4); }
 .mn-empty-detail { font-size: var(--app-size-chip); color: var(--app-fg-faint); line-height: var(--app-leading-summary); max-width: var(--app-empty-max); margin: var(--app-zero); }
-.mn-empty-key { margin-top: var(--app-space-14); font-family: var(--app-font-mono); font-size: var(--app-size-micro); color: var(--app-fg-faint); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-4) var(--app-space-10); display: inline-block; }
+.mn-empty-key { margin-top: var(--app-space-14); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-4) var(--app-space-10); display: inline-block; }
 
 /* ---------- E2 文档区（标题/标签/编辑器/预览） ---------- */
 /* 工具组：32 槽 + 18 图标。此前是 44 的点击区配 20 图标，字形之间净空 28px，
@@ -28,7 +28,7 @@
 .mn-docbar-right .mn-vt { padding: var(--app-space-2); }
 .mn-docbar-right .mn-vt button { width: var(--app-docbar-btn); height: var(--app-docbar-vt); }
 .mn-docbar-right .mn-vt svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
-.mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); padding: var(--app-space-4); }
+.mn-savestate { border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); padding: var(--app-space-4); }
 .mn-savestate.err { color: var(--app-danger); cursor: pointer; }
 /* 单滚动容器：标题、属性、工具条与正文一起滚动；编辑器不再自己滚一层（否则工具条无法吸顶、滚轮还会「滚不动」标题区） */
 .mn-docbody { flex: 1; overflow-y: auto; min-height: var(--app-zero); padding: var(--app-doc-pad); position: relative; }
@@ -51,8 +51,8 @@
 .mn-doc[data-form="table"][data-mode="preview"] .mn-doc-main > .mn-doc-preview { width: var(--app-full-size); max-width: none; overflow-x: auto; }
 [data-props-pos="side"] .mn-doc[data-form="table"][data-mode="preview"] .mn-docbody { display: flex; flex-direction: row; }
 .mn-doc-title { display: block; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-doc-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
-.mn-doc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); margin-top: calc(var(--app-space-6) * -1); color: var(--app-fg-faint); font-size: var(--app-size-kicker); line-height: var(--app-leading-meta); }
-.mn-doc-kicker { display: flex; align-items: center; gap: var(--app-space-6); margin-bottom: var(--app-space-4); color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-micro); }
+.mn-doc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); margin-top: calc(var(--app-space-6) * -1); color: var(--app-fg-faint); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
+.mn-doc-kicker { display: flex; align-items: center; gap: var(--app-space-6); margin-bottom: var(--app-space-4); color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
 .mn-doc-kicker > i { display: block; width: var(--app-space-xl); height: var(--app-line); background: var(--app-border); }
 .mn-doc-kicker > b { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); color: var(--app-fg-muted); font-family: var(--app-font); font-weight: var(--app-weight-regular); }
 /* 标题由 textarea 承载（input 不能折行，长标题尾部会被推出可视区）：去掉原生缩放与滚动条，

@@ -83,10 +83,10 @@
 :root .mn-memo-on-this-day { order: 8; }
 :root .mn-memo-date-block { order: 9; }
 :root .mn-memo-tag-filter { order: 10; }
-:root .mn-memo-week-stat { display: flex; justify-content: space-between; padding: var(--app-space-2) 0; color: var(--app-fg-subtle); font-size: var(--app-size-kicker); }
+:root .mn-memo-week-stat { display: flex; justify-content: space-between; padding: var(--app-space-2) 0; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 :root .mn-memo-week-stat b { color: var(--app-fg); font-family: var(--app-font-mono); font-weight: var(--app-weight-regular); }
 :root .mn-memo-week-stat b.is-accent { color: var(--app-accent-fg); }
-:root .mn-memo-week-stat small { margin-left: var(--app-space-2); color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-micro); }
+:root .mn-memo-week-stat small { margin-left: var(--app-space-2); color: var(--app-fg-faint); font-family: var(--app-font); font-size: var(--app-size-chip); }
 
 :root .mn-shell[data-layout="tablet"] .mn-home-layout { grid-template-columns: minmax(0, 1fr); }
 :root .mn-shell[data-layout="tablet"] .mn-home-side { display: none; }
@@ -101,7 +101,7 @@
 
 .mn-appearance-preview { display: grid; gap: var(--app-space-xs); margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-appearance-preview-head { display: flex; align-items: baseline; gap: var(--app-space-sm); color: var(--app-fg); font-size: var(--app-size-chip); }
-.mn-appearance-preview-head span { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-appearance-preview-head span { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-appearance-preview-frame { position: relative; display: flex; height: var(--app-appearance-preview-height); flex-direction: column; overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
 .mn-appearance-preview-top { display: flex; height: var(--app-space-md); flex: none; align-items: center; gap: var(--app-space-xs); padding: 0 var(--app-space-xs); border-bottom: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); }
 .mn-appearance-preview-top i { width: var(--app-space-xl); height: var(--app-appearance-preview-bar); border-radius: var(--app-radius-pill); background: var(--app-border); }
@@ -128,7 +128,7 @@
 .mn-appearance-preview-frame[data-measure="wide"] .mn-appearance-preview-paper { max-width: var(--app-doc-measure-wide); }
 .mn-appearance-preview-frame[data-measure="full"] .mn-appearance-preview-paper { width: var(--app-full-size); max-width: var(--app-full-size); }
 .mn-appearance-preview-chips { display: flex; flex-wrap: wrap; gap: var(--app-space-2); }
-.mn-appearance-preview-chips span { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-subtle); font-size: var(--app-size-micro); }
+.mn-appearance-preview-chips span { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 
 /* Note paper and its persistent inspector follow the v3 two-column reading layout. */
 .mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); align-items: start; gap: var(--app-doc-side-gap); }
@@ -138,28 +138,28 @@
 .mn-inspector-section { min-width: 0; padding-block: var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-inspector-section:first-child { padding-top: var(--app-zero); border-top: 0; }
 .mn-inspector-section-head { display: flex; min-height: var(--app-space-24); align-items: center; justify-content: space-between; gap: var(--app-space-4); margin-bottom: var(--app-space-4); }
-.mn-inspector-section-head h2 { margin: var(--app-zero); color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-kicker); font-weight: var(--app-weight-medium); }
-.mn-inspector-section-head > span { color: var(--app-fg-faint); font-size: var(--app-size-micro); }
-.mn-inspector-section-head .mn-textbtn { padding: var(--app-zero); font-size: var(--app-size-micro); }
+.mn-inspector-section-head h2 { margin: var(--app-zero); color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); font-weight: var(--app-weight-medium); }
+.mn-inspector-section-head > span { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-inspector-section-head .mn-textbtn { padding: var(--app-zero); font-size: var(--app-size-chip); }
 .mn-outline-inspector { display: flex; flex-direction: column; gap: var(--app-space-1); }
 .mn-outline-inspector .mn-outline-entry { white-space: normal; overflow-wrap: anywhere; }
-.mn-inspector-version { display: flex; width: var(--app-full-size); min-height: var(--app-target-min); align-items: center; justify-content: space-between; gap: var(--app-space-4); padding: var(--app-space-2) var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-micro); text-align: left; cursor: pointer; }
+.mn-inspector-version { display: flex; width: var(--app-full-size); min-height: var(--app-target-min); align-items: center; justify-content: space-between; gap: var(--app-space-4); padding: var(--app-space-2) var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-chip); text-align: left; cursor: pointer; }
 .mn-inspector-version:hover { color: var(--app-fg); }
 .mn-inspector-version time { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
 .mn-inspector-version span { color: var(--app-fg-faint); }
 .mn-marginalia-card { padding-block: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-marginalia-card blockquote, .mn-inspector-annotation-form blockquote { margin: var(--app-zero) var(--app-zero) var(--app-space-4); padding-inline-start: var(--app-space-6); border-inline-start: var(--app-space-2) solid var(--app-accent); color: var(--app-fg-muted); font-family: var(--app-font-serif); font-size: var(--app-size-kicker); line-height: var(--app-leading-meta); }
+.mn-marginalia-card blockquote, .mn-inspector-annotation-form blockquote { margin: var(--app-zero) var(--app-zero) var(--app-space-4); padding-inline-start: var(--app-space-6); border-inline-start: var(--app-space-2) solid var(--app-accent); color: var(--app-fg-muted); font-family: var(--app-font-serif); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
 .mn-marginalia-card mark, .mn-inspector-annotation-form mark { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 .mn-marginalia-card p { margin: var(--app-zero); color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-size-chip); line-height: var(--app-leading-editor); white-space: pre-wrap; overflow-wrap: anywhere; }
 .mn-marginalia-card footer { display: flex; align-items: center; justify-content: space-between; margin-top: var(--app-space-2); }
-.mn-marginalia-card time { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); }
+.mn-marginalia-card time { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
 .mn-marginalia-card .mn-iconbtn { width: var(--app-space-24); min-height: var(--app-space-24); color: var(--app-fg-faint); }
-.mn-inspector-add-annotation { display: inline-flex; align-items: center; gap: var(--app-space-4); min-height: var(--app-touch-target); padding: var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-micro); text-align: left; cursor: pointer; }
+.mn-inspector-add-annotation { display: inline-flex; align-items: center; gap: var(--app-space-4); min-height: var(--app-touch-target); padding: var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-muted); font: inherit; font-size: var(--app-size-chip); text-align: left; cursor: pointer; }
 .mn-inspector-add-annotation svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-inspector-add-annotation:disabled { color: var(--app-fg-faint); cursor: default; }
 .mn-inspector-annotation-form { display: grid; gap: var(--app-space-4); margin-top: var(--app-space-4); }
 .mn-inspector-annotation-form textarea { min-height: var(--app-space-2xl); resize: vertical; padding: var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; font-size: var(--app-size-chip); }
-.mn-inspector-annotation-form > p { margin: 0; color: var(--app-danger); font-size: var(--app-size-micro); }
+.mn-inspector-annotation-form > p { margin: 0; color: var(--app-danger); font-size: var(--app-size-chip); }
 .mn-inspector-annotation-form > div { display: flex; justify-content: flex-end; gap: var(--app-space-4); }
 .mn-doc-inspector-toggle, .mn-doc-inspector-backdrop { display: none; }
 

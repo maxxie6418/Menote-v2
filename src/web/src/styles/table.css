@@ -21,7 +21,7 @@
 .mn-tabledoc-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-chip); }
 /* 表格页工具条：字段/行计数在左，主要操作在右；与顶部 docbar 分层，不再把动作塞进表头 */
 .mn-tabledoc-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2) var(--app-space-6); padding-bottom: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-tabledoc-bar-meta { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-kicker); font-variant-numeric: tabular-nums; }
+.mn-tabledoc-bar-meta { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 .mn-tabledoc-bar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-2); margin-left: auto; }
 .mn-tabledoc-bar .mn-textbtn { display: inline-flex; align-items: center; gap: var(--app-space-2); }
 /* 工具条开关（多选）按下态：与格式栏同一语言。 */
@@ -44,11 +44,11 @@
 .mn-tabledoc-row.foot { border-bottom: var(--app-zero); }
 /* 行号槽（2026-11-09 重排）：默认只放行号，点开行详情；拖动柄与多选框共用左侧同一槽位。
    多选不再常驻——由工具条「多选」开关控制，只在多选模式下出现复选框（FR-TBL-19）。 */
-.mn-tabledoc-rownum { position: relative; flex: none; width: var(--app-tabledoc-rownum-width); display: flex; align-items: center; min-height: var(--app-prop-height); padding-inline-start: var(--app-tabledoc-gutter-inset); padding-inline-end: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-micro); }
+.mn-tabledoc-rownum { position: relative; flex: none; width: var(--app-tabledoc-rownum-width); display: flex; align-items: center; min-height: var(--app-prop-height); padding-inline-start: var(--app-tabledoc-gutter-inset); padding-inline-end: var(--app-space-2); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-tabledoc-gutter-slot { position: absolute; inset-inline-start: var(--app-space-2); inset-block: var(--app-zero); margin-block: auto; display: grid; place-items: center; width: var(--app-icon-md); height: var(--app-icon-md); margin-inline: var(--app-zero); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; appearance: none; -webkit-appearance: none; }
 /* 多选模式下复选框占了左槽，拖动柄挪到行号右侧（仍只在悬停该行时浮出），批量重排入口不断。 */
 .mn-tabledoc-gutter-slot-end { position: absolute; inset-inline-end: var(--app-space-1); inset-block: var(--app-zero); margin-block: auto; margin-inline: var(--app-zero); display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; appearance: none; -webkit-appearance: none; }
-.mn-tabledoc-rowopen { flex: 1; align-self: stretch; display: flex; align-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-micro); font-variant-numeric: tabular-nums; padding: var(--app-zero); cursor: pointer; }
+.mn-tabledoc-rowopen { flex: 1; align-self: stretch; display: flex; align-items: center; border: var(--app-zero); background: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; padding: var(--app-zero); cursor: pointer; }
 .mn-tabledoc-rowopen:hover, .mn-tabledoc-rowopen:focus-visible { color: var(--app-link); text-decoration: underline; }
 /* 拖动柄默认隐形，悬停该行才浮出：行号槽里始终只有一个可操作元素。 */
 .mn-tabledoc-rowdrag { color: var(--app-fg-faint); cursor: grab; user-select: none; touch-action: none; opacity: var(--app-zero); pointer-events: none; transition: opacity var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); border-radius: var(--app-radius-sm); }
@@ -124,7 +124,7 @@
 /* 正在添加的列与各行占位同宽，避免 flex:1 把新列和已有列错开 */
 .mn-tabledoc-addcol { flex: none; width: var(--app-account-menu-min); min-width: var(--app-account-menu-min); max-width: var(--app-account-menu-min); background: var(--app-accent-subtle); }
 .mn-tabledoc-addcol .mn-tabledoc-hname { height: var(--app-prop-height); padding: var(--app-zero) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); }
-.mn-tabledoc-hbadge { flex: none; border: var(--app-line) solid var(--app-border); background: var(--app-surface-sunken); color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-kicker); padding: 0 var(--app-space-4); height: var(--app-space-lg); border-radius: var(--app-radius-pill); cursor: pointer; }
+.mn-tabledoc-hbadge { flex: none; border: var(--app-line) solid var(--app-border); background: var(--app-surface-sunken); color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); padding: 0 var(--app-space-4); height: var(--app-space-lg); border-radius: var(--app-radius-pill); cursor: pointer; }
 .mn-tabledoc-hbadge:hover { color: var(--app-fg); border-color: var(--app-accent); }
 /* 字段菜单挂到 document.body，坐标由 AnchoredPanel 写入；默认隐藏，避免落在 0,0 闪一下 */
 .mn-tabledoc-hmenu { position: fixed; z-index: var(--app-tabledoc-menu-z); visibility: hidden; display: flex; flex-direction: column; align-items: stretch; gap: var(--app-space-4); width: var(--app-account-menu-min); min-width: var(--app-account-menu-min); max-height: var(--app-context-menu-max-height); overflow: auto; padding: var(--app-space-5); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
@@ -141,11 +141,11 @@
 .mn-tabledoc-hmenu .mn-auth-submit { flex: 1; }
 .mn-tabledoc-hmenu .mn-auth-submit:disabled { cursor: default; background: var(--app-surface-sunken); color: var(--app-fg-faint); box-shadow: none; }
 .mn-tabledoc-hmenu .mn-tabledoc-hdel { border-top: var(--app-line) solid var(--app-border-subtle); margin-top: var(--app-space-2); padding-top: var(--app-space-4); }
-.mn-tabledoc-optedit { display: flex; flex-direction: column; gap: var(--app-space-2); font-size: var(--app-size-kicker); color: var(--app-fg-muted); }
+.mn-tabledoc-optedit { display: flex; flex-direction: column; gap: var(--app-space-2); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
 .mn-tabledoc-optedit textarea { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-4); resize: vertical; }
 /* 字段菜单里的「内容显示」：裁切 / 自动换行二选一（FR-TBL-19）。 */
 .mn-tabledoc-display { display: flex; flex-direction: column; gap: var(--app-space-2); padding-top: var(--app-space-2); }
-.mn-tabledoc-display-title { color: var(--app-fg-subtle); font-size: var(--app-size-kicker); }
+.mn-tabledoc-display-title { color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-tabledoc-segmented { display: flex; overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); }
 .mn-tabledoc-segmented button { flex: 1; display: inline-flex; align-items: center; justify-content: center; min-height: var(--app-touch-target); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
 .mn-tabledoc-segmented button + button { border-inline-start: var(--app-line) solid var(--app-border); }
@@ -161,7 +161,7 @@
 .mn-tabledoc-detail-cover-fallback { display: block; margin-block: var(--app-space-10); padding: var(--app-space-10); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); color: var(--app-link); font-size: var(--app-size-chip); }
 .mn-tabledoc-detail-fields { display: grid; gap: var(--app-space-6); margin: var(--app-space-10) var(--app-zero) var(--app-zero); }
 .mn-tabledoc-detail-fields > div { min-width: var(--app-zero); padding-bottom: var(--app-space-6); border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-tabledoc-detail-fields dt { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-tabledoc-detail-fields dt { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-tabledoc-detail-fields dd { margin: var(--app-space-2) var(--app-zero) var(--app-zero); color: var(--app-fg); font-size: var(--app-size-chip); overflow-wrap: anywhere; white-space: pre-wrap; }
 .mn-tabledoc-detail-fields a { color: var(--app-link); }
 .mn-tabledoc-detail-backdrop { display: none; }
@@ -197,7 +197,7 @@
 .mn-tcell-link { color: var(--app-link); text-decoration: none; }
 .mn-tcell-link:hover, .mn-tcell-link:focus-visible { text-decoration: underline; }
 .mn-tcell-readmulti { display: flex; flex-wrap: wrap; gap: var(--app-space-2); min-width: var(--app-zero); }
-.mn-tcell-checkmark { display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-xs); color: var(--app-fg-faint); font-size: var(--app-size-kicker); line-height: 1; }
+.mn-tcell-checkmark { display: grid; place-items: center; width: var(--app-icon-sm); height: var(--app-icon-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-xs); color: var(--app-fg-faint); font-size: var(--app-size-chip); line-height: 1; }
 .mn-tcell-checkmark.on { border-color: var(--app-accent); background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 .mn-tcell-editor { width: var(--app-full-size); min-width: var(--app-zero); }
 .mn-tcell-check { width: var(--app-icon-sm); height: var(--app-icon-sm); accent-color: var(--app-accent); cursor: pointer; }
@@ -207,17 +207,17 @@
 .mn-tcell-single-trigger, .mn-tcell-multibtn { display: flex; align-items: center; width: var(--app-full-size); min-height: var(--app-prop-height); text-align: left; border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-4); cursor: pointer; }
 .mn-tcell-single-trigger:hover, .mn-tcell-multibtn:hover { background: var(--app-hover); }
 .mn-tcell-multibtn { flex-wrap: wrap; gap: var(--app-space-2); }
-.mn-tcell-pill { --mn-pill-bg: var(--app-pill-neutral-bg); --mn-pill-fg: var(--app-pill-neutral-fg); --mn-pill-border: var(--app-pill-neutral-border); display: inline-flex; align-items: center; min-width: var(--app-zero); max-width: var(--app-full-size); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: var(--app-space-1) var(--app-space-6); border: var(--app-line) solid var(--mn-pill-border); background: var(--mn-pill-bg); color: var(--mn-pill-fg); font-size: var(--app-size-kicker); line-height: var(--app-leading-meta); }
+.mn-tcell-pill { --mn-pill-bg: var(--app-pill-neutral-bg); --mn-pill-fg: var(--app-pill-neutral-fg); --mn-pill-border: var(--app-pill-neutral-border); display: inline-flex; align-items: center; min-width: var(--app-zero); max-width: var(--app-full-size); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: var(--app-space-1) var(--app-space-6); border: var(--app-line) solid var(--mn-pill-border); background: var(--mn-pill-bg); color: var(--mn-pill-fg); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
 .mn-tcell-attachment-editor { display: flex; align-items: center; gap: var(--app-space-4); min-width: var(--app-zero); }
 .mn-tcell-attachments { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); min-width: var(--app-zero); }
 .mn-tcell-attachment { display: inline-flex; align-items: center; gap: var(--app-space-2); min-width: var(--app-zero); max-width: var(--app-full-size); }
-.mn-tcell-attachment-name { max-width: var(--app-full-size); overflow: hidden; color: var(--app-link); font-size: var(--app-size-kicker); text-overflow: ellipsis; white-space: nowrap; }
+.mn-tcell-attachment-name { max-width: var(--app-full-size); overflow: hidden; color: var(--app-link); font-size: var(--app-size-chip); text-overflow: ellipsis; white-space: nowrap; }
 .mn-tcell-attachment-thumb { display: grid; place-items: center; flex: none; width: var(--app-tabledoc-attach-thumb-size); height: var(--app-tabledoc-attach-thumb-size); overflow: hidden; padding: var(--app-zero); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); cursor: zoom-in; }
 .mn-tcell-attachment-thumb:hover, .mn-tcell-attachment-thumb:focus-visible { border-color: var(--app-accent); background: var(--app-hover); }
 .mn-tcell-attachment-thumb:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-tcell-attachment-thumb img { display: block; width: var(--app-full-size); height: var(--app-full-size); object-fit: cover; }
 .mn-tcell-attachment-thumb > span { width: var(--app-icon-xs); height: var(--app-icon-xs); border-radius: var(--app-radius-pill); background: var(--app-border); }
-.mn-tcell-attachment-empty { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-tcell-attachment-empty { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-tcell-image-dialog { width: var(--app-dialog-width-xl); }
 .mn-tcell-image-head { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-6); }
 .mn-tcell-image-head .mn-dialog-title { min-width: var(--app-zero); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -229,7 +229,7 @@
 .mn-tcell-attach-button:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
 .mn-tcell-attach-button:disabled { color: var(--app-fg-faint); cursor: default; }
 .mn-tcell-attach-button svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-tcell-attachment-error { color: var(--app-danger); font-size: var(--app-size-micro); }
+.mn-tcell-attachment-error { color: var(--app-danger); font-size: var(--app-size-chip); }
 .mn-tcell-pill-single { border-radius: var(--app-radius-pill); }
 .mn-tcell-pill-multi { border-radius: var(--app-radius-sm); }
 .mn-tcell-pill[data-tone="red"], .mn-tabledoc-colorswatch[data-tone="red"] { --mn-pill-bg: var(--app-pill-red-bg); --mn-pill-fg: var(--app-pill-red-fg); --mn-pill-border: var(--app-pill-red-border); }
@@ -246,9 +246,9 @@
 .mn-tcell-pickrow { display: flex; align-items: center; width: var(--app-full-size); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; padding: var(--app-space-2); cursor: pointer; }
 .mn-tcell-pickrow:hover, .mn-tcell-pickrow[aria-selected="true"] { background: var(--app-hover); }
 .mn-tcell-poprow input { accent-color: var(--app-accent); }
-.mn-tcell-pophint { color: var(--app-fg-faint); font-size: var(--app-size-kicker); }
+.mn-tcell-pophint { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-tabledoc-colors { display: flex; flex-direction: column; gap: var(--app-space-2); padding-top: var(--app-space-2); }
-.mn-tabledoc-colors-title { color: var(--app-fg-subtle); font-size: var(--app-size-kicker); }
+.mn-tabledoc-colors-title { color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-tabledoc-color-row { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-4); min-height: var(--app-prop-height); }
 .mn-tabledoc-color-row > .mn-tcell-pill { flex: 1; }
 .mn-tabledoc-color-palette { display: flex; flex: none; gap: var(--app-space-1); }

@@ -80,16 +80,15 @@
   --app-leading-list-title: 1.45;
   --app-leading-doc-title: 1.32;
   --app-leading-editor: 1.7;
-  /* 字号档位（DESIGN §3.2：9.5/10/10.5/11.5/12/12.5/13.5/14/17/32） */
+  /* 字号档位（DESIGN §3.2：11.5 / 12 / 12.5 / 13 / 13.5 / 14 / 17 / 32）
+     2026-11-11 收敛：9.5 角标、10 元信息、10.5 分组标题、11 段标题四档全部并入
+     11.5（chip）与 12（nav）——中文在 11px 以下辨识成本过高，负责人确认全站按此规则。
+     原 kicker / micro / sechead 引用改为 chip，label 引用改为 nav。 */
   --app-font-small: 0.8125rem;
   --app-font-body: 0.875rem;
   --app-font-title: 2rem;
-  --app-size-kicker: 0.59375rem;   /* 9.5px 角标 */
-  --app-size-micro: 0.625rem;      /* 10px 日期元信息 */
-  --app-size-label: 0.65625rem;    /* 10.5px 分组标题 */
-  --app-size-sechead: 0.6875rem;   /* 11px 侧栏段标题（主题 / 标签） */
-  --app-size-chip: 0.71875rem;     /* 11.5px 胶囊与键名 */
-  --app-size-nav: 0.75rem;         /* 12px 侧栏项 */
+  --app-size-chip: 0.71875rem;     /* 11.5px 最小档：胶囊、键名、元信息、角标 */
+  --app-size-nav: 0.75rem;         /* 12px 侧栏项、分组标题、日期 */
   --app-size-body: 0.875rem;       /* 14px 正文 */
   --app-size-page-title: 2.375rem; /* 38px 页面标题/首页时钟 */
   --app-size-tree-l1: 0.8125rem;   /* 13px 主题树一级 */
@@ -355,7 +354,7 @@
   --app-memo-quote-radius: 0.75rem;
   --app-memo-comment-indent-line: 1.5px;
   --app-memo-comment-content-size: var(--app-size-button);
-  --app-memo-comment-time-size: var(--app-size-label);
+  --app-memo-comment-time-size: var(--app-size-nav);
   --app-memo-quote-text-size: var(--app-size-button);
   --app-radius-sm: 0.25rem;        /* 4px */
   --app-radius-md: 0.3125rem;      /* 5px */
@@ -506,7 +505,7 @@
   --md-table-border: var(--app-line) solid var(--app-border);
   --md-table-padding: 0.5rem 0.75rem;
   --md-table-head-bg: var(--app-surface-sunken);
-  --md-table-head-size: 0.59375rem; /* 9.5px 表头 */
+  --md-table-head-size: 0.71875rem; /* 11.5px 表头（2026-11-11 与最小档对齐，原 9.5px） */
   --md-table-size: 0.75rem;          /* 12px，design.html .prose table */
   --md-table-gap: 0.75rem;           /* 12px，design.html .prose table 下边距 */
   --md-table-cell-pad: 0.3125rem 0.5rem 0.3125rem 0; /* 5px 8px 5px 0 */
