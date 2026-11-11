@@ -1,4 +1,5 @@
 import type { Attachment, Item } from "@menote/shared";
+import { notifyEditorChange, registerEditorSave } from "./editorSaveService";
 import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
 import { appRoutePath } from "../app/appRoutes";
@@ -46,6 +47,22 @@ export async function listAttachmentReferences(userId: string): Promise<Record<s
 export const ATTACHMENT_UPLOAD_TIMEOUT_MS = 120_000;
 
 export async function uploadAttachment(
+  userId: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ sha256: string; name: string } | { error: string }> {
+  // 表格和编辑器共用上传服务；附件仍在传输时，手动同步不能误报全部完成。
+  const unregister = registerEditorSave(userId, async () => false);
+  notifyEditorChange();
+  try {
+    return await uploadAttachmentInner(userId, file, onProgress);
+  } finally {
+    unregister();
+    notifyEditorChange();
+  }
+}
+
+async function uploadAttachmentInner(
   userId: string,
   file: File,
   onProgress?: (percent: number) => void,

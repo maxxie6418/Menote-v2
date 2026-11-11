@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { RefreshCw } from "../../icons";
-import { getSyncPhase, requestSyncNow } from "../../services/syncEngine";
+import { requestSyncNow } from "../../services/syncEngine";
 
 /** 手动同步并拉取剪藏；同步完成后本地订阅会更新收件箱。 */
 export function InboxRefresh({ userId, mobile = false }: { userId: string; mobile?: boolean }) {
@@ -10,8 +10,8 @@ export function InboxRefresh({ userId, mobile = false }: { userId: string; mobil
     setBusy(true);
     setMessage("正在刷新收件箱");
     try {
-      await requestSyncNow(userId);
-      setMessage(getSyncPhase() === "error" ? "刷新失败，请检查网络和同步状态" : "收件箱已刷新");
+      const success = await requestSyncNow(userId);
+      setMessage(success ? "收件箱已刷新" : "刷新失败，请检查网络和同步状态");
     } catch {
       setMessage("刷新失败，请检查网络和同步状态");
     } finally { setBusy(false); }
