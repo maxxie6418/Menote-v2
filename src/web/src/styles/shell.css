@@ -38,7 +38,6 @@
   text-align: left; cursor: pointer;
 }
 .mn-search svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
-.mn-search-kbd { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-search:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
 .mn-search:disabled { cursor: default; }
 /* 文本按钮（2026-11-04 补）：此前只有各处的上下文覆盖，没有基础定义，备份面板、
@@ -65,7 +64,7 @@
 .mn-iconbtn[aria-disabled="true"] { cursor: default; }
 
 /* 快速输入（FR-IA-5）收起态：纸面 + 发丝边——输入面靠「纸面差」成立，不靠框线；
-   与上面的凹槽分段是两种材质，不会读成同类。右侧 ⌘↵ 为小胶囊。 */
+   与上面的凹槽分段是两种材质，不会读成同类。 */
 .mn-memo-hint {
   display: flex; align-items: center; gap: var(--app-space-xs);
   width: var(--app-full-size); height: var(--app-input-height);
@@ -77,14 +76,6 @@
   transition: border-color var(--app-motion-fast) var(--app-ease);
 }
 .mn-memo-hint:hover { border-color: var(--app-border); }
-.mn-kbd {
-  margin-left: auto; display: inline-flex; align-items: center;
-  height: var(--app-kbd-height); padding: var(--app-zero) var(--app-space-5);
-  border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm);
-  background: var(--app-surface-sunken);
-  font-family: var(--app-font-mono); font-size: var(--app-size-chip);
-  color: var(--app-fg-faint); font-variant-numeric: tabular-nums;
-}
 
 /* 主操作：全站唯一一块橙色面。物体感靠上光与压边各一条（--app-btn-sheen），不靠描边（材质不等于边界）。 */
 .mn-btn {
@@ -99,11 +90,6 @@
 .mn-btn:hover { background: var(--app-accent-hover); }
 .mn-btn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); stroke-width: 2.2; }
 .mn-btn[aria-disabled="true"] { cursor: default; }
-/* 快捷键绝对定位，不参与居中计算——否则文字会被挤偏 */
-.mn-btn-kbd {
-  position: absolute; right: var(--app-space-10); margin: var(--app-zero);
-  background: var(--app-btn-kbd-bg); border-color: var(--app-btn-kbd-line); color: var(--app-btn-kbd-fg);
-}
 
 /* 回看三格：无填充导航，只在悬停浮出一层底（同一套「格」度量，靠填充强度与采集组分层） */
 .mn-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--app-space-4); margin-bottom: var(--app-space-14); }
@@ -241,7 +227,7 @@
 [data-sidebar="collapsed"] .mn-sb-top, [data-sidebar="collapsed"] .mn-quick, [data-sidebar="collapsed"] .mn-queue, [data-sidebar="collapsed"] .mn-tree, [data-sidebar="collapsed"] .mn-space { align-self: stretch; }
 [data-sidebar="collapsed"] .mn-quick, [data-sidebar="collapsed"] .mn-queue { grid-template-columns: 1fr; }
 [data-sidebar="collapsed"] .mn-quick a, [data-sidebar="collapsed"] .mn-queue a, [data-sidebar="collapsed"] .mn-treerow, [data-sidebar="collapsed"] .mn-space { justify-content: center; padding-inline: var(--app-zero); }
-[data-sidebar="collapsed"] .mn-treerow .mn-minibtn, [data-sidebar="collapsed"] .mn-btn-kbd { display: none; }
+[data-sidebar="collapsed"] .mn-treerow .mn-minibtn { display: none; }
 [data-sidebar="collapsed"] .mn-btn { padding-inline: var(--app-zero); }
 [data-sidebar="collapsed"] .mn-sb-foot { flex-direction: column; }
 [data-sidebar="collapsed"] .mn-sidebar-sync-button { justify-content: center; padding-inline: var(--app-zero); }
@@ -730,6 +716,8 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-dlg-nav a { font-size: var(--app-size-nav); color: var(--app-fg-muted); padding: var(--app-space-6) var(--app-space-10); border-radius: var(--app-radius-md); text-decoration: none; }
 .mn-dlg-nav a.on { background: var(--app-surface); color: var(--app-fg); font-weight: var(--app-weight-medium); box-shadow: var(--app-selected-bar-side); }
 .mn-dlg-content { padding: var(--app-space-md) var(--app-space-lg); overflow-y: auto; min-height: var(--app-zero); }
+/* 设置内容区的节标题：对齐对话框字号阶梯（此前 BackupPanel/附件面板的 h2 吃浏览器默认标题字号，与规范不符） */
+.mn-dlg-content :is(h2, h3, h4) { margin: var(--app-space-md) var(--app-zero) var(--app-space-6); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); color: var(--app-fg); }
 /* 设置行：不再画分隔线（2026-11-10）。说明收进 ⓘ 之后每行只剩「标签 + 控件」，
    一行一条横线会把十几行读成一张表单；改用分组留白承担分区，行内只留上下呼吸。 */
 .mn-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-18); padding: var(--app-space-8) var(--app-zero); flex-wrap: wrap; }
@@ -746,8 +734,9 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 @media (prefers-reduced-motion: reduce) { .mn-raindrop-progress-track::before { animation: none; } }
 .mn-raindrop-advanced { display: grid; gap: var(--app-space-6); }
 .mn-raindrop-advanced summary { color: var(--app-fg-muted); cursor: pointer; font-size: var(--app-size-chip); }
-.mn-setlabel { font-size: var(--app-size-button); color: var(--app-fg); }
-.mn-sethint { font-size: var(--app-size-chip); color: var(--app-fg-faint); margin-top: var(--app-space-4); line-height: var(--app-leading-summary); width: var(--app-full-size); }
+/* 标签与说明的 margin 显式清零：历史上这里吃浏览器默认外边距，行距异常大（全局 :where 重置之外的兜底） */
+.mn-setlabel { margin: var(--app-zero); font-size: var(--app-size-button); color: var(--app-fg); }
+.mn-sethint { margin: var(--app-space-4) var(--app-zero) var(--app-zero); font-size: var(--app-size-chip); color: var(--app-fg-faint); line-height: var(--app-leading-summary); width: var(--app-full-size); }
 /* 设置项说明收成 ⓘ（2026-11-10）：说明文字不再占行，悬停/聚焦浮出。
    浮层向右展开并垂直居中，避开对话框的滚动上沿；max-width 控制在三行以内。 */
 .mn-infohint { position: relative; display: inline-flex; align-items: center; margin: calc(var(--app-space-4) * -1) var(--app-zero) calc(var(--app-space-4) * -1) var(--app-space-4); vertical-align: middle; }

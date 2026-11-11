@@ -16,6 +16,9 @@ import type { PropertyTemplate, PropertyType } from "../lib/frontmatter";
  * 键名口径（FR-PROP-9）：**键名是可互通的机器名，显示名才是中文**——
  *  · Raindrop 组直接用连接器写死的标准列名（标题/网址/摘要/备注/标签/类型/封面/采集时间/重要），
  *    连接器按列名读写，换名就认不出；
+ *  · 剪藏组与 Worker 剪藏管线实际写入的 frontmatter 键一一对应（mcpClipService.buildClipMarkdown：
+ *    page_title/source_url/clipped_at/author/published_at/site_name/canonical_url/description），
+ *    剪藏笔记没有 props 定义时，属性面板按这里的显示名回落展示；
  *  · 其余用 Obsidian 社区惯例的英文键（status/author/created/source…），与 Obsidian 库里的
  *    既有属性同名，迁移或导出过去不用改键。
  */
@@ -28,11 +31,14 @@ export const DEFAULT_PROPERTY_TEMPLATES: PropertyTemplate[] = [
     ...(column.options ? { options: [...column.options] } : {}),
     group: "Raindrop",
   })),
-  { id: "clip-source", name: "source", type: "link", label: "来源链接", group: "剪藏" },
+  { id: "clip-page-title", name: "page_title", type: "text", label: "页面标题", group: "剪藏" },
+  { id: "clip-source", name: "source_url", type: "link", label: "来源链接", group: "剪藏" },
+  { id: "clip-captured", name: "clipped_at", type: "date", label: "采集时间", group: "剪藏" },
   { id: "clip-author", name: "author", type: "text", label: "作者", group: "剪藏" },
-  { id: "clip-site", name: "site", type: "text", label: "站点", group: "剪藏" },
-  { id: "clip-published", name: "publishedAt", type: "date", label: "发布时间", group: "剪藏" },
-  { id: "clip-captured", name: "capturedAt", type: "date", label: "采集时间", group: "剪藏" },
+  { id: "clip-published", name: "published_at", type: "date", label: "发布时间", group: "剪藏" },
+  { id: "clip-site", name: "site_name", type: "text", label: "站点", group: "剪藏" },
+  { id: "clip-canonical", name: "canonical_url", type: "link", label: "规范链接", group: "剪藏" },
+  { id: "clip-description", name: "description", type: "text", label: "摘要", group: "剪藏" },
   { id: "obs-status", name: "status", type: "select", label: "状态", options: ["未开始", "进行中", "已完成", "已搁置"], value: "未开始", group: "通用" },
   { id: "obs-author", name: "author", type: "text", label: "作者", group: "通用" },
   { id: "obs-created", name: "created", type: "date", label: "创建时间", group: "通用" },

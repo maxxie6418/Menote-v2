@@ -56,7 +56,6 @@
 
 /* ---------- 4. 控件：单色实底、1px 发丝边、6px 圆角 ---------- */
 :root[data-skin="slate"] .mn-btn { border-radius: var(--app-radius-md); }
-:root[data-skin="slate"] .mn-kbd { border-radius: var(--app-radius-xs); background: transparent; }
 :root[data-skin="slate"] .mn-listsearch { border-radius: var(--app-radius-md); }
 :root[data-skin="slate"] .mn-listsearch:focus-within { border-color: var(--app-accent); box-shadow: 0 0 0 var(--app-space-3) var(--app-accent-subtle); }
 :root[data-skin="slate"] .mn-vt { border-radius: var(--app-radius-md); }

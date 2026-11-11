@@ -77,7 +77,6 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     return (
       <button type="button" className="mn-memo-hint" onClick={() => { setFocusOnExpand(true); setExpanded(true); }}>
         <span>记一条 Memo…</span>
-        <span className="mn-kbd">⌘↵</span>
       </button>
     );
   }
@@ -86,7 +85,7 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     <div className="mn-composer">
       <textarea
         ref={textRef} className="mn-composer-input" autoFocus={focusOnExpand} rows={3}
-        placeholder="记一条 Memo…（⌘/Ctrl+Enter 保存，Esc 收起，可粘贴图片）"
+        placeholder="记一条 Memo…（Esc 收起，可粘贴图片）"
         aria-label="Memo 快速输入"
         value={value}
         onChange={(event) => setValue(event.target.value)}
