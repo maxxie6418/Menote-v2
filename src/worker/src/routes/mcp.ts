@@ -11,7 +11,7 @@ import { createMcpMemo } from "../services/mcpMemoService";
 import { appendMcpBookmark } from "../services/mcpBookmarkService";
 import { readUserAttachment, storeAttachment } from "../services/attachmentService";
 import { ensureSchemaReady } from "../services/authService";
-import { listClipTemplates, persistClipTemplate } from "../services/clipTemplateService";
+import { listClipTemplates, persistClipTemplate, registerCaptureAdapters } from "../services/clipTemplateService";
 
 export const mcpRoutes = new Hono<AppEnv>();
 
@@ -197,9 +197,9 @@ mcpRoutes.post("/api/mcp", async (c) => {
     }
     if (token.permissions.includes("clip:templates:read")) {
       server.registerTool("list_clip_templates", {
-        description: "List enabled clipping templates. This does not read Menote notes or page content.",
+        description: "List this account's clipping rules (declarative templates and capture-adapter registrations), including disabled entries. This does not read Menote notes or page content.",
       }, async () => {
-        const templates = await listClipTemplates(c.env.DB, token.userId, true);
+        const templates = await listClipTemplates(c.env.DB, token.userId, false);
         const versionMaterial = templates.map(({ template, version, updatedAt }) => ({ id: template.id, version, updatedAt }));
         const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(versionMaterial)));
         const revision = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -219,6 +219,24 @@ mcpRoutes.post("/api/mcp", async (c) => {
           result: "saved", operationId: null, at: now });
         return { content: [{ type: "text", text: JSON.stringify({ id: saved.id, updatedAt: now }) }],
           structuredContent: { id: saved.id, updatedAt: now } };
+      });
+      server.registerTool("register_capture_adapters", {
+        description: "Register built-in capture-adapter metadata (id, version, matched hosts) so the web template manager can list and toggle imperative clipping rules. Idempotent; prunes stale adapter entries.",
+        inputSchema: z.object({
+          adapters: z.array(z.object({
+            id: z.string().regex(/^[A-Za-z0-9:_-]{1,80}$/),
+            name: z.string().min(1).max(120),
+            version: z.string().min(1).max(24),
+            hosts: z.array(z.string().min(1).max(253)).min(1).max(16),
+            upstream: z.string().max(120).optional(),
+          })).min(1).max(16),
+        }),
+      }, async ({ adapters }) => {
+        const outcome = await registerCaptureAdapters(c.env.DB, token.userId, adapters, now);
+        await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
+          tool: "register_capture_adapters", itemId: null, resourceId: null, revBefore: null, revAfter: null,
+          result: "registered", operationId: null, at: now });
+        return { content: [{ type: "text", text: JSON.stringify(outcome) }], structuredContent: outcome };
       });
     }
     if (token.permissions.includes("item:create") && token.permissions.includes("attachment:access")) {

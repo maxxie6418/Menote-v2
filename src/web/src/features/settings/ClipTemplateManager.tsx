@@ -197,26 +197,61 @@ export function ClipTemplateManager() {
       </div>
       {listState === "loading" && <p className="mn-sethint" role="status">正在读取账号规则…</p>}
       {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败：{listError}</p>}
-      {templates.map(({ template, version }) => <article className="mn-cliptemplate-card" key={template.id}>
-        <div className="mn-cliptemplate-heading">
-          <div><p className="mn-setlabel">{template.name}</p><p className="mn-sethint">{template.match.hosts.join("、")} · v{version} · {template.source?.kind ?? "manual"}</p></div>
-          <label><input type="checkbox" disabled={busy || editing?.id === template.id} checked={template.enabled} onChange={(event) => void toggle(template, event.target.checked)} /> 启用</label>
-        </div>
-        <details className="mn-cliptemplate-preview"><summary>查看匹配与提取规则</summary><p>路径：{template.match.paths.join("、") || "全部路径"}</p><p>标题：{template.selectors.title.selector}</p><p>正文：{template.selectors.content.selector}</p><p>排除：{template.exclude.join("、") || "无"}</p><p>来源：{template.source?.repository ? `${template.source.repository}@${template.source.commit ?? ""} · ${template.source.path ?? ""}` : template.source?.kind ?? "manual"}</p></details>
-        <div className="mn-cliptemplate-actions">
-          <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing({ id: template.id, version, draft: JSON.stringify(template, null, 2) })}>编辑</button>
-          <button type="button" className="mn-btn" disabled={busy} onClick={() => exportRule(template)}>导出</button>
-          <button type="button" className="mn-btn" disabled={busy} onClick={() => void deleteRule(template.id)}>删除</button>
-        </div>
-        {editing?.id === template.id && <div className="mn-cliptemplate-edit">
-          <label className="mn-setlabel" htmlFor={`mn-clip-template-edit-${template.id}`}>编辑规则 JSON</label>
-          <textarea id={`mn-clip-template-edit-${template.id}`} className="mn-cliptemplate-json" rows={14} value={editing.draft} onChange={(event) => setEditing({ ...editing, draft: event.target.value })} />
-          <div className="mn-cliptemplate-actions">
-            <button type="button" className="mn-btn" disabled={busy} onClick={() => void saveExistingRule()}>保存修改</button>
-            <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing(null)}>取消</button>
+      {templates.map(({ template, version }) => {
+        const isAdapter = template.pipeline === "capture-clip";
+        return <article className="mn-cliptemplate-card" key={template.id}>
+          <div className="mn-cliptemplate-heading">
+            <div>
+              <p className="mn-setlabel">{template.name}</p>
+              <p className="mn-sethint">
+                {template.match.hosts.join("、")} · v{version} ·{" "}
+                {isAdapter
+                  ? `命令式 capture+clip（${template.adapter?.id} v${template.adapter?.version ?? "?"}）`
+                  : `声明式模板（${template.source?.kind ?? "manual"}）`}
+              </p>
+            </div>
+            <label><input type="checkbox" disabled={busy || editing?.id === template.id} checked={template.enabled} onChange={(event) => void toggle(template, event.target.checked)} /> 启用</label>
           </div>
-        </div>}
-      </article>)}
+          {isAdapter ? (
+            <details className="mn-cliptemplate-preview">
+              <summary>查看管线与来源</summary>
+              <p>管线：命令式 capture + clip（提取实现随插件发行，此处管理注册信息与启停）</p>
+              <p>适配器：{template.adapter?.id} · 版本 {template.adapter?.version ?? "?"}</p>
+              <p>上游：{template.adapter?.upstream ? `edgeever@${template.adapter.upstream.slice(0, 8)}` : "无固定上游"}</p>
+              <p>匹配站点：{template.match.hosts.join("、")}</p>
+            </details>
+          ) : (
+            <details className="mn-cliptemplate-preview">
+              <summary>查看匹配与提取规则</summary>
+              <p>管线：声明式模板</p>
+              <p>路径：{template.match.paths.join("、") || "全部路径"}</p>
+              <p>标题：{template.selectors?.title.selector ?? "—"}</p>
+              <p>正文：{template.selectors?.content.selector ?? "—"}</p>
+              <p>排除：{template.exclude.join("、") || "无"}</p>
+              <p>来源：{template.source?.repository ? `${template.source.repository}@${template.source.commit ?? ""} · ${template.source.path ?? ""}` : template.source?.kind ?? "manual"}</p>
+            </details>
+          )}
+          <div className="mn-cliptemplate-actions">
+            {isAdapter ? (
+              <p className="mn-sethint">命令式规则的提取逻辑随插件版本更新；此处仅可启停，无需编辑。</p>
+            ) : (
+              <>
+                <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing({ id: template.id, version, draft: JSON.stringify(template, null, 2) })}>编辑</button>
+                <button type="button" className="mn-btn" disabled={busy} onClick={() => exportRule(template)}>导出</button>
+                <button type="button" className="mn-btn" disabled={busy} onClick={() => void deleteRule(template.id)}>删除</button>
+              </>
+            )}
+          </div>
+          {editing?.id === template.id && <div className="mn-cliptemplate-edit">
+            <label className="mn-setlabel" htmlFor={`mn-clip-template-edit-${template.id}`}>编辑规则 JSON</label>
+            <textarea id={`mn-clip-template-edit-${template.id}`} className="mn-cliptemplate-json" rows={14} value={editing.draft} onChange={(event) => setEditing({ ...editing, draft: event.target.value })} />
+            <div className="mn-cliptemplate-actions">
+              <button type="button" className="mn-btn" disabled={busy} onClick={() => void saveExistingRule()}>保存修改</button>
+              <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing(null)}>取消</button>
+            </div>
+          </div>}
+        </article>;
+      })}
     </section>
     {message && <p className="mn-sethint" role="status">{message}</p>}
   </section>;
