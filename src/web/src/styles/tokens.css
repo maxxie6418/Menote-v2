@@ -34,7 +34,7 @@
   --app-accent-text: #241505;
   --app-accent-fg: #b4530f;
   --app-accent-subtle: #fef2e7;
-  --app-link: #0051c3;
+  --app-link: #b4530f;
   --app-success: #5f8b3f;
   --app-danger: #b3261e;
   /* 编辑器字体颜色默认色板（FR-EDT-15）。 */
@@ -748,14 +748,14 @@
   --app-fg-muted: #454b57;
   --app-fg-subtle: #5d6472;
   --app-fg-faint: #68707f;
-  /* 强调：靛蓝；实底配白字，文字色压深一档 */
-  --app-accent: #3e63dd;
-  --app-accent-hover: #3451b2;
-  --app-accent-text: #ffffff;
-  --app-accent-fg: #3451b2;
-  --app-accent-subtle: rgba(62, 99, 221, .09);
-  --app-accent-soft: rgba(62, 99, 221, .18);
-  --app-link: #2f5bc4;
+  /* 默认素灰主题沿用 Cloudflare 橙；文字用深橙确保浅色背景对比度。 */
+  --app-accent: #f6821f;
+  --app-accent-hover: #e5760f;
+  --app-accent-text: #241505;
+  --app-accent-fg: #b4530f;
+  --app-accent-subtle: #fef2e7;
+  --app-accent-soft: rgba(246, 130, 31, .18);
+  --app-link: #b4530f;
   --app-success: #4a7a5c;
   --app-danger: #b3261e;
   --app-surface-raised: #ffffff;

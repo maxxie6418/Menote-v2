@@ -192,7 +192,9 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       const heading = inspector.querySelector<HTMLElement>(".mn-inspector-outline .mn-inspector-section-head");
       if (!body || !heading) return;
       const inset = heading.getBoundingClientRect().top - inspector.getBoundingClientRect().top;
-      const offset = Math.max(0, body.getBoundingClientRect().top - main.getBoundingClientRect().top - inset);
+      const viewportCenter = root.getBoundingClientRect().top + root.clientHeight / 2;
+      const bodyTop = body.getBoundingClientRect().top;
+      const offset = Math.max(0, Math.round((bodyTop + viewportCenter) / 2 - main.getBoundingClientRect().top - inset));
       root.style.setProperty("--app-doc-inspector-offset", `${offset}px`);
     };
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(align); };
