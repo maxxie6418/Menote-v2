@@ -6,7 +6,7 @@ import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
 import { groupByDay, memoImages, statusLabel, MemoGallery } from "../features/memo";
-import { NoteDocument } from "../features/notes";
+import { NoteDocument, noteSnippet } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
 import { setTaskCheckbox } from "../lib/markdownTasks";
@@ -23,9 +23,8 @@ const dateLabel = (timestamp: number) => {
     : date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 };
 
-const previewText = (item: Item) => item.content.scope === "plain"
-  ? item.content.markdown.replace(/[#>*`\-\[\]!]/g, "").replace(/\s+/g, " ").trim().slice(0, 64)
-  : "已加密";
+/** 移动端列表摘要与桌面清单同口径（noteSnippet）：不泄 frontmatter，表格给「x 行 x 列」。 */
+const previewText = (item: Item) => noteSnippet(item);
 
 export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   userId: string; onOpenItem: (item: Item) => void; onOpenSection: (section: NoteSection) => void;
