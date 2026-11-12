@@ -66,7 +66,7 @@
 :root[data-skin="slate"] .mn-propinput { border-radius: var(--app-radius-sm); }
 /* 设置·外观里的示意小图：真实文档没有纸卡，但示意图需要一块能读的「纸」，否则和画布糊在一起 */
 :root[data-skin="slate"] .mn-appearance-preview-paper { background: var(--app-surface); }
-/* 清单选中：行底压深一档 + 2px 靛蓝条，不给整行上淡色 */
+/* 清单选中：行底压深一档 + 2px 强调条（云橙），不给整行上淡色 */
 :root[data-skin="slate"] .mn-note-row.on { background: var(--app-selected); }
 :root[data-skin="slate"] .mn-treerow.on { background: var(--app-raised-on-side); }
 

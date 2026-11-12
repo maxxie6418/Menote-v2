@@ -165,7 +165,7 @@ function AppearanceSection({ userId }: { userId: string }) {
       <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">界面主题<InfoHint>两套皮肤：素灰（默认，冷灰底 + 靛蓝强调）、墨台（暖砂底 + 朱砂）。皮肤与浅色 / 深色互相独立，界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
+          <p className="mn-setlabel">界面主题<InfoHint>两套皮肤：素灰（默认，冷灰底 + 云橙强调）、墨台（暖砂底 + 朱砂）。皮肤与浅色 / 深色互相独立，界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
         </div>
         <select
           className="mn-propselect"

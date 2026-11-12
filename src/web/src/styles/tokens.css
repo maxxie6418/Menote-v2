@@ -728,7 +728,8 @@
 /* ---------- 素灰 / SLATE（默认主题，2026-11-10） ----------
    与墨台正交：data-skin="slate" 只换取值，结构覆盖在 styles/slate.css。
    取值依据：中性灰取 Radix / Tailwind slate 色阶（浅 1–4、深 11–12），
-   强调取 Radix indigo 的 9（实底）与 11（文字）两级，白字压 #3e63dd 为 5.2:1；
+   强调取 Cloudflare 橙 #f6821f（实底）与 #b4530f / #fbad41（文字，分浅深两档）；
+   深色档橙底压深字 #1a1208、浅色档压 #241505，均为保证按钮文字对比度；
    元信息灰在纯白上 5.0:1、在清单底上 4.5:1，四档文字都过 AA。
    放在文件末尾：与上方 v3 墨台块同权重（0,3,0），靠顺序取胜，勿前移。 */
 :root[data-skin="slate"] {
@@ -770,8 +771,8 @@
   --app-shadow-seg-lift: 0 1px 2px rgba(20, 24, 33, .12);
   --app-dock-shadow: 0 0 0 1px rgba(20, 24, 33, .06), 0 12px 28px -14px rgba(20, 24, 33, .30);
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(20, 24, 33, .12);
-  --app-focus-ring: 0 0 0 0.1875rem rgba(62, 99, 221, .32);
-  --app-focus-outline: 0.1875rem solid rgba(62, 99, 221, .32);
+  --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, .35);
+  --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, .35);
   --app-scrollbar-thumb: rgba(20, 24, 33, 0.08);
   --app-scrollbar-thumb-hover: #8f96a3;
   --app-overlay-bg: rgba(18, 22, 30, .42);
@@ -835,13 +836,15 @@
   --app-fg-muted: #a9b0bd;
   --app-fg-subtle: #8a92a1;
   --app-fg-faint: #7d8595;
-  --app-accent: #4a5fd6;
-  --app-accent-hover: #5b70e4;
-  --app-accent-text: #ffffff;
-  --app-accent-fg: #9daaff;
-  --app-accent-subtle: rgba(94, 113, 240, .16);
-  --app-accent-soft: rgba(94, 113, 240, .26);
-  --app-link: #8ba4ff;
+  /* 2026-11-12 负责人指示：默认主题的强调色回到 Cloudflare 橙（与浅色档一致），
+     不再用靛蓝；只换配色，灰阶与布局不动。橙底压深字（#1a1208）保证对比度。 */
+  --app-accent: #f6821f;
+  --app-accent-hover: #ff9a3c;
+  --app-accent-text: #1a1208;
+  --app-accent-fg: #fbad41;
+  --app-accent-subtle: #3a2716;
+  --app-accent-soft: rgba(246, 130, 31, .28);
+  --app-link: #fbad41;
   --app-success: #8fb79f;
   --app-danger: #ff8a80;
   --app-surface-raised: #1b1f29;
