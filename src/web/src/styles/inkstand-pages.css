@@ -53,7 +53,7 @@
 /* v3 landing page uses a two-column home canvas rather than legacy home sections. */
 :root .mn-home-bar { min-height: var(--app-space-20); justify-content: flex-end; padding: var(--app-space-md) var(--app-space-lg) var(--app-zero); border: 0; }
 :root .mn-home-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
-:root .mn-home-layout { display: grid; width: var(--app-full-size); max-width: var(--app-home-layout-max); min-height: var(--app-full-size); grid-template-columns: minmax(0, 1fr) var(--app-home-aside-width); gap: var(--app-home-layout-gap); align-items: start; margin: 0 auto; padding: var(--app-home-layout-pad); }
+:root .mn-home-layout { display: grid; width: var(--app-full-size); max-width: var(--app-home-layout-max); min-height: var(--app-full-size); grid-template-columns: minmax(0, 1fr) var(--app-home-aside-width); gap: var(--app-home-layout-gap); align-items: start; align-content: center; margin: 0 auto; padding: var(--app-home-layout-pad); }
 :root .mn-home-greeting { margin: var(--app-home-greeting-margin); color: var(--app-fg-muted); font-family: var(--app-font-serif); font-size: var(--app-home-greeting-size); font-weight: var(--app-weight-regular); letter-spacing: var(--app-home-greeting-track); }
 :root .mn-home-stamp { gap: var(--app-space-lg); margin-bottom: 0; }
 :root .mn-home-stamp time { font-size: var(--app-home-clock-size); }

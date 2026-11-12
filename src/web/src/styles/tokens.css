@@ -134,8 +134,6 @@
   --app-home-recent-top: 1.625rem;
   --app-home-document-height: 2rem;
   --app-home-document-icon: 1.25rem;
-  --app-home-history-top: 2.125rem;
-  --app-home-history-bar: 2.5rem;
   --app-home-bars-height: 1.75rem;
   --app-home-side-action-height: 1.875rem;
   --app-home-footer-height: 2.25rem;
@@ -290,6 +288,8 @@
   --app-props-pop-sm: 15.75rem;
   --app-props-z: 28;
   --app-props-flash: 1.4s;
+  --app-props-strip-text-max: 12em;     /* 属性带内文本上限（作者/来源等短文本），em 随字号缩放 */
+  --app-props-striplist-key-min: 4.5em; /* 属性带列表态键名最小宽 */
   --app-tpl-key-col: 7rem;         /* 设置·默认属性表：键名列 */
   --app-tpl-type-col: 3.5rem;      /* 设置·默认属性表：类型列 */
   --app-kicker-line-width: 0.875rem;  /* 14px 文档角标装饰线 */

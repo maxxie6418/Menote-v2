@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, Download, FilePlus2, LockKeyhole, Paperclip, Search, Table2, Tag } from "../icons";
+import { ArrowUpRight, Download, FilePlus2, Paperclip, Search, Table2, Tag } from "../icons";
 import type { Item } from "@menote/shared";
 import type { BrowseSection } from "../services/contentHooks";
 import { useHomeSnapshot, useLocalSearch, useRecentItems } from "../services/contentHooks";
@@ -36,7 +36,6 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
   const [memoTagInput, setMemoTagInput] = useState("");
   const [memoTagsOpen, setMemoTagsOpen] = useState(false);
   const [importFeedback, setImportFeedback] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(true);
   const [clock, setClock] = useState(() => new Date());
   const searchRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -67,7 +66,6 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
   const today = new Date(clock); today.setHours(0, 0, 0, 0);
   const todayMemos = memos.filter((item) => item.createdAt >= today.getTime());
   const recentDocuments = recent.filter((item) => item.type !== "memo" && visible(item)).slice(0, 4);
-  const recentMemos = [...memos].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
   const week = Array.from({ length: 7 }, (_, index) => {
     const day = new Date(today); day.setDate(today.getDate() - 6 + index);
     const next = new Date(day); next.setDate(day.getDate() + 1);
@@ -133,9 +131,6 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
           </nav>
           <section className="mn-home-recent" aria-label="最近文档"><div className="mn-home-recent-heading"><span>最近文档</span><button type="button" onClick={() => onNavigate({ kind: "recent" })}>全部 {documents.length} 篇</button></div>
             {recentDocuments.length ? recentDocuments.map((item) => <button type="button" className="mn-home-document" key={item.id} onClick={() => onOpenItem(item)}><span className="mn-home-document-icon">{item.type === "table" ? <Table2 /> : <FilePlus2 />}</span><span className="mn-home-document-title">{item.title || "无标题"}</span><time>{formatTime(item.updatedAt)}</time></button>) : <p className="mn-home-empty">还没有最近编辑的文档</p>}
-          </section>
-          <section className={`mn-home-history${historyOpen ? " is-open" : ""}`}><div><LockKeyhole /><span>最近随记 · <b>{recentMemos.length ? `共 ${memos.length} 条` : "暂无随记"}</b></span><button type="button" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}>{historyOpen ? "隐藏" : "显示"}</button></div>
-            {historyOpen && <ul>{recentMemos.map((item) => <li key={item.id}><time>{formatTime(item.createdAt)}</time><button type="button" onClick={() => onOpenItem(item)}>{item.content.scope === "plain" ? item.content.markdown || "（空白随记）" : "已加密"}</button></li>)}</ul>}
           </section>
         </>}
         {searching && <section className="mn-home-search-results"><div className="mn-home-recent-heading"><span>搜索结果</span><button type="button" onClick={() => setQuery("")}>清除</button></div>{hits === undefined ? <p className="mn-home-empty">正在查找…</p> : hits.length ? hits.filter((hit) => visible(hit.item)).map((hit) => <button type="button" className="mn-home-document" key={hit.item.id} onClick={() => onOpenItem(hit.item)}><span className="mn-home-document-icon">{hit.item.type === "table" ? <Table2 /> : <FilePlus2 />}</span><span className="mn-home-document-title">{hit.title}</span><time>{hit.item.type === "memo" ? "Memo" : hit.item.type === "table" ? "表格" : "笔记"}</time></button>) : <p className="mn-home-empty">没有匹配的内容</p>}</section>}

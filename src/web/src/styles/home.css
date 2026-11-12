@@ -63,7 +63,7 @@
 .mn-home { overflow: hidden; }
 .mn-home-bar { min-height: var(--app-space-20); justify-content: flex-end; padding: var(--app-space-md) var(--app-space-lg) var(--app-zero); }
 .mn-home-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
-.mn-home-layout { display: grid; width: var(--app-full-size); max-width: var(--app-home-layout-max); min-height: var(--app-full-size); grid-template-columns: minmax(0, 1fr) var(--app-home-aside-width); gap: var(--app-home-layout-gap); align-items: start; margin: var(--app-zero) auto; padding: var(--app-home-layout-pad); }
+.mn-home-layout { display: grid; width: var(--app-full-size); max-width: var(--app-home-layout-max); min-height: var(--app-full-size); grid-template-columns: minmax(0, 1fr) var(--app-home-aside-width); gap: var(--app-home-layout-gap); align-items: start; align-content: center; margin: var(--app-zero) auto; padding: var(--app-home-layout-pad); }
 .mn-home-main { min-width: 0; }
 .mn-home-side { display: flex; flex-direction: column; }
 .mn-home-stamp { display: flex; align-items: baseline; gap: var(--app-space-lg); }
@@ -105,15 +105,6 @@
 .mn-home-document-icon { width: var(--app-home-document-icon); height: var(--app-home-document-icon); }
 .mn-home-document-title { overflow: hidden; flex: 1; color: var(--app-fg-muted); font-size: var(--app-size-nav); text-overflow: ellipsis; white-space: nowrap; }
 .mn-home-document time { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
-.mn-home-history { margin-top: var(--app-home-history-top); border-top: var(--app-line) solid var(--app-border-subtle); }
-.mn-home-history > div { display: flex; min-height: var(--app-home-history-bar); align-items: center; gap: var(--app-space-sm); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
-.mn-home-history > div > svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-.mn-home-history b { color: var(--app-fg-subtle); font-weight: var(--app-weight-medium); }
-.mn-home-history > div button { margin-left: auto; padding: var(--app-space-2) var(--app-space-sm); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-subtle); font: inherit; cursor: pointer; }
-.mn-home-history ul { margin: var(--app-zero); padding: var(--app-zero); list-style: none; }
-.mn-home-history li { display: flex; gap: var(--app-space-sm); padding: var(--app-space-xs) var(--app-zero); border-top: var(--app-line) dashed var(--app-border-subtle); }
-.mn-home-history li time { flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
-.mn-home-history li button { overflow: hidden; padding: var(--app-zero); border: var(--app-zero); background: transparent; color: var(--app-fg-muted); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .mn-home-side-block { padding: var(--app-space-md) var(--app-zero); border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-home-side-block:first-child { padding-top: var(--app-space-2); border-top: var(--app-zero); }
 .mn-home-side-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
