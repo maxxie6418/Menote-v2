@@ -26,6 +26,13 @@ export interface PropertyDef {
   label?: string;
   options?: string[];
   optionColors?: Record<string, OptionColor>;
+  /**
+   * 属性区位置（2026-11-12）：true 强制进第一排、false 强制不进；缺省时按类型与预设判定。
+   * 显式写在 props 定义里，随文档走，不吃「值有多长」的推断。
+   */
+  strip?: boolean;
+  /** true 表示独享整排（文本类还会按两行显示），用于概述这类要读全的字段。 */
+  wide?: boolean;
 }
 
 export const OPTION_COLORS = ["neutral", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"] as const;
@@ -46,6 +53,10 @@ export interface PropertyTemplate {
   value?: string | boolean | string[];
   /** 分组（设置里按组分栏列出）：剪藏 / Raindrop / 通用。 */
   group?: string;
+  /** 进属性区第一排（与 PropertyDef.strip 同义）；缺省按类型判定。 */
+  strip?: boolean;
+  /** 独享整排并两行显示（与 PropertyDef.wide 同义），用于概述这类要读全的字段。 */
+  wide?: boolean;
 }
 
 /** Note 页边注存入同一条目 frontmatter，随正文版本、同步、加密与备份一并流转。 */
@@ -154,6 +165,8 @@ export function readDefs(markdown: string, namespace: string): Record<string, Pr
       label: typeof spec.label === "string" ? spec.label : undefined,
       options: Array.isArray(spec.options) ? spec.options.filter((o): o is string => typeof o === "string") : undefined,
       optionColors: readOptionColors(spec.optionColors),
+      ...(typeof spec.strip === "boolean" ? { strip: spec.strip } : {}),
+      ...(typeof spec.wide === "boolean" ? { wide: spec.wide } : {}),
     };
   }
   return defs;
@@ -184,6 +197,8 @@ function defNode(def: PropertyDef): Record<string, unknown> {
   if (def.label) spec.label = def.label;
   if (def.options) spec.options = def.options;
   if (def.optionColors && Object.keys(def.optionColors).length > 0) spec.optionColors = def.optionColors;
+  if (typeof def.strip === "boolean") spec.strip = def.strip;
+  if (typeof def.wide === "boolean") spec.wide = def.wide;
   return spec;
 }
 

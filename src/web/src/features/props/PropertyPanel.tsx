@@ -9,8 +9,8 @@ import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { AddPropertyPopover } from "./AddPropertyPopover";
 import { PropertySettingsPopover } from "./PropertySettingsPopover";
 import {
-  GRID_MULTI_PAIR_MAX, PROPS_TWO_COLUMN_MIN, STRIP_LEFT_TYPES, STRIP_RIGHT_TYPES,
-  inferType, isBlankValue, isHttpUrl, isStripRow,
+  GRID_MULTI_PAIR_MAX, PROPS_TWO_COLUMN_MIN, STRIP_LEFT_TYPES,
+  inferType, isBlankValue, isHttpUrl, keptDef, placementDef, placementOf, type PropPlacement,
 } from "./propsShared";
 
 interface PropertyPanelProps {
@@ -103,46 +103,70 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   const labelOf = (row: PropRow): string => row.def?.label ?? presetLabels.get(row.key) ?? row.key;
 
   /**
+   * 预设的落位标记（strip / wide）。用户预设优先、出厂预设兜底；
+   * 文档里的显式设定优先于它——「第一排放哪些」最终由属主决定，不由值的长短猜。
+   */
+  const presetFlags = useMemo(() => {
+    const strip = new Map<string, boolean>();
+    const wide = new Map<string, boolean>();
+    for (const template of [...DEFAULT_PROPERTY_TEMPLATES, ...templates]) {
+      if (typeof template.strip === "boolean" && !strip.has(template.name)) strip.set(template.name, template.strip);
+      if (typeof template.wide === "boolean" && !wide.has(template.name)) wide.set(template.name, template.wide);
+    }
+    return { strip, wide };
+  }, [templates]);
+  const flagsOf = (key: string) => ({ strip: presetFlags.strip.get(key), wide: presetFlags.wide.get(key) });
+  const placementOfRow = (row: PropRow): PropPlacement =>
+    placementOf(row, row.def?.type ?? inferType(row), flagsOf(row.key));
+
+  /**
    * 三区分拣。空值在这里分流：纯带内类型（单选 / 复选框）无处可放，直接不进渲染；
    * 其余空值落网格，保留一行破折（多选显示「+ 添加」），行位置不跳。
    */
   const groups = useMemo(() => {
     const left: PropRow[] = [];
     const right: PropRow[] = [];
-    const multi: PropRow[] = [];
-    const long: PropRow[] = [];
+    const pair: PropRow[] = [];
+    const wide: PropRow[] = [];
     for (const row of rows) {
       const type = row.def?.type ?? inferType(row);
+      const placement = placementOf(row, type, flagsOf(row.key));
       if (isBlankValue(row)) {
+        /* 纯带内类型（单选/复选框）没有可读的空形态，直接不进渲染；
+           其余空值保留行，落它该去的位置，行号不跳。 */
         if (type === "select" || type === "checkbox") continue;
-        if (type === "multiselect" || row.isArray) multi.push(row);
-        else long.push(row);
+        if (placement === "wide") wide.push(row);
+        else pair.push(row);
         continue;
       }
-      if (STRIP_LEFT_TYPES.has(type)) { left.push(row); continue; }
-      if (STRIP_RIGHT_TYPES.has(type) && isStripRow(row, type)) { right.push(row); continue; }
-      if (type === "multiselect" || row.isArray) { multi.push(row); continue; }
-      long.push(row);
+      if (placement === "strip") {
+        (STRIP_LEFT_TYPES.has(type) ? left : right).push(row);
+        continue;
+      }
+      if (placement === "wide") { wide.push(row); continue; }
+      pair.push(row);
     }
-    return { left, right, multi, long };
-  }, [rows]);
+    return { left, right, pair, wide };
+  }, [rows, presetFlags]);
 
-  /** 网格单元格：多选两两配对（≤2 项），落单跨满；项数多的与长字段一律跨满。 */
+  /**
+   * 网格单元格：并列区按顺序两两配对，落单跨满；独享区（概述/摘要）固定排在最后。
+   * 不再有「按类型跨列」那套——位置由属性设置决定。
+   */
   const cells = useMemo(() => {
-    const out: Array<{ row: PropRow; span: boolean; second: boolean }> = [];
-    const halfable = groups.multi.filter((row) => row.arrayValues.length <= GRID_MULTI_PAIR_MAX);
-    const wide = groups.multi.filter((row) => row.arrayValues.length > GRID_MULTI_PAIR_MAX);
-    for (let i = 0; i < halfable.length; i += 2) {
-      const first = halfable[i];
-      const second = halfable[i + 1];
+    const out: Array<{ row: PropRow; span: boolean; second: boolean; wide: boolean }> = [];
+    const paired = groups.pair;
+    for (let i = 0; i < paired.length; i += 2) {
+      const first = paired[i];
+      const second = paired[i + 1];
       if (second) {
-        out.push({ row: first, span: false, second: false }, { row: second, span: false, second: true });
+        out.push({ row: first, span: false, second: false, wide: false });
+        out.push({ row: second, span: false, second: true, wide: false });
       } else {
-        out.push({ row: first, span: true, second: false });   // 落单跨满，不留半格空洞
+        out.push({ row: first, span: true, second: false, wide: false });   // 落单跨满，不留半格空洞
       }
     }
-    for (const row of wide) out.push({ row, span: true, second: false });
-    for (const row of groups.long) out.push({ row, span: true, second: false });
+    for (const row of groups.wide) out.push({ row, span: true, second: false, wide: true });
     return out;
   }, [groups]);
 
@@ -226,6 +250,8 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
       type: template.type,
       ...(template.label ? { label: template.label } : {}),
       ...(template.options?.length ? { options: template.options } : {}),
+      ...(typeof template.strip === "boolean" ? { strip: template.strip } : {}),
+      ...(typeof template.wide === "boolean" ? { wide: template.wide } : {}),
     };
     let next = writeDef(markdown, PROPS_KEY, template.name, def);
     if (template.value !== undefined && template.value !== "") next = writeValue(next, template.name, template.value);
@@ -256,14 +282,16 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
     setSlotEdit({ key: row.key, anchor });
   };
 
-  const renderRow = (row: PropRow, span: boolean, second: boolean) => {
+  const renderRow = (row: PropRow, span: boolean, second: boolean, wide: boolean) => {
     const type = row.def?.type ?? inferType(row);
     const label = labelOf(row);
+    /* 独享整排的文本按两行显示（概述/摘要要读一段）；链接与附件仍单行，URL 换行没有信息量 */
+    const clamp = wide && (type === "multiline" || type === "text");
     const classes = [
       "mn-props-row",
       span ? "is-span" : "is-half",
       second ? "is-second" : "",
-      type === "multiline" ? "is-multiline" : "",
+      clamp ? "is-multiline" : "",
       flash === row.key ? "is-flash" : "",
     ].filter(Boolean).join(" ");
     return (
@@ -310,7 +338,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
 
       {/* 区一：带。左右都空就不渲染，连底线一起（否则只剩一条空线） */}
       {(groups.left.length > 0 || groups.right.length > 0) && (
-        <div className="mn-props-strip" data-alone={groups.left.length ? "0" : "1"} ref={stripRef}>
+        <div className="mn-props-strip" ref={stripRef}>
           <div className="mn-strip-left" ref={leftRef}>
             {groups.left.map((row) => {
               const type = row.def?.type ?? inferType(row);
@@ -363,7 +391,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
       {/* 区二 + 区三：网格。多选两两并排或跨满，长字段跨满，多行文本固定两行 */}
       {cells.length > 0 && (
         <div className="mn-props-grid">
-          {cells.map((cell) => renderRow(cell.row, cell.span, cell.second))}
+          {cells.map((cell) => renderRow(cell.row, cell.span, cell.second, cell.wide))}
         </div>
       )}
 
@@ -390,6 +418,11 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
       {settingsRow && settings && (
         <PropertySettingsPopover
           row={settingsRow} anchor={settings.anchor} existingKeys={rows.map((row) => row.key)}
+          placement={placementOfRow(settingsRow)}
+          onPlacement={(placement) => defineRow(settingsRow, {
+            ...keptDef(settingsRow, settingsRow.def?.type ?? inferType(settingsRow), settingsRow.def?.options),
+            ...placementDef(placement),
+          })}
           onDefine={(def) => defineRow(settingsRow, def)}
           onRename={(name) => { onSave(renameProp(markdown, PROPS_KEY, settingsRow.key, name)); setSettings(null); }}
           onRemove={() => removeRow(settingsRow)}
@@ -475,6 +508,14 @@ function StripSlot({ row, type, label, onEdit, onToggle }: {
     return (
       <button type="button" className="mn-strip-stamp" title={`${label}：${row.raw}`} onClick={(event) => onEdit(event.currentTarget)}>
         <b>{label}</b><span>{row.raw}</span>
+      </button>
+    );
+  }
+  const iso = /^(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}/.exec(row.raw);
+  if (iso) {
+    return (
+      <button type="button" className="mn-strip-stamp" title={`${label}：${row.raw}`} onClick={(event) => onEdit(event.currentTarget)}>
+        <b>{label}</b><span>{iso[1]}</span>
       </button>
     );
   }

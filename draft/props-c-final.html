@@ -242,6 +242,9 @@
   <header>
     <p class="kicker">MENOTE · 属性区 C 方案最终结构 · 2026-11-12</p>
     <h1>左判定、右归属，空的不占位</h1>
+    <p style="margin:0 0 18px;padding:9px 12px;border:1px solid var(--app-border);border-radius:7px;background:var(--app-surface-sunken);font-size:11.5px;line-height:1.7;color:var(--app-fg-muted)">
+      <b style="color:var(--app-fg);font-weight:500">2026-11-12 落地修订：</b>第一排改为<b style="color:var(--app-fg);font-weight:500">显式配置</b>——只有单选 / 复选框 / 日期 / 数字按类型默认进入，文本与链接必须在属性设置的「位置」里指定（写进 props 定义的 <code>strip</code>），不再按值的长度猜。概述改由 <code>wide</code> 标记驱动（独享整排 + 两行 + 固定末尾）。另：归属类永远靠右，左组为空时不回左。以实现为准。
+    </p>
     <p class="sub">
       带里现在是<b>两端分布</b>：左边放判定（状态、复选框），右边放归属（作者·来源、时间、数值），中间是弹性空白，不再全挤在左边。
       作者也进了这一排，但给了宽度上限。<b>空值与缺省是一套固定规则</b>：带是摘要，空的不作证；网格是清单，定义过就留位置。

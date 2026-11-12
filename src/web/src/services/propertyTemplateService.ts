@@ -31,17 +31,19 @@ export const DEFAULT_PROPERTY_TEMPLATES: PropertyTemplate[] = [
     ...(column.options ? { options: [...column.options] } : {}),
     group: "Raindrop",
   })),
+  /* strip: 进第一排（作者、站点、时间是「谁·哪·何时」，扫一眼就够）；
+     wide: 独享整排并两行（概述/摘要要读一段，不能挤成半格）。 */
   { id: "clip-page-title", name: "page_title", type: "text", label: "页面标题", group: "剪藏" },
   { id: "clip-source", name: "source_url", type: "link", label: "来源链接", group: "剪藏" },
-  { id: "clip-captured", name: "clipped_at", type: "date", label: "采集时间", group: "剪藏" },
-  { id: "clip-author", name: "author", type: "text", label: "作者", group: "剪藏" },
-  { id: "clip-published", name: "published_at", type: "date", label: "发布时间", group: "剪藏" },
-  { id: "clip-site", name: "site_name", type: "text", label: "站点", group: "剪藏" },
+  { id: "clip-captured", name: "clipped_at", type: "date", label: "采集时间", group: "剪藏", strip: true },
+  { id: "clip-author", name: "author", type: "text", label: "作者", group: "剪藏", strip: true },
+  { id: "clip-published", name: "published_at", type: "date", label: "发布时间", group: "剪藏", strip: true },
+  { id: "clip-site", name: "site_name", type: "text", label: "站点", group: "剪藏", strip: true },
   { id: "clip-canonical", name: "canonical_url", type: "link", label: "规范链接", group: "剪藏" },
-  { id: "clip-description", name: "description", type: "text", label: "摘要", group: "剪藏" },
+  { id: "clip-description", name: "description", type: "text", label: "摘要", group: "剪藏", wide: true },
   { id: "obs-status", name: "status", type: "select", label: "状态", options: ["未开始", "进行中", "已完成", "已搁置"], value: "未开始", group: "通用" },
-  { id: "obs-author", name: "author", type: "text", label: "作者", group: "通用" },
-  { id: "obs-created", name: "created", type: "date", label: "创建时间", group: "通用" },
+  { id: "obs-author", name: "author", type: "text", label: "作者", group: "通用", strip: true },
+  { id: "obs-created", name: "created", type: "date", label: "创建时间", group: "通用", strip: true },
   { id: "obs-project", name: "project", type: "text", label: "项目", group: "通用" },
   { id: "obs-priority", name: "priority", type: "select", label: "优先级", options: ["高", "中", "低"], value: "中", group: "通用" },
 ];
@@ -69,6 +71,8 @@ export function normalizePropertyTemplates(value: unknown): PropertyTemplate[] {
       ...(options && options.length ? { options } : {}),
       ...(value0 !== undefined ? { value: value0 } : {}),
       ...(typeof item.group === "string" && item.group ? { group: item.group } : {}),
+      ...(typeof item.strip === "boolean" ? { strip: item.strip } : {}),
+      ...(typeof item.wide === "boolean" ? { wide: item.wide } : {}),
     });
   }
   return templates;

@@ -554,11 +554,10 @@
 .mn-props-add { margin-left: auto; display: inline-flex; align-items: center; gap: var(--app-space-2); height: var(--app-props-btn); padding-inline: var(--app-space-6); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); cursor: pointer; }
 .mn-props-add:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-props-add svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
-/* 区一：带（2026-11-12 C 方案）。左判定 / 右归属，两端分布；左组为空时右组回左 */
+/* 区一：带（2026-11-12 C 方案）。左判定 / 右归属，两端分布；归属永远靠右，即便左组为空 */
 .mn-props-strip { display: flex; align-items: center; height: var(--app-prop-height); overflow: hidden; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 .mn-strip-left { display: flex; align-items: center; flex: none; }
 .mn-strip-right { display: flex; align-items: center; min-width: var(--app-zero); margin-inline-start: auto; }
-.mn-props-strip[data-alone="1"] .mn-strip-right { margin-inline-start: var(--app-zero); }
 .mn-strip-slot { display: inline-flex; align-items: center; flex: none; min-width: var(--app-zero); }
 .mn-strip-slot + .mn-strip-slot { margin-inline-start: var(--app-space-8); padding-inline-start: var(--app-space-8); border-inline-start: var(--app-line) solid var(--app-border); }
 .mn-strip-slot.is-hidden { display: none; }

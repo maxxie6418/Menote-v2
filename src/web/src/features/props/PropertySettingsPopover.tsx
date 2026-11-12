@@ -2,13 +2,16 @@ import { useState } from "react";
 import type { PropRow, PropertyDef, PropertyType } from "../../lib/frontmatter";
 import { PROPERTY_TYPES, parseOptionList } from "../../lib/frontmatter";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
-import { TYPE_LABELS, inferType, keptDef } from "./propsShared";
+import { TYPE_LABELS, inferType, keptDef, type PropPlacement } from "./propsShared";
 
 interface PropertySettingsPopoverProps {
   row: PropRow;
   anchor: HTMLElement;
   /** 文档里已有的键（重命名查重用）。 */
   existingKeys: string[];
+  /** 当前生效的显示位置（第一排 / 并列 / 独享整排）。 */
+  placement: PropPlacement;
+  onPlacement: (placement: PropPlacement) => void;
   onDefine: (def: PropertyDef) => void;
   onRename: (name: string) => void;
   onRemove: () => void;
@@ -22,7 +25,7 @@ interface PropertySettingsPopoverProps {
  * 就地提示并等候选值填好再一起写。
  */
 export function PropertySettingsPopover({
-  row, anchor, existingKeys, onDefine, onRename, onRemove, onClose,
+  row, anchor, existingKeys, placement, onPlacement, onDefine, onRename, onRemove, onClose,
 }: PropertySettingsPopoverProps) {
   const currentType = row.def?.type ?? inferType(row);
   const [type, setType] = useState<PropertyType>(currentType);
@@ -54,6 +57,8 @@ export function PropertySettingsPopover({
       type,
       ...(next ? { label: next } : {}),
       ...(needsOptions && !pendingOptions ? { options: parseOptionList(optionsText) } : {}),
+      ...(typeof row.def?.strip === "boolean" ? { strip: row.def.strip } : {}),
+      ...(typeof row.def?.wide === "boolean" ? { wide: row.def.wide } : {}),
     });
   };
 
@@ -98,6 +103,17 @@ export function PropertySettingsPopover({
             onChange={(event) => commitType(event.target.value as PropertyType)}
           >
             {PROPERTY_TYPES.map((option) => <option key={option} value={option}>{TYPE_LABELS[option]}</option>)}
+          </select>
+        </label>
+        <label className="mn-proppop-row">
+          <span>位置</span>
+          <select
+            className="mn-propselect" aria-label={`${row.key} 的显示位置`} value={placement}
+            onChange={(event) => onPlacement(event.target.value as PropPlacement)}
+          >
+            <option value="strip">第一排 · 一行摘要</option>
+            <option value="pair">并列 · 两两成对</option>
+            <option value="wide">独享整排 · 两行</option>
           </select>
         </label>
         {needsOptions && (
