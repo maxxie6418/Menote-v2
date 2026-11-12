@@ -399,6 +399,9 @@
 .mn-tree-list > li > .mn-treerow { color: var(--app-fg); font-weight: var(--app-weight-medium); }
 .mn-tree-sublist .mn-treerow { color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-treerow .mn-tree-label { flex: 1; text-align: left; border: var(--app-zero); background: none; color: inherit; font: inherit; padding: var(--app-zero); cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 标签内联图标（私人空间锁标）：与锁定态 .mn-space 同规——14 图标 + 6 间距，居于文字基线；
+   不改成 flex 容器，保住长主题名的 text-overflow 省略。 */
+.mn-treerow .mn-tree-label svg { width: var(--app-icon-sm); height: var(--app-icon-sm); vertical-align: text-bottom; margin-right: var(--app-space-6); }
 /* 新建主题的内联输入：贴在段标题正下方（低频动作收进标题行，不在列表底部常驻） */
 .mn-tree-new { width: var(--app-full-size); height: var(--app-nav-height); margin-bottom: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-nav); padding: var(--app-zero) var(--app-space-xs); }
 .mn-tree-new:focus { border-color: var(--app-border); }
