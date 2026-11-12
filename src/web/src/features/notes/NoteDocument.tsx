@@ -180,6 +180,35 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setToolbarPos(resolveToolbar());
   }), []);
   const [focusMode, setFocusMode] = useState(false);
+  // 右侧检查器跟随正文起点；标题换行、属性展开、工具栏位置变化均重新测量。
+  useEffect(() => {
+    const root = documentRootRef.current;
+    const main = root?.querySelector<HTMLElement>(".mn-doc-main");
+    const inspector = inspectorRef.current;
+    if (!root || !main || !inspector) return;
+    let frame = 0;
+    const align = () => {
+      const body = main.querySelector<HTMLElement>(".mn-doc-preview, .mn-editor-host");
+      const heading = inspector.querySelector<HTMLElement>(".mn-inspector-outline .mn-inspector-section-head");
+      if (!body || !heading) return;
+      const inset = heading.getBoundingClientRect().top - inspector.getBoundingClientRect().top;
+      const offset = Math.max(0, body.getBoundingClientRect().top - main.getBoundingClientRect().top - inset);
+      root.style.setProperty("--app-doc-inspector-offset", `${offset}px`);
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(align); };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(main);
+    observer.observe(inspector);
+    for (const child of main.children) observer.observe(child);
+    window.addEventListener("resize", schedule);
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      root.style.removeProperty("--app-doc-inspector-offset");
+    };
+  }, [item?.id, mode, editorHost, propsPos, toolbarPos]);
   const [aiAssist, setAiAssist] = useState(false);
   const [autoSummary, setAutoSummary] = useState(false);
   useEffect(() => {
@@ -627,14 +656,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         )}
       />
       <div className="mn-docbody">
+        {!isTableDoc && <div className="mn-doc-kicker mn-doc-section-heading"><span>NOTE</span><i aria-hidden="true" />{item.topicId === null && <b>{item.source === "manual" ? "草稿" : "收件箱"}</b>}</div>}
         <div className="mn-doc-main">
-        {clipSource && (
-          <p className="mn-clip-source">
-            <span>剪藏自 {clipSource.host}</span>
-            <a href={clipSource.url} target="_blank" rel="noreferrer">打开原网页</a>
-            <button type="button" className="mn-textbtn" onClick={() => void navigator.clipboard.writeText(clipSource.url)}>复制原链接</button>
-          </p>
-        )}
         {recoveryText && (
           <p className="mn-conflictnote">
             <span>发现未保存的恢复副本。异常退出前的正文还在本机，没有上传。</span>
@@ -642,19 +665,25 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <button type="button" className="mn-textbtn" onClick={() => { void discardRecovery(item.id); setRecoveryText(null); }}>丢弃</button>
           </p>
         )}
-        {!isTableDoc && <div className="mn-doc-kicker"><span>NOTE</span><i aria-hidden="true" />{item.topicId === null && <b>{item.source === "manual" ? "草稿" : "收件箱"}</b>}</div>}
         <DocTitle
           key={item.id}
           value={title ?? item.title ?? ""}
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
-        {!isTableDoc && <div className="mn-doc-meta" aria-label="文档信息">
-          <time dateTime={new Date(item.createdAt).toISOString()}>{formatDocumentDate(item.createdAt)}</time>
-          <span aria-hidden="true">·</span>
-          <span>更新于 {formatDocumentUpdate(item.updatedAt)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{contentCharacters.toLocaleString("zh-CN")} 字符</span>
+        {(!isTableDoc || clipSource) && <div className="mn-doc-meta" aria-label="文档信息">
+          {!isTableDoc && <div className="mn-doc-meta-details">
+            <time dateTime={new Date(item.createdAt).toISOString()}>{formatDocumentDate(item.createdAt)}</time>
+            <span aria-hidden="true">·</span>
+            <span>更新于 {formatDocumentUpdate(item.updatedAt)}</span>
+            <span aria-hidden="true">·</span>
+            <span>{contentCharacters.toLocaleString("zh-CN")} 字符</span>
+          </div>}
+          {clipSource && <div className="mn-clip-source">
+            <span title={clipSource.host}>剪藏自 {clipSource.host}</span>
+            <a href={clipSource.url} target="_blank" rel="noreferrer">打开原网页</a>
+            <button type="button" className="mn-textbtn" onClick={() => void navigator.clipboard.writeText(clipSource.url)}>复制原链接</button>
+          </div>}
         </div>}
         {conflictOf && item.content.scope === "plain" && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={draft ?? item.content.markdown} onKeptOriginal={onBack} />

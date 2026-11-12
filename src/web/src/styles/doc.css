@@ -51,15 +51,17 @@
 .mn-doc[data-form="table"][data-mode="preview"] .mn-doc-main > .mn-doc-preview { width: var(--app-full-size); max-width: none; overflow-x: auto; }
 [data-props-pos="side"] .mn-doc[data-form="table"][data-mode="preview"] .mn-docbody { display: flex; flex-direction: row; }
 .mn-doc-title { display: block; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font-serif); font-size: var(--app-doc-title-size); font-weight: var(--app-weight-serif); line-height: var(--app-leading-doc-title); padding: var(--app-zero); }
-.mn-doc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); margin-top: calc(var(--app-space-6) * -1); color: var(--app-fg-faint); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
+.mn-doc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4) var(--app-space-12); color: var(--app-fg-faint); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
+.mn-doc-meta-details { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); }
 .mn-doc-kicker { display: flex; align-items: center; gap: var(--app-space-6); margin-bottom: var(--app-space-4); color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
 .mn-doc-kicker > i { display: block; width: var(--app-space-xl); height: var(--app-line); background: var(--app-border); }
 .mn-doc-kicker > b { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); color: var(--app-fg-muted); font-family: var(--app-font); font-weight: var(--app-weight-regular); }
+.mn-doc-section-heading { grid-column: 1; grid-row: 1; justify-self: center; width: min(var(--app-doc-measure), var(--app-full-size)); margin: var(--app-zero) auto; padding: var(--app-space-6) var(--app-space-30); border-inline: var(--app-line) solid transparent; }
 /* 标题由 textarea 承载（input 不能折行，长标题尾部会被推出可视区）：去掉原生缩放与滚动条，
    高度由 DocTitle 组件按 scrollHeight 设定；未断词的长串（URL 式标题）也允许在版心内折行。 */
 textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere; }
 /* 标题与属性区之间留一口气，避免标题直接压在属性行上 */
-.mn-doc-title + * { margin-top: var(--app-space-18); }
+.mn-doc-title + * { margin-top: var(--app-space-8); }
 .mn-doc { position: relative; }
 
 /* 属性显示位置（设置·外观）：side 把属性移到纸面右侧页边注；窄窗（compact/tablet/mobile）改单列，
@@ -103,7 +105,10 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-conflict-grid h3 { margin: 0 0 var(--app-space-6); font-size: var(--app-size-chip); font-weight: var(--app-weight-medium); color: var(--app-fg-muted); }
 .mn-conflict-grid > div { border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-10); overflow: auto; background: var(--app-surface); }
 .mn-conflict-actions { display: flex; flex-wrap: wrap; gap: var(--app-space-8); align-items: center; }
-.mn-clip-source { display: flex; flex-wrap: wrap; gap: var(--app-space-8); align-items: center; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
+.mn-clip-source { display: flex; flex-wrap: wrap; gap: var(--app-space-8); align-items: center; min-width: var(--app-zero); max-width: var(--app-full-size); margin-left: auto; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
+.mn-clip-source > span { min-width: var(--app-zero); overflow-wrap: anywhere; }
+.mn-clip-source > a, .mn-clip-source > button { flex: none; white-space: nowrap; }
+.mn-clip-source .mn-textbtn { min-height: var(--app-target-min); padding: var(--app-zero); }
 .mn-conflictnote { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--app-space-6); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-conflictnote a { color: var(--app-link); }
 .mn-editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }

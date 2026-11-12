@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Activity, LogOut, SlidersHorizontal } from "../icons";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
@@ -28,6 +28,7 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
   const [position, setPosition] = useState({ left: 0, bottom: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
 
   useEffect(() => subscribeTheme(() => setMode(getThemeMode())), []);
 
@@ -47,7 +48,10 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
     if (!open) return;
     const place = () => {
       const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setPosition({ left: rect.left, bottom: window.innerHeight - rect.top });
+      if (rect) setPosition({
+        left: Math.max(0, Math.min(rect.left, window.innerWidth - (menuRef.current?.offsetWidth ?? 0))),
+        bottom: window.innerHeight - rect.top,
+      });
     };
     place();
     window.addEventListener("resize", place);
@@ -80,7 +84,7 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
 
   return (
     <>
-      <button type="button" ref={triggerRef} className="mn-foot-user" aria-haspopup="menu" aria-expanded={open}
+      <button type="button" ref={triggerRef} className="mn-foot-user" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
         aria-label={`账户菜单，${username}（${role === "owner" ? "管理员" : "成员"}）`}
         title={`${username}（${role === "owner" ? "管理员" : "成员"}）`}
         onClick={() => setOpen((value) => !value)}>
@@ -90,8 +94,7 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
         {!collapsed && <span className="mn-foot-version" title={APP_BUILD_LABEL}>{APP_VERSION_LABEL}</span>}
       </button>
       {open && (
-        <div ref={menuRef} className="mn-account-menu" role="menu" aria-label="账户菜单"
->
+        <div id={menuId} ref={menuRef} className="mn-account-menu" role="menu" aria-label="账户菜单">
           <p className="mn-menu-label">主题</p>
           <div className="mn-menu-seg" role="radiogroup" aria-label="主题模式">
             {THEME_OPTIONS.map((option) => (
@@ -105,17 +108,17 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
           <div className="mn-menu-sep" role="separator" />
           <button type="button" className="mn-menu-item" role="menuitem"
             onClick={() => { setOpen(false); onOpenStatus(); }}>
-            <Activity />
+            <Activity aria-hidden="true" />
             系统状态
           </button>
           <button type="button" className="mn-menu-item" role="menuitem"
             onClick={() => { setOpen(false); onOpenSettings(); }}>
-            <SlidersHorizontal />
+            <SlidersHorizontal aria-hidden="true" />
             设置
           </button>
           <button type="button" className="mn-menu-item" role="menuitem"
             onClick={() => { setOpen(false); onLogout(); }}>
-            <LogOut />
+            <LogOut aria-hidden="true" />
             退出登录
           </button>
         </div>

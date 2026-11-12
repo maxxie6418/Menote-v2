@@ -500,8 +500,9 @@
 .mn-visually-hidden { position: absolute; width: var(--app-visually-hidden); height: var(--app-visually-hidden); margin: calc(-1 * var(--app-visually-hidden)); padding: var(--app-zero); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: var(--app-zero); }
 
 /* ---------- 侧栏账户（G1；负责人 2026-11-01：脚部只留用户名，弹出账户菜单） ---------- */
-.mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: 1; min-width: 0; border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; cursor: pointer; padding: var(--app-space-4) var(--app-space-2); border-radius: var(--app-radius-sm); }
-.mn-foot-user:hover { background: var(--app-hover); color: var(--app-fg); }
+.mn-foot-user { display: flex; align-items: center; gap: var(--app-space-6); flex: none; width: var(--app-full-size); min-width: 0; min-height: var(--app-space-34); border: var(--app-zero); background: none; color: inherit; font-family: var(--app-font); font-size: var(--app-size-nav); line-height: var(--app-leading-nav); text-align: left; cursor: pointer; padding: var(--app-space-6); border-radius: var(--app-radius-sm); }
+.mn-foot-user:hover, .mn-foot-user[aria-expanded="true"] { background: var(--app-hover); color: var(--app-fg); }
+.mn-foot-user:focus-visible, .mn-account-menu button:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
 .mn-foot-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .mn-foot-version { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); flex: none; font-variant-numeric: tabular-nums; }
 /* 同步/连接状态点：--app-dot-size，成功色；离线转中性灰（真实状态，不伪造同步进度） */
@@ -510,16 +511,19 @@
 .mn-ava { display: grid; place-items: center; width: var(--app-avatar-size); height: var(--app-avatar-size); border-radius: var(--app-radius-pill); background: var(--app-fg); color: var(--app-surface); font-family: var(--app-font-mono); font-size: var(--app-size-chip); flex: none; }
 [data-sidebar="collapsed"] .mn-sb-foot { gap: var(--app-space-2); }
 [data-sidebar="collapsed"] .mn-foot-user { justify-content: center; padding-inline: var(--app-zero); }
-.mn-account-menu { position: fixed; z-index: 12; display: flex; flex-direction: column; gap: var(--app-space-4); min-width: var(--app-account-menu-min); padding: var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
-.mn-menu-label { margin: var(--app-zero); padding: var(--app-space-4) var(--app-space-5) var(--app-zero); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
-.mn-menu-seg { display: flex; gap: var(--app-space-2); }
-.mn-menu-seg button { flex: 1; border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-4) var(--app-space-5); border-radius: var(--app-radius-sm); cursor: pointer; }
+.mn-account-menu { position: fixed; z-index: 12; display: flex; flex-direction: column; gap: var(--app-space-2); width: var(--app-account-menu-min); max-width: calc(var(--app-viewport-width) - var(--app-space-md)); max-height: var(--app-context-menu-max-height); overflow-y: auto; margin-bottom: var(--app-space-4); padding: var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); font-family: var(--app-font); font-size: var(--app-size-nav); font-weight: var(--app-weight-regular); line-height: var(--app-leading-nav); }
+.mn-menu-label { margin: var(--app-zero); padding: var(--app-space-6) var(--app-space-8); font: inherit; color: var(--app-fg-faint); }
+.mn-menu-seg { display: flex; gap: var(--app-space-2); padding: var(--app-space-2); margin: var(--app-zero) var(--app-space-2); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
+.mn-menu-seg button { flex: 1; min-width: var(--app-zero); min-height: var(--app-target-min); border: var(--app-line) solid transparent; background: none; color: var(--app-fg-muted); font: inherit; white-space: nowrap; padding: var(--app-space-4); border-radius: var(--app-radius-sm); cursor: pointer; }
 .mn-menu-seg button:hover { background: var(--app-hover); color: var(--app-fg); }
-.mn-menu-seg button.on { background: var(--app-seg-active); color: var(--app-fg); }
-.mn-menu-sep { border-top: var(--app-line) solid var(--app-border-subtle); margin: var(--app-space-2) var(--app-space-5); }
-.mn-menu-item { display: flex; align-items: center; gap: var(--app-space-6); min-height: var(--app-touch-target); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-nav); text-align: left; cursor: pointer; padding: var(--app-space-6) var(--app-space-8); border-radius: var(--app-radius-sm); }
+.mn-menu-seg button.on { border-color: var(--app-border); background: var(--app-seg-active); color: var(--app-fg); }
+.mn-menu-sep { border-top: var(--app-line) solid var(--app-border-subtle); margin: var(--app-space-6) var(--app-space-8); }
+.mn-menu-item { display: flex; align-items: center; gap: var(--app-space-8); min-height: var(--app-space-32); border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; cursor: pointer; padding: var(--app-space-6) var(--app-space-8); border-radius: var(--app-radius-sm); }
 .mn-menu-item:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-menu-item svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-fg-subtle); flex: none; }
+@media (pointer: coarse) {
+  .mn-foot-user, .mn-menu-item, .mn-menu-seg button { min-height: var(--app-touch-target); }
+}
 .mn-contextmenu { position: fixed; z-index: var(--app-context-menu-z); display: flex; flex-direction: column; min-width: var(--app-context-menu-min); max-width: var(--app-context-menu-max-width); max-height: var(--app-context-menu-max-height); overflow-y: auto; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-dialog); }
 .mn-contextmenu-entry { display: contents; }
 .mn-contextmenu-separator { height: var(--app-line); margin: var(--app-space-4) var(--app-space-5); background: var(--app-border-subtle); }

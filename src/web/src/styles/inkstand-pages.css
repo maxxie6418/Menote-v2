@@ -35,6 +35,8 @@
 :root .mn-docbar { min-height: var(--app-topbar-height); padding-inline: var(--app-space-14); border-color: var(--app-border-subtle); }
 :root .mn-docbody { padding: var(--app-space-24) var(--app-space-18); }
 :root .mn-doc-main { max-width: var(--app-doc-measure); margin-inline: auto; padding: var(--app-space-24) var(--app-space-30); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-paper-bg); box-shadow: var(--app-shadow-card); }
+:root .mn-doc[data-form="note"] .mn-docbody { padding-top: var(--app-space-8); }
+:root .mn-doc[data-form="note"] .mn-doc-main { padding-top: var(--app-space-12); }
 :root .mn-doc[data-form="table"] .mn-doc-main { max-width: var(--app-full-size); padding: var(--app-space-14); }
 :root .mn-doc-title { font-family: var(--app-font-serif); }
 :root .mn-doc-foot { border-color: var(--app-border-subtle); }
@@ -46,6 +48,7 @@
 :root .mn-shell[data-layout="mobile"] .mn-home-content { padding: var(--app-space-14) var(--app-space-8); }
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-home-actions { grid-template-columns: 1fr; }
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-doc-main { padding: var(--app-space-14); }
+:root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-doc-section-heading { padding-inline: var(--app-space-14); }
 
 /* v3 landing page uses a two-column home canvas rather than legacy home sections. */
 :root .mn-home-bar { min-height: var(--app-space-20); justify-content: flex-end; padding: var(--app-space-md) var(--app-space-lg) var(--app-zero); border: 0; }
@@ -131,7 +134,8 @@
 
 /* Note paper and its persistent inspector follow the v3 two-column reading layout. */
 .mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); align-items: start; gap: var(--app-doc-side-gap); }
-.mn-doc[data-form="note"] .mn-doc-main { position: relative; grid-column: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); min-height: var(--app-full-size); justify-self: center; margin: 0; }
+.mn-doc[data-form="note"] .mn-doc-main { position: relative; grid-column: 1; grid-row: 2; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); min-height: var(--app-full-size); justify-self: center; margin: 0; }
+.mn-shell[data-layout="full"] .mn-doc-inspector { grid-row: 2; margin-top: var(--app-doc-inspector-offset); }
 .mn-doc-inspector { position: sticky; top: var(--app-space-8); grid-column: 2; display: flex; width: var(--app-doc-inspector-width); max-height: calc(var(--app-full-viewport-height) - var(--app-space-2xl)); flex-direction: column; gap: var(--app-space-8); overflow: auto; padding-block: var(--app-space-4) var(--app-space-14); color: var(--app-fg); }
 .mn-inspector-mobile-head { display: none; }
 .mn-inspector-section { min-width: 0; padding-block: var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); }

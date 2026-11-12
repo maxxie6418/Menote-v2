@@ -28,6 +28,7 @@
   border-bottom: var(--app-line) solid var(--app-border);
 }
 :root[data-skin="slate"] .mn-doc-kicker { color: var(--app-accent-fg); }
+:root[data-skin="slate"] .mn-doc-section-heading { border-inline-width: var(--app-zero); }
 :root[data-skin="slate"] .mn-doc-kicker > i { background: var(--app-border); }
 
 /* ---------- 3. 侧栏视图切换：凹槽分段 → 下划线页签 ---------- */

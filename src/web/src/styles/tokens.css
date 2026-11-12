@@ -277,9 +277,10 @@
   --app-row-icon-col: 1rem;        /* 16px 清单行图标列 */
   --app-row-line-inset: 2.5rem;    /* 40px 清单分隔线起点 */
   --app-prop-height: 2rem;         /* 32px 属性行 */
-  --app-prop-key-width: 7.5rem;    /* 120px 属性键名列：外部剪藏的键是 parent_url / clipped_at 这类长键，30px 会被切成 pa… */
-  /* 属性区双列重做（2026-11-04）：双列键列 96、行尾 ⋯ 22、多选胶囊 20、控件 28、浮层 320/252 */
-  --app-props-key-duo: 6rem;
+  --app-prop-key-width: 5.5rem;    /* 88px：兼顾剪藏长键与属性值可用宽度 */
+  /* 属性区双列：键列 72、行尾 ⋯ 28、多选胶囊 20、控件 28、浮层 320/252 */
+  --app-props-key-duo: 4.5rem;
+  --app-doc-inspector-offset: var(--app-zero); /* 由文档布局测量正文起点，供桌面检查器对齐 */
   --app-props-more: 1.75rem;   /* 28px 行尾 ⋯（原 22px）：属性行 32 高，上下各留 2 */
   --app-props-chip: 1.25rem;
   --app-props-btn: 1.75rem;    /* 28px 属性区按钮（原 24px） */
