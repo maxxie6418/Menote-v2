@@ -1,14 +1,17 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, MoreHorizontal, Plus, X } from "../../icons";
-import type { PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
+import type { PropRow, PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
 import {
-  PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue, type PropRow,
+  PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue,
 } from "../../lib/frontmatter";
 import { readPropertyTemplates, DEFAULT_PROPERTY_TEMPLATES } from "../../services/propertyTemplateService";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { AddPropertyPopover } from "./AddPropertyPopover";
 import { PropertySettingsPopover } from "./PropertySettingsPopover";
-import { inferType, isHttpUrl, PROPS_TWO_COLUMN_MIN, SPAN_TYPES } from "./propsShared";
+import {
+  GRID_MULTI_PAIR_MAX, PROPS_TWO_COLUMN_MIN, STRIP_LEFT_TYPES, STRIP_RIGHT_TYPES,
+  inferType, isBlankValue, isHttpUrl, isStripRow,
+} from "./propsShared";
 
 interface PropertyPanelProps {
   markdown: string;
@@ -18,12 +21,17 @@ interface PropertyPanelProps {
 }
 
 /**
- * 属性区（FR-PROP-1/2/9/10）：**不再分「换值态 / 编辑态」两态**——
- * · 值就地改：点值换成控件，回车或失焦即存、Esc 还原；
- * · 定义在行尾 ⋯：键名、显示名、类型、候选值、删除都在这一层的浮层里；
- * · 添加走 + 属性浮层：搜索 → 分组预设 → 新建，一次只做一件事。
- * 布局默认双列，链接与多行文本整行跨列；栏宽不足由 CSS 容器查询回落单列。
- * 预设模板只作「添加属性」的模板库（FR-PROP-9）：加进文档即成为该文档自己的设定。
+ * 属性区（FR-PROP-1/2/9/10）。2026-11-12 按负责人确认的 C 方案重排为三个区：
+ *
+ * · 区一「一排」：长度可预测、点开即改的高频字段。左组放判定（单选、复选框），
+ *   右组放归属（作者/来源、日期、数值），两端分布，中间是弹性空白；
+ *   右组放不下时按实测宽度收进 ⋯N（不写死数量，窄栏自动降级）。
+ * · 区二「两列」：长短不定的多选两两并排，落单跨满；长字段一律跨满，禁止半格空洞。
+ * · 区三「概述」：多行文本固定两行高度，内容长短不改变块高。
+ *
+ * 缺省规则（负责人要求「固定成规则」）：带是摘要，空值整项不出现；
+ * 网格是清单，定义过就留一行淡破折。纯带内类型（单选 / 复选框）没有值时不渲染，
+ * 因为它们在网格里没有可读的「空」形态。
  */
 export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) {
   const rows = useMemo(() => readPropRows(markdown, PROPS_KEY), [markdown]);
@@ -34,11 +42,21 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ text: string; key: string; previousMarkdown: string; index: number } | null>(null);
-  const sectionRef = useRef<HTMLElement>(null);
+  const [undo, setUndo] = useState<{ text: string; key: string; previousMarkdown: string } | null>(null);
   const [columns, setColumns] = useState<1 | 2>(2);
+  /** 带内就地编辑：锚点是被点的那一枚胶囊 / 日期 / 文本。 */
+  const [slotEdit, setSlotEdit] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  /** 带右组被收起那些项的列表浮层。 */
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  /** 右组当前显示几项：由实测宽度决定，渲染后回填。 */
+  const [visibleRight, setVisibleRight] = useState(99);
 
-  /* 双列与否看「文档栏宽」而不是窗口宽度：ResizeObserver 盯住属性区自身，跨过阈值才写 data-columns */
+  const sectionRef = useRef<HTMLElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+
+  /* 单列 / 双列看「文档栏宽」而不是窗口宽度：ResizeObserver 盯住属性区自身 */
   useEffect(() => {
     const section = sectionRef.current;
     if (!section || typeof ResizeObserver === "undefined") return;
@@ -84,6 +102,103 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   }, [templates]);
   const labelOf = (row: PropRow): string => row.def?.label ?? presetLabels.get(row.key) ?? row.key;
 
+  /**
+   * 三区分拣。空值在这里分流：纯带内类型（单选 / 复选框）无处可放，直接不进渲染；
+   * 其余空值落网格，保留一行破折（多选显示「+ 添加」），行位置不跳。
+   */
+  const groups = useMemo(() => {
+    const left: PropRow[] = [];
+    const right: PropRow[] = [];
+    const multi: PropRow[] = [];
+    const long: PropRow[] = [];
+    for (const row of rows) {
+      const type = row.def?.type ?? inferType(row);
+      if (isBlankValue(row)) {
+        if (type === "select" || type === "checkbox") continue;
+        if (type === "multiselect" || row.isArray) multi.push(row);
+        else long.push(row);
+        continue;
+      }
+      if (STRIP_LEFT_TYPES.has(type)) { left.push(row); continue; }
+      if (STRIP_RIGHT_TYPES.has(type) && isStripRow(row, type)) { right.push(row); continue; }
+      if (type === "multiselect" || row.isArray) { multi.push(row); continue; }
+      long.push(row);
+    }
+    return { left, right, multi, long };
+  }, [rows]);
+
+  /** 网格单元格：多选两两配对（≤2 项），落单跨满；项数多的与长字段一律跨满。 */
+  const cells = useMemo(() => {
+    const out: Array<{ row: PropRow; span: boolean; second: boolean }> = [];
+    const halfable = groups.multi.filter((row) => row.arrayValues.length <= GRID_MULTI_PAIR_MAX);
+    const wide = groups.multi.filter((row) => row.arrayValues.length > GRID_MULTI_PAIR_MAX);
+    for (let i = 0; i < halfable.length; i += 2) {
+      const first = halfable[i];
+      const second = halfable[i + 1];
+      if (second) {
+        out.push({ row: first, span: false, second: false }, { row: second, span: false, second: true });
+      } else {
+        out.push({ row: first, span: true, second: false });   // 落单跨满，不留半格空洞
+      }
+    }
+    for (const row of wide) out.push({ row, span: true, second: false });
+    for (const row of groups.long) out.push({ row, span: true, second: false });
+    return out;
+  }, [groups]);
+
+  /**
+   * 带右组显示几项：全部铺开后逐枚量宽，放不下的收进 ⋯N。
+   * 量之前先临时撤掉 is-hidden（useLayoutEffect 内、paint 之前，不会闪）；
+   * 结果与当前一致就不 setState，避免 ResizeObserver 自激。
+   */
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    const right = rightRef.current;
+    if (!strip || !right || typeof ResizeObserver === "undefined") return;
+
+    const fit = () => {
+      const slots = Array.from(right.querySelectorAll<HTMLElement>("[data-slot]"));
+      if (!slots.length) { setVisibleRight(99); return; }
+      slots.forEach((slot) => slot.classList.remove("is-hidden"));
+      const available = strip.clientWidth;
+      const leftWidth = leftRef.current?.offsetWidth ?? 0;
+      const base = leftWidth > 0 ? leftWidth + 20 : 0;
+      const widths = slots.map((slot) => slot.offsetWidth);
+      const gap = 16;
+
+      let count = 0;
+      let used = base;
+      for (let i = 0; i < widths.length; i += 1) {
+        const step = widths[i] + (i > 0 ? gap : 0);
+        if (used + step > available) break;
+        used += step;
+        count += 1;
+      }
+      /* 有被收起的项时，末尾还要让出 ⋯N 的位置 */
+      if (count < widths.length) {
+        const reserve = 48;
+        used = base;
+        count = 0;
+        for (let i = 0; i < widths.length; i += 1) {
+          const step = widths[i] + (i > 0 ? gap : 0);
+          if (used + step + reserve > available) break;
+          used += step;
+          count += 1;
+        }
+      }
+      setVisibleRight((current) => (current === count ? current : count));
+    };
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [groups.right, columns]);   /* 值变长变短也要重测，不能只看项数 */
+
+  /* 属性被删掉后 visibleRight 可能大于剩余项数，渲染时按实际长度截断 */
+  const shownRight = Math.min(visibleRight, groups.right.length);
+  const hiddenRight = groups.right.slice(shownRight);
+
   const writeCell = (row: PropRow, value: string | boolean | string[]) => {
     const next = writeValue(markdown, row.key, value);
     if (next !== markdown) onSave(next);
@@ -124,14 +239,60 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   };
 
   const removeRow = (row: PropRow) => {
-    const index = rows.findIndex((entry) => entry.key === row.key);
     onSave(removePropDef(markdown, PROPS_KEY, row.key));
     setSettings(null);
-    setUndo({ text: `已删除「${labelOf(row)}」`, key: row.key, previousMarkdown: markdown, index });
+    setUndo({ text: `已删除「${labelOf(row)}」`, key: row.key, previousMarkdown: markdown });
   };
 
   const settingsRow = settings ? rows.find((row) => row.key === settings.key) ?? null : null;
   const optionRow = optionPick ? rows.find((row) => row.key === optionPick.key) ?? null : null;
+  const slotRow = slotEdit ? rows.find((row) => row.key === slotEdit.key) ?? null : null;
+  const hasAnyCell = groups.left.length > 0 || groups.right.length > 0 || cells.length > 0;
+
+  const openSlotEdit = (row: PropRow, anchor: HTMLElement) => {
+    setSettings(null);
+    setEditing(null);
+    setMoreAnchor(null);
+    setSlotEdit({ key: row.key, anchor });
+  };
+
+  const renderRow = (row: PropRow, span: boolean, second: boolean) => {
+    const type = row.def?.type ?? inferType(row);
+    const label = labelOf(row);
+    const classes = [
+      "mn-props-row",
+      span ? "is-span" : "is-half",
+      second ? "is-second" : "",
+      type === "multiline" ? "is-multiline" : "",
+      flash === row.key ? "is-flash" : "",
+    ].filter(Boolean).join(" ");
+    return (
+      <div key={row.key} className={classes}>
+        <span className="mn-props-key" title={row.key}>{label}</span>
+        <div className="mn-props-value">
+          <PropertyValue
+            row={row} type={type} label={label} editing={editing === row.key}
+            onStartEdit={() => { setEditing(row.key); setSettings(null); }}
+            onCommit={(value) => { setEditing(null); writeCell(row, value); }}
+            onCancel={() => setEditing(null)}
+            onPickOptions={(anchor) => setOptionPick({ key: row.key, anchor })}
+          />
+        </div>
+        <button
+          type="button" className="mn-props-more" data-panel-trigger
+          aria-expanded={settings?.key === row.key} aria-label={`属性设置：${label}`}
+          title="属性设置"
+          onClick={(event) => {
+            const anchor = event.currentTarget;
+            setEditing(null);
+            setSettings((current) => (current?.key === row.key ? null : { key: row.key, anchor }));
+          }}
+        >
+          <MoreHorizontal aria-hidden />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <section ref={sectionRef} className="mn-props" data-columns={columns} aria-label="属性区">
@@ -147,57 +308,77 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         </button>
       </div>
 
-      <div className="mn-props-list">
-        {rows.length === 0 && (
-          <button type="button" className="mn-props-empty" data-panel-trigger onClick={(event) => setAdding(event.currentTarget)}>
-            <Plus aria-hidden />添加属性
-          </button>
-        )}
-        {rows.map((row, index) => {
-          const type = row.def?.type ?? inferType(row);
-          const label = labelOf(row);
-          return (
-            <Fragment key={row.key}>
-              {undo?.index === index && (
-                <div className="mn-props-undo" role="status">
-                  <span>{undo.text}</span>
-                  <button type="button" onClick={() => { onSave(restoreProp(markdown, undo.previousMarkdown, PROPS_KEY, undo.key)); setUndo(null); }}>撤销</button>
-                </div>
-              )}
-              <div className={`mn-props-row${SPAN_TYPES.has(type) ? " span" : ""}${flash === row.key ? " flash" : ""}`}>
-                <span className="mn-props-key" title={row.key}>{label}</span>
-                <div className="mn-props-value">
-                  <PropertyValue
-                    row={row} type={type} label={label} editing={editing === row.key}
-                    onStartEdit={() => { setEditing(row.key); setSettings(null); }}
-                    onCommit={(value) => { setEditing(null); writeCell(row, value); }}
-                    onCancel={() => setEditing(null)}
-                    onPickOptions={(anchor) => setOptionPick({ key: row.key, anchor })}
+      {/* 区一：带。左右都空就不渲染，连底线一起（否则只剩一条空线） */}
+      {(groups.left.length > 0 || groups.right.length > 0) && (
+        <div className="mn-props-strip" data-alone={groups.left.length ? "0" : "1"} ref={stripRef}>
+          <div className="mn-strip-left" ref={leftRef}>
+            {groups.left.map((row) => {
+              const type = row.def?.type ?? inferType(row);
+              const label = labelOf(row);
+              return (
+                <span key={row.key} data-slot className={`mn-strip-slot${flash === row.key ? " is-flash" : ""}`}>
+                  <StripSlot
+                    row={row} type={type} label={label}
+                    onEdit={(anchor) => openSlotEdit(row, anchor)}
+                    onToggle={(next) => writeCell(row, next)}
                   />
-                </div>
-                <button
-                  type="button" className="mn-props-more" data-panel-trigger
-                  aria-expanded={settings?.key === row.key} aria-label={`属性设置：${label}`}
-                  title="属性设置"
-                  onClick={(event) => {
-                    const anchor = event.currentTarget;
-                    setEditing(null);
-                    setSettings((current) => (current?.key === row.key ? null : { key: row.key, anchor }));
-                  }}
-                >
-                  <MoreHorizontal aria-hidden />
-                </button>
-              </div>
-            </Fragment>
-          );
-        })}
-        {undo && undo.index >= rows.length && (
-          <div className="mn-props-undo" role="status">
-            <span>{undo.text}</span>
-            <button type="button" onClick={() => { onSave(restoreProp(markdown, undo.previousMarkdown, PROPS_KEY, undo.key)); setUndo(null); }}>撤销</button>
+                </span>
+              );
+            })}
           </div>
-        )}
-      </div>
+          <div className="mn-strip-right" ref={rightRef}>
+            {groups.right.map((row, index) => {
+              const type = row.def?.type ?? inferType(row);
+              const label = labelOf(row);
+              return (
+                <span
+                  key={row.key} data-slot
+                  className={`mn-strip-slot${index >= shownRight ? " is-hidden" : ""}${flash === row.key ? " is-flash" : ""}`}
+                >
+                  <StripSlot
+                    row={row} type={type} label={label}
+                    onEdit={(anchor) => openSlotEdit(row, anchor)}
+                    onToggle={(next) => writeCell(row, next)}
+                  />
+                </span>
+              );
+            })}
+            {hiddenRight.length > 0 && (
+              <button
+                type="button" className="mn-strip-more" data-panel-trigger
+                aria-expanded={moreAnchor !== null} title={`还有 ${hiddenRight.length} 项`}
+                onClick={(event) => {
+                  const anchor = event.currentTarget;
+                  setSlotEdit(null);
+                  setMoreAnchor((current) => (current ? null : anchor));
+                }}
+              >
+                ⋯{hiddenRight.length}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 区二 + 区三：网格。多选两两并排或跨满，长字段跨满，多行文本固定两行 */}
+      {cells.length > 0 && (
+        <div className="mn-props-grid">
+          {cells.map((cell) => renderRow(cell.row, cell.span, cell.second))}
+        </div>
+      )}
+
+      {!hasAnyCell && (
+        <button type="button" className="mn-props-empty" data-panel-trigger onClick={(event) => setAdding(event.currentTarget)}>
+          <Plus aria-hidden />{rows.length === 0 ? "添加属性" : "属性都还没有值，点这里补一个"}
+        </button>
+      )}
+
+      {undo && (
+        <div className="mn-props-undo" role="status">
+          <span>{undo.text}</span>
+          <button type="button" onClick={() => { onSave(restoreProp(markdown, undo.previousMarkdown, PROPS_KEY, undo.key)); setUndo(null); }}>撤销</button>
+        </div>
+      )}
 
       {adding && (
         <AddPropertyPopover
@@ -223,7 +404,84 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
           onClose={() => setOptionPick(null)}
         />
       )}
+
+      {slotRow && slotEdit && (
+        <AnchoredPanel
+          className="mn-proppop mn-proppop-edit" anchor={slotEdit.anchor} align="right"
+          label={`编辑${labelOf(slotRow)}`} onClose={() => setSlotEdit(null)}
+        >
+          <div className="mn-proppop-form">
+            <p className="mn-proppop-title">{labelOf(slotRow)}</p>
+            <ValueEditor
+              row={slotRow} type={slotRow.def?.type ?? inferType(slotRow)} label={labelOf(slotRow)}
+              onCommit={(value) => { setSlotEdit(null); writeCell(slotRow, value); }}
+              onCancel={() => setSlotEdit(null)}
+            />
+          </div>
+        </AnchoredPanel>
+      )}
+
+      {moreAnchor && hiddenRight.length > 0 && (
+        <AnchoredPanel
+          className="mn-proppop mn-proppop-more" anchor={moreAnchor} align="right"
+          label="收起的属性" onClose={() => setMoreAnchor(null)}
+        >
+          <p className="mn-propadd-groupname">收起的 {hiddenRight.length} 项</p>
+          <div className="mn-proppop-list">
+            {hiddenRight.map((row) => (
+              <button
+                key={row.key} type="button" className="mn-proppop-opt"
+                onClick={(event) => openSlotEdit(row, event.currentTarget)}
+              >
+                <span className="mn-striplist-key">{labelOf(row)}</span>
+                <span className="mn-striplist-value">{row.raw}</span>
+              </button>
+            ))}
+          </div>
+        </AnchoredPanel>
+      )}
     </section>
+  );
+}
+
+/** 带内一枚：判定类给胶囊 / 徽标，归属类给「键 值」或纯文本；点击都进就地编辑。 */
+function StripSlot({ row, type, label, onEdit, onToggle }: {
+  row: PropRow;
+  type: PropertyType;
+  label: string;
+  onEdit: (anchor: HTMLElement) => void;
+  onToggle: (next: boolean) => void;
+}) {
+  if (type === "checkbox") {
+    const on = row.raw === "true";
+    return (
+      <button
+        type="button" className="mn-strip-flag" aria-pressed={on}
+        title={`${label}：${on ? "是" : "否"}`}
+        onClick={() => onToggle(!on)}
+      >
+        <Check aria-hidden />{label}
+      </button>
+    );
+  }
+  if (type === "select") {
+    return (
+      <button type="button" className="mn-strip-pill" title={`${label}：${row.raw}`} onClick={(event) => onEdit(event.currentTarget)}>
+        <i aria-hidden />{row.raw}
+      </button>
+    );
+  }
+  if (type === "date" || type === "number") {
+    return (
+      <button type="button" className="mn-strip-stamp" title={`${label}：${row.raw}`} onClick={(event) => onEdit(event.currentTarget)}>
+        <b>{label}</b><span>{row.raw}</span>
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="mn-strip-text" title={`${label}：${row.raw}`} onClick={(event) => onEdit(event.currentTarget)}>
+      {row.raw}
+    </button>
   );
 }
 

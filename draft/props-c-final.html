@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-skin="slate" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>C 最终结构 · 左判定右归属 + 缺省规则</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--app-bg-side); color: var(--app-fg);
+    font-family: var(--app-font); -webkit-font-smoothing: antialiased; line-height: 1.55;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 46px 28px 110px; }
+
+  .kicker { font-family: var(--app-font-mono); font-size: 10.5px; letter-spacing: .06em; color: var(--app-fg-faint); margin: 0 0 12px; }
+  h1 { font-size: 26px; font-weight: 500; letter-spacing: -.01em; margin: 0 0 12px; }
+  .sub { max-width: 50em; margin: 0; font-size: 13px; line-height: 1.8; color: var(--app-fg-muted); }
+  .sub b { color: var(--app-fg); font-weight: 500; }
+  .sub code { font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-fg-subtle); background: var(--app-surface-sunken); padding: 1px 5px; border-radius: 4px; }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 12;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 26px 0 24px; padding: 10px 0;
+    background: var(--app-bg-side); border-bottom: 1px solid var(--app-border);
+  }
+  .tb-lab { font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .04em; color: var(--app-fg-faint); }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--app-surface-sunken); }
+  .seg button {
+    height: 28px; padding: 0 11px; border: 0; border-radius: 5px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 12px; cursor: pointer;
+  }
+  .seg button:hover { color: var(--app-fg); }
+  .seg button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); box-shadow: var(--app-shadow-card); font-weight: 500; }
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .mini { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; border: 1px solid var(--app-border); background: var(--app-surface); }
+  .mini button { height: 22px; padding: 0 8px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11px; cursor: pointer; }
+  .mini button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 32px; align-items: start; }
+  @media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+  .doc {
+    width: 100%; padding: 26px 34px 30px;
+    background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 9px;
+    container-type: inline-size;
+  }
+  .doc-title { margin: 0 0 6px; font-size: 21px; font-weight: 500; line-height: 1.35; }
+  .doc-meta { margin: 0 0 20px; font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+
+  .phead { display: flex; align-items: center; gap: 7px; height: 32px; border-bottom: 1px solid var(--app-border-subtle); }
+  .phead-label { font-size: 11.5px; font-weight: 500; color: var(--app-fg-subtle); }
+  .phead-count { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); }
+  .phead-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 7px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11.5px; cursor: pointer; }
+  .phead-add:hover { background: var(--app-hover); color: var(--app-fg); }
+
+  .zone-cap {
+    display: flex; align-items: center; gap: 7px;
+    height: 22px; margin-top: 4px;
+    font-family: var(--app-font-mono); font-size: 9.5px; letter-spacing: .04em; color: var(--app-fg-faint);
+  }
+  .zone-cap i { width: 5px; height: 5px; border-radius: 1px; display: inline-block; }
+  .zone-cap span { color: var(--app-fg-subtle); }
+
+  /* ============ 区 1：一排（左判定 / 右归属） ============ */
+  .strip {
+    position: relative; display: flex; align-items: center;
+    height: 30px; white-space: nowrap; overflow: hidden;
+    border-bottom: 1px solid var(--app-border-subtle);
+  }
+  .grp { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; }
+  .grp.left { flex: none; }
+  /* 右组靠右：一条带两端都有内容，不是全挤在左边 */
+  .grp.right { margin-left: auto; }
+  /* 左组为空时右组不能还硬撑到右边，否则左边空一大片 */
+  .strip[data-alone="1"] .grp.right { margin-left: 0; }
+
+  .slot { display: flex; align-items: center; gap: 6px; min-width: 0; flex: none; }
+  .grp > .slot + .slot { margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--app-border); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+    border-radius: 4px; background: var(--app-accent-subtle); color: var(--app-accent-fg);
+    font-size: 11px; flex: none;
+  }
+  .pill i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .flag-on {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px;
+    border-radius: 4px; background: var(--app-surface-sunken); color: var(--app-fg-muted);
+    font-size: 11px; flex: none;
+  }
+  .flag-on svg { color: var(--app-accent-fg); }
+  .writer { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--app-fg-muted); }
+  .writer b { font-weight: 400; color: var(--app-fg); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .writer em { font-style: normal; color: var(--app-fg-faint); font-size: 10px; }
+  .stamp { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11.5px; color: var(--app-fg-muted); flex: none; }
+  .stamp b { font-weight: 400; color: var(--app-fg-faint); font-size: 10.5px; }
+  .stamp span { font-family: var(--app-font-mono); font-size: 11px; }
+  .overflow-btn {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border: 1px solid var(--app-border); border-radius: 4px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 10.5px;
+    cursor: pointer; flex: none;
+  }
+  .overflow-btn:hover { background: var(--app-hover); color: var(--app-fg); border-color: var(--app-fg-faint); }
+  .overflow-btn[aria-expanded="true"] { background: var(--app-seg-active); color: var(--app-fg); }
+
+  /* ============ 区 2：两列网格 ============ */
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+  .grid .full { grid-column: 1 / -1; }
+  .grid > .prow.half.b::before {
+    content: ""; position: absolute; left: -17px; top: 50%; transform: translateY(-50%);
+    width: 1px; height: 13px; background: var(--app-border);
+  }
+  @container (max-width: 560px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .grid .full { grid-column: auto; }
+    .grid > .prow.half.b::before { display: none; }
+  }
+
+  .prow {
+    position: relative; display: grid; grid-template-columns: 68px minmax(0, 1fr) 22px;
+    align-items: center; min-height: 32px;
+    border-bottom: 1px solid var(--app-border-subtle);
+  }
+  .prow.multi { align-items: start; padding: 7px 0 9px; }
+  .prow.multi .pk { padding-top: 1px; }
+  .pk { font-size: 11.5px; color: var(--app-fg-subtle); padding-right: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .pmore { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); cursor: pointer; opacity: 0; }
+  .prow:hover .pmore, .prow:focus-within .pmore { opacity: 1; }
+  .pmore:hover { background: var(--app-hover); color: var(--app-fg); }
+
+  .vt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--app-fg); }
+  .vt-none { color: var(--app-fg-faint); }
+  /* 概述：固定两行，内容长短不改块高；overflow 缺了第三行会露出来 */
+  .vt-2 {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    white-space: normal; line-height: 1.62; color: var(--app-fg-muted);
+    min-height: calc(2 * 1.62 * 12.5px);
+  }
+  .vlink { display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-link); text-decoration: none; }
+  .vlink span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vlink:hover span { text-decoration: underline; }
+
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border-radius: 4px; background: var(--app-surface-sunken); color: var(--app-fg-muted); font-size: 11px;
+  }
+  .chip button { display: grid; place-items: center; width: 13px; height: 13px; border: 0; border-radius: 2px; background: none; color: var(--app-fg-faint); cursor: pointer; padding: 0; }
+  .chip button:hover { color: var(--app-danger); }
+  .addtag {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border: 1px dashed var(--app-border); border-radius: 4px; background: none;
+    color: var(--app-fg-faint); font-family: var(--app-font); font-size: 11px; cursor: pointer;
+  }
+  .addtag:hover { border-color: var(--app-fg-faint); color: var(--app-fg-muted); }
+
+  .pop {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+    display: none; min-width: 190px; padding: 8px;
+    border: 1px solid var(--app-border); border-radius: 8px;
+    background: var(--app-surface-raised);
+    box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .72), 0 0 0 1px rgba(255, 255, 255, .03);
+  }
+  .pop.open { display: block; }
+  .pop-h { font-family: var(--app-font-mono); font-size: 10px; color: var(--app-fg-faint); padding: 0 4px 6px; }
+  .pop-row { display: flex; align-items: baseline; gap: 8px; padding: 4px; font-size: 11.5px; }
+  .pop-row + .pop-row { border-top: 1px solid var(--app-border-subtle); }
+  .pop-row b { font-weight: 400; color: var(--app-fg-subtle); font-size: 10.5px; min-width: 3.2em; }
+  .pop-row span { color: var(--app-fg); font-family: var(--app-font-mono); font-size: 11px; }
+
+  .ruler { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; font-family: var(--app-font-mono); font-size: 10px; color: var(--app-fg-faint); }
+  .ruler b { color: var(--app-accent-fg); font-weight: 400; }
+
+  .rail { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+  .rail-h { padding-bottom: 9px; border-bottom: 1px solid var(--app-border); font-size: 12px; font-weight: 500; }
+  .kvbox { display: flex; flex-direction: column; gap: 8px; }
+  .kvr { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; }
+  .kvr b { font-weight: 400; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: 10.5px; min-width: 5.4em; }
+  .kvr span { color: var(--app-fg); font-family: var(--app-font-mono); font-size: 11.5px; }
+  .kvr span.hot { color: var(--app-accent-fg); }
+  .hint { margin: 0; font-size: 11px; line-height: 1.7; color: var(--app-fg-faint); }
+  .hint code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+
+  /* ---- 规则段 ---- */
+  .rule { margin-top: 56px; }
+  .rule-h { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--app-border); margin-bottom: 20px; }
+  .rule-n { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+  .rule-h h2 { margin: 0; font-size: 14.5px; font-weight: 500; }
+  .rule-h p { margin: 0 0 0 auto; font-size: 11.5px; color: var(--app-fg-faint); }
+  .rule-lead { max-width: 62em; margin: 0 0 18px; font-size: 12.5px; line-height: 1.75; color: var(--app-fg-muted); }
+  .rule-lead b { color: var(--app-fg); font-weight: 500; }
+
+  .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--app-border-subtle); border: 1px solid var(--app-border-subtle); border-radius: 8px; overflow: hidden; }
+  @media (max-width: 900px) { .three { grid-template-columns: minmax(0, 1fr); } }
+  .three > div { padding: 14px 15px 16px; background: var(--app-surface); }
+  .three .cap { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-family: var(--app-font-mono); font-size: 9.5px; color: var(--app-fg-faint); }
+  .three .cap i { width: 6px; height: 6px; border-radius: 2px; }
+  .three h3 { margin: 0 0 6px; font-size: 12.5px; font-weight: 500; }
+  .three p { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--app-fg-muted); }
+  .three .rule-mini { margin-top: 10px; font-family: var(--app-font-mono); font-size: 9.5px; color: var(--app-fg-faint); }
+
+  .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  @media (max-width: 900px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+  .duo-card { border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); overflow: hidden; }
+  .duo-h { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--app-border-subtle); font-size: 11.5px; }
+  .duo-h .tagp { font-family: var(--app-font-mono); font-size: 9.5px; padding: 1px 5px; border-radius: 3px; }
+  .duo-h .bad { color: #ff8a80; background: rgba(255, 138, 128, .12); }
+  .duo-h .good { color: #8fb79f; background: rgba(143, 183, 159, .12); }
+  .duo-h .neu { color: var(--app-fg-subtle); background: var(--app-surface-sunken); }
+  .duo-body { padding: 14px 16px 16px; }
+  .duo-body .prow { border-bottom-color: var(--app-border); }
+  .duo-note { margin: 10px 0 0; font-size: 11.5px; line-height: 1.68; color: var(--app-fg-muted); }
+  .duo-note code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+
+  /* 分布示意：底纹标出左组 / 弹性 / 右组 */
+  .map { position: relative; height: 10px; margin-bottom: 8px; }
+  .map span { position: absolute; top: 0; height: 4px; border-radius: 2px; }
+  .map .m-l { left: 0; width: 22%; background: #6d7cff; }
+  .map .m-f { left: 22%; width: 48%; background: var(--app-border); }
+  .map .m-r { left: 70%; width: 30%; background: #4fb3a5; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+  th { text-align: left; padding: 9px 12px 9px 0; font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .04em; color: var(--app-fg-faint); font-weight: 400; border-bottom: 1px solid var(--app-border-subtle); }
+  td { padding: 9px 12px 9px 0; vertical-align: top; font-size: 12px; line-height: 1.6; color: var(--app-fg-muted); border-bottom: 1px solid var(--app-border-subtle); }
+  td b { color: var(--app-fg); font-weight: 500; }
+  td code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+  td.dest { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-accent-fg); white-space: nowrap; }
+  td.dest.line { color: var(--app-fg-subtle); }
+  td.gone { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); white-space: nowrap; }
+
+  .foot { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--app-border); font-size: 11.5px; line-height: 1.85; color: var(--app-fg-faint); }
+  .foot b { color: var(--app-fg-subtle); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="kicker">MENOTE · 属性区 C 方案最终结构 · 2026-11-12</p>
+    <h1>左判定、右归属，空的不占位</h1>
+    <p class="sub">
+      带里现在是<b>两端分布</b>：左边放判定（状态、复选框），右边放归属（作者·来源、时间、数值），中间是弹性空白，不再全挤在左边。
+      作者也进了这一排，但给了宽度上限。<b>空值与缺省是一套固定规则</b>：带是摘要，空的不作证；网格是清单，定义过就留位置。
+    </p>
+  </header>
+
+  <div class="toolbar">
+    <span class="tb-lab">内容量</span>
+    <div class="seg" id="segDensity">
+      <button type="button" data-d="min">极简</button>
+      <button type="button" data-d="s">稀疏</button>
+      <button type="button" data-d="m">中等</button>
+      <button type="button" data-d="l">密集</button>
+    </div>
+    <span class="tb-lab">区标注</span>
+    <div class="seg" id="segAnno">
+      <button type="button" data-a="off">关</button>
+      <button type="button" data-a="on">开</button>
+    </div>
+    <div class="tools">
+      <span class="tb-lab">主题</span>
+      <div class="mini" id="segTheme">
+        <button type="button" data-theme="dark">深</button>
+        <button type="button" data-theme="light">浅</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div>
+      <div class="doc" id="doc">
+        <h2 class="doc-title">不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering</h2>
+        <p class="doc-meta" id="docMeta"></p>
+
+        <div class="phead">
+          <span class="phead-label">属性</span>
+          <span class="phead-count" id="propCount">10</span>
+          <button type="button" class="phead-add">+ 属性</button>
+        </div>
+
+        <div id="body"></div>
+        <p class="ruler" id="ruler"></p>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="rail-h">这一档的实测</div>
+      <div class="kvbox">
+        <div class="kvr"><b>带内</b><span id="mIn" class="hot">4 项</span></div>
+        <div class="kvr"><b>隐藏</b><span id="mHide">0 项</span></div>
+        <div class="kvr"><b>成对行</b><span id="mPair">0</span></div>
+        <div class="kvr"><b>占位行</b><span id="mFull">4</span></div>
+        <div class="kvr"><b>纵向占用</b><span id="mRows">5 行</span></div>
+      </div>
+      <p class="hint" id="mHint"></p>
+    </aside>
+  </div>
+
+  <!-- RULE 01 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 01</span>
+      <h2>三个区，三种职责</h2>
+      <p>一排固定长度 · 两列不定长 · 概述两行</p>
+    </div>
+    <div class="three">
+      <div>
+        <div class="cap"><i style="background:#6d7cff"></i>ZONE 01</div>
+        <h3>一排 · 两端分布</h3>
+        <p>左：状态、复选框。右：作者·来源、时间、数值。中间弹性，永远是 30px。</p>
+        <div class="rule-mini">左判定 / 右归属</div>
+      </div>
+      <div>
+        <div class="cap"><i style="background:#4fb3a5"></i>ZONE 02</div>
+        <h3>两列 · 不定长</h3>
+        <p>标签、系列这类多值字段。两个能并排就各占一半，放不下就独享整排。</p>
+        <div class="rule-mini">成对 / 跨满</div>
+      </div>
+      <div>
+        <div class="cap"><i style="background:#d5a24a"></i>ZONE 03</div>
+        <h3>概述 · 固定两行</h3>
+        <p>唯一要「读一段」的字段。内容一行还是三行都不改块高。</p>
+        <div class="rule-mini">2 行 clamp + 锁高</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULE 02 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 02</span>
+      <h2>带的左右分布</h2>
+      <p>左组靠左、右组靠右，中间留弹性</p>
+    </div>
+    <p class="rule-lead">
+      一条带全挤在左边，右边空半行，看起来像没排完。现在按职责分两段：<b>判定类（状态、勾选）在左，归属类（作者·来源、时间、数值）在右</b>，
+      中间是弹性空白。两边都有内容，一条带才站得住。左组为空时右组回到左边——否则只剩一个名字飘在最右侧，更怪。
+    </p>
+    <div class="duo">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">两端</span>左判定 + 右归属</div>
+        <div class="duo-body">
+          <div class="map"><span class="m-l"></span><span class="m-f"></span><span class="m-r"></span></div>
+          <div class="strip" style="border:0">
+            <div class="grp left">
+              <div class="slot"><span class="pill"><i></i>未读</span></div>
+              <div class="slot"><span class="flag-on">✓ 喜欢</span></div>
+            </div>
+            <div class="grp right">
+              <div class="slot"><span class="writer"><b>JustBeClawAI</b><em>·</em><span>知乎</span></span></div>
+              <div class="slot"><span class="stamp"><b>收藏</b><span>2026-05-11</span></span></div>
+            </div>
+          </div>
+          <p class="duo-note">判定在左、归属在右，中间是弹性空白。窗口变宽，空白变长，两端不动。</p>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp neu">左组为空</span>右组回到左边</div>
+        <div class="duo-body">
+          <div class="map"><span class="m-l" style="width:46%;background:var(--app-border)"></span></div>
+          <div class="strip" data-alone="1" style="border:0">
+            <div class="grp left"></div>
+            <div class="grp right">
+              <div class="slot"><span class="writer"><b>JustBeClawAI</b><em>·</em><span>知乎</span></span></div>
+              <div class="slot"><span class="stamp"><b>收藏</b><span>2026-05-11</span></span></div>
+            </div>
+          </div>
+          <p class="duo-note">没有状态、没有勾选时，右组不再硬撑到最右，从左边开始读。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULE 03 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 03</span>
+      <h2>空值与缺省的固定规则</h2>
+      <p>带不作证，网格留位置</p>
+    </div>
+    <p class="rule-lead">
+      一句话：<b>带是摘要，只为「有」作证；网格是清单，定义过就留位置。</b>
+      同一个空值，带里整项消失，网格里保留一行淡破折——带不能因为少一项就换一种长相，网格也不能因为没填就让行号跳。
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:26%">情形</th>
+          <th style="width:30%">带内</th>
+          <th>网格内</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><b>有值</b></td><td class="dest">正常显示</td><td>正常显示</td></tr>
+        <tr><td><b>已定义但值为空</b></td><td class="gone">整项不出现</td><td>保留一行，淡 <code>—</code>，悬停给「设置」</td></tr>
+        <tr><td><b>复选框未勾选</b></td><td class="gone">整项不出现</td><td>不适用（复选框只进带）</td></tr>
+        <tr><td><b>多选无值</b></td><td class="gone">整项不出现</td><td>保留一行，显示 <code>+ 添加</code></td></tr>
+        <tr><td><b>字段从未定义</b></td><td class="gone">不出现</td><td class="gone">整行不渲染</td></tr>
+        <tr><td><b>全部为空</b></td><td class="gone">整条带不渲染（连底线一起）</td><td>只剩空破折行</td></tr>
+        <tr><td><b>一个属性都没有</b></td><td class="gone">不渲染</td><td>只留「属性 0」+「+ 属性」</td></tr>
+      </tbody>
+    </table>
+    <div class="duo" style="margin-top:20px">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">布尔为真</span>带里 4 项</div>
+        <div class="duo-body">
+          <div class="strip" style="border:0">
+            <div class="grp left"><div class="slot"><span class="pill"><i></i>未读</span></div><div class="slot"><span class="flag-on">✓ 喜欢</span></div></div>
+            <div class="grp right"><div class="slot"><span class="writer"><b>JustBeClawAI</b></span></div><div class="slot"><span class="stamp"><b>收藏</b><span>2026-05-11</span></span></div></div>
+          </div>
+          <p class="duo-note">左组两项都在。</p>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp bad">布尔为假</span>同一文档，带变 3 项</div>
+        <div class="duo-body">
+          <div class="strip" style="border:0">
+            <div class="grp left"><div class="slot"><span class="pill"><i></i>未读</span></div></div>
+            <div class="grp right"><div class="slot"><span class="writer"><b>JustBeClawAI</b></span></div><div class="slot"><span class="stamp"><b>收藏</b><span>2026-05-11</span></span></div></div>
+          </div>
+          <p class="duo-note">勾选消失，其余不动，带高仍是 30px。空复选框没有信息量，不必写「否」。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULE 04 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 04</span>
+      <h2>两列的配对规则</h2>
+      <p>成对半宽 · 落单跨满 · 长字段必跨满</p>
+    </div>
+    <p class="rule-lead">
+      网格是两列，但<b>不允许出现半格空洞</b>：两个短字段相邻各占一半；短字段落单就跨满；长字段一律跨满。
+      多选按项数判定——<b>1–2 个算短，3 个以上跨满</b>（chips 会换行，行高就不稳了）。
+    </p>
+    <div class="duo">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">成对</span>标签（2 个）+ 系列（1 个）</div>
+        <div class="duo-body">
+          <div class="grid">
+            <div class="prow half a"><span class="pk">标签</span><div class="pv"><span class="chips"><span class="chip">系统论</span><span class="chip">控制论</span></span></div><button type="button" class="pmore">⋯</button></div>
+            <div class="prow half b"><span class="pk">系列</span><div class="pv"><span class="chips"><span class="chip">三论</span></span></div><button type="button" class="pmore">⋯</button></div>
+          </div>
+          <p class="duo-note">各占一半，中间一条淡竖线，底线同一水平。</p>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp neu">落单</span>只有标签，跨满整排</div>
+        <div class="duo-body">
+          <div class="grid">
+            <div class="prow full"><span class="pk">标签</span><div class="pv"><span class="chips"><span class="chip">系统论</span><span class="chip">控制论</span><span class="chip">Agent</span><span class="chip">Harness</span><span class="chip">信息论</span></span></div><button type="button" class="pmore">⋯</button></div>
+          </div>
+          <p class="duo-note">没有配对项就跨满，不留右半格空白；chips 多时也有空间。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULE 05 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 05</span>
+      <h2>概述固定两行</h2>
+      <p>高度锁死，只有一行内容也占两行</p>
+    </div>
+    <div class="duo">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">两行内容</span>截断在第二行</div>
+        <div class="duo-body">
+          <div class="prow multi" style="border-bottom:0">
+            <span class="pk">概述</span>
+            <div class="pv"><span class="vt-2">系统论、控制论和信息论是 Harness Engineering 的理论基石，Agent Harness 是其在 AI 时代的核心实践，二者共同构成了理解智能体系统的底层框架。</span></div>
+            <button type="button" class="pmore">⋯</button>
+          </div>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">一行内容</span>下面是留白，不是没渲染</div>
+        <div class="duo-body">
+          <div class="prow multi" style="border-bottom:0">
+            <span class="pk">概述</span>
+            <div class="pv"><span class="vt-2">一段很短的概述。</span></div>
+            <button type="button" class="pmore">⋯</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="rule-lead" style="margin-top:16px">
+      关键不是行数，是<b>高度锁死</b>：内容一行还是三行，这块高度都是两行，正文起点不随摘要长短上下游走。
+    </p>
+  </section>
+
+  <!-- RULE 06 -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 06</span>
+      <h2>字段归位表</h2>
+      <p>加属性时照这张表落位</p>
+    </div>
+    <table>
+      <thead>
+        <tr><th style="width:24%">字段</th><th style="width:20%">去向</th><th style="width:22%">宽度处理</th><th>理由</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>状态 / 枚举</b></td><td class="dest">带 · 左组</td><td>固定</td><td>值域封闭，宽度可枚举</td></tr>
+        <tr><td><b>复选框</b></td><td class="dest">带 · 左组</td><td>固定（徽标）</td><td>只为真显示</td></tr>
+        <tr><td><b>作者</b></td><td class="dest">带 · 右组</td><td>上限 12em 截断</td><td>高频但非核心内容，给上限就能进带</td></tr>
+        <tr><td><b>来源 / 域名</b></td><td class="dest">带 · 右组</td><td>与作者同槽，圆点连</td><td>和作者一起读成「谁·哪」</td></tr>
+        <tr><td><b>日期 / 时间</b></td><td class="dest">带 · 右组</td><td>固定（等宽）</td><td>格式统一，像编号好扫</td></tr>
+        <tr><td><b>数字（评分）</b></td><td class="dest">带 · 右组</td><td>固定</td><td>短，可当徽标</td></tr>
+        <tr><td><b>多选（标签 / 系列）</b></td><td class="dest">网格</td><td>≤2 个半宽，3+ 跨满</td><td>唯一可增长，必须限容</td></tr>
+        <tr><td><b>标题 / 原文 / 批注</b></td><td class="dest line">网格 · 跨满</td><td>—</td><td>要读全</td></tr>
+        <tr><td><b>概述</b></td><td class="dest line">网格 · 固定两行</td><td>—</td><td>是内容，不是元信息</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="foot">
+    <b>落地要点</b>：<code>propsShared.ts</code> 出两张常量表——<code>STRIP_LEFT</code>（select / checkbox）、<code>STRIP_RIGHT</code>（text / link 域名 / date / number），
+    以及 <code>GRID_MULTI_THRESHOLD = 2</code>。空值判定统一走 <code>isBlank(value)</code>：带渲染前过滤，网格保留行。
+    带用 <code>display:flex</code> + <code>.grp-right { margin-left:auto }</code>，<code>data-alone</code> 为真时改回左对齐；
+    「左组为空」「网格全空」「属性为零」三种空态各有独立渲染分支，不靠 CSS 兜。
+  </p>
+</div>
+
+<script>
+/* ================= 数据 ================= */
+const DOC = {
+  title: '不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering',
+  url: 'https://zhuanlan.zhihu.com/p/203652619192875454',
+  summary: '系统论、控制论和信息论是 Harness Engineering 的理论基石，Agent Harness 是其在 AI 时代的核心实践，二者共同构成了理解智能体系统的底层框架。',
+};
+
+const DENSITY = {
+  min: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 4,120 字符',
+    count: 4,
+    status: { value: 'unread', display: '未读' },
+    like: false,
+    author: '',
+    source: '',
+    dates: [{ label: '收藏', value: '2026-05-11' }],
+    numbers: [],
+    tags: [],
+    series: [],
+    rows: ['title', 'summary'],
+    hint: '只填了状态和日期：布尔未勾选、作者为空，两项都不进带。网格里标题、概述照常占位。',
+  },
+  s: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符',
+    count: 8,
+    status: { value: 'unread', display: '未读' },
+    like: true,
+    author: 'JustBeClawAI 全干工程师',
+    source: '知乎',
+    dates: [{ label: '收藏', value: '2026-05-11' }],
+    numbers: [],
+    tags: [],
+    series: [],
+    rows: ['tags', 'title', 'url', 'summary'],
+    hint: '标签为空：带里不出现，网格里保留一行显示「+ 添加」，行位置不跳。',
+  },
+  m: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符 · 阅读 12 分钟',
+    count: 10,
+    status: { value: 'unread', display: '未读' },
+    like: true,
+    author: 'JustBeClawAI 全干工程师',
+    source: '知乎',
+    dates: [{ label: '收藏', value: '2026-05-11' }],
+    numbers: [],
+    tags: ['系统论', '控制论'],
+    series: ['三论'],
+    rows: ['tags', 'series', 'title', 'url', 'summary'],
+    hint: '标签 2 个 + 系列 1 个，两项各占半宽并排——这是「一排两个」最常见的一档。',
+  },
+  l: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符 · 阅读 12 分钟 · 语言 zh',
+    count: 14,
+    status: { value: 'unread', display: '未读' },
+    like: true,
+    author: 'JustBeClawAI 全干工程师',
+    source: '知乎',
+    dates: [{ label: '收藏', value: '2026-05-11' }, { label: '更新', value: '2026-11-10' }],
+    numbers: [{ label: '评分', value: '4' }, { label: '时长', value: '12min' }],
+    tags: ['系统论', '控制论', 'Agent', 'Harness', '信息论'],
+    series: ['三论', '工程实践', 'AI'],
+    rows: ['tags', 'series', 'title', 'url', 'summary', 'comment'],
+    hint: '带里左 2 + 右 4，第 5 个（时长）折进 ⋯1。标签 5 个、系列 3 个都跨满。',
+  },
+};
+
+const state = { d: 's', anno: 'off' };
+(() => {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (DENSITY[q.get('d')]) state.d = q.get('d');
+  if (['on', 'off'].includes(q.get('anno'))) state.anno = q.get('anno');
+  if (['dark', 'light'].includes(q.get('theme'))) document.documentElement.dataset.theme = q.get('theme');
+})();
+
+const I_MORE = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><circle cx="3.2" cy="8" r="1.15" fill="currentColor"/><circle cx="8" cy="8" r="1.15" fill="currentColor"/><circle cx="12.8" cy="8" r="1.15" fill="currentColor"/></svg>';
+const I_PLUS = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const I_X = '<svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const I_TICK = '<svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M3.2 8.4l3.1 3.1L12.8 4.8" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>';
+const I_OUT = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M6.4 3.6H3.6v8.8h8.8V9.6M9.4 3.6h3v3M12.4 3.6L7.6 8.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
+/* ================= 带：左判定 / 右归属 ================= */
+function stripSlots(d) {
+  const out = [];
+  if (d.author || d.source) {
+    const who = [
+      d.author ? `<b title="${d.author}">${d.author}</b>` : '',
+      d.author && d.source ? '<em>·</em>' : '',
+      d.source ? `<span>${d.source}</span>` : '',
+    ].join('');
+    out.push({ html: `<span class="writer">${who}</span>`, label: '作者', value: d.author || d.source });
+  }
+  for (const t of d.dates) out.push({ html: `<span class="stamp"><b>${t.label}</b><span>${t.value}</span></span>`, label: t.label, value: t.value });
+  for (const n of d.numbers) out.push({ html: `<span class="stamp"><b>${n.label}</b><span>${n.value}</span></span>`, label: n.label, value: n.value });
+  return out;
+}
+
+function renderStrip(d) {
+  let left = '';
+  if (d.status && d.status.value) {
+    left += `<div class="slot"><span class="pill"><i></i>${d.status.display || d.status.value}</span></div>`;
+  }
+  if (d.like) left += `<div class="slot"><span class="flag-on">${I_TICK}喜欢</span></div>`;
+
+  const slots = stripSlots(d);
+  const right = slots.map((s) => `<div class="slot" data-label="${s.label}" data-value="${s.value}">${s.html}</div>`).join('');
+
+  /* 左右都空 → 整条带不渲染，连底线一起 */
+  if (!left && !right) return '';
+
+  return `<div class="strip" data-alone="${left ? '0' : '1'}">
+    <div class="grp left">${left}</div>
+    <div class="grp right">${right}</div>
+    <div class="pop" data-pop-panel="fold"></div>
+  </div>`;
+}
+
+/**
+ * 带内实际显示几项，由栏宽决定，不写死。
+ * 全部铺开后逐个量宽，放不下的收进 ⋯N —— 窄栏自动从 4 项降到 3 项或 2 项。
+ */
+function fitStrip() {
+  const strip = document.querySelector('#body .strip');
+  if (!strip) return;
+  const wrap = strip.querySelector('.grp.right');
+  if (!wrap) return;
+
+  const old = wrap.querySelector('.slot.more');
+  if (old) old.remove();
+
+  const slots = [...wrap.querySelectorAll('.slot')];
+  slots.forEach((s) => { s.style.display = ''; });
+  if (!strip.clientWidth) return;
+
+  const leftW = strip.querySelector('.grp.left')?.getBoundingClientRect().width || 0;
+  const avail = strip.clientWidth;
+  const reserve = slots.length ? 34 : 0;      // 末尾 ⋯ 按钮的余量
+  let used = leftW + (leftW ? 20 : 0);
+  let cut = slots.length;
+
+  for (let i = 0; i < slots.length; i++) {
+    const w = slots[i].getBoundingClientRect().width + (i ? 18 : 0);   // 竖线 + 内边距
+    if (used + w + reserve > avail) { cut = i; break; }
+    used += w;
+  }
+
+  const hidden = slots.slice(cut);
+  const pop = strip.querySelector('.pop');
+
+  if (!hidden.length) {
+    if (pop) { pop.classList.remove('open'); pop.innerHTML = ''; }
+    return;
+  }
+
+  hidden.forEach((s) => { s.style.display = 'none'; });
+  const more = document.createElement('div');
+  more.className = 'slot more';
+  more.innerHTML = `<button type="button" class="overflow-btn" data-pop="fold" aria-expanded="false">⋯${hidden.length}</button>`;
+  wrap.appendChild(more);
+
+  if (pop) {
+    pop.innerHTML = `<p class="pop-h">收起 · ${hidden.length}</p>` +
+      hidden.map((h) => `<div class="pop-row"><b>${h.dataset.label}</b><span>${h.dataset.value}</span></div>`).join('');
+  }
+}
+
+/* ================= 网格 ================= */
+function rowHtml(key, d, full, second) {
+  const cls = full ? 'prow full' : `prow half${second ? ' b' : ' a'}`;
+  const more = `<button type="button" class="pmore" aria-label="属性设置">${I_MORE}</button>`;
+
+  if (key === 'tags' || key === 'series') {
+    const list = d[key] || [];
+    const label = key === 'tags' ? '标签' : '系列';
+    const body = list.length
+      ? `<span class="chips">${list.map((t) => `<span class="chip">${t}<button type="button" aria-label="移除 ${t}">${I_X}</button></span>`).join('')}<button type="button" class="addtag" aria-label="添加${label}">${I_PLUS}</button></span>`
+      : `<button type="button" class="addtag">${I_PLUS}添加</button>`;
+    return `<div class="${cls}"><span class="pk">${label}</span><div class="pv">${body}</div>${more}</div>`;
+  }
+  if (key === 'title') {
+    return `<div class="${cls}"><span class="pk">标题</span><div class="pv"><span class="vt" title="${DOC.title}">${DOC.title}</span></div>${more}</div>`;
+  }
+  if (key === 'url') {
+    const bare = DOC.url.replace(/^https?:\/\//, '');
+    return `<div class="${cls}"><span class="pk">原文</span><div class="pv"><a class="vlink" href="#" title="${DOC.url}"><span>${bare}</span>${I_OUT}</a></div>${more}</div>`;
+  }
+  if (key === 'summary') {
+    return `<div class="prow full multi"><span class="pk">概述</span><div class="pv"><span class="vt-2" title="${DOC.summary}">${DOC.summary}</span></div>${more}</div>`;
+  }
+  if (key === 'comment') {
+    return `<div class="prow full"><span class="pk">批注</span><div class="pv"><span class="vt vt-none">—</span></div>${more}</div>`;
+  }
+  return '';
+}
+
+function renderGrid(d) {
+  const multiKeys = ['tags', 'series'].filter((k) => d.rows.includes(k));
+  const halves = multiKeys.filter((k) => (d[k] || []).length <= 2);
+  const fulls = multiKeys.filter((k) => (d[k] || []).length > 2);
+
+  let out = '';
+  for (let i = 0; i < halves.length; i += 2) {
+    const a = halves[i];
+    const b = halves[i + 1];
+    if (b) out += rowHtml(a, d, false, false) + rowHtml(b, d, false, true);
+    else out += rowHtml(a, d, true);                    // 落单跨满，不留半格空洞
+  }
+  out += fulls.map((k) => rowHtml(k, d, true)).join('');
+
+  const longs = d.rows.filter((k) => ['title', 'url', 'summary', 'comment'].includes(k));
+  out += longs
+    .map((k) => (k === 'summary' && state.anno === 'on' ? zoneCap('#d5a24a', 'ZONE 03', '概述 · 固定两行') : '') + rowHtml(k, d, true))
+    .join('');
+
+  return `<div class="grid">${out}</div>`;
+}
+
+function zoneCap(color, no, text) {
+  return `<div class="zone-cap"><i style="background:${color}"></i>${no} <span>${text}</span></div>`;
+}
+
+/* ================= 渲染 ================= */
+function render() {
+  const d = DENSITY[state.d];
+  document.getElementById('docMeta').textContent = d.meta;
+  document.getElementById('propCount').textContent = d.count;
+
+  const anno = state.anno === 'on';
+  let html = '';
+  if (anno) html += zoneCap('#6d7cff', 'ZONE 01', '一排 · 左判定 / 右归属');
+  html += renderStrip(d);
+  if (anno) html += zoneCap('#4fb3a5', 'ZONE 02', '两列 · 成对半宽或跨满');
+  html += renderGrid(d);
+
+  document.getElementById('body').innerHTML = html;
+
+  /* 实测 */
+  const leftCount = (d.status && d.status.value ? 1 : 0) + (d.like ? 1 : 0);
+  const rightTotal = (d.author || d.source ? 1 : 0) + d.dates.length + d.numbers.length;
+  const shownRight = Math.min(rightTotal, 4);
+  const hidden = (d.like ? 0 : 1) + (d.status && d.status.value ? 0 : 1);
+  const stripItems = leftCount + shownRight;
+
+  const halves = multiKeysOf(d).filter((k) => (d[k] || []).length <= 2);
+  const pairs = Math.floor(halves.length / 2);
+  const loneHalf = halves.length % 2;
+  const fullMulti = multiKeysOf(d).filter((k) => (d[k] || []).length > 2).length;
+  const longs = d.rows.filter((k) => ['title', 'url', 'summary', 'comment'].includes(k)).length;
+  const rows = (stripItems ? 1 : 0) + pairs + loneHalf + fullMulti + longs;
+
+  document.getElementById('mIn').textContent = stripItems ? `${stripItems} 项` : '无';
+  document.getElementById('mHide').textContent = `${hidden} 项`;
+  document.getElementById('mPair').textContent = String(pairs);
+  document.getElementById('mFull').textContent = String(loneHalf + fullMulti + longs);
+  document.getElementById('mRows').textContent = rows + ' 行';
+  document.getElementById('mHint').textContent = d.hint;
+
+  document.querySelectorAll('#segDensity button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.d === state.d)));
+  document.querySelectorAll('#segAnno button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === state.anno)));
+  document.querySelectorAll('#segTheme button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === document.documentElement.dataset.theme)));
+
+  document.getElementById('ruler').innerHTML = `带 <b>${stripItems} 项</b> · 隐藏 <b>${hidden} 项</b> · 纵向占用 <b>${rows} 行</b>`;
+
+  requestAnimationFrame(() => {
+    fitStrip();
+    const root = document.getElementById('body');
+    const shown = root.querySelectorAll('.grp.right > .slot:not(.more)').length;
+    const cut = root.querySelectorAll('.grp.right > .slot[style*="display: none"]').length;
+    document.getElementById('mIn').textContent = (leftCount + shown) ? `${leftCount + shown} 项` : '无';
+    document.getElementById('mHide').textContent = `${hidden + cut} 项`;
+    document.getElementById('ruler').innerHTML =
+      `带 <b>${leftCount + shown} 项</b> · 隐藏 <b>${hidden + cut} 项</b> · 纵向占用 <b>${rows} 行</b>`;
+  });
+}
+
+function multiKeysOf(d) {
+  return ['tags', 'series'].filter((k) => d.rows.includes(k));
+}
+
+let fitTimer = 0;
+window.addEventListener('resize', () => {
+  window.clearTimeout(fitTimer);
+  fitTimer = window.setTimeout(fitStrip, 120);
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.pop')) return;
+  const btn = e.target.closest('[data-pop]');
+  document.querySelectorAll('.pop').forEach((p) => p.classList.remove('open'));
+  if (!btn) return;
+  const panel = document.querySelector(`[data-pop-panel="${btn.dataset.pop}"]`);
+  if (panel) panel.classList.add('open');
+});
+
+document.getElementById('segDensity').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-d]');
+  if (!b) return;
+  state.d = b.dataset.d;
+  render();
+});
+document.getElementById('segAnno').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]');
+  if (!b) return;
+  state.anno = b.dataset.a;
+  render();
+});
+document.getElementById('segTheme').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-theme]');
+  if (!b) return;
+  document.documentElement.dataset.theme = b.dataset.theme;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

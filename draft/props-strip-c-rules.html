@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-skin="slate" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>C 紧凑带 · 带内组织规则</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--app-bg-side); color: var(--app-fg);
+    font-family: var(--app-font); -webkit-font-smoothing: antialiased; line-height: 1.55;
+  }
+  .page { max-width: 1180px; margin: 0 auto; padding: 46px 28px 110px; }
+
+  .kicker { font-family: var(--app-font-mono); font-size: 10.5px; letter-spacing: .06em; color: var(--app-fg-faint); margin: 0 0 12px; }
+  h1 { font-size: 26px; font-weight: 500; letter-spacing: -.01em; margin: 0 0 12px; }
+  .sub { max-width: 50em; margin: 0; font-size: 13px; line-height: 1.8; color: var(--app-fg-muted); }
+  .sub b { color: var(--app-fg); font-weight: 500; }
+  .sub code { font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-fg-subtle); background: var(--app-surface-sunken); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- 工具条 ---- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 12;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 26px 0 24px; padding: 10px 0;
+    background: var(--app-bg-side); border-bottom: 1px solid var(--app-border);
+  }
+  .tb-lab { font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .04em; color: var(--app-fg-faint); }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--app-surface-sunken); }
+  .seg button {
+    height: 28px; padding: 0 11px; border: 0; border-radius: 5px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 12px; cursor: pointer;
+  }
+  .seg button:hover { color: var(--app-fg); }
+  .seg button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); box-shadow: var(--app-shadow-card); font-weight: 500; }
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .mini { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; border: 1px solid var(--app-border); background: var(--app-surface); }
+  .mini button { height: 22px; padding: 0 8px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11px; cursor: pointer; }
+  .mini button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); }
+
+  /* ---- 文档卡 ---- */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 32px; align-items: start; }
+  @media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+  .doc {
+    width: 100%; padding: 26px 34px 34px;
+    background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 9px;
+  }
+  .doc-title { margin: 0 0 6px; font-size: 21px; font-weight: 500; line-height: 1.35; }
+  .doc-meta { margin: 0 0 20px; font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+
+  .phead { display: flex; align-items: center; gap: 7px; height: 32px; border-bottom: 1px solid var(--app-border-subtle); }
+  .phead-label { font-size: 11.5px; font-weight: 500; color: var(--app-fg-subtle); }
+  .phead-count { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); }
+  .phead-add { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 7px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11.5px; cursor: pointer; }
+  .phead-add:hover { background: var(--app-hover); color: var(--app-fg); }
+
+  /* ============ 带（核心） ============ */
+  .strip-wrap { position: relative; }
+  .strip {
+    position: relative;
+    display: flex; align-items: center;
+    height: 30px;
+    border-bottom: 1px solid var(--app-border-subtle);
+    white-space: nowrap; overflow: visible;
+  }
+  /* 槽位：位置固定，内容生长时只在槽位内伸展 */
+  .slot { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 0 1 auto; }
+  .slot + .slot { margin-left: 9px; padding-left: 9px; border-left: 1px solid var(--app-border); }
+  .slot.status { flex: none; }
+  .slot.marks { min-width: 0; }
+  .slot.more { flex: none; }
+  /* 空槽不留痕：没有内容就连竖线一起收掉，hover 才浮出添加入口 */
+  .slot.empty { border-left: 0; padding-left: 0; margin-left: 8px; }
+  .slot.empty .slot-add { display: none; }
+  .strip:hover .slot.empty .slot-add, .strip:focus-within .slot.empty .slot-add { display: inline-flex; opacity: 1; }
+
+  .strip-item {
+    display: inline-flex; align-items: center; gap: 5px; height: 20px;
+    font-size: 11.5px; color: var(--app-fg-muted); min-width: 0;
+  }
+  .strip-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strip-item.mono { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); }
+  .strip-item.who { max-width: 15em; }
+  .strip-item.who span { max-width: 15em; }
+  .strip-sep { width: 2px; height: 2px; border-radius: 50%; background: var(--app-fg-faint); opacity: .6; flex: none; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+    border-radius: 4px; background: var(--app-accent-subtle); color: var(--app-accent-fg);
+    font-size: 11px; flex: none;
+  }
+  .pill i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border-radius: 4px; background: var(--app-surface-sunken); color: var(--app-fg-muted);
+    font-size: 11px; flex: none;
+  }
+  .overflow-btn {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border: 1px solid var(--app-border); border-radius: 4px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 10.5px;
+    cursor: pointer; flex: none;
+  }
+  .overflow-btn:hover { background: var(--app-hover); color: var(--app-fg); border-color: var(--app-fg-faint); }
+  .overflow-btn[aria-expanded="true"] { background: var(--app-seg-active); color: var(--app-fg); }
+
+  /* 空槽：常态不留痕，hover 才给入口 */
+  .slot-add {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border: 1px dashed var(--app-border); border-radius: 4px; background: none;
+    color: var(--app-fg-faint); font-family: var(--app-font); font-size: 11px;
+    cursor: pointer; opacity: 0; transition: opacity .12s;
+  }
+  .strip:hover .slot-add, .strip:focus-within .slot-add { opacity: 1; }
+
+  /* 溢出浮层：不占流，不推正文 */
+  .pop {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+    display: none; min-width: 220px; max-width: 420px;
+    padding: 8px; border: 1px solid var(--app-border); border-radius: 8px;
+    background: var(--app-surface-raised);
+    box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .72), 0 0 0 1px rgba(255, 255, 255, .03);
+  }
+  .pop.open { display: block; }
+  .pop-h { font-family: var(--app-font-mono); font-size: 10px; color: var(--app-fg-faint); padding: 0 4px 6px; }
+  .pop-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pop-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; font-size: 11.5px; }
+  .pop-row b { font-weight: 400; color: var(--app-fg-subtle); font-size: 10.5px; min-width: 4.5em; }
+  .pop-row span { color: var(--app-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 槽位标注层（仅讲解用，产品里没有） */
+  .strip[data-anno="on"] { margin-top: 22px; }
+  .anno { position: absolute; top: -21px; left: 0; right: 0; display: flex; gap: 0; pointer-events: none; }
+  .anno-i {
+    display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0 5px; box-sizing: border-box;
+    font-family: var(--app-font-mono); font-size: 9px; letter-spacing: .03em; border-radius: 3px 3px 0 0;
+    color: var(--app-fg-faint); background: var(--app-surface-sunken);
+  }
+  .anno-i.on { color: var(--app-fg); background: var(--app-seg-active); }
+  .anno-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; display: flex; }
+  .anno-bar div { height: 2px; }
+  .h-status { background: #6d7cff; }
+  .h-who { background: #4fb3a5; }
+  .h-marks { background: #d5a24a; }
+  .h-more { background: #8a92a1; }
+  .strip[data-anno="on"] .anno-bar div { opacity: .85; }
+
+  /* 键值行 */
+  .prow {
+    position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr) 26px;
+    align-items: center; min-height: 32px; border-bottom: 1px solid var(--app-border-subtle);
+  }
+  .prow:last-child { border-bottom-color: transparent; }
+  .pk { font-size: 11.5px; color: var(--app-fg-subtle); padding-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .pmore { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle); cursor: pointer; opacity: 0; }
+  .prow:hover .pmore { opacity: 1; }
+  .pmore:hover { background: var(--app-hover); color: var(--app-fg); }
+  .vt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+  .vt-none { color: var(--app-fg-faint); }
+  .vlink { display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-link); text-decoration: none; }
+  .vlink span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vlink:hover span { text-decoration: underline; }
+  .vt-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; line-height: 1.62; color: var(--app-fg-muted); }
+  /* 稠密测试：把带撑爆的压力行 */
+  .ruler {
+    display: flex; align-items: center; gap: 6px; margin: 8px 0 0;
+    font-family: var(--app-font-mono); font-size: 10px; color: var(--app-fg-faint);
+  }
+  .ruler::before { content: ""; flex: none; width: 1px; height: 9px; background: var(--app-border); }
+  .ruler b { color: var(--app-accent-fg); font-weight: 400; }
+
+  /* ---- 实测侧栏 ---- */
+  .rail { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+  .rail-h { padding-bottom: 9px; border-bottom: 1px solid var(--app-border); font-size: 12px; font-weight: 500; }
+  .kvbox { display: flex; flex-direction: column; gap: 9px; }
+  .kvr { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; }
+  .kvr b { font-weight: 400; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: 10.5px; min-width: 5.6em; }
+  .kvr span { color: var(--app-fg); font-family: var(--app-font-mono); font-size: 11.5px; }
+  .kvr span.hot { color: var(--app-accent-fg); }
+  .hint { margin: 0; font-size: 11px; line-height: 1.7; color: var(--app-fg-faint); }
+  .hint code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+
+  /* ---- 规则段 ---- */
+  .rule { margin-top: 58px; }
+  .rule-h { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--app-border); margin-bottom: 20px; }
+  .rule-n { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+  .rule-h h2 { margin: 0; font-size: 14.5px; font-weight: 500; }
+  .rule-h p { margin: 0 0 0 auto; font-size: 11.5px; color: var(--app-fg-faint); }
+  .rule-lead { max-width: 62em; margin: 0 0 18px; font-size: 12.5px; line-height: 1.75; color: var(--app-fg-muted); }
+  .rule-lead b { color: var(--app-fg); font-weight: 500; }
+
+  /* 四槽位说明 */
+  .slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--app-border-subtle); border: 1px solid var(--app-border-subtle); border-radius: 8px; overflow: hidden; }
+  @media (max-width: 900px) { .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .slotcard { padding: 14px 14px 16px; background: var(--app-surface); }
+  .slotcard .cap { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-family: var(--app-font-mono); font-size: 9.5px; color: var(--app-fg-faint); }
+  .slotcard .cap i { width: 6px; height: 6px; border-radius: 2px; display: inline-block; }
+  .slotcard h3 { margin: 0 0 6px; font-size: 12.5px; font-weight: 500; color: var(--app-fg); }
+  .slotcard p { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--app-fg-muted); }
+  .slotcard .grow { display: inline-block; margin-top: 9px; font-family: var(--app-font-mono); font-size: 9.5px; padding: 1px 5px; border-radius: 3px; background: var(--app-surface-sunken); color: var(--app-fg-subtle); }
+
+  /* 两栏对比 */
+  .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  @media (max-width: 900px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+  .duo-card { border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); overflow: hidden; }
+  .duo-h { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--app-border-subtle); font-size: 11.5px; }
+  .duo-h .tagp { font-family: var(--app-font-mono); font-size: 9.5px; padding: 1px 5px; border-radius: 3px; }
+  .duo-h .bad { color: #ff8a80; background: rgba(255, 138, 128, .12); }
+  .duo-h .good { color: #8fb79f; background: rgba(143, 183, 159, .12); }
+  .duo-body { padding: 16px 16px 18px; }
+  .duo-note { margin: 12px 0 0; font-size: 11.5px; line-height: 1.68; color: var(--app-fg-muted); }
+  .duo-note code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+
+  /* 换行演示（窄容器） */
+  .narrow { width: 420px; max-width: 100%; margin: 0 auto; padding: 14px 16px; border: 1px dashed var(--app-border); border-radius: 8px; }
+  .wrapstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; white-space: normal; }
+  .wrapstrip .fence { width: 1px; height: 12px; background: var(--app-border); }
+
+  /* 边界卡 */
+  .edges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 1000px) { .edges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .edge { padding: 14px 15px 16px; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); }
+  .edge h3 { margin: 0 0 6px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .edge h3 em { font-family: var(--app-font-mono); font-style: normal; font-size: 9.5px; color: var(--app-fg-faint); }
+  .edge p { margin: 0; font-size: 11.5px; line-height: 1.65; color: var(--app-fg-muted); }
+  .edge .demo { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--app-border-subtle); }
+
+  /* 归位表 */
+  table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+  th { text-align: left; padding: 9px 12px 9px 0; font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .04em; color: var(--app-fg-faint); font-weight: 400; border-bottom: 1px solid var(--app-border-subtle); }
+  td { padding: 9px 12px 9px 0; vertical-align: top; font-size: 12px; line-height: 1.6; color: var(--app-fg-muted); border-bottom: 1px solid var(--app-border-subtle); }
+  td b { color: var(--app-fg); font-weight: 500; }
+  td code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+  td.dest { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-accent-fg); white-space: nowrap; }
+  td.dest.line { color: var(--app-fg-subtle); }
+
+  .foot { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--app-border); font-size: 11.5px; line-height: 1.85; color: var(--app-fg-faint); }
+  .foot b { color: var(--app-fg-subtle); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+  <p style="margin:0 0 22px;padding:9px 12px;border:1px solid var(--app-border);border-radius:7px;background:var(--app-surface-sunken);font-size:11.5px;color:var(--app-fg-muted)">
+    本页只保留「带容量与折叠」的推演，完整结构已并入 <b style="color:var(--app-fg);font-weight:500">props-c-final.html</b>（作者进带、左右分布、缺省规则）。以那一份为准。
+  </p>
+
+  <header>
+    <p class="kicker">MENOTE · 属性区 C 方案细化 · 2026-11-12</p>
+    <h1>C 紧凑带：把第一条混合显示锁成一行</h1>
+    <p class="sub">
+      带的问题不是「排得不好看」，是<b>没有规则</b>：现在它是自由换行的 flex，谁多谁少由数据决定，字段一多就自然散成一坨。
+      这里定四条硬规则——<b>带只许占一行、槽位按类型固定、竖线只分槽位、可增长的项一律限容</b>。
+      下面同一份文档可以切「稀疏 / 中等 / 密集」三档，看带变长时下面三行键值是否纹丝不动。
+    </p>
+  </header>
+
+  <div class="toolbar">
+    <span class="tb-lab">内容量</span>
+    <div class="seg" id="segDensity">
+      <button type="button" data-d="s">稀疏</button>
+      <button type="button" data-d="m">中等</button>
+      <button type="button" data-d="l">密集</button>
+    </div>
+    <span class="tb-lab">槽位标注</span>
+    <div class="seg" id="segAnno">
+      <button type="button" data-a="off">关</button>
+      <button type="button" data-a="on">开</button>
+    </div>
+    <div class="tools">
+      <span class="tb-lab">主题</span>
+      <div class="mini" id="segTheme">
+        <button type="button" data-theme="dark">深</button>
+        <button type="button" data-theme="light">浅</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div>
+      <div class="doc">
+        <h2 class="doc-title">不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering</h2>
+        <p class="doc-meta" id="docMeta">2026/11/04 · 更新于 11/10 10:12 · 20,184 字符</p>
+
+        <div class="phead">
+          <span class="phead-label">属性</span>
+          <span class="phead-count" id="propCount">9</span>
+          <button type="button" class="phead-add">+ 属性</button>
+        </div>
+
+        <div class="strip-wrap" id="stripWrap"></div>
+
+        <div class="prow" style="margin-top:6px">
+          <span class="pk" title="title">标题</span>
+          <div class="pv"><span class="vt">不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering</span></div>
+          <button type="button" class="pmore" aria-label="属性设置">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="3.2" cy="8" r="1.15" fill="currentColor"/><circle cx="8" cy="8" r="1.15" fill="currentColor"/><circle cx="12.8" cy="8" r="1.15" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="prow">
+          <span class="pk" title="url">原文</span>
+          <div class="pv">
+            <a class="vlink" href="#"><span>zhuanlan.zhihu.com/p/203652619192875454</span>
+              <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M6.4 3.6H3.6v8.8h8.8V9.6M9.4 3.6h3v3M12.4 3.6L7.6 8.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </a>
+          </div>
+          <button type="button" class="pmore" aria-label="属性设置">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="3.2" cy="8" r="1.15" fill="currentColor"/><circle cx="8" cy="8" r="1.15" fill="currentColor"/><circle cx="12.8" cy="8" r="1.15" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="prow">
+          <span class="pk" title="summary">概述</span>
+          <div class="pv"><span class="vt vt-2">系统论、控制论和信息论是 Harness Engineering 的理论基石，Agent Harness 是其在 AI 时代的核心实践，二者共同构成了理解智能体系统的底层框架。</span></div>
+          <button type="button" class="pmore" aria-label="属性设置">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="3.2" cy="8" r="1.15" fill="currentColor"/><circle cx="8" cy="8" r="1.15" fill="currentColor"/><circle cx="12.8" cy="8" r="1.15" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <p class="ruler">带高实测 <b id="stripH">30px</b> · 换行次数 <b id="stripLines">0</b> · 下方三行起始位置固定</p>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="rail-h">这一档的实测</div>
+      <div class="kvbox">
+        <div class="kvr"><b>带高</b><span id="mH">30px</span></div>
+        <div class="kvr"><b>占用行</b><span id="mL" class="hot">1</span></div>
+        <div class="kvr"><b>槽位</b><span id="mS">3</span></div>
+        <div class="kvr"><b>折叠项</b><span id="mC">0</span></div>
+        <div class="kvr"><b>带内字段</b><span id="mF">2 / 9</span></div>
+      </div>
+      <p class="hint" id="mHint">常态不显签，悬停带尾才浮出添加入口。</p>
+    </aside>
+  </div>
+
+  <!-- ============ 规则 1 ============ -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 01</span>
+      <h2>带只许占一行</h2>
+      <p>高度恒定 30px，内容多就折叠，不许换行</p>
+    </div>
+    <p class="rule-lead">
+      允许换行，等于把「带有多高」交给数据决定：10 个标签就能把它顶成三行，正文被推走 60px，而读者每次打开这篇文档落点都不一样。
+      <b>带的职责是稳定，不是装下所有东西</b>，装不下的交给折叠与键值行。
+    </p>
+    <div class="duo">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp bad">before</span>自由换行：密度一高就散</div>
+        <div class="duo-body">
+          <div class="narrow">
+            <div class="wrapstrip">
+              <span class="pill"><i></i>未读</span>
+              <span class="fence"></span>
+              <span class="strip-item who"><span>JustBeClawAI 全干工程师</span></span>
+              <span class="fence"></span>
+              <span class="strip-item mono">知乎</span>
+              <span class="fence"></span>
+              <span class="strip-item mono">2026-05-11</span>
+              <span class="fence"></span>
+              <span class="chip">系统论</span>
+              <span class="chip">控制论</span>
+              <span class="chip">Agent</span>
+              <span class="chip">Harness</span>
+              <span class="chip">信息论</span>
+              <span class="fence"></span>
+              <span class="chip">12min</span>
+              <span class="chip">评分 4</span>
+            </div>
+          </div>
+          <p class="duo-note">同样的内容在 420px 里被挤成两行，第二行开头还留着一根孤立的竖线——它原本是分隔符，现在读起来像标点错误。</p>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">after</span>锁一行：折叠代替换行</div>
+        <div class="duo-body">
+          <div class="narrow" style="padding:0">
+            <div class="strip" style="padding:0 2px">
+              <div class="slot status"><span class="pill"><i></i>未读</span></div>
+              <div class="slot who">
+                <span class="strip-item who"><span>JustBeClawAI 全干工程师</span></span>
+                <span class="strip-sep"></span>
+                <span class="strip-item mono">知乎</span>
+                <span class="strip-sep"></span>
+                <span class="strip-item mono">2026-05-11</span>
+              </div>
+              <div class="slot marks">
+                <span class="chip">系统论</span>
+                <span class="chip">控制论</span>
+                <span class="chip">Agent</span>
+                <button type="button" class="overflow-btn">+5</button>
+              </div>
+              <div class="slot more">
+                <button type="button" class="overflow-btn">⋯3</button>
+              </div>
+            </div>
+          </div>
+          <p class="duo-note">同样 420px，仍然一行：标签收到 3 个 + <code>+5</code>，额外短字段收进 <code>⋯3</code>，两个入口点开都是浮层。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 规则 2 ============ -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 02</span>
+      <h2>四个槽位，位置由类型决定</h2>
+      <p>新增字段落进对应槽位，不追加到带尾</p>
+    </div>
+    <p class="rule-lead">
+      这是「避免后面内容多了混乱」的核心：<b>带里的位置不是按属性创建顺序排的，是按类型排的</b>。
+      状态永远在最左，归属永远在中间，标记永远在右，多出来的短字段永远在最右的溢出槽。加十个属性，带的结构还是这四段。
+    </p>
+    <div class="slots">
+      <div class="slotcard">
+        <div class="cap"><i class="h-status"></i>SLOT 01</div>
+        <h3>状态</h3>
+        <p>枚举类：状态、进度、优先级。只收一个，多了按字段优先级取第一个。</p>
+        <span class="grow">固定 · 不折叠</span>
+      </div>
+      <div class="slotcard">
+        <div class="cap"><i class="h-who"></i>SLOT 02</div>
+        <h3>归属</h3>
+        <p>人、来源、时间：作者、站点域名、收藏日期。最多 3 项，项内用圆点分隔。</p>
+        <span class="grow">固定 · 单项截断</span>
+      </div>
+      <div class="slotcard">
+        <div class="cap"><i class="h-marks"></i>SLOT 03</div>
+        <h3>标记</h3>
+        <p>可增长的：标签、多选、分类。唯一允许「变多」的槽位，所以必须限容。</p>
+        <span class="grow">可增长 · 3+N</span>
+      </div>
+      <div class="slotcard">
+        <div class="cap"><i class="h-more"></i>SLOT 04</div>
+        <h3>溢出</h3>
+        <p>其余单值短字段：评分、时长、语言。超过 2 项就折叠成 ⋯N。</p>
+        <span class="grow">可增长 · ⋯N</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 规则 3 ============ -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 03</span>
+      <h2>竖线只分槽位，不分割项</h2>
+      <p>最多 3 条竖线，带永远读成「三段」</p>
+    </div>
+    <p class="rule-lead">
+      现在每一项之间都插一条竖线，7 项就是 6 条——它看起来像栅栏，而不像一句话。改成槽位之间用竖线、槽位内部用间距和圆点，
+      <b>视觉上的段数就固定了</b>，字段增减只改变段的长度，不改变段的形状。
+    </p>
+    <div class="duo">
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp bad">before</span>每项一条竖线</div>
+        <div class="duo-body">
+          <div class="strip" style="border:0;height:24px">
+            <span class="strip-item mono">未读</span>
+            <span class="fence" style="width:1px;height:11px;background:var(--app-border);margin:0 7px"></span>
+            <span class="strip-item">JustBeClawAI</span>
+            <span class="fence" style="width:1px;height:11px;background:var(--app-border);margin:0 7px"></span>
+            <span class="strip-item mono">知乎</span>
+            <span class="fence" style="width:1px;height:11px;background:var(--app-border);margin:0 7px"></span>
+            <span class="strip-item mono">2026-05-11</span>
+            <span class="fence" style="width:1px;height:11px;background:var(--app-border);margin:0 7px"></span>
+            <span class="chip">系统论</span>
+            <span class="chip">控制论</span>
+          </div>
+          <p class="duo-note">4 条竖线把 6 项切平，读不出哪几项是一组；标签和日期看起来同级。</p>
+        </div>
+      </div>
+      <div class="duo-card">
+        <div class="duo-h"><span class="tagp good">after</span>槽位之间一条，项间用圆点</div>
+        <div class="duo-body">
+          <div class="strip" style="border:0;height:24px">
+            <div class="slot status"><span class="pill"><i></i>未读</span></div>
+            <div class="slot who">
+              <span class="strip-item who"><span>JustBeClawAI</span></span>
+              <span class="strip-sep"></span>
+              <span class="strip-item mono">知乎</span>
+              <span class="strip-sep"></span>
+              <span class="strip-item mono">2026-05-11</span>
+            </div>
+            <div class="slot marks">
+              <span class="chip">系统论</span>
+              <span class="chip">控制论</span>
+            </div>
+          </div>
+          <p class="duo-note">2 条竖线 = 3 段。人·来源·时间读成一句，标签自成一段，层级立刻清楚。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 规则 4 ============ -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 04</span>
+      <h2>四条边界规则</h2>
+      <p>每一项都有明确的容量上限</p>
+    </div>
+    <div class="edges">
+      <div class="edge">
+        <h3>标签 3+N <em>3 + N</em></h3>
+        <p>前 3 个内联，第 4 个起折成 <code>+5</code>。点开是浮层，不撑开带。</p>
+        <div class="demo">
+          <div class="slot marks" style="gap:5px">
+            <span class="chip">系统论</span><span class="chip">控制论</span><span class="chip">Agent</span>
+            <button type="button" class="overflow-btn">+5</button>
+          </div>
+        </div>
+      </div>
+      <div class="edge">
+        <h3>单项截断 <em>15em</em></h3>
+        <p>作者名一类的自由文本，上限 15em，超出尾部省略，hover 显全名。任何单项都不许撑高。</p>
+        <div class="demo">
+          <span class="strip-item who" title="JustBeClawAI 全干工程师（示例：一个很长的署名）">
+            <span>JustBeClawAI 全干工…</span>
+          </span>
+        </div>
+      </div>
+      <div class="edge">
+        <h3>空槽不留痕 <em>hover</em></h3>
+        <p>没有标签就不显示「+ 标签」。编辑入口移到悬停时带尾浮出，常态不占位。</p>
+        <div class="demo">
+          <button type="button" class="slot-add" style="opacity:1">+ 标签</button>
+        </div>
+      </div>
+      <div class="edge">
+        <h3>溢出折叠 <em>⋯N</em></h3>
+        <p>槽位 04 超过 2 项就折成 <code>⋯3</code>，浮层里按「键 值」两列列出全部。</p>
+        <div class="demo"><button type="button" class="overflow-btn">⋯3</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 规则 5 ============ -->
+  <section class="rule">
+    <div class="rule-h">
+      <span class="rule-n">RULE 05</span>
+      <h2>字段归位表</h2>
+      <p>新增字段时照这张表决定去哪，不靠临场判断</p>
+    </div>
+    <p class="rule-lead">
+      一句话规则：<b>能一句读完的进带，需要读第二眼的进键值行</b>。这张表进 <code>propsShared.ts</code> 当常量，加属性时按类型自动落位。
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:22%">字段</th>
+          <th style="width:22%">形态</th>
+          <th style="width:18%">去向</th>
+          <th>判断依据</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><b>状态</b></td><td>枚举，单值</td><td class="dest">带 · 槽位 01</td><td>一眼可判，且每个文档都有</td></tr>
+        <tr><td><b>作者 / 来源 / 收藏于</b></td><td>文本 ≤15em、域名、日期</td><td class="dest">带 · 槽位 02</td><td>都在回答「这篇从哪来」，读成一句</td></tr>
+        <tr><td><b>标签 / 分类</b></td><td>多选</td><td class="dest">带 · 槽位 03</td><td>唯一会变多的字段，必须限容</td></tr>
+        <tr><td><b>评分 / 时长 / 语言</b></td><td>数字、短文本</td><td class="dest">带 · 槽位 04</td><td>短，但当徽标用时不宜超过 2 个</td></tr>
+        <tr><td><b>标题</b></td><td>长文本</td><td class="dest line">键值行</td><td>要读全，且与文档大标题可能重复</td></tr>
+        <tr><td><b>原文 URL</b></td><td>链接</td><td class="dest line">键值行</td><td>要可点、要能看全路径</td></tr>
+        <tr><td><b>概述 / 批注</b></td><td>多行文本</td><td class="dest line">键值行（2 行 clamp）</td><td>是内容，不是元信息</td></tr>
+        <tr><td><b>附件</b></td><td>文件</td><td class="dest line">键值行</td><td>需要缩略图与文件名</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="foot">
+    <b>落地要点</b>：槽位顺序与字段归属写成 <code>propsShared.ts</code> 的常量表；带用 <code>display:flex; height:30px; flex-wrap:nowrap</code>，
+    折叠数量由 <code>ResizeObserver</code> 实测宽度算出（不写死 3 个，窄栏自动降为 2 或 1）；<code>+N</code> 与 <code>⋯N</code> 都是 <code>AnchoredPanel</code> 浮层，复用现有浮层语言，不新增组件。
+    带内每一段仍然是可点控件，编辑路径不变。
+  </p>
+</div>
+
+<script>
+/* ================= 三档内容量：同一份文档，只增加元信息 ================= */
+const DENSITY = {
+  s: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符',
+    count: 9,
+    status: '未读',
+    who: ['JustBeClawAI 全干工程师'],
+    marks: [],
+    more: [],
+    hint: '常态不显签，悬停带尾才浮出添加入口。这一档带内只有 2 个字段，仍保持 30px。',
+  },
+  m: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符 · 阅读 12 分钟',
+    count: 11,
+    status: '未读',
+    who: ['JustBeClawAI 全干工程师', '知乎', '2026-05-11'],
+    marks: ['系统论', '控制论', 'Agent'],
+    more: [],
+    hint: '标签刚好 3 个，全部内联；归属槽出现站点与日期，用圆点分隔而不是竖线。',
+  },
+  l: {
+    meta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符 · 阅读 12 分钟 · 语言 zh',
+    count: 15,
+    status: '未读',
+    who: ['JustBeClawAI 全干工程师（示例长署名）', '知乎', '2026-05-11'],
+    marks: ['系统论', '控制论', 'Agent', 'Harness', '信息论', '工程实践', 'AI', '笔记方法'],
+    more: ['评分 4', '时长 12min', '语言 zh'],
+    hint: '8 个标签收成 3 + 5，3 个额外短字段收成 ⋯3。带仍是 1 行 30px，下面三行键值位置不变。',
+  },
+};
+
+const state = { d: 's', anno: 'off' };
+
+/* #d=l&anno=on&theme=light 直接落到某一档，便于截图与分享 */
+(() => {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (DENSITY[q.get('d')]) state.d = q.get('d');
+  if (['on', 'off'].includes(q.get('anno'))) state.anno = q.get('anno');
+  if (['dark', 'light'].includes(q.get('theme'))) document.documentElement.dataset.theme = q.get('theme');
+})();
+
+const I_PLUS = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+
+function renderStrip() {
+  const d = DENSITY[state.d];
+  const marks = d.marks.slice(0, 3);
+  const rest = d.marks.length - marks.length;
+
+  const whoHtml = d.who.map((w, i) => {
+    const isName = i === 0;
+    const html = isName
+      ? `<span class="strip-item who" title="${w}"><span>${w}</span></span>`
+      : `<span class="strip-item mono">${w}</span>`;
+    return (i ? '<span class="strip-sep"></span>' : '') + html;
+  }).join('');
+
+  const marksHtml = marks.length
+    ? marks.map((m) => `<span class="chip">${m}</span>`).join('') +
+      (rest > 0 ? `<button type="button" class="overflow-btn" data-pop="marks">+${rest}</button>` : '')
+    : `<button type="button" class="slot-add">${I_PLUS}标签</button>`;
+
+  const moreHtml = d.more.length
+    ? `<div class="slot more">${d.more.length > 2
+        ? `<button type="button" class="overflow-btn" data-pop="more">⋯${d.more.length}</button>`
+        : d.more.map((m) => `<span class="chip">${m}</span>`).join('')}</div>`
+    : '';
+
+  const anno = state.anno === 'on' ? `
+    <div class="anno">
+      <span class="anno-i on" style="width:9%">01 状态</span><span class="anno-i on" style="width:38%">02 归属</span><span class="anno-i on" style="width:34%">03 标记</span>${moreHtml ? '<span class="anno-i on" style="width:19%">04 溢出</span>' : ''}
+    </div>
+    <div class="anno-bar"><div class="h-status" style="width:9%"></div><div class="h-who" style="width:38%"></div><div class="h-marks" style="width:34%"></div><div class="h-more" style="width:19%"></div></div>` : '';
+
+  const popHtml = `
+    <div class="pop" data-pop-panel="marks">
+      <p class="pop-h">全部标签 · ${d.marks.length}</p>
+      <div class="pop-list">${d.marks.map((m) => `<span class="chip">${m}</span>`).join('')}</div>
+    </div>
+    <div class="pop" data-pop-panel="more">
+      <p class="pop-h">其他短字段 · ${d.more.length}</p>
+      ${d.more.map((m) => `<div class="pop-row"><b>${m.split(' ')[0]}</b><span>${m.split(' ')[1]}</span></div>`).join('')}
+    </div>`;
+
+  return `<div class="strip" data-anno="${state.anno}">
+      ${anno}
+      <div class="slot status"><span class="pill"><i></i>${d.status}</span></div>
+      <div class="slot who">${whoHtml}</div>
+      <div class="slot marks${marks.length ? '' : ' empty'}">${marksHtml}</div>
+      ${moreHtml}
+    </div>${popHtml}`;
+}
+
+function render() {
+  const d = DENSITY[state.d];
+  document.getElementById('docMeta').textContent = d.meta;
+  document.getElementById('propCount').textContent = d.count;
+  document.getElementById('stripWrap').innerHTML = renderStrip();
+
+  document.getElementById('stripH').textContent = document.getElementById('stripWrap').querySelector('.strip').getBoundingClientRect().height + 'px';
+  document.getElementById('stripLines').textContent = '0';
+
+  const inStrip = 1 + d.who.length + d.marks.slice(0, 3).length + d.more.length;
+  const folded = Math.max(0, d.marks.length - 3) + Math.max(0, d.more.length - 2);
+  document.getElementById('mH').textContent = '30px';
+  document.getElementById('mL').textContent = '1';
+  document.getElementById('mS').textContent = String(moreHtmlCount(d));
+  document.getElementById('mC').textContent = String(folded);
+  document.getElementById('mF').textContent = inStrip + ' / ' + d.count;
+  document.getElementById('mHint').textContent = d.hint;
+
+  document.querySelectorAll('#segDensity button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.d === state.d)));
+  document.querySelectorAll('#segAnno button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === state.anno)));
+}
+
+function moreHtmlCount(d) {
+  let n = 2;                                  // 状态 + 归属
+  if (d.marks.length) n += 1;                 // 标记
+  if (d.more.length) n += 1;                  // 溢出
+  return n;
+}
+
+/* 浮层：点 +N / ⋯N 就地展开，点别处收起 */
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.pop')) return;
+  const btn = e.target.closest('[data-pop]');
+  const wrap = document.getElementById('stripWrap');
+  wrap.querySelectorAll('.pop').forEach((p) => p.classList.remove('open'));
+  if (!btn) return;
+  const panel = wrap.querySelector(`[data-pop-panel="${btn.dataset.pop}"]`);
+  if (panel) panel.classList.add('open');
+  e.stopPropagation();
+});
+
+document.getElementById('segDensity').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-d]');
+  if (!b) return;
+  state.d = b.dataset.d;
+  render();
+});
+document.getElementById('segAnno').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-a]');
+  if (!b) return;
+  state.anno = b.dataset.a;
+  render();
+});
+document.getElementById('segTheme').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-theme]');
+  if (!b) return;
+  document.documentElement.dataset.theme = b.dataset.theme;
+  document.querySelectorAll('#segTheme button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+});
+
+render();
+
+/* 截图核对用：#pop=marks 直接展开浮层 */
+(() => {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const which = q.get('pop');
+  if (!which) return;
+  const panel = document.querySelector(`#stripWrap [data-pop-panel="${which}"]`);
+  if (panel) panel.classList.add('open');
+})();
+
+document.querySelectorAll('#segTheme button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.theme === document.documentElement.dataset.theme)));
+</script>
+</body>
+</html>

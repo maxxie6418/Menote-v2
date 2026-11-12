@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-skin="slate" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>属性区布局 · 四个规整方案</title>
+<link rel="stylesheet" href="../src/web/src/styles/tokens.css" />
+<style>
+  /* ============ 仅本提案稿的外壳，不进产品 ============ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--app-bg-side);
+    color: var(--app-fg);
+    font-family: var(--app-font);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 46px 28px 110px; }
+
+  .kicker { font-family: var(--app-font-mono); font-size: 10.5px; letter-spacing: .06em; color: var(--app-fg-faint); margin: 0 0 12px; }
+  h1 { font-size: 26px; font-weight: 500; letter-spacing: -.01em; margin: 0 0 12px; }
+  .sub { max-width: 52em; margin: 0; font-size: 13px; line-height: 1.8; color: var(--app-fg-muted); }
+  .sub b { color: var(--app-fg); font-weight: 500; }
+  .sub code { font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-fg-subtle); background: var(--app-surface-sunken); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- 工具条 ---- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 26px 0 22px; padding: 10px 0;
+    background: var(--app-bg-side);
+    border-bottom: 1px solid var(--app-border);
+  }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 7px; background: var(--app-surface-sunken); }
+  .seg button {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 11px; border: 0; border-radius: 5px;
+    background: none; color: var(--app-fg-subtle);
+    font-family: var(--app-font); font-size: 12px; cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .seg button:hover { color: var(--app-fg); }
+  .seg button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-fg); box-shadow: var(--app-shadow-card); font-weight: 500; }
+  .seg button em { font-family: var(--app-font-mono); font-style: normal; font-size: 10px; color: var(--app-fg-faint); }
+
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .tools .lab { font-family: var(--app-font-mono); font-size: 10px; color: var(--app-fg-faint); letter-spacing: .04em; }
+  .mini { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; border: 1px solid var(--app-border); background: var(--app-surface); }
+  .mini button {
+    height: 22px; padding: 0 8px; border: 0; border-radius: 4px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11px; cursor: pointer;
+  }
+  .mini button[aria-pressed="true"] { background: var(--app-seg-active); color: var(--app-fg); }
+
+  /* ---- 工作台：左画布 右说明 ---- */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 34px; align-items: start; }
+  @media (max-width: 1000px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+
+  .canvas { min-width: 0; }
+  .canvas-tag { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; }
+  .canvas-tag h2 { margin: 0; font-size: 13px; font-weight: 500; color: var(--app-fg); }
+  .canvas-tag span { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+
+  .doc {
+    width: 100%; margin: 0 auto; padding: 26px 34px 42px;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 9px;
+    container-type: inline-size;
+  }
+  .doc[data-w="740"] { max-width: 740px; }
+  .doc[data-w="964"] { max-width: 964px; }
+  .doc[data-w="full"] { max-width: 100%; }
+
+  .doc-title { margin: 0 0 6px; font-size: 21px; font-weight: 500; line-height: 1.35; color: var(--app-fg); }
+  .doc-meta { margin: 0 0 22px; font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-faint); }
+
+  /* ---- 属性区公共件 ---- */
+  .props { --keyw: 88px; }
+  .phead { display: flex; align-items: center; gap: 7px; height: 32px; border-bottom: 1px solid var(--app-border-subtle); grid-column: 1 / -1; }
+  .phead-label { font-size: 11.5px; font-weight: 500; color: var(--app-fg-subtle); }
+  .phead-count { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); }
+  .phead-add {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+    height: 26px; padding: 0 7px; border: 0; border-radius: 4px; background: none;
+    color: var(--app-fg-subtle); font-family: var(--app-font); font-size: 11.5px; cursor: pointer;
+  }
+  .phead-add:hover { background: var(--app-hover); color: var(--app-fg); }
+
+  .prow {
+    position: relative; display: grid;
+    grid-template-columns: var(--keyw) minmax(0, 1fr) 26px;
+    align-items: center; min-height: 32px;
+    border-bottom: 1px solid var(--app-border-subtle);
+  }
+  .prow:last-child { border-bottom-color: transparent; }
+  .pk {
+    font-size: 11.5px; color: var(--app-fg-subtle); padding-right: 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pv { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .pmore {
+    display: grid; place-items: center; width: 26px; height: 26px;
+    border: 0; border-radius: 4px; background: none; color: var(--app-fg-subtle);
+    cursor: pointer; opacity: 0; transition: opacity .1s;
+  }
+  .prow:hover .pmore, .prow:focus-within .pmore { opacity: 1; }
+  .pmore:hover { background: var(--app-hover); color: var(--app-fg); }
+
+  .vt {
+    min-width: 0; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 12.5px; color: var(--app-fg);
+  }
+  .vt-2 {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    white-space: normal; line-height: 1.62;
+    color: var(--app-fg-muted);
+  }
+  .vt-date { font-family: var(--app-font-mono); font-size: 11.5px; color: var(--app-fg-muted); letter-spacing: .01em; }
+  .vt-none { color: var(--app-fg-faint); }
+  .vlink {
+    display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+    font-family: var(--app-font-mono); font-size: 11.5px;
+    color: var(--app-link); text-decoration: none;
+  }
+  .vlink span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vlink:hover span { text-decoration: underline; }
+  .vlink svg { flex: none; opacity: .7; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+    border-radius: 4px; background: var(--app-accent-subtle); color: var(--app-accent-fg);
+    font-size: 11px; white-space: nowrap;
+  }
+  .pill i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  .addtag {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px;
+    border: 1px dashed var(--app-border); border-radius: 4px; background: none;
+    color: var(--app-fg-faint); font-family: var(--app-font); font-size: 11px; cursor: pointer;
+  }
+  .addtag:hover { border-color: var(--app-fg-faint); color: var(--app-fg-muted); }
+
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+    border-radius: 4px; background: var(--app-surface-sunken); color: var(--app-fg-muted); font-size: 11px;
+  }
+  .chip button { display: grid; place-items: center; width: 14px; height: 14px; border: 0; border-radius: 2px; background: none; color: var(--app-fg-faint); cursor: pointer; padding: 0; }
+  .chip button:hover { color: var(--app-danger); }
+
+  /* ---- 现状（还原截图：双列 + dense 回填 + 两档键列宽 + 中英键名） ---- */
+  .cur { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; grid-auto-flow: row dense; }
+  .cur .prow {
+    grid-template-columns: var(--app-props-key-duo) minmax(0, 1fr) 28px;
+    min-height: 36px;
+  }
+  .cur .prow.span { grid-column: 1 / -1; grid-template-columns: var(--app-prop-key-width) minmax(0, 1fr) 28px; }
+  .cur .pk { color: var(--app-fg-faint); }
+  .cur .cb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--app-fg); }
+  .cur .cb i {
+    width: 13px; height: 13px; border: 1px solid var(--app-border); border-radius: 3px;
+    display: inline-block;
+  }
+  .cur .url { font-size: 12.5px; color: var(--app-link); text-decoration: underline; text-underline-offset: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cur .tagline {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px; min-height: 30px;
+    color: var(--app-fg-faint); font-size: 11.5px; border-bottom: 1px solid var(--app-border-subtle);
+  }
+  .cur .toolrow { display: flex; gap: 14px; align-items: center; height: 30px; color: var(--app-fg-faint); }
+
+  /* ---- A 单列：键列恒定，行序 = 内容顺序 ---- */
+  .pa .prow { --keyw: 88px; }
+
+  /* ---- B 语义双列：两列各自独立，左右各有固定职责 ---- */
+  .pb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+  .pb .prow { --keyw: 76px; }
+  .pb .full { grid-column: 1 / -1; }
+  @container (max-width: 580px) {
+    .pb { grid-template-columns: minmax(0, 1fr); }
+    .pb .full { grid-column: auto; }
+    .pb .prow { --keyw: 88px; }
+  }
+
+  /* ---- C 紧凑带 ---- */
+  .pc .strip {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+    padding: 7px 0 9px; border-bottom: 1px solid var(--app-border-subtle);
+    font-size: 11.5px; color: var(--app-fg-muted);
+  }
+  .strip .who { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 190px; }
+  .strip .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strip .mono { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-fg-faint); }
+  .strip .sep { width: 1px; height: 10px; background: var(--app-border); }
+  .strip .likeoff { color: var(--app-fg-faint); }
+  .pc .prow { --keyw: 76px; }
+
+  /* ---- D 分组双列 ---- */
+  .pd .grp + .grp { margin-top: 14px; }
+  .grp-h {
+    display: flex; align-items: center; gap: 8px; height: 24px;
+    font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .05em;
+    color: var(--app-fg-faint);
+  }
+  .grp-h::after { content: ""; flex: 1; height: 1px; background: var(--app-border-subtle); }
+  .grp-h em { font-style: normal; color: var(--app-fg-subtle); }
+  .grp-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+  .grp-body .prow { --keyw: 72px; }
+  .grp-body .full { grid-column: 1 / -1; }
+  @container (max-width: 580px) {
+    .grp-body { grid-template-columns: minmax(0, 1fr); }
+    .grp-body .full { grid-column: auto; }
+  }
+
+  /* ---- 右侧说明 ---- */
+  .rail { position: sticky; top: 74px; display: flex; flex-direction: column; gap: 18px; }
+  .rail-h { display: flex; align-items: baseline; gap: 8px; padding-bottom: 9px; border-bottom: 1px solid var(--app-border); }
+  .rail-h h3 { margin: 0; font-size: 13.5px; font-weight: 500; }
+  .rail-h .badge {
+    margin-left: auto; font-family: var(--app-font-mono); font-size: 10px;
+    padding: 1px 6px; border-radius: 4px; background: var(--app-surface-sunken); color: var(--app-fg-subtle);
+  }
+  .rail-lead { margin: 0; font-size: 12px; line-height: 1.75; color: var(--app-fg-muted); }
+  .rail-lead b { color: var(--app-fg); font-weight: 500; }
+  .rail-block h4 {
+    margin: 0 0 7px; font-family: var(--app-font-mono); font-size: 10px;
+    letter-spacing: .05em; color: var(--app-fg-faint); font-weight: 400;
+  }
+  .rail-block ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .rail-block li {
+    position: relative; padding-left: 12px; font-size: 12px; line-height: 1.68; color: var(--app-fg-muted);
+  }
+  .rail-block li::before {
+    content: ""; position: absolute; left: 0; top: .62em;
+    width: 3px; height: 3px; border-radius: 50%; background: var(--app-fg-faint);
+  }
+  .rail-block li b { color: var(--app-fg); font-weight: 500; }
+  .rail-block.risk li::before { background: var(--app-danger); opacity: .7; }
+  .rail-block.impl li { font-family: var(--app-font-mono); font-size: 10.5px; line-height: 1.7; color: var(--app-fg-subtle); }
+  .rail-block.impl li::before { background: transparent; border: 1px solid var(--app-border); width: 4px; height: 4px; top: .58em; }
+
+  .metric { display: flex; gap: 18px; padding: 10px 12px; border-radius: 7px; background: var(--app-surface-sunken); }
+  .metric div { display: flex; flex-direction: column; gap: 2px; }
+  .metric .n { font-family: var(--app-font-mono); font-size: 15px; color: var(--app-fg); }
+  .metric .l { font-size: 10px; color: var(--app-fg-faint); }
+
+  /* ---- 底部：症状 → 归属 ---- */
+  .diag { margin-top: 64px; }
+  .diag-h { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--app-border); }
+  .diag-h h2 { margin: 0; font-size: 14px; font-weight: 500; }
+  .diag-h span { margin-left: auto; font-size: 11px; color: var(--app-fg-faint); }
+  table { width: 100%; margin-top: 4px; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 9px 12px 9px 0;
+    font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .04em;
+    color: var(--app-fg-faint); font-weight: 400;
+    border-bottom: 1px solid var(--app-border-subtle);
+  }
+  td {
+    padding: 11px 12px 11px 0; vertical-align: top;
+    font-size: 12px; line-height: 1.65; color: var(--app-fg-muted);
+    border-bottom: 1px solid var(--app-border-subtle);
+  }
+  td b { color: var(--app-fg); font-weight: 500; display: block; }
+  td code { font-family: var(--app-font-mono); font-size: 10.5px; color: var(--app-fg-subtle); }
+  td.sol { font-family: var(--app-font-mono); font-size: 11px; color: var(--app-accent-fg); white-space: nowrap; }
+  td.sol.all { color: var(--app-fg-subtle); }
+
+  .foot { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--app-border); font-size: 11.5px; color: var(--app-fg-faint); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="kicker">MENOTE · 属性区布局提案 · 2026-11-12</p>
+    <h1>属性区按内容规整：四个布局方案</h1>
+    <p class="sub">
+      现在这版的问题是<b>「排版算法在决定阅读顺序」</b>：双列用 <code>grid-auto-flow: row dense</code>，链接和多行文本跨列后留下的半格，被后面的短值回填进去——于是「标题」旁边是「作者」，「收藏于」旁边是「标签」，属性源顺序被拆散。再加上短行键列 72px、跨列行键列 88px 两档宽度，键名起点也不在同一条竖线上。下面四个方案都在解决同一件事：<b>让排布服从内容语义，而不是让填充算法决定顺序</b>。同一份数据（剪藏那篇知乎文章），可以切换对比。
+    </p>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" id="segPlans">
+      <button type="button" data-plan="current">现状 <em>before</em></button>
+      <button type="button" data-plan="a">A 单列 <em>1 col</em></button>
+      <button type="button" data-plan="b">B 语义双列 <em>2 col</em></button>
+      <button type="button" data-plan="c">C 紧凑带 <em>strip</em></button>
+      <button type="button" data-plan="d">D 分组 <em>group</em></button>
+    </div>
+    <div class="tools">
+      <span class="lab">栏宽</span>
+      <div class="mini" id="segW">
+        <button type="button" data-w="740">740</button>
+        <button type="button" data-w="964">964</button>
+        <button type="button" data-w="full">全宽</button>
+      </div>
+      <span class="lab">主题</span>
+      <div class="mini" id="segTheme">
+        <button type="button" data-theme="dark">深</button>
+        <button type="button" data-theme="light">浅</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bench">
+    <div class="canvas">
+      <div class="canvas-tag">
+        <h2 id="canvasName">现状</h2>
+        <span id="canvasNote">双列 + dense 回填：左右两列不在同一语义上</span>
+      </div>
+      <div class="doc" id="doc" data-w="740"></div>
+    </div>
+    <aside class="rail" id="rail"></aside>
+  </div>
+
+  <section class="diag">
+    <div class="diag-h">
+      <h2>症状与归属</h2>
+      <span>每条症状对应哪个方案解决</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:31%">症状（截图可验）</th>
+          <th style="width:40%">根因</th>
+          <th style="width:14%">解决于</th>
+          <th style="width:15%">可选做法</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>左右列不配对</b>标题↔作者、收藏于↔标签、喜欢↔批注，状态单悬一行</td>
+          <td><code>dense</code> 把后续短值塞进跨列行留下的半格，视觉顺序 ≠ 源顺序</td>
+          <td class="sol">A / B / D</td>
+          <td>C 用流式带绕开列</td>
+        </tr>
+        <tr>
+          <td><b>键名起点参差</b><code>title</code> 比 <code>url</code>、<code>captured</code> 右移约 16px</td>
+          <td>短行键列 <code>4.5rem</code>、跨列行 <code>5.5rem</code>，同一区两种栅格</td>
+          <td class="sol">全部</td>
+          <td>统一一档键列宽</td>
+        </tr>
+        <tr>
+          <td><b>中英键名混排</b><code>title</code>/<code>like</code> 与「作者」「状态」并置</td>
+          <td>剪藏只写值键，预设里没有这四条的显示名，回落到原键</td>
+          <td class="sol">全部</td>
+          <td>补预设显示名，键名降为 title 属性</td>
+        </tr>
+        <tr>
+          <td><b>长值不收敛</b>整条 URL 铺满一行，概述被压成一行截断</td>
+          <td>链接跨列拿到全宽，多行文本却按单行 <code>nowrap</code> 处理</td>
+          <td class="sol">全部</td>
+          <td>链接去 scheme + 尾部省略；概述 2 行 clamp</td>
+        </tr>
+        <tr>
+          <td><b>类型没有视觉差异</b>日期、布尔、枚举、长文用同一套灰字</td>
+          <td>只有输入控件区分类型，展示态全是文本</td>
+          <td class="sol">全部</td>
+          <td>日期等宽、枚举胶囊、布尔勾/破折</td>
+        </tr>
+        <tr>
+          <td><b>空值与真值同权</b>空标签、空批注、假布尔各占一整行</td>
+          <td>没有「空」的专门形态，空值仍是可点文本</td>
+          <td class="sol">B / C / D</td>
+          <td>空值收成淡 <code>—</code>，悬停才给添加入口</td>
+        </tr>
+        <tr>
+          <td><b>头部与内容无关</b>「属性 9 / + 属性」压在栅格外</td>
+          <td>头部是独立 flex 行，不与属性行共用键列起点</td>
+          <td class="sol">全部</td>
+          <td>头部左内边距对齐键列</td>
+        </tr>
+        <tr>
+          <td><b>「加标签」像第 10 行</b>输入框与属性区之间无分界</td>
+          <td>标签编辑是独立区块，却排在属性列表正下方</td>
+          <td class="sol">B / C</td>
+          <td>标签回属性行内联，去掉底部输入</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="foot">
+    四个方案共用同一套值形态（日期等宽 / 链接去 scheme / 枚举胶囊 / 布尔勾破折 / 多行 2 行 clamp / 空值淡破折），差别只在「怎么排」。
+    选一个方向后再谈值形态与就地编辑，不要并行改两件事。
+  </p>
+</div>
+
+<script>
+/* ================= 真实数据（截图那篇剪藏） ================= */
+const DATA = {
+  docTitle: '不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering',
+  docMeta: '2026/11/04 · 更新于 11/10 10:12 · 20,184 字符',
+  fields: [
+    { key: 'title',    label: '标题',   group: 'src',  type: 'text',      value: '不懂三论（系统论、控制论、信息论），就无法理解 Harness Engineering' },
+    { key: 'url',      label: '原文',   group: 'src',  type: 'link',      value: 'https://zhuanlan.zhihu.com/p/203652619192875454' },
+    { key: 'author',   label: '作者',   group: 'src',  type: 'chips',     value: ['JustBeClawAI 全干工程师'] },
+    { key: 'captured', label: '收藏于', group: 'src',  type: 'date',      value: '2026-05-11' },
+    { key: 'status',   label: '状态',   group: 'tag',  type: 'enum',      value: 'unread', display: '未读' },
+    { key: 'like',     label: '喜欢',   group: 'tag',  type: 'bool',      value: false },
+    { key: 'tags',     label: '标签',   group: 'tag',  type: 'multi',     value: [] },
+    { key: 'comment',  label: '批注',   group: 'tag',  type: 'text',      value: '' },
+    { key: 'summary',  label: '概述',   group: 'body', type: 'multiline', value: '系统论、控制论和信息论是 Harness Engineering 的理论基石，Agent Harness 是其在 AI 时代的核心实践，二者共同构成了理解智能体系统的底层框架。' },
+  ],
+};
+
+/* ================= 图标 ================= */
+const I_MORE = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="3.2" cy="8" r="1.15" fill="currentColor"/><circle cx="8" cy="8" r="1.15" fill="currentColor"/><circle cx="12.8" cy="8" r="1.15" fill="currentColor"/></svg>';
+const I_PLUS = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const I_X    = '<svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const I_OUT  = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M6.4 3.6H3.6v8.8h8.8V9.6M9.4 3.6h3v3M12.4 3.6L7.6 8.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
+/* ================= 值形态（全方案共用，除现状） ================= */
+function valueHtml(f, opt = {}) {
+  const clamp2 = opt.clamp !== 1;
+  switch (f.type) {
+    case 'link': {
+      const bare = f.value.replace(/^https?:\/\//, '');
+      return `<a class="vlink" href="#" title="${f.value}"><span>${bare}</span>${I_OUT}</a>`;
+    }
+    case 'date':
+      return `<span class="vt vt-date">${f.value}</span>`;
+    case 'enum':
+      return `<span class="pill" title="原值 ${f.value}"><i></i>${f.display || f.value}</span>`;
+    case 'bool':
+      return f.value
+        ? `<span class="vt" title="是">是</span>`
+        : `<span class="vt vt-none" title="否">—</span>`;
+    case 'chips':
+      return `<span class="chips">${f.value.map((v) => `<span class="chip">${v}<button type="button" aria-label="移除">${I_X}</button></span>`).join('')}</span>`;
+    case 'multi':
+      return f.value.length
+        ? `<span class="chips">${f.value.map((v) => `<span class="chip">${v}</span>`).join('')}</span>`
+        : `<button type="button" class="addtag">${I_PLUS}添加</button>`;
+    case 'multiline':
+      return opt.clamp === 1
+        ? `<span class="vt" title="${f.value}">${f.value}</span>`
+        : `<span class="vt vt-2" title="${f.value}">${f.value}</span>`;
+    default:
+      return f.value
+        ? `<span class="vt${clamp2 ? '' : ''}" title="${f.value}">${f.value}</span>`
+        : `<span class="vt vt-none" title="空">—</span>`;
+  }
+}
+
+function row(f, opt = {}) {
+  return `<div class="prow${opt.full ? ' full' : ''}">
+    <span class="pk" title="${f.key}">${f.label}</span>
+    <div class="pv">${valueHtml(f, opt)}</div>
+    <button type="button" class="pmore" title="属性设置">${I_MORE}</button>
+  </div>`;
+}
+
+const F = (key) => DATA.fields.find((x) => x.key === key);
+const docHead = () => `<h2 class="doc-title">${DATA.docTitle}</h2>
+  <p class="doc-meta">${DATA.docMeta}</p>`;
+const propHead = () => `<div class="phead">
+    <span class="phead-label">属性</span>
+    <span class="phead-count">${DATA.fields.length}</span>
+    <button type="button" class="phead-add">${I_PLUS}属性</button>
+  </div>`;
+
+/* ================= 现状复刻 ================= */
+function renderCurrent() {
+  const keys = ['title', 'author', 'url', 'captured', 'tags', 'like', 'comment', 'status', 'summary'];
+  const cur = {
+    title:    `<span class="url" style="color:var(--app-fg);text-decoration:none">${F('title').value}</span>`,
+    author:   `<span class="chips"><span class="chip">${F('author').value[0]}<button type="button">${I_X}</button></span><button type="button" class="addtag" style="padding:0 5px">${I_PLUS}</button></span>`,
+    url:      `<span class="url">${F('url').value}</span>`,
+    captured: `<span style="font-size:12.5px">${F('captured').value}</span>`,
+    tags:     `<button type="button" class="addtag" style="padding:0 5px">${I_PLUS}</button>`,
+    like:     `<span class="cb"><i></i>否</span>`,
+    comment:  `<span class="vt vt-none">—</span>`,
+    status:   `<span style="font-size:12.5px">${F('status').value}</span>`,
+    summary:  `<span style="font-size:12.5px;color:var(--app-fg-muted)">${F('summary').value}</span>`,
+  };
+  const rows = keys.map((k) => {
+    const span = (k === 'url' || k === 'summary') ? ' span' : '';
+    return `<div class="prow${span}"><span class="pk">${k}</span><div class="pv">${cur[k]}</div>
+      <button type="button" class="pmore" style="opacity:1">${I_MORE}</button></div>`;
+  }).join('');
+
+  return `${docHead()}
+    <div class="props cur">
+      ${propHead()}
+      ${rows}
+      <div class="tagline" style="grid-column:1/-1;padding-left:4px">${I_PLUS} 加标签，回车确认</div>
+      <div class="toolrow" style="grid-column:1/-1">${I_MORE}${I_PLUS}${I_OUT}</div>
+    </div>`;
+}
+
+/* ================= A 单列 ================= */
+function renderA() {
+  return `${docHead()}
+    <div class="props pa">
+      ${propHead()}
+      ${DATA.fields.map((f) => row(f)).join('')}
+    </div>`;
+}
+
+/* ================= B 语义双列 ================= */
+function renderB() {
+  const left = ['title', 'url', 'author', 'captured'].map((k) => row(F(k))).join('');
+  const right = ['status', 'like', 'tags', 'comment'].map((k) => row(F(k))).join('');
+  return `${docHead()}
+    <div class="props pb">
+      ${propHead()}
+      <div>${left}</div>
+      <div>${right}</div>
+      ${row(F('summary'), { full: true })}
+    </div>`;
+}
+
+/* ================= C 紧凑带 ================= */
+function renderC() {
+  const strip = `<div class="strip">
+      <span class="pill" title="原值 unread"><i></i>未读</span>
+      <span class="sep"></span>
+      <span class="who" title="JustBeClawAI 全干工程师">${F('author').value[0]}</span>
+      <span class="sep"></span>
+      <span class="mono">收藏于 2026-05-11</span>
+      <span class="sep"></span>
+      <button type="button" class="addtag">${I_PLUS}标签</button>
+    </div>`;
+  return `${docHead()}
+    <div class="props pc">
+      ${propHead()}
+      ${strip}
+      ${row(F('title'))}
+      ${row(F('url'))}
+      ${row(F('summary'), { clamp: 1 })}
+    </div>`;
+}
+
+/* ================= D 分组 ================= */
+function renderD() {
+  const group = (name, keys) => `<div class="grp">
+      <div class="grp-h">${name}<em>${keys.length}</em></div>
+      <div class="grp-body">${keys.map((k) => row(F(k), { full: F(k).type === 'multiline' })).join('')}</div>
+    </div>`;
+  return `${docHead()}
+    <div class="props pd">
+      ${propHead()}
+      ${group('来源', ['title', 'url', 'author', 'captured'])}
+      ${group('归类', ['status', 'like', 'tags', 'comment'])}
+      ${group('内容', ['summary'])}
+    </div>`;
+}
+
+/* ================= 方案说明 ================= */
+const PLANS = {
+  current: {
+    name: '现状',
+    note: '双列 + dense 回填：左右两列不在同一语义上',
+    badge: 'before',
+    lead: '同一份数据、同一套栅格的两档键列宽，正是截图里那种「说不清哪一行属于哪一边」的来源。',
+    structure: [
+      '两列 <b>row dense</b>：跨列项留下的半格被后面的短值回填',
+      '短行键列 <b>72px</b>，跨列行 <b>88px</b>，键名起点不同轴',
+      '键名直接露 frontmatter 原键，中英混排',
+      '链接拿全宽铺开，概述压成一行',
+    ],
+    risk: ['右侧列比左侧短三行，末尾留空', '空标签、空批注、假布尔与真值同等重量'],
+  },
+  a: {
+    name: 'A · 单列键值',
+    note: '一列到底，键列恒定，行序 = 内容顺序',
+    badge: '最稳',
+    lead: '把双列拆掉。每一行都是「键 88px + 值 + ⋯」，键名落在同一条竖线上，阅读顺序永远等于源顺序。<b>没有排布算法可以出错</b>，这是它的全部优点，也是它唯一的代价：纵向更长。',
+    structure: [
+      '9 项数据一列排下，行高 32，整区约 <b>330px</b>',
+      '标题、原文单行省略；概述保持 2 行 clamp',
+      '值按类型分化：日期等宽、链接去 scheme、枚举胶囊、布尔破折',
+    ],
+    risk: ['比双列高 90–100px，长文档里要把正文往下推', '短字段（喜欢、批注）各占一整行，偏浪费'],
+    impl: ['<span>PropertyPanel.tsx</span> 去掉 data-columns 分支', '<span>shell.css</span> 删掉双列 12 行，键列统一 --app-prop-key-width'],
+  },
+  b: {
+    name: 'B · 语义双列',
+    note: '左列身份与来源，右列状态与归类，两列各自独立',
+    badge: '推荐',
+    lead: '保留双列密度，但<b>左列放「这篇是什么」（标题、原文、作者、收藏于），右列放「我怎么处理它」（状态、喜欢、标签、批注）</b>，概述整行压底。两列各自是一个普通列表，谁都不会流到对面去——顺序由内容决定，不由填充算法决定。',
+    structure: [
+      '左 4 行 / 右 4 行严格对应，两侧键列同为 <b>76px</b>，起点同轴',
+      '概述跨两列压底，2 行 clamp',
+      '整区约 <b>200px</b>，比现状还矮一点',
+      '栏宽 &lt; 580px 自动回落单列（容器查询，不用断点）',
+    ],
+    risk: ['值列只有约 220px，长标题截断较早，需要 hover 看全', '左右行数不等时（比如删掉批注）右侧会短一截'],
+    impl: ['PropertyPanel.tsx 按 group 分成两个列容器 + 一个跨列尾行', 'propsShared 增加 group 归属（src / tag / body）'],
+  },
+  c: {
+    name: 'C · 紧凑带',
+    note: '属性降为一条信息带，只有长值保留键值行',
+    badge: '最紧凑',
+    lead: '把「状态 / 作者 / 收藏于 / 标签 / 喜欢」压成一条横向元信息带，只有标题、原文、概述保留键值行。<b>属性从「九个字段」变成「一句话的旁证」</b>，正文往上提约 190px。',
+    structure: [
+      '元信息带 1 行（可换行），组内用竖线分隔、不给每项配键名',
+      '假布尔与空值不入带（喜欢=否、批注为空不占位），只放有信息量的项',
+      '标题 1 行、原文 1 行、概述 1 行 clamp，共约 <b>175px</b>',
+      '标签就地加在带上，底部那条「加标签，回车确认」整块消失',
+    ],
+    risk: ['键名隐去，不熟悉的字段要靠位置和值本身辨认', '编辑态要展开成面板，交互比 A/B 多一层', '默认视图与编辑视图不一致，验收成本最高'],
+    impl: ['需要新增「带态 / 面板态」两态切换，改动量最大', '属性头降级为带尾的一个 + 按钮', '<span>带的槽位与折叠规则见 props-strip-c-rules.html</span>'],
+  },
+  d: {
+    name: 'D · 分组双列',
+    note: '组标题 + 组内双列，结构感最强',
+    badge: '最结构',
+    lead: '用三组小标题（来源 / 归类 / 内容）把字段先分堆，再在组内排双列。<b>比 B 多一层显式的结构声明</b>，字段一多（15 项以上）时优势明显；字段少于 8 项时，组标题会比内容更抢眼。',
+    structure: [
+      '3 个组标题（10px 等宽 + 右侧细线）+ 组内 2 列',
+      '来源组 2×2、归类组 2×2、内容组 1 行跨列',
+      '整区约 <b>300px</b>，组标题各占 24px',
+    ],
+    risk: ['9 个字段用 3 个组标题，层级重了', '组标题用等宽小字，与属性键名争夺同一视觉层级'],
+    impl: ['propsShared 定义组顺序与命名', 'shell.css 增加 .grp-h 一行细线分隔，复用属性行栅格'],
+  },
+};
+
+/* ================= 渲染 ================= */
+const RENDER = { current: renderCurrent, a: renderA, b: renderB, c: renderC, d: renderD };
+const state = { plan: 'current', theme: 'dark', w: '740' };
+
+/* 支持 #plan=b&w=964&theme=light 直接落到某个方案，方便各自截图与分享 */
+(() => {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (RENDER[q.get('plan')]) state.plan = q.get('plan');
+  if (['740', '964', 'full'].includes(q.get('w'))) state.w = q.get('w');
+  if (['dark', 'light'].includes(q.get('theme'))) {
+    state.theme = q.get('theme');
+    document.documentElement.dataset.theme = state.theme;
+  }
+})();
+
+const $doc = document.getElementById('doc');
+const $rail = document.getElementById('rail');
+const $name = document.getElementById('canvasName');
+const $note = document.getElementById('canvasNote');
+
+function renderRail() {
+  const p = PLANS[state.plan];
+  const list = (items, cls = '') => `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`;
+  const h = $doc.querySelector('.props')?.getBoundingClientRect().height;
+  const rows = { current: 6, a: 9, b: 5, c: 4, d: 8 }[state.plan];
+
+  $rail.innerHTML = `
+    <div class="rail-h"><h3>${p.name}</h3><span class="badge">${p.badge}</span></div>
+    <p class="rail-lead">${p.lead}</p>
+    <div class="metric">
+      <div><span class="n">${h ? Math.round(h) : '—'}</span><span class="l">属性区高度 px</span></div>
+      <div><span class="n">${rows}</span><span class="l">纵向占用行</span></div>
+    </div>
+    <div class="rail-block">
+      <h4>怎么排</h4>
+      ${list(p.structure)}
+    </div>
+    <div class="rail-block risk">
+      <h4>代价</h4>
+      ${list(p.risk)}
+    </div>
+    ${p.impl ? `<div class="rail-block impl"><h4>要改的地方</h4>${list(p.impl)}</div>` : ''}
+  `;
+}
+
+function render() {
+  $doc.dataset.w = state.w;
+  $doc.innerHTML = RENDER[state.plan]();
+  const p = PLANS[state.plan];
+  $name.textContent = p.name;
+  $note.textContent = p.note;
+  document.querySelectorAll('#segPlans button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.plan === state.plan));
+  });
+  document.querySelectorAll('#segW button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.w === state.w));
+  });
+  document.querySelectorAll('#segTheme button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.theme === state.theme));
+  });
+  requestAnimationFrame(renderRail);
+}
+
+document.getElementById('segPlans').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-plan]');
+  if (!b) return;
+  state.plan = b.dataset.plan;
+  render();
+});
+document.getElementById('segW').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-w]');
+  if (!b) return;
+  state.w = b.dataset.w;
+  render();
+});
+document.getElementById('segTheme').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-theme]');
+  if (!b) return;
+  state.theme = b.dataset.theme;
+  document.documentElement.dataset.theme = state.theme;
+  render();
+});
+window.addEventListener('resize', () => requestAnimationFrame(renderRail));
+
+render();
+</script>
+</body>
+</html>
