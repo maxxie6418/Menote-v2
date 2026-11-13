@@ -23,7 +23,12 @@ export function SidebarSyncControl({ userId, collapsed }: { userId: string; coll
     return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
   }, []);
   const result = manualResult?.revision === editorRevision ? manualResult : null;
-  const label = manualBusy ? "正在上传…" : !online ? "离线，等待联网" : result && !result.success ? "上传失败，请重试" : phase === "syncing" ? "同步中" : phase === "error" ? "同步异常" : queue.failed ? `同步异常 · ${queue.failed} 项失败` : queue.pending ? `${queue.pending} 项待上传` : result?.success ? "已全部上传" : "已同步";
+  const syncingLabel = progress.stage === "push" && progress.total > 0
+    ? `正在上传 ${progress.completed}/${progress.total}`
+    : progress.stage === "pull" ? "正在拉取更新…" : "同步中…";
+  const label = !online ? "离线，等待联网" : phase === "syncing" ? syncingLabel : manualBusy ? "正在上传…" : result && !result.success ? "上传失败，请重试" : phase === "error" ? "同步异常" : queue.failed ? `同步异常 · ${queue.failed} 项失败` : queue.pending ? `${queue.pending} 项待上传` : result?.success ? "已全部上传" : "已同步";
+  const state = !online ? "offline" : phase === "syncing" || manualBusy ? "pending" : (result && !result.success) || phase === "error" || queue.failed ? "error" : queue.pending ? "pending" : "idle";
+  const action = !online ? "联网后可立即同步" : manualBusy ? "正在同步" : phase === "syncing" ? "当前同步结束后立即再同步" : "立即同步";
   const uploadNow = async () => {
     setManualBusy(true);
     setManualResult(null);
@@ -36,16 +41,17 @@ export function SidebarSyncControl({ userId, collapsed }: { userId: string; coll
       setManualBusy(false);
     }
   };
-  return <div className="mn-sidebar-sync">
+  return <div className={`mn-sidebar-sync is-${state}${collapsed ? " is-collapsed" : ""}`}>
     <button type="button" className="mn-sidebar-sync-button" disabled={manualBusy || !online}
-      aria-label={phase === "syncing" ? "当前同步结束后立即再同步" : "立即同步"} title={phase === "syncing" ? "当前同步结束后立即再同步" : "立即同步"}
+      aria-label={`${label} · ${action}`} title={`${label} · ${action}`}
       onClick={() => { void uploadNow(); }}>
-      <RefreshCw aria-hidden="true" />{!collapsed && <span>立即同步</span>}
+      <span className="mn-sidebar-sync-dot" aria-hidden="true" />
+      {!collapsed && <span className="mn-sidebar-sync-state" role="status">{label}</span>}
+      <RefreshCw aria-hidden="true" />
     </button>
-    {!collapsed && <span className="mn-sidebar-sync-state" role="status">{label}</span>}
     {phase === "syncing" && !collapsed && <progress className="mn-sidebar-sync-progress"
-      value={progress.stage === "push" && progress.total > 0 ? progress.completed : undefined}
-      max={progress.stage === "push" && progress.total > 0 ? progress.total : undefined}
-      aria-label={progress.stage === "pull" ? "正在拉取更新" : "正在推送变更"} />}
+        value={progress.stage === "push" && progress.total > 0 ? progress.completed : undefined}
+        max={progress.stage === "push" && progress.total > 0 ? progress.total : undefined}
+        aria-label={progress.stage === "pull" ? "正在拉取更新" : "正在推送变更"} />}
   </div>;
 }

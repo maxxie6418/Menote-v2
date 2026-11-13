@@ -55,6 +55,14 @@ test("manual control shows all-uploaded only after saving and clears the result 
   const root = createRoot(document.getElementById("root"));
   try {
     await act(async () => { root.render(createElement(SidebarSyncControl, { userId: "ui-user", collapsed: false })); });
+    await act(async () => { root.render(createElement(SidebarSyncControl, { userId: "ui-user", collapsed: true })); });
+    assert.match(document.querySelector("button").getAttribute("aria-label"), /已同步.*立即同步/);
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    await act(async () => { window.dispatchEvent(new Event("offline")); });
+    assert.equal(document.querySelector("button").disabled, true);
+    assert.match(document.querySelector("button").getAttribute("aria-label"), /离线，等待联网/);
+    Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+    await act(async () => { window.dispatchEvent(new Event("online")); root.render(createElement(SidebarSyncControl, { userId: "ui-user", collapsed: false })); });
     await act(async () => { document.querySelector("button").click(); });
     await settle(() => document.querySelector("[role=status]").textContent === "已全部上传");
     assert.equal(document.querySelector("button").disabled, false);

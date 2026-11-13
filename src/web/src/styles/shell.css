@@ -214,13 +214,6 @@
 .mn-treerow .mn-locklabel { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-tags { display: flex; flex-wrap: wrap; gap: var(--app-space-5); padding: var(--app-zero) var(--app-space-xs) var(--app-space-4); }
 .mn-sb-foot { margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-4); border-top: var(--app-line) solid var(--app-border); font-size: var(--app-size-chip); color: var(--app-fg-muted); }
-.mn-sidebar-sync { display: grid; gap: var(--app-space-4); min-width: var(--app-zero); }
-.mn-sidebar-sync-button { display: flex; align-items: center; justify-content: flex-start; gap: var(--app-space-6); width: var(--app-full-size); min-height: var(--app-touch-target); padding: var(--app-space-6) var(--app-space-8); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; cursor: pointer; }
-.mn-sidebar-sync-button:hover:not(:disabled) { background: var(--app-hover); color: var(--app-fg); }
-.mn-sidebar-sync-button:disabled { color: var(--app-fg-faint); cursor: default; }
-.mn-sidebar-sync-button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
-.mn-sidebar-sync-state { overflow: hidden; color: var(--app-fg-faint); font-size: var(--app-size-chip); text-overflow: ellipsis; white-space: nowrap; }
-.mn-sidebar-sync-progress { width: var(--app-full-size); height: var(--app-space-4); accent-color: var(--app-accent); }
 
 /* ---------- 侧栏折叠（compact 档） ---------- */
 [data-sidebar="collapsed"] .mn-sidebar { padding-inline: var(--app-space-sm); align-items: center; }
@@ -231,8 +224,6 @@
 [data-sidebar="collapsed"] .mn-treerow .mn-minibtn { display: none; }
 [data-sidebar="collapsed"] .mn-btn { padding-inline: var(--app-zero); }
 [data-sidebar="collapsed"] .mn-sb-foot { flex-direction: column; }
-[data-sidebar="collapsed"] .mn-sidebar-sync-button { justify-content: center; padding-inline: var(--app-zero); }
-[data-sidebar="collapsed"] .mn-sidebar-sync-progress { display: none; }
 
 /* ---------- 抽屉（tablet / mobile） ---------- */
 /* 遮罩同时承担居中与滚动兜底：弹窗再高也只在遮罩内滚动，不会被视口上下切掉 */
@@ -714,10 +705,6 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-attachrefs { overflow-wrap: anywhere; }
 .mn-attach-clean { display: flex; justify-content: flex-end; margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-line) solid var(--app-border); }
 
-/* ---------- G6 同步状态指示 ---------- */
-.mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); white-space: nowrap; }
-.mn-syncbadge.err { color: var(--app-danger); }
-
 /* ---------- G8 版本与回收站 ---------- */
 .mn-versionlist { list-style: none; margin: var(--app-zero); padding: var(--app-zero); max-height: var(--app-space-2xl); overflow-y: auto; display: flex; flex-direction: column; gap: var(--app-space-2); }
 .mn-versionrow { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); width: var(--app-full-size); border: var(--app-zero); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-2) var(--app-space-6); cursor: pointer; border-radius: var(--app-radius-sm); text-align: left; }
@@ -803,22 +790,6 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-attach-policy-input { width: min(var(--app-full-size), var(--app-field-width)); min-height: var(--app-input-height); padding: var(--app-space-4) var(--app-space-6); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; }
 .mn-set-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-8); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-set-actions .mn-auth-submit { margin-top: var(--app-zero); padding-inline: var(--app-space-10); }
-.mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-10); margin: var(--app-space-10) var(--app-zero); }
-.mn-sync-log-tools label { display: grid; gap: var(--app-space-4); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
-.mn-sync-log-search { flex: 1 1 var(--app-field-width); }
-.mn-sync-log-count { margin-left: auto; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
-.mn-sync-log-actions { align-items: center; }
-.mn-sync-log-actions .mn-sethint { width: auto; margin: var(--app-zero); }
-.mn-sync-log-list { max-height: var(--app-dialog-max-height); overflow: auto; border-top: var(--app-line) solid var(--app-border-subtle); }
-.mn-sync-log-entry { border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-sync-log-entry summary { display: flex; align-items: center; gap: var(--app-space-10); min-height: var(--app-row-height); cursor: pointer; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
-.mn-sync-log-entry summary time, .mn-sync-log-entry summary code { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
-.mn-sync-log-entry summary time { flex: none; }
-.mn-sync-log-entry summary strong { color: var(--app-fg-subtle); font-weight: var(--app-weight-medium); }
-.mn-sync-log-entry summary .is-conflict, .mn-sync-log-entry summary .is-error { color: var(--app-danger); }
-.mn-sync-log-entry summary code { max-width: var(--app-field-width); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mn-sync-log-entry summary em { margin-left: auto; color: var(--app-accent-fg); font-style: normal; }
-.mn-sync-log-entry pre { overflow: auto; padding: var(--app-space-10); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font-family: var(--app-font-mono); font-size: var(--app-size-chip); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* 设置 · 默认属性预设（FR-PROP-9）：列头 + 同一套栅格，行内 ⋯ 编辑或删除 */
 .mn-setdetails { margin-top: var(--app-space-4); }
 .mn-setdetails summary { cursor: pointer; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
