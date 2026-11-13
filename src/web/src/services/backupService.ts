@@ -66,6 +66,13 @@ export async function deleteRemoteBackup(targetId: string, backupId: string): Pr
   } catch (error) { return { ok: false, error: String(error) }; }
 }
 
+export async function verifyRemoteBackup(targetId: string, backupId: string): Promise<{ ok: boolean; files?: number; shards?: number; attachments?: number; error?: string }> {
+  try {
+    const response = await fetch(`/api/backup/targets/${targetId}/backups/${encodeURIComponent(backupId)}/verify`, { method: "POST" });
+    return await response.json();
+  } catch (error) { return { ok: false, error: String(error) }; }
+}
+
 export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string }> {
   try {
     const response = await fetch(`/api/backup/run/${id}`, { method: "POST" });
@@ -85,10 +92,11 @@ export async function revealSecret(id: string): Promise<string | null> {
   }
 }
 
-export async function updateTarget(id: string, patch: { enabled?: boolean; schedule?: "manual" | "daily" | "weekly" }): Promise<void> {
-  await fetch(`/api/backup/targets/${id}`, {
+export async function updateTarget(id: string, patch: { enabled?: boolean; schedule?: "manual" | "daily" | "weekly" }): Promise<boolean> {
+  const response = await fetch(`/api/backup/targets/${id}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
-  }).catch(() => {});
+  }).catch(() => null);
+  return response?.ok ?? false;
 }
 
 export async function deleteTarget(id: string): Promise<void> {

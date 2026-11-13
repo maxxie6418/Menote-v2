@@ -134,10 +134,10 @@ export async function runTargetPushById(
     const secret = await openSecret(pepper, target.secretCiphertext ?? "");
     const result = await pushBackup({ db: ctx.db, userId: ctx.userId, bucket: ctx.bucket }, toRemoteTarget(target, secret));
     const pushedAt = Date.now();
-    await recordTargetResult(ctx.db, ctx.userId, target.id, result.ok ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片` : `失败:${result.error}`, pushedAt);
+    await recordTargetResult(ctx.db, ctx.userId, target.id, result.ok ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片` : `失败:${result.error}`, result.ok ? pushedAt : null);
     return result;
   } catch (error) {
-    await recordTargetResult(ctx.db, ctx.userId, target.id, `失败:${String(error).slice(0, 200)}`, Date.now());
+    await recordTargetResult(ctx.db, ctx.userId, target.id, `失败:${String(error).slice(0, 200)}`);
     return { status: "unavailable" };
   }
 }

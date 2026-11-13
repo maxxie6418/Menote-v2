@@ -62,6 +62,16 @@ export async function remotePut(target: RemoteTarget, path: string, body: Uint8A
   if (!response.ok) throw new Error(`${target.kind === "webdav" ? "WebDAV" : "S3"} 写入失败：HTTP ${status}`);
 }
 
+export async function remoteGet(target: RemoteTarget, path: string): Promise<Uint8Array> {
+  const safe = safePath(path);
+  if (safe !== path) throw new Error("无效的备份路径");
+  const response = target.kind === "webdav"
+    ? await fetch(davUrl(target, safe), { headers: { Authorization: auth(target) } })
+    : await s3(target, s3Url(target, safe), { method: "GET" });
+  if (!response.ok) throw new Error(`读取备份文件失败：HTTP ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 async function ensureDavDirectories(target: RemoteTarget, paths: string[]): Promise<void> {
   const seen = new Set<string>();
   for (const path of paths) {

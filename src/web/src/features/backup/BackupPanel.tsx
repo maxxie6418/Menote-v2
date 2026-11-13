@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget,
+  type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget, verifyRemoteBackup,
 } from "../../services/backupService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
@@ -23,6 +23,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const [remoteBackups, setRemoteBackups] = useState<Record<string, Array<{ id: string; lastModified: string | null; complete: boolean }>>>({});
   const [testing, setTesting] = useState(false);
   const [testingTarget, setTestingTarget] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
 
@@ -84,8 +85,21 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   };
 
   const toggleEnabled = async (target: TargetView) => {
-    await updateTarget(target.id, { enabled: !target.enabled });
+    if (!await updateTarget(target.id, { enabled: !target.enabled })) setMessage("更新备份目标失败，请重试。");
     refresh(true);
+  };
+
+  const changeSchedule = async (target: TargetView, schedule: "manual" | "daily" | "weekly") => {
+    if (!await updateTarget(target.id, { schedule })) setMessage("更新自动备份设置失败，请重试。");
+    else setMessage(schedule === "manual" ? "自动备份已关闭，仍可手动推送。" : "自动备份设置已保存。");
+    refresh(true);
+  };
+
+  const verify = async (target: TargetView, id: string) => {
+    setVerifying(id); setMessage("正在读取并校验备份，请稍候…");
+    const result = await verifyRemoteBackup(target.id, id);
+    setMessage(result.ok ? `快照文件校验通过：${result.shards} 个数据分片、${result.attachments} 个附件。尚需恢复演练验证内容可用性。` : `备份校验失败：${result.error ?? "未知错误"}`);
+    setVerifying(null);
   };
 
   const remove = async (id: string) => {
@@ -96,15 +110,22 @@ export function BackupPanel({ userId }: BackupPanelProps) {
 
   return (
     <section className="status-panel" aria-labelledby="backup-heading">
-      <h2 id="backup-heading">远程备份（FR-BAK）</h2>
-      <p className="app-description">每条目标独立保存到自己的路径；每次推送生成带校验信息的完整快照文件夹，自动保留上限可按目标设置。</p>
+      <h2 id="backup-heading">备份与恢复</h2>
+      <p className="app-description">将内容保存到远程存储，并检查备份快照的完整性。</p>
       {message && <p className="status-detail" role="status">{message}</p>}
       {targets !== null && targets.length > 0 && (
         <ul className="mn-backuplist">
           {targets.map((target) => (
             <li key={target.id} className="mn-backuprow">
-              <span className="mn-backupname">{target.name}（{target.kind} · {target.schedule === "manual" ? "手动推送" : `每${target.schedule === "daily" ? "日" : "周"}自动推送`} · {target.enabled ? "启用" : "停用"}）</span>
+              <span className="mn-backupname">{target.name}（{target.kind} · {target.enabled ? "启用" : "停用"}）</span>
               <span className="mn-attachmeta">{target.endpoint}/{target.remotePath}/ · 保留 {target.retentionCount === 0 ? "不限" : `${target.retentionCount} 份`} · 最近推送 {target.lastPushedAt ? new Date(target.lastPushedAt).toLocaleString() : "从未"}{target.lastResult ? ` · ${target.lastResult}` : ""}</span>
+              <div className="mn-backupactions">
+                <label><input type="checkbox" checked={target.schedule !== "manual"} onChange={(event) => void changeSchedule(target, event.target.checked ? "daily" : "manual")} /> 自动备份</label>
+                {target.schedule !== "manual" && <select aria-label={`${target.name}自动备份频率`} className="mn-propselect" value={target.schedule} onChange={(event) => void changeSchedule(target, event.target.value as "daily" | "weekly")}>
+                  <option value="daily">每天</option><option value="weekly">每周</option>
+                </select>}
+                <span className="mn-attachmeta">按上次成功推送的间隔执行，每小时检查一次；目标停用时不会执行。</span>
+              </div>
               <div className="mn-backupactions">
                 <button type="button" className="mn-textbtn" onClick={() => void runOnce(target.id)}>推送一次</button>
                 <button type="button" className="mn-textbtn" disabled={testingTarget === target.id} onClick={() => void testExistingConnection(target)}>{testingTarget === target.id ? "测试中…" : "测试连接"}</button>
@@ -120,6 +141,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
                 <strong>远端目录：{target.remotePath}/</strong>
                 {(remoteBackups[target.id] ?? []).length === 0 ? <p>目录为空或尚未推送。</p> : (remoteBackups[target.id] ?? []).map((backup) => <div key={backup.id} className="mn-backuprow">
                   <code>{target.remotePath}/{backup.id}/</code><span>{backup.complete ? "COMPLETE 标记存在" : "缺少 COMPLETE 标记"}{backup.lastModified ? ` · ${backup.lastModified}` : ""}</span>
+                  <button type="button" className="mn-textbtn" disabled={!backup.complete || verifying !== null} onClick={() => void verify(target, backup.id)}>{verifying === backup.id ? "校验中…" : "验证备份"}</button>
                   <button type="button" className="mn-textbtn" onClick={() => void removeRemoteBackup(target, backup.id)}>删除远端内容</button>
                 </div>)}
               </div>}
@@ -128,6 +150,8 @@ export function BackupPanel({ userId }: BackupPanelProps) {
         </ul>
       )}
       {targets !== null && targets.length === 0 && <p className="status-detail">尚未配置备份目标。</p>}
+      <details>
+      <summary className="mn-setgroup">添加备份位置</summary>
       <div className="mn-backupform">
         <select className="mn-propselect" aria-label="存储类型" value={kind} onChange={(event) => setKind(event.target.value as "webdav" | "s3")}>
           <option value="webdav">WebDAV</option>
@@ -141,13 +165,14 @@ export function BackupPanel({ userId }: BackupPanelProps) {
         <input className="mn-propinput" placeholder="远端目录（默认 menote）" aria-label="远端目录" value={remotePath} onChange={(event) => setRemotePath(event.target.value)} />
         <input className="mn-propinput" type="number" min="0" max="1000" placeholder="保留数量（0=不限）" aria-label="保留数量上限" value={retentionCount} onChange={(event) => setRetentionCount(event.target.value)} />
         <select className="mn-propselect" aria-label="调度" value={schedule} onChange={(event) => setSchedule(event.target.value as "manual" | "daily" | "weekly")}>
-          <option value="manual">仅手动</option>
+          <option value="manual">自动备份关闭</option>
           <option value="daily">每日</option>
           <option value="weekly">每周</option>
         </select>
         <button type="button" className="mn-textbtn" disabled={testing} onClick={() => void testConnection()}>{testing ? "测试中…" : "测试连接"}</button>
         <button type="button" className="mn-auth-submit" onClick={() => void create()}>添加备份路径</button>
       </div>
+      </details>
     </section>
   );
 }

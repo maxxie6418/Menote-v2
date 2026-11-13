@@ -28,14 +28,14 @@ function toTarget(row: TargetRow) {
 
 export async function listTargets(db: D1Database, userId: string) {
   const rows = await db.prepare(
-    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at FROM backup_targets WHERE user_id = ? ORDER BY id",
+    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at, last_result FROM backup_targets WHERE user_id = ? ORDER BY id",
   ).bind(userId).all<TargetRow>();
   return rows.results.map(toTarget);
 }
 
 export async function getTarget(db: D1Database, userId: string, id: string) {
   const row = await db.prepare(
-    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at FROM backup_targets WHERE id = ? AND user_id = ?",
+    "SELECT id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count, last_pushed_at, last_result FROM backup_targets WHERE id = ? AND user_id = ?",
   ).bind(id, userId).first<TargetRow>();
   return row ? toTarget(row) : null;
 }

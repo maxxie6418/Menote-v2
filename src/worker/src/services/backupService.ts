@@ -57,7 +57,8 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   const attachments: Array<{ key: string; bytes: ArrayBuffer }> = [];
   for (const sha256 of attachmentHashes) {
     const object = await bucket.get(`${userId}/${sha256}`);
-    if (object) attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer() });
+    if (!object) throw new Error(`缺少引用的附件：${sha256}`);
+    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer() });
   }
   const manifest = {
     format: "menote-backup",

@@ -733,6 +733,7 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 /* ---------- G9 备份面板 ---------- */
 .mn-backuplist { list-style: none; margin: var(--app-space-sm) var(--app-zero); padding: var(--app-zero); display: flex; flex-direction: column; gap: var(--app-space-4); }
 .mn-backuprow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-6); font-size: var(--app-size-chip); }
+.mn-backuplist > .mn-backuprow { padding: var(--app-space-12); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); margin-bottom: var(--app-space-8); }
 /* 名称与元信息在先，按钮自成一组独占下一行——否则按钮会被拆散、挤进图标槽 */
 .mn-backupname { color: var(--app-fg); flex: 0 1 auto; min-width: var(--app-zero); }
 .mn-backupactions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2) var(--app-space-6); width: var(--app-full-size); }

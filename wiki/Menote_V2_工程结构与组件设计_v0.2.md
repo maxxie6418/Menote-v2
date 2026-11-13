@@ -151,6 +151,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - `index.ts` 只做装配：`app.route(...)` 注册 + 中间件顺序（session → csrf → configGuard 按路由），**目标单文件 ≤ 200 行**（server.mjs 教训的硬对策）。
 - routes ↔ services ↔ db 三层；业务逻辑只在 services；SQL 只在 db 层。
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
+- 快照只读校验由 `services/backupVerifyService.ts` 负责，检查完成标记、清单、分片和附件；校验通过不代表恢复演练通过。
 - 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
 - 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。
