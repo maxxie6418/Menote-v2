@@ -59,14 +59,15 @@ interface NoteDocumentProps {
   onBack: () => void;
   showBack: boolean;
   crumb: string;
-  /** 清单右键「AI 概述」：token 变化时打开对话框并开始生成。 */
+  /** 清单右键「AI 概述」：加载笔记后打开对话框。 */
   openSummaryToken?: number;
+  onSummaryRequestConsumed?: (token: number) => void;
 }
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "error"; message: string };
 
 /** 文档区（FR-EDT-1/2 源码形态：编辑/预览两常驻模式；自动保存静默后台化，NFR-10）。 */
-export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, openSummaryToken }: NoteDocumentProps) {
+export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, openSummaryToken, onSummaryRequestConsumed }: NoteDocumentProps) {
   const item = useItem(userId, noteId);
   const [editorHost, setEditorHost] = useState<HTMLDivElement | null>(null);
   const outlineHostRef = useMemo(() => ({ current: editorHost }), [editorHost]);
@@ -212,7 +213,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     };
   }, [item?.id, mode, editorHost, propsPos, toolbarPos]);
   const [aiAssist, setAiAssist] = useState(false);
-  const [autoSummary, setAutoSummary] = useState(false);
   useEffect(() => {
     if (!focusMode) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setFocusMode(false); };
@@ -230,12 +230,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       : joinFrontmatter(splitFrontmatter(base).frontText, editorValue);
   };
   useEffect(() => {
-    if (!openSummaryToken) return;
-    setAutoSummary(true);
+    if (!openSummaryToken || !item || item.id !== noteId || item.content.scope !== "plain") return;
     setAiMarkdown(latestFullMarkdown());
     setAiAssist(true);
+    onSummaryRequestConsumed?.(openSummaryToken);
+    // 打开请求只在目标条目加载后消费一次。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openSummaryToken]);
+  }, [openSummaryToken, item?.id]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getMarkdownRef = useRef<(() => string) | null>(null);
   const applyExternalRef = useRef<((markdown: string) => void) | null>(null);
@@ -646,7 +647,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                     <Clock />版本历史
                   </button>
                   {!isTableDoc && (
-                    <button type="button" role="menuitem" onClick={() => { setAutoSummary(false); setAiMarkdown(latestFullMarkdown()); setAiAssist(true); setMoreOpen(false); }}>
+                    <button type="button" role="menuitem" onClick={() => { setAiMarkdown(latestFullMarkdown()); setAiAssist(true); setMoreOpen(false); }}>
                       <Sparkles />AI 助手
                     </button>
                   )}
@@ -818,7 +819,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           title={item.title ?? ""}
           tags={item.tags}
           markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
-          autoRun={autoSummary ? "summary" : undefined}
           onApplySummary={async (summary) => {
             const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
             if (saved && propsPos === "side") setInspectorOpen(true);
@@ -828,7 +828,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
             await saveItemMeta(userId, item.id, { tags: merged });
           }}
-          onClose={() => { setAiAssist(false); setAutoSummary(false); }}
+          onClose={() => setAiAssist(false)}
         />
       )}
       {encrypting && item && (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sparkles, X } from "../../icons";
 import { DEFAULT_AI_SETTINGS, normalizeAiSettings, type AiSettings, type AiTaskKind, type AiTaskView, type AiUsageSummary } from "@menote/shared";
 import { readAiSettings } from "../../services/aiSettingsService";
@@ -13,8 +13,6 @@ export interface AiAssistDialogProps {
   tags: string[];
   /** 完整 Markdown（含 frontmatter）；提交给推理的正文会剥离 YAML。 */
   markdown: string;
-  /** 从清单「AI 概述」进入时自动提交一次摘要，仍须确认后才写入。 */
-  autoRun?: AiTaskKind;
   onApplySummary: (summary: string) => Promise<boolean>;
   onApplyTags: (tags: string[]) => Promise<void>;
   onClose: () => void;
@@ -23,7 +21,7 @@ export interface AiAssistDialogProps {
 type RunState = { kind: "idle" } | { kind: "running" } | { kind: "error"; message: string };
 
 /** AI 助手对话框（FR-AI-2 / 主文档 13.3）：摘要与标签推荐，手动触发、确认后才写入。 */
-export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun, onApplySummary, onApplyTags, onClose }: AiAssistDialogProps) {
+export function AiAssistDialog({ userId, itemId, title, tags, markdown, onApplySummary, onApplyTags, onClose }: AiAssistDialogProps) {
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [run, setRun] = useState<RunState>({ kind: "idle" });
   const [task, setTask] = useState<AiTaskView | null>(null);
@@ -75,13 +73,6 @@ export function AiAssistDialog({ userId, itemId, title, tags, markdown, autoRun,
       setRun({ kind: "error", message: cause instanceof Error ? cause.message : String(cause) });
     }
   }, [itemId, markdown, tags, title, userId]);
-
-  const autoStarted = useRef(false);
-  useEffect(() => {
-    if (!autoRun || !settings?.enabled || autoStarted.current) return;
-    autoStarted.current = true;
-    void runTask(autoRun);
-  }, [autoRun, runTask, settings?.enabled]);
 
   const summary = task?.status === "done" && task.result?.type === "summary" ? task.result.summary : null;
   const recommended = task?.status === "done" && task.result?.type === "tags" ? task.result.tags : null;
