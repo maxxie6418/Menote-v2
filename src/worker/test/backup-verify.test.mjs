@@ -13,7 +13,7 @@ const target = { kind: "webdav", endpoint: "https://example.invalid/dav", bucket
 test("快照校验覆盖内容篡改、附件缺失与路径越界", async () => {
   const originalFetch = globalThis.fetch;
   const shard = Buffer.from(JSON.stringify([{ kind: "item", data: { attachment_hashes_json: "[]" } }]));
-  const manifest = { format: "menote-backup", version: 1, snapshotId: id, shards: [{ month: "2026-11" }], counts: { attachments: 0 }, files: [{ path: "2026-11.json", size: shard.length, sha256: hash(shard) }] };
+  const manifest = { format: "menote-backup", version: 1, snapshotId: id, shards: [{ month: "2026-11" }], counts: { attachments: 0 }, extra: { itemKeyWraps: [], topicKeyWraps: [], settings: [] }, files: [{ path: "2026-11.json", size: shard.length, sha256: hash(shard) }] };
   const files = new Map();
   function saveManifest() { const data = Buffer.from(JSON.stringify(manifest)); files.set("manifest.json", data); files.set("COMPLETE", Buffer.from(hash(data))); }
   files.set("2026-11.json", shard); saveManifest();
