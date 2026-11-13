@@ -469,6 +469,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setMode(next);
   };
 
+  /* 源码是低频形态，留在「更多」里（2026-11-13 负责人确认），不占常驻分段。
+     换形态前先 flush，避免源码与所见即所得之间丢字。 */
   const toggleEditorKind = async () => {
     if (!(await flush())) return;
     setEditorKind((current) => current === "source" ? "wysiwyg" : "source");
@@ -600,22 +602,26 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       onSelectCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
       <DocBar
-        crumb={documentCrumb} showBack={showBack} onBack={onBack} mode={mode} onMode={switchMode}
-        extra={(
+        crumb={documentCrumb} showBack={showBack} onBack={onBack}
+        mode={mode} onMode={switchMode}
+        before={(
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
-            {isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段" onClick={() => setTableAddColumnSignal((value) => value + 1)}><Plus aria-hidden="true" /></button>}
+            <span className="mn-docbar-div" aria-hidden="true" />
             {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档检查器" : "打开文档检查器"} title="文档检查器" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
-            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>}
-            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="插入附件" title="按附件设置上传并插入文件" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-              <Paperclip />
-            </button>}
-            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="导出" title="导出 zip / Markdown" onClick={() => setExporting(true)}>
-              <Download />
-            </button>}
-            {!isTableDoc && <button type="button" className="mn-iconbtn" aria-label="移入回收站" title="移入回收站" onClick={() => void softDeleteItem(userId, item.id)}>
-              <Trash2 />
-            </button>}
+            <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
+          </>
+        )}
+        after={(
+          <>
+            {/* 表格在预览态没有内容动作，此时不画分隔线，避免只剩一条孤线加「更多」。 */}
+            {(!isTableDoc || mode === "edit") && <span className="mn-docbar-div" aria-hidden="true" />}
+            {isTableDoc && mode === "edit" && <button type="button" className="mn-iconbtn" aria-label="添加字段" title="添加字段" onClick={() => setTableAddColumnSignal((value) => value + 1)}><Plus aria-hidden="true" /></button>}
+            {!isTableDoc && (
+              <button type="button" className="mn-iconbtn" aria-label="插入附件" title="按附件设置上传并插入文件" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                <Paperclip />
+              </button>
+            )}
             <span className="mn-docmore">
               <button type="button" className="mn-iconbtn" aria-label="更多" aria-expanded={moreOpen} title="更多" onClick={() => setMoreOpen((open) => !open)}>
                 <MoreHorizontal />
@@ -630,13 +636,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                   }}>
                     <Copy />{linkCopied ? "链接已复制" : "复制文档链接"}
                   </button>
-                  {isTableDoc && <button type="button" role="menuitem" onClick={() => { setFocusMode((value) => !value); setMoreOpen(false); }}><Focus />{focusMode ? "退出专注模式" : "专注模式"}</button>}
                   {isTableDoc && <button type="button" role="menuitem" disabled={uploading} onClick={() => { setMoreOpen(false); fileInputRef.current?.click(); }}><Paperclip />插入附件</button>}
-                  {isTableDoc && <button type="button" role="menuitem" onClick={() => { setExporting(true); setMoreOpen(false); }}><Download />导出</button>}
-                  {isTableDoc && <button type="button" role="menuitem" onClick={() => void softDeleteItem(userId, item.id)}><Trash2 />移入回收站</button>}
-                  <button type="button" role="menuitem" onClick={() => void toggleEditorKind()}>
-                    <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
-                  </button>
+                  {!isTableDoc && (
+                    <button type="button" role="menuitem" onClick={() => void toggleEditorKind()}>
+                      <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
+                    </button>
+                  )}
                   <button type="button" role="menuitem" onClick={() => { setHistory(true); setMoreOpen(false); }}>
                     <Clock />版本历史
                   </button>
@@ -650,6 +655,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                   </button>
                   <button type="button" role="menuitem" onClick={() => { setOrganizing(true); setMoreOpen(false); }}>
                     <FolderInput />修改存放路径
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { setExporting(true); setMoreOpen(false); }}>
+                    <Download />导出
+                  </button>
+                  <button type="button" role="menuitem" className="is-danger" onClick={() => { setMoreOpen(false); void softDeleteItem(userId, item.id); }}>
+                    <Trash2 />移入回收站
                   </button>
                 </span>
               )}
@@ -881,10 +892,15 @@ interface DocBarProps {
   mode: "edit" | "preview";
   onMode: (mode: "edit" | "preview") => void;
   actionsDisabled?: boolean;
-  extra?: React.ReactNode;
+  /** 模式分段之前的控件（状态与视图组）。 */
+  before?: React.ReactNode;
+  /** 模式分段之后的控件（动作组）。 */
+  after?: React.ReactNode;
 }
 
-function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, extra }: DocBarProps) {
+/* 文档栏（2026-11-13 重排）：左面包屑，右侧三组——状态 / 视图（检查器·专注·模式）/ 动作（附件·更多）。
+   分段只表达编辑与预览两种常驻形态；源码是低频形态，留在「更多」里。 */
+function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, before, after }: DocBarProps) {
   return (
     <div className="mn-docbar">
       <span className="mn-docbar-left">
@@ -896,13 +912,14 @@ function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, extra 
         <span className="mn-crumb">{crumb}</span>
       </span>
       <span className="mn-docbar-right">
-        {extra}
+        {before}
         <span className="mn-vt" role="group" aria-label="编辑/预览切换">
-          <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"}
+          <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" title="编辑" aria-pressed={mode === "edit"}
             disabled={actionsDisabled} onClick={() => onMode("edit")}><Pencil /></button>
-          <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"}
+          <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" title="预览" aria-pressed={mode === "preview"}
             disabled={actionsDisabled} onClick={() => onMode("preview")}><Eye /></button>
         </span>
+        {after}
       </span>
     </div>
   );

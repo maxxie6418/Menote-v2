@@ -321,3 +321,41 @@
 .mn-memo-inline-comments { margin-top: var(--app-space-2); padding-left: var(--app-memo-thread-indent); border-left: var(--app-memo-comment-indent-line) solid var(--app-border-subtle); }
 .mn-memo-inline-comments button { display: flex; gap: var(--app-space-10); width: var(--app-full-size); padding: var(--app-space-4) var(--app-zero); overflow: hidden; border: var(--app-zero); background: none; color: var(--app-fg-muted); font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .mn-memo-inline-comments time { flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
+
+/* 侧栏快记（2026-11-13）：常驻两排输入面，提交按钮在框内右下。
+   空态按钮只留一个弱图标、不可点；有内容才浮出橙色实底——强调由「有没有内容」驱动，
+   否则侧栏会同时挂着两个亮色按钮（新建笔记 + 提交），主操作说不清是谁。 */
+.mn-memo-dock {
+  position: relative; width: var(--app-full-size); min-height: var(--app-memo-dock-height);
+  margin-bottom: var(--app-space-md);
+  padding: var(--app-space-10) var(--app-space-34) var(--app-space-10) var(--app-space-10);
+  border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius);
+  background: var(--app-surface);
+  transition: border-color var(--app-motion-fast) var(--app-ease);
+}
+.mn-memo-dock:focus-within { border-color: var(--app-accent); }
+.mn-memo-dock-input {
+  display: block; width: var(--app-full-size);
+  height: var(--app-memo-dock-input);
+  border: var(--app-zero); outline: none; background: none; resize: none;
+  color: var(--app-fg); font-family: var(--app-font);
+  font-size: var(--app-size-nav); line-height: var(--app-leading-summary);
+}
+.mn-memo-dock-input::placeholder { color: var(--app-fg-faint); }
+.mn-memo-send {
+  position: absolute; right: var(--app-space-6); bottom: var(--app-space-6);
+  display: grid; place-items: center;
+  width: var(--app-memo-send-size); height: var(--app-memo-send-size);
+  border: var(--app-zero); border-radius: var(--app-radius-sm);
+  background: none; color: var(--app-fg-faint); cursor: default;
+  transition: background var(--app-motion-fast) var(--app-ease), color var(--app-motion-fast) var(--app-ease);
+}
+.mn-memo-send svg { width: var(--app-memo-send-icon); height: var(--app-memo-send-icon); }
+.mn-memo-dock[data-filled="true"] .mn-memo-send {
+  background: var(--app-accent); color: var(--app-accent-text); cursor: pointer;
+}
+.mn-memo-dock[data-filled="true"] .mn-memo-send:hover { background: var(--app-accent-hover); }
+.mn-memo-dock-error {
+  margin: calc(var(--app-space-6) * -1) var(--app-space-xs) var(--app-space-sm);
+  color: var(--app-danger); font-size: var(--app-size-chip);
+}

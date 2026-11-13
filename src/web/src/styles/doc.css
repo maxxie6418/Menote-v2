@@ -20,11 +20,17 @@
 .mn-empty-key { margin-top: var(--app-space-14); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); padding: var(--app-space-4) var(--app-space-10); display: inline-block; }
 
 /* ---------- E2 文档区（标题/标签/编辑器/预览） ---------- */
-/* 工具组：32 槽 + 18 图标。此前是 44 的点击区配 20 图标，字形之间净空 28px，
-   一整排在宽屏上读成散落的符号而不是一组动作；收紧后净空 18px，起手仍高于 28 底线。 */
+/* 工具组（2026-11-13 重排）：32 槽 + 16 图标，字形/槽 = 0.5，与格式栏的 14/28 同一比例。
+   此前的 32 槽配 20 图标（注释写 18、令牌取 20）——字形面积是 14px 的两倍、槽只大 14%，
+   一整排读成色带；八个控件又等距平铺，删除紧挨更多，只有一步之隔。
+   现在按「状态 / 视图 / 动作」分三组：组间 1px 竖线 + 4px 外边距，动作组只留附件与更多，
+   导出与删除收进「更多」。 */
 .mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-4); }
-.mn-docbar-right > .mn-iconbtn { min-width: var(--app-docbar-btn); min-height: var(--app-docbar-btn); padding: var(--app-zero); }
-.mn-docbar-right > .mn-iconbtn svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
+/* 用后代选择器而不是子选择器：「更多」按钮包在 .mn-docmore 里，此前漏掉它，
+   于是同一排里只有它是 28 槽 / 14 图标，比邻居小一圈。 */
+.mn-docbar-right .mn-iconbtn { min-width: var(--app-docbar-btn); min-height: var(--app-docbar-btn); padding: var(--app-zero); }
+.mn-docbar-right .mn-iconbtn svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
+.mn-docbar-div { width: var(--app-line); height: var(--app-space-14); background: var(--app-border); margin: 0 var(--app-space-4); flex: none; }
 .mn-docbar-right .mn-vt { padding: var(--app-space-2); }
 .mn-docbar-right .mn-vt button { width: var(--app-docbar-btn); height: var(--app-docbar-vt); }
 .mn-docbar-right .mn-vt svg { width: var(--app-docbar-icon); height: var(--app-docbar-icon); }
@@ -153,6 +159,7 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-docmore-menu { position: absolute; z-index: 6; top: var(--app-full-size); right: var(--app-zero); display: flex; flex-direction: column; min-width: var(--app-field-width); padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
 .mn-docmore-menu button { display: flex; align-items: center; gap: var(--app-space-6); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-chip); text-align: left; padding: var(--app-space-4) var(--app-space-10); border-radius: var(--app-radius-sm); cursor: pointer; }
 .mn-docmore-menu button:hover { background: var(--app-surface-sunken); }
+.mn-docmore-menu button.is-danger { color: var(--app-danger); }
 .mn-docmore-menu svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-editor-host { display: flex; flex-direction: column; min-height: var(--app-editor-min); }
 .mn-editor-host .milkdown { flex: 1; display: flex; flex-direction: column; min-height: 0; }
