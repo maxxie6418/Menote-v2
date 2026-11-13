@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>侧栏快记 · 两排输入 + 框内提交</title>
+<style>
+  :root{
+    --side:#e9ebf1; --surface:#ffffff; --sunken:#f4f5f9;
+    --line:#dde1e9; --line2:#e8ebf1;
+    --fg:#1a1d24; --muted:#454b57; --subtle:#5d6472; --faint:#68707f;
+    --accent:#f6821f; --accent-hover:#e5760f; --accent-text:#241505; --accent-sub:#fef2e7;
+    --ui:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0f;color:#c9ccd2;font-family:var(--ui);padding:28px 32px 56px;-webkit-font-smoothing:antialiased}
+  .head{max-width:1000px;margin:0 auto 24px}
+  .head h1{font-size:16px;font-weight:500;color:#eceef2}
+  .head p{margin-top:7px;font-size:12.5px;line-height:1.75;color:#8a909c;max-width:900px}
+  .head p b{color:#d7dbe2;font-weight:500}
+
+  .row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;max-width:1000px;margin:0 auto}
+  .panel{width:248px;flex:none}
+  .plabel{margin-bottom:9px}
+  .plabel b{display:block;font-size:12.5px;color:#e6e8ec;font-weight:500}
+  .plabel span{display:block;margin-top:4px;font-size:11.5px;line-height:1.6;color:#7d828d;min-height:34px}
+
+  .sb{width:248px;padding:10px;background:var(--side);border-radius:10px;color:var(--fg);
+    font-family:var(--ui);font-size:12.5px;box-shadow:0 16px 40px -18px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.07)}
+  .icon{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .icon.i11{width:11px;height:11px;stroke-width:1.7}
+
+  .sb-top{display:flex;align-items:center;justify-content:space-between;height:30px;margin-bottom:8px;padding:0 6px}
+  .brand{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600}
+  .logo{width:23px;height:23px;border-radius:6px;background:var(--accent);color:#2a1808;
+    display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);margin-top:8px}
+  .tabs button{display:flex;align-items:center;justify-content:center;gap:5px;height:30px;
+    border:0;border-bottom:2px solid transparent;background:none;color:var(--faint);font:inherit;font-size:12px}
+  .tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+  .tabs button.on .icon{color:var(--accent)}
+
+  /* 快记：两排 + 框内提交 */
+  .dock{position:relative;min-height:60px;margin:8px 0 10px;
+    padding:10px 34px 10px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+  .dock.focus{border-color:var(--accent)}
+  .dock textarea{display:block;width:100%;height:calc(12px * 1.55 * 2);border:0;outline:none;resize:none;
+    background:none;color:var(--fg);font-family:var(--ui);font-size:12px;line-height:1.55}
+  .dock textarea::placeholder{color:var(--faint)}
+  .send{position:absolute;right:6px;bottom:6px;display:grid;place-items:center;width:20px;height:20px;
+    border:0;border-radius:4px;background:none;color:var(--faint)}
+  .send svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .filled .send{background:var(--accent);color:var(--accent-text)}
+
+  .cta{display:flex;align-items:center;justify-content:center;gap:6px;height:30px;margin-bottom:8px;
+    border:0;border-radius:4px;background:var(--accent);color:#241505;font:inherit;font-size:12px;font-weight:500}
+
+  /* 2x 放大 */
+  .zoomrow{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;max-width:1000px;margin:38px auto 0}
+  .zbox{position:relative;width:520px;height:150px;overflow:hidden;background:#151614;border-radius:10px;
+    box-shadow:0 0 0 1px rgba(255,255,255,.06)}
+  .zin{position:absolute;top:12px;left:12px;transform:scale(2);transform-origin:top left;width:236px}
+  .zin .dock{margin:0}
+
+  table{max-width:1000px;margin:34px auto 0;width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #1e2126;vertical-align:top;line-height:1.65}
+  th{color:#8a909c;font-weight:500;font-size:11.5px;width:96px}
+  td{color:#9aa0ab}
+  td b{color:#d7dbe2;font-weight:500}
+  code{font-family:var(--mono);font-size:11px;color:#b3b8c2;background:#1b1e23;padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l5-5V5a2 2 0 0 0-2-2z"/><path d="M14 21v-5h5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="head">
+  <h1>侧栏快记 · 两排输入 + 框内提交</h1>
+  <p>原来的单行提示按钮（点一下才展开、展开时还要盖住「新建笔记」）换成常驻的两排输入面：直接写、直接交，侧栏不位移、不弹浮层。<b>提交按钮空着时只有一个弱图标、点不动；一旦有内容才浮出橙色实底</b>——同一时刻侧栏只有「新建笔记」一个亮色按钮。</p>
+</div>
+
+<div class="row">
+  <div class="panel">
+    <div class="plabel"><b>空</b><span>占位两排，提交按钮不可点，只有弱色箭头</span></div>
+    <div class="sb">
+      <div class="sb-top"><span class="brand"><i class="logo">M</i>Menote</span></div>
+      <div class="tabs">
+        <button><svg class="icon"><use href="#i-home"/></svg>首页</button>
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+      <div class="dock">
+        <textarea placeholder="记一条 Memo…"></textarea>
+        <button class="send"><svg><use href="#i-up"/></svg></button>
+      </div>
+      <button class="cta"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="plabel"><b>聚焦</b><span>边框转强调色，按钮仍然弱——还没内容</span></div>
+    <div class="sb">
+      <div class="sb-top"><span class="brand"><i class="logo">M</i>Menote</span></div>
+      <div class="tabs">
+        <button><svg class="icon"><use href="#i-home"/></svg>首页</button>
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+      <div class="dock focus">
+        <textarea placeholder="记一条 Memo…"></textarea>
+        <button class="send"><svg><use href="#i-up"/></svg></button>
+      </div>
+      <button class="cta"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="plabel"><b>有内容</b><span>提交按钮转实橙，可点；⌘/Ctrl + Enter 同样提交</span></div>
+    <div class="sb">
+      <div class="sb-top"><span class="brand"><i class="logo">M</i>Menote</span></div>
+      <div class="tabs">
+        <button><svg class="icon"><use href="#i-home"/></svg>首页</button>
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+      <div class="dock filled">
+        <textarea>把文档栏的图标收到 16px，顺便把导出和删除收进更多。</textarea>
+        <button class="send"><svg><use href="#i-up"/></svg></button>
+      </div>
+      <button class="cta"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+    </div>
+  </div>
+</div>
+
+<div class="zoomrow">
+  <div class="zbox"><div class="zin"><div class="dock"><textarea placeholder="记一条 Memo…"></textarea><button class="send"><svg><use href="#i-up"/></svg></button></div></div></div>
+  <div class="zbox"><div class="zin"><div class="dock filled"><textarea>把文档栏的图标收到 16px。</textarea><button class="send"><svg><use href="#i-up"/></svg></button></div></div></div>
+</div>
+
+<table>
+  <tr><th>高度</th><td>两排 = <code>12px × 1.55 × 2 ≈ 37</code>，加 10 上下内边距与 2px 边框，共 60（<code>--app-memo-dock-height</code>）。</td></tr>
+  <tr><th>按钮</th><td>20×20（<code>--app-memo-send-size</code>），图标 12（<code>--app-memo-send-icon</code>）；绝对定位在框内右下，右侧留 34 给文字绕开。空态：无底、<code>--app-fg-faint</code>、<code>disabled</code>；有内容：<code>--app-accent</code> 实底 + 深字。</td></tr>
+  <tr><th>交互</th><td>原地写、原地交，回车换行、<code>Ctrl/⌘ + Enter</code> 提交；粘贴图片仍然可用。侧栏不再出现盖住「新建笔记」的浮层。</td></tr>
+  <tr><th>没动</th><td>Memo 页时间线里的完整输入卡（标签 / 图片 / 收起）保持原样，两条分支各走各的。</td></tr>
+</table>
+
+</body>
+</html>

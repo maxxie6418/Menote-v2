@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote 侧栏组织方案 · 四选一</title>
+<style>
+  :root{
+    --side:#e9ebf1; --surface:#ffffff; --sunken:#f4f5f9; --canvas:#fdfdff;
+    --sel:#eef1f6; --hover:#f2f4f7; --line:#dde1e9; --line2:#e8ebf1;
+    --fg:#1a1d24; --muted:#454b57; --subtle:#5d6472; --faint:#68707f;
+    --accent:#f6821f; --accent-fg:#b4530f; --accent-sub:#fef2e7; --accent-line:#f6d9bd;
+    --ui:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0f;color:#c9ccd2;font-family:var(--ui);padding:26px 30px 64px;-webkit-font-smoothing:antialiased}
+  .page-head{max-width:1160px;margin:0 auto 26px}
+  .page-head h1{font-size:16px;font-weight:500;color:#eceef2}
+  .page-head p{margin-top:7px;font-size:12.5px;line-height:1.75;color:#8a909c;max-width:940px}
+  .page-head p b{color:#d7dbe2;font-weight:500}
+
+  .row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;max-width:1160px;margin:0 auto}
+  .col{width:248px;flex:none}
+  .col-head{margin-bottom:9px}
+  .col-head h2{font-size:12.5px;font-weight:500;color:#eceef2;display:flex;align-items:center;gap:7px}
+  .col-head h2 em{font-style:normal;font-size:10.5px;color:#241505;background:var(--accent);
+    padding:1px 6px;border-radius:9px;font-weight:600}
+  .col-head p{margin-top:5px;font-size:11.5px;line-height:1.6;color:#7d828d;min-height:56px}
+  .col-foot{margin-top:8px;font-size:11px;color:#6f7580;line-height:1.6}
+  .col-foot b{color:#9aa0ab;font-weight:500}
+
+  .viewport{width:248px;height:838px;overflow:hidden;border-radius:10px;
+    box-shadow:0 16px 40px -18px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.07)}
+
+  /* ---------- 通用侧栏 ---------- */
+  .sb{width:248px;height:838px;background:var(--side);padding:10px;display:flex;flex-direction:column;
+    color:var(--fg);font-family:var(--ui);font-size:12.5px;overflow:hidden}
+  .icon{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .icon.i11{width:11px;height:11px;stroke-width:1.7}
+  .icon.i12{width:12px;height:12px}
+
+  .sb-top{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px}
+  .brand{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600}
+  .logo{width:23px;height:23px;border-radius:6px;background:var(--accent);color:#2a1808;
+    display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+  .ibtn{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:4px;
+    background:none;color:var(--faint);cursor:pointer}
+  .ibtn:hover{background:var(--hover);color:var(--fg)}
+
+  .tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}
+  .tabs button{display:flex;align-items:center;justify-content:center;gap:5px;height:30px;
+    border:0;border-bottom:2px solid transparent;background:none;color:var(--faint);
+    font:inherit;font-size:12px;cursor:pointer}
+  .tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+  .tabs button.on .icon{color:var(--accent)}
+
+  .memo-hint{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;
+    border:1px solid var(--line);border-radius:6px;background:var(--surface);
+    color:var(--faint);font:inherit;font-size:12px;text-align:left}
+  .cta{display:flex;align-items:center;justify-content:center;gap:6px;height:30px;
+    border:0;border-radius:4px;background:var(--accent);color:#241505;
+    font:inherit;font-size:12px;font-weight:500}
+
+  .queue{background:var(--surface);border:1px solid var(--line2);border-radius:6px;
+    padding:2px;box-shadow:0 1px 2px rgba(20,24,33,.05)}
+  .q-row{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:4px;
+    font-size:12px;color:var(--muted);text-decoration:none}
+  .q-row+.q-row{box-shadow:inset 0 1px 0 var(--line2)}
+  .q-row .icon{color:var(--faint)}
+  .q-row.hot{background:var(--accent-sub);color:var(--accent-fg);font-weight:500}
+  .q-row.hot .icon{color:var(--accent)}
+  .q-pill{margin-left:auto;min-width:19px;height:18px;padding:0 5px;border-radius:9px;
+    background:var(--line2);color:var(--muted);font-family:var(--mono);font-size:11px;
+    display:grid;place-items:center}
+  .q-row.hot .q-pill{background:var(--accent);color:#241505;font-weight:600}
+
+  .navlist{display:flex;flex-direction:column;gap:1px}
+  .navlist a{display:flex;align-items:center;gap:7px;height:30px;padding:0 8px;border-radius:4px;
+    color:var(--muted);font-size:12px;text-decoration:none}
+  .navlist a .icon{color:var(--faint)}
+  .navlist a:hover{background:var(--hover)}
+  .navlist a.on{background:var(--surface);color:var(--fg);box-shadow:inset 2px 0 0 var(--accent)}
+  .navlist a.on .icon{color:var(--accent)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .grid2 a{display:flex;align-items:center;gap:6px;height:30px;padding:0 8px;border-radius:4px;
+    color:var(--muted);font-size:12px;text-decoration:none}
+  .grid2 a .icon{color:var(--faint)}
+  .grid2 a.on{background:var(--surface);color:var(--fg);box-shadow:inset 2px 0 0 var(--accent)}
+  .grid2 a.on .icon{color:var(--accent)}
+
+  .zone{height:1px;background:var(--line2)}
+
+  .tree{display:flex;flex-direction:column;gap:1px}
+  .tree a{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px;border-radius:4px;
+    color:var(--muted);font-size:12px;text-decoration:none}
+  .tree a.sub{padding-left:30px;color:var(--subtle)}
+  .tree a.anc{color:var(--fg)}
+  .tree a.anc .icon{color:var(--accent)}
+  .tree a.on{background:var(--surface);color:var(--fg);font-weight:500;box-shadow:inset 2px 0 0 var(--accent),0 1px 2px rgba(20,24,33,.06)}
+  .tree a.on .icon{color:var(--accent)}
+  .tree a.on .tcount{color:var(--accent-fg)}
+  .tree a.hv{background:var(--hover)}
+  .tcount{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+  .sechead{display:flex;align-items:center;gap:8px;height:22px;padding:0 8px;
+    color:var(--faint);font-size:11.5px}
+  .sechead .ibtn{width:18px;height:18px;margin-left:auto}
+  .sechead .ibtn .icon{width:12px;height:12px}
+  .tags{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px}
+  .tags a{padding:2px 8px;border-radius:4px;background:var(--sunken);color:var(--muted);
+    font-size:11.5px;text-decoration:none}
+  .foot{margin-top:auto;border-top:1px solid var(--line2);padding:8px 4px 2px;display:flex;
+    flex-direction:column;gap:4px}
+  .foot-row{display:flex;align-items:center;gap:7px;height:26px;padding:0 6px;border-radius:4px;
+    color:var(--muted);font-size:11.5px}
+  .dot{width:6px;height:6px;border-radius:50%;background:#4a7a5c;flex:none}
+  .avatar{width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--muted);
+    display:grid;place-items:center;font-size:10px;flex:none}
+
+  /* 方案 B 段标题 */
+  .slabel{display:flex;align-items:center;gap:6px;padding:0 8px;margin:12px 0 5px;
+    font-size:11px;color:var(--faint);letter-spacing:.04em}
+  .slabel s{flex:1;height:1px;background:var(--line2);text-decoration:none}
+
+  /* 方案 C 胶囊 */
+  .pillseg{display:inline-flex;gap:2px;padding:2px;border-radius:999px;background:var(--line2);align-self:flex-start}
+  .pillseg button{border:0;border-radius:999px;height:24px;padding:0 12px;background:none;
+    color:var(--muted);font:inherit;font-size:11.5px;display:flex;align-items:center;gap:5px}
+  .pillseg button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(20,24,33,.12)}
+  .pillseg button.on .icon{color:var(--accent)}
+  .ghost{display:flex;align-items:center;gap:6px;height:30px;padding:0 8px;border-radius:4px;
+    border:1px dashed var(--line);background:none;color:var(--muted);font:inherit;font-size:12px}
+  .metrics{display:flex;gap:6px}
+  .metric{flex:1;display:flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:4px;
+    background:var(--sunken);color:var(--muted);font-size:11.5px;text-decoration:none}
+  .metric .icon{color:var(--faint)}
+  .metric.hot{background:var(--accent-sub);color:var(--accent-fg)}
+  .metric.hot .icon{color:var(--accent)}
+  .mini-pill{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .metric.hot .mini-pill{color:var(--accent-fg);font-weight:600}
+
+  /* 方案 D 收件箱卡 */
+  .inboxcard{display:block;padding:10px 10px 9px;border-radius:6px;background:var(--accent-sub);
+    border:1px solid var(--accent-line);text-decoration:none;color:var(--accent-fg)}
+  .inboxcard .ih{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600}
+  .inboxcard .ic{font-size:11px;color:#9a6234;margin-top:4px;line-height:1.5}
+  .inboxcard .ib{display:flex;align-items:baseline;gap:5px;margin-top:6px}
+  .inboxcard .ib b{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--accent-fg);line-height:1}
+  .inboxcard .ib span{font-size:11px;color:#9a6234}
+  .draftrow{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;margin-top:6px;
+    border-radius:4px;background:var(--sunken);color:var(--muted);font-size:12px;text-decoration:none}
+  .draftrow .icon{color:var(--faint)}
+
+  /* 对比表 */
+  .tablewrap{max-width:1160px;margin:40px auto 0}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #1e2126;vertical-align:top;line-height:1.6}
+  th{color:#8a909c;font-weight:500;font-size:11.5px}
+  td:first-child{color:#9aa0ab;white-space:nowrap}
+  td b{color:#e6e8ec;font-weight:500}
+  tr.rec td{background:rgba(246,130,31,.07)}
+  .tag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;
+    background:rgba(246,130,31,.16);color:#f0a35e;margin-left:6px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l5-5V5a2 2 0 0 0-2-2z"/><path d="M14 21v-5h5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 17l-5.3 2.7 1.1-5.9L3.5 9.7l5.9-.8z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.8h5V7M6.5 7l.8 12.2h9.4L17.5 7"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M4 13l3-8h10l3 8v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-panel-left" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.5 4.5v15"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="18.5" cy="12" r="1.1"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h3.2l1.8 2.2H18.5A1.5 1.5 0 0 1 20 9.7V17a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 11V5.5A1.5 1.5 0 0 1 5.5 4H11l9 9-6.5 6.5z"/><circle cx="8" cy="8" r="1.1"/></symbol>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>侧栏组织方案 · 四选一</h1>
+  <p>四版都用同一份数据、同一套令牌、248px 宽、838px 高，1:1 渲染，只改组织方式。共同前提已按你的要求落实：<b>收件箱 / 草稿箱独立成卡并带计数胶囊</b>，<b>主题与分类有选中态</b>（当前路径 = 2px 半透明橙条，选中 = 白底 + 实橙条）。</p>
+</div>
+
+<div class="row">
+
+  <!-- ===== A ===== -->
+  <div class="col">
+    <div class="col-head">
+      <h2>方案 A · 队列优先 <em>推荐</em></h2>
+      <p>待处理紧贴主操作之下，浏览入口收成一张 4 行列表，主题树是最大的一块。</p>
+    </div>
+    <div class="viewport"><div class="sb">
+      <div class="sb-top" style="margin-bottom:12px">
+        <span class="brand"><i class="logo">M</i>Menote</span>
+        <button class="ibtn"><svg class="icon"><use href="#i-panel-left"/></svg></button>
+      </div>
+      <div class="tabs" style="margin-bottom:12px">
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+      <button class="memo-hint"><svg class="icon i11"><use href="#i-plus"/></svg>随手记一条…</button>
+      <button class="cta" style="margin:10px 0 12px"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+
+      <div class="queue" style="margin-bottom:12px">
+        <a class="q-row hot"><svg class="icon"><use href="#i-inbox"/></svg><span>收件箱</span><b class="q-pill">3</b></a>
+        <a class="q-row"><svg class="icon"><use href="#i-file"/></svg><span>草稿箱</span><b class="q-pill">2</b></a>
+      </div>
+
+      <nav class="navlist" style="margin-bottom:12px">
+        <a><svg class="icon"><use href="#i-home"/></svg>首页</a>
+        <a class="on"><svg class="icon"><use href="#i-clock"/></svg>最近编辑</a>
+        <a><svg class="icon"><use href="#i-star"/></svg>收藏</a>
+        <a><svg class="icon"><use href="#i-trash"/></svg>回收站</a>
+      </nav>
+
+      <div class="zone" style="margin-bottom:12px"></div>
+
+      <div class="tree" style="margin-bottom:12px">
+        <a class="anc"><svg class="icon i11"><use href="#i-folder"/></svg>产品<b class="tcount">12</b></a>
+        <a class="sub on"><svg class="icon i11"><use href="#i-chev"/></svg>体验优化<b class="tcount">8</b></a>
+        <a class="sub"><svg class="icon i11"><use href="#i-chev"/></svg>信息架构<b class="tcount">4</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>技术<b class="tcount">6</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>阅读<b class="tcount">3</b></a>
+      </div>
+
+      <div class="sechead">标签<button class="ibtn"><svg class="icon"><use href="#i-more"/></svg></button></div>
+      <div class="tags"><a>#视觉</a><a>#规范</a><a>#待办</a></div>
+
+      <div class="foot">
+        <div class="foot-row"><span class="dot"></span>已同步 · 2 分钟前</div>
+        <div class="foot-row"><span class="avatar">M</span>maxxi · 所有者</div>
+      </div>
+    </div></div>
+    <div class="col-foot"><b>代价：</b>队列占 68px 固定高度，空着时也占位。</div>
+  </div>
+
+  <!-- ===== B ===== -->
+  <div class="col">
+    <div class="col-head">
+      <h2>方案 B · 三段分区</h2>
+      <p>用「收集 / 浏览 / 主题」三段标题代替分隔线，主操作沉到底部，浏览改成 2×2 宫格。</p>
+    </div>
+    <div class="viewport"><div class="sb">
+      <div class="sb-top">
+        <span class="brand"><i class="logo">M</i>Menote</span>
+        <button class="ibtn"><svg class="icon"><use href="#i-panel-left"/></svg></button>
+      </div>
+      <div class="tabs" style="margin-top:8px">
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+
+      <div class="slabel">收集<s></s></div>
+      <button class="memo-hint" style="margin-bottom:6px"><svg class="icon i11"><use href="#i-plus"/></svg>随手记一条…</button>
+      <div class="queue">
+        <a class="q-row hot"><svg class="icon"><use href="#i-inbox"/></svg><span>收件箱</span><b class="q-pill">3</b></a>
+        <a class="q-row"><svg class="icon"><use href="#i-file"/></svg><span>草稿箱</span><b class="q-pill">2</b></a>
+      </div>
+
+      <div class="slabel">浏览<s></s></div>
+      <div class="grid2">
+        <a><svg class="icon"><use href="#i-home"/></svg>首页</a>
+        <a class="on"><svg class="icon"><use href="#i-clock"/></svg>最近编辑</a>
+        <a><svg class="icon"><use href="#i-star"/></svg>收藏</a>
+        <a><svg class="icon"><use href="#i-trash"/></svg>回收站</a>
+      </div>
+
+      <div class="slabel">主题<s></s></div>
+      <div class="tree">
+        <a class="anc"><svg class="icon i11"><use href="#i-folder"/></svg>产品<b class="tcount">12</b></a>
+        <a class="sub on"><svg class="icon i11"><use href="#i-chev"/></svg>体验优化<b class="tcount">8</b></a>
+        <a class="sub"><svg class="icon i11"><use href="#i-chev"/></svg>信息架构<b class="tcount">4</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>技术<b class="tcount">6</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>阅读<b class="tcount">3</b></a>
+      </div>
+
+      <div class="sechead" style="margin-top:12px">标签<button class="ibtn"><svg class="icon"><use href="#i-more"/></svg></button></div>
+      <div class="tags"><a>#视觉</a><a>#规范</a><a>#待办</a></div>
+
+      <div class="foot" style="margin-top:auto">
+        <button class="cta" style="width:100%;margin-bottom:4px"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+        <div class="foot-row"><span class="dot"></span>已同步 · 2 分钟前</div>
+        <div class="foot-row"><span class="avatar">M</span>maxxi · 所有者</div>
+      </div>
+    </div></div>
+    <div class="col-foot"><b>代价：</b>段标题多占 3 行；主操作离顶部远，新用户可能找不到。</div>
+  </div>
+
+  <!-- ===== C ===== -->
+  <div class="col">
+    <div class="col-head">
+      <h2>方案 C · 极简 / 树优先</h2>
+      <p>头部压到最薄：胶囊切换 + 幽灵按钮，队列退成一行两个指标，把高度尽量留给主题树。</p>
+    </div>
+    <div class="viewport"><div class="sb">
+      <div class="sb-top">
+        <span class="brand"><i class="logo">M</i>Menote</span>
+        <button class="ibtn"><svg class="icon"><use href="#i-search"/></svg></button>
+        <button class="ibtn"><svg class="icon"><use href="#i-panel-left"/></svg></button>
+      </div>
+
+      <div class="pillseg" style="margin:10px 0 10px">
+        <button class="on"><svg class="icon i12"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon i12"><use href="#i-note"/></svg>Memo</button>
+      </div>
+
+      <div class="metrics" style="margin-bottom:8px">
+        <a class="metric hot"><svg class="icon"><use href="#i-inbox"/></svg>收件箱<b class="mini-pill">3</b></a>
+        <a class="metric"><svg class="icon"><use href="#i-file"/></svg>草稿<b class="mini-pill">2</b></a>
+      </div>
+
+      <button class="ghost" style="margin-bottom:10px"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+
+      <nav class="navlist" style="margin-bottom:10px">
+        <a><svg class="icon"><use href="#i-home"/></svg>首页</a>
+        <a class="on"><svg class="icon"><use href="#i-clock"/></svg>最近编辑</a>
+        <a><svg class="icon"><use href="#i-star"/></svg>收藏</a>
+        <a><svg class="icon"><use href="#i-trash"/></svg>回收站</a>
+      </nav>
+
+      <div class="zone" style="margin-bottom:10px"></div>
+
+      <div class="tree" style="margin-bottom:12px">
+        <a class="anc"><svg class="icon i11"><use href="#i-folder"/></svg>产品<b class="tcount">12</b></a>
+        <a class="sub on"><svg class="icon i11"><use href="#i-chev"/></svg>体验优化<b class="tcount">8</b></a>
+        <a class="sub"><svg class="icon i11"><use href="#i-chev"/></svg>信息架构<b class="tcount">4</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>技术<b class="tcount">6</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>阅读<b class="tcount">3</b></a>
+      </div>
+
+      <div class="sechead">标签<button class="ibtn"><svg class="icon"><use href="#i-more"/></svg></button></div>
+      <div class="tags"><a>#视觉</a><a>#规范</a><a>#待办</a></div>
+
+      <div class="foot">
+        <div class="foot-row"><span class="dot"></span>已同步 · 2 分钟前</div>
+        <div class="foot-row"><span class="avatar">M</span>maxxi · 所有者</div>
+      </div>
+    </div></div>
+    <div class="col-foot"><b>代价：</b>没有一块橙色实底，主操作说服力最弱；队列不再"成块"。</div>
+  </div>
+
+  <!-- ===== D ===== -->
+  <div class="col">
+    <div class="col-head">
+      <h2>方案 D · 收件箱优先</h2>
+      <p>把「待处理」写成主线：收件箱升为一张带数字的卡，回收站退到底部，导航只剩最近与收藏。</p>
+    </div>
+    <div class="viewport"><div class="sb">
+      <div class="sb-top" style="margin-bottom:12px">
+        <span class="brand"><i class="logo">M</i>Menote</span>
+        <button class="ibtn"><svg class="icon"><use href="#i-panel-left"/></svg></button>
+      </div>
+
+      <a class="inboxcard" style="margin-bottom:6px">
+        <span class="ih"><svg class="icon"><use href="#i-inbox"/></svg>收件箱</span>
+        <span class="ib"><b>3</b><span>条待整理 · 来自剪藏与 Agent</span></span>
+      </a>
+      <a class="draftrow" style="margin-bottom:10px">
+        <svg class="icon"><use href="#i-file"/></svg><span>草稿箱</span><b class="mini-pill" style="color:var(--faint);font-weight:400">2</b>
+      </a>
+
+      <div class="tabs" style="margin-bottom:10px">
+        <button class="on"><svg class="icon"><use href="#i-file"/></svg>笔记</button>
+        <button><svg class="icon"><use href="#i-note"/></svg>Memo</button>
+      </div>
+
+      <button class="memo-hint"><svg class="icon i11"><use href="#i-plus"/></svg>随手记一条…</button>
+      <button class="cta" style="margin:8px 0 10px"><svg class="icon i11"><use href="#i-plus"/></svg>新建笔记</button>
+
+      <nav class="navlist" style="margin-bottom:10px">
+        <a><svg class="icon"><use href="#i-home"/></svg>首页</a>
+        <a class="on"><svg class="icon"><use href="#i-clock"/></svg>最近编辑</a>
+        <a><svg class="icon"><use href="#i-star"/></svg>收藏</a>
+      </nav>
+
+      <div class="zone" style="margin-bottom:10px"></div>
+
+      <div class="tree" style="margin-bottom:12px">
+        <a class="anc"><svg class="icon i11"><use href="#i-folder"/></svg>产品<b class="tcount">12</b></a>
+        <a class="sub on"><svg class="icon i11"><use href="#i-chev"/></svg>体验优化<b class="tcount">8</b></a>
+        <a class="sub"><svg class="icon i11"><use href="#i-chev"/></svg>信息架构<b class="tcount">4</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>技术<b class="tcount">6</b></a>
+        <a><svg class="icon i11"><use href="#i-folder"/></svg>阅读<b class="tcount">3</b></a>
+      </div>
+
+      <div class="sechead">标签<button class="ibtn"><svg class="icon"><use href="#i-more"/></svg></button></div>
+      <div class="tags"><a>#视觉</a><a>#规范</a><a>#待办</a></div>
+
+      <div class="foot">
+        <div class="foot-row"><svg class="icon i12"><use href="#i-trash"/></svg>回收站</div>
+        <div class="foot-row"><span class="dot"></span>已同步 · 2 分钟前</div>
+        <div class="foot-row"><span class="avatar">M</span>maxxi · 所有者</div>
+      </div>
+    </div></div>
+    <div class="col-foot"><b>代价：</b>收件箱卡占了 74px；空队列时这张卡会显得空。</div>
+  </div>
+
+</div>
+
+<div class="tablewrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:118px">比较维度</th>
+        <th>A · 队列优先<span class="tag">推荐</span></th>
+        <th>B · 三段分区</th>
+        <th>C · 极简 / 树优先</th>
+        <th>D · 收件箱优先</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="rec">
+        <td>头部占用</td>
+        <td><b>约 322px</b>（含队列卡）</td>
+        <td>约 356px（多三段标题）</td>
+        <td><b>约 286px</b>，树最高</td>
+        <td>约 396px，最低</td>
+      </tr>
+      <tr>
+        <td>主操作位置</td>
+        <td>顶部，实心橙</td>
+        <td>底部，实心橙（拇指区）</td>
+        <td>顶部，幽灵按钮</td>
+        <td>顶部，实心橙（第二位）</td>
+      </tr>
+      <tr>
+        <td>队列醒目度</td>
+        <td>高（独立卡 + 胶囊）</td>
+        <td>高（独立卡 + 段标题）</td>
+        <td>中（一行两指标）</td>
+        <td><b>最高（带文案的主卡）</b></td>
+      </tr>
+      <tr>
+        <td>分组手段</td>
+        <td>间距 + 一条竖线</td>
+        <td>段标题 + 发丝线</td>
+        <td>间距 + 分段胶囊</td>
+        <td>间距 + 卡片边界</td>
+      </tr>
+      <tr>
+        <td>新增概念</td>
+        <td>无</td>
+        <td>三个段标题</td>
+        <td>胶囊切换、指标行</td>
+        <td>收件箱主卡、回收站下沉</td>
+      </tr>
+      <tr>
+        <td>改动量</td>
+        <td>中（Sidebar.tsx 重排）</td>
+        <td>中偏大（新段标题组件）</td>
+        <td>中（需新胶囊样式）</td>
+        <td>较大（入口位置变更）</td>
+      </tr>
+      <tr>
+        <td>风险</td>
+        <td>空队列仍占 68px</td>
+        <td>段标题与<code>标签</code>段标题重复</td>
+        <td>主操作辨识度下降</td>
+        <td>导航位置变动，肌肉记忆要重建</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px;font-size:12px;color:#7d828d;line-height:1.7">
+    四版都保留了同一套状态语义：<b style="color:#d7dbe2">当前路径</b>用 2px 半透明橙条、<b style="color:#d7dbe2">选中</b>用白底 + 实橙条、<b style="color:#d7dbe2">悬停</b>只加浅灰底。差别只在「待处理」和「浏览」这两组入口的相对权重与位置。
+  </p>
+</div>
+
+</body>
+</html>
