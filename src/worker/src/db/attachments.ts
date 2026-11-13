@@ -48,6 +48,13 @@ export async function setAttachmentRefs(
   ).bind(Math.max(0, refCount), Math.max(0, refCount), now, userId, sha256).run();
 }
 
+export async function countAttachmentRefs(db: D1Database, userId: string, sha256: string): Promise<number> {
+  const row = await db.prepare(`SELECT COUNT(*) AS count FROM items WHERE user_id = ? AND deleted_at IS NULL
+    AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`)
+    .bind(userId, sha256).first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 export interface OrphanRow { userId: string; sha256: string }
 
 /** 孤儿期已满（30 天）的附件清单。 */

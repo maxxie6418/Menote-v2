@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget, verifyRemoteBackup,
+  type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget, verifyRemoteBackup, restoreRemoteBackup,
 } from "../../services/backupService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
@@ -102,6 +102,16 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     setVerifying(null);
   };
 
+  const restore = async (target: TargetView, id: string) => {
+    if (!window.confirm(`从 ${id} 合并恢复到当前账号？较新的现有条目会保留，旧数据可能被恢复版本覆盖。建议先为当前数据推送一份新备份。`)) return;
+    setVerifying(id); setMessage("正在校验并恢复快照…");
+    const result = await restoreRemoteBackup(target.id, id);
+    setMessage(result.ok
+      ? `恢复完成：${result.items} 条内容、${result.topics} 个主题、${result.attachments ?? 0} 个附件；跳过 ${result.skipped} 项。重新载入页面以同步显示。`
+      : `恢复失败：${result.error ?? "未知错误"}`);
+    setVerifying(null);
+  };
+
   const remove = async (id: string) => {
     if (!window.confirm("删除此备份目标？（远端已备份内容不受影响）")) return;
     await deleteTarget(id);
@@ -142,6 +152,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
                 {(remoteBackups[target.id] ?? []).length === 0 ? <p>目录为空或尚未推送。</p> : (remoteBackups[target.id] ?? []).map((backup) => <div key={backup.id} className="mn-backuprow">
                   <code>{target.remotePath}/{backup.id}/</code><span>{backup.complete ? "COMPLETE 标记存在" : "缺少 COMPLETE 标记"}{backup.lastModified ? ` · ${backup.lastModified}` : ""}</span>
                   <button type="button" className="mn-textbtn" disabled={!backup.complete || verifying !== null} onClick={() => void verify(target, backup.id)}>{verifying === backup.id ? "校验中…" : "验证备份"}</button>
+                  <button type="button" className="mn-textbtn" disabled={!backup.complete || verifying !== null} onClick={() => void restore(target, backup.id)}>恢复到当前账号</button>
                   <button type="button" className="mn-textbtn" onClick={() => void removeRemoteBackup(target, backup.id)}>删除远端内容</button>
                 </div>)}
               </div>}

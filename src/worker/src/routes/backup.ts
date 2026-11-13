@@ -4,6 +4,7 @@ import { requireSession, resolveSession, sameOriginGuard } from "../middleware/s
 import { ensureSchemaReady } from "../services/authService";
 import { deleteRemoteBackup, listRemoteBackups } from "../services/backupService";
 import { verifyRemoteSnapshot } from "../services/backupVerifyService";
+import { restoreRemoteSnapshot } from "../services/remoteRestoreService";
 import {
   applyTargetPatch, createTargetSealed, deleteTargetForUser, getTargetForUser, listTargetsForUser,
   normalizeTargetInput, openTargetSecret, runTargetPushById, testUnsavedTarget, toRemoteTarget, type TargetInput,
@@ -101,6 +102,22 @@ backupRoutes.post("/api/backup/targets/:id/backups/:backupId/verify", resolveSes
   try {
     const secret = await openTargetSecret(pepper(c.env), target);
     return c.json({ ok: true, ...await verifyRemoteSnapshot(toRemoteTarget(target, secret), c.req.param("backupId")) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return c.json({ ok: false, error: String(error).slice(0, 300) }, 400);
+  }
+});
+
+backupRoutes.post("/api/backup/targets/:id/backups/:backupId/restore", resolveSession, sameOriginGuard, requireSession, async (c) => {
+  if (!(await requireReady(c))) return c.json({ error: "unavailable" }, 503);
+  const target = await getTargetForUser(c.env.DB, c.get("authUser")!.id, c.req.param("id"));
+  if (!target) return c.json({ error: "not_found" }, 404);
+  try {
+    const secret = await openTargetSecret(pepper(c.env), target);
+    const result = await restoreRemoteSnapshot(
+      { db: c.env.DB, userId: c.get("authUser")!.id, bucket: c.env.BUCKET },
+      toRemoteTarget(target, secret), c.req.param("backupId"),
+    );
+    return c.json({ ok: true, ...result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return c.json({ ok: false, error: String(error).slice(0, 300) }, 400);
   }

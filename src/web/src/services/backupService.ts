@@ -73,6 +73,13 @@ export async function verifyRemoteBackup(targetId: string, backupId: string): Pr
   } catch (error) { return { ok: false, error: String(error) }; }
 }
 
+export async function restoreRemoteBackup(targetId: string, backupId: string): Promise<{ ok: boolean; items?: number; topics?: number; memoComments?: number; settings?: number; attachments?: number; skipped?: number; error?: string }> {
+  try {
+    const response = await fetch(`/api/backup/targets/${targetId}/backups/${encodeURIComponent(backupId)}/restore`, { method: "POST" });
+    return await response.json();
+  } catch (error) { return { ok: false, error: String(error) }; }
+}
+
 export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string }> {
   try {
     const response = await fetch(`/api/backup/run/${id}`, { method: "POST" });

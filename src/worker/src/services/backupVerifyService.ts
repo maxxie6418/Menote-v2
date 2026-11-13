@@ -1,7 +1,13 @@
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
 
+export interface VerifiedSnapshot {
+  files: number; shards: number; attachments: number;
+  entries: unknown[]; itemKeyWraps: unknown[]; topicKeyWraps: unknown[]; settings: unknown[];
+  attachmentFiles: Array<{ sha256: string; bytes: Uint8Array }>;
+}
+
 /** Verify every file in a snapshot without modifying either storage. */
-export async function verifyRemoteSnapshot(target: RemoteTarget, id: string) {
+export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: string): Promise<VerifiedSnapshot> {
   if (!/^\d{8}T\d{9}Z-[0-9a-f]{8}$/i.test(id)) throw new Error("无效的备份目录名");
   const root = `${normalizeRemotePath(target.remotePath)}/${id}`;
   const decode = new TextDecoder("utf-8", { fatal: true });
@@ -13,14 +19,17 @@ export async function verifyRemoteSnapshot(target: RemoteTarget, id: string) {
     files?: Array<{ path?: unknown; size?: unknown; sha256?: unknown }>;
     shards?: Array<{ month?: unknown }>;
     counts?: { attachments?: unknown };
+    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown };
   };
   if (manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id || !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
   const names = new Set<string>();
   const references = new Set<string>();
+  const contents = new Map<string, Uint8Array>();
   for (const file of manifest.files) {
     if (!file || typeof file.path !== "string" || !/^(?:\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(file.path) || names.has(file.path) || !Number.isSafeInteger(file.size) || (file.size as number) < 0 || typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error("备份文件清单无效");
     names.add(file.path);
     const bytes = await remoteGet(target, `${root}/${file.path}`);
+    contents.set(file.path, bytes);
     if (bytes.length !== file.size || await hash(bytes) !== file.sha256) throw new Error(`文件校验失败：${file.path}`);
     if (file.path.endsWith(".json")) {
       const entries: unknown = JSON.parse(decode.decode(bytes));
@@ -38,7 +47,20 @@ export async function verifyRemoteSnapshot(target: RemoteTarget, id: string) {
   const shardNames = manifest.shards.map((shard) => `${String(shard.month)}.json`);
   if (new Set(shardNames).size !== shardNames.length || shardNames.some((name) => !names.has(name)) || [...names].filter((name) => name.endsWith(".json")).length !== shardNames.length || [...names].filter((name) => name.startsWith("attachment-")).length !== manifest.counts?.attachments) throw new Error("备份清单文件不完整");
   if ([...references].some((h) => !names.has(`attachment-${h}`))) throw new Error("快照缺少笔记引用的附件");
-  return { files: names.size, shards: shardNames.length, attachments: manifest.counts.attachments as number };
+  const allEntries: unknown[] = [];
+  for (const name of shardNames) allEntries.push(...JSON.parse(decode.decode(contents.get(name)!)) as unknown[]);
+  const extra = manifest.extra as { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown } | undefined;
+  if (!Array.isArray(extra?.itemKeyWraps) || !Array.isArray(extra?.topicKeyWraps) || !Array.isArray(extra?.settings)) throw new Error("备份缺少密钥或设置数据");
+  return {
+    files: names.size, shards: shardNames.length, attachments: manifest.counts.attachments as number,
+    entries: allEntries, itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings,
+    attachmentFiles: [...references].map((sha256) => ({ sha256, bytes: contents.get(`attachment-${sha256}`)! })),
+  };
+}
+
+export async function verifyRemoteSnapshot(target: RemoteTarget, id: string) {
+  const snapshot = await readVerifiedRemoteSnapshot(target, id);
+  return { files: snapshot.files, shards: snapshot.shards, attachments: snapshot.attachments };
 }
 
 async function hash(bytes: Uint8Array): Promise<string> {
