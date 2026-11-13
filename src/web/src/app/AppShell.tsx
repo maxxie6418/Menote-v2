@@ -606,6 +606,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             showBack={layout === "tablet"}
             crumb={title}
             openSummaryToken={summaryRequest?.id === noteId ? summaryRequest.token : undefined}
+            onSummaryRequestConsumed={(token) => setSummaryRequest((current) => current?.token === token && current.id === noteId ? null : current)}
           />
         ) : (
           <article className="mn-doc" aria-label="文档区">
