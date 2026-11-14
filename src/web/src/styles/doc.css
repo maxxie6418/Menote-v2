@@ -8,6 +8,7 @@
 .mn-doc[data-focus="true"] { position: fixed; inset: var(--app-zero); z-index: var(--app-immersive-z); width: var(--app-full-size); height: var(--app-full-viewport-height); background: var(--app-bg-side); }
 .mn-docbar { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-sm); padding: var(--app-docbar-pad) var(--app-doc-pad); border-bottom: var(--app-line) solid var(--app-border); flex: none; }
 .mn-docbar-left { display: flex; align-items: center; gap: var(--app-space-sm); min-width: 0; }
+.mn-docbar-kind { flex: none; color: var(--app-accent-fg); font-family: var(--app-font-mono); font-size: var(--app-size-chip); white-space: nowrap; }
 .mn-crumb { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 路径条与标题同轴：原先用左右 padding 的外边距，宽屏下会比居中的版心左出一截（两个主题共有）。 */
 .mn-doc-path { display: flex; align-items: center; gap: var(--app-space-6); margin: var(--app-zero) auto; color: var(--app-fg-faint); font-size: var(--app-size-chip); }

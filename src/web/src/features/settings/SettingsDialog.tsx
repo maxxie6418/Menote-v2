@@ -20,6 +20,7 @@ import { AttachmentPolicySettings } from "./AttachmentPolicySettings";
 import { getSyncPhase, requestSync, subscribeSyncStatus, syncQueueStatus, type SyncPhase } from "../../services/syncEngine";
 import { subscribeLocalChanges } from "../../lib/broadcast";
 import { InfoHint } from "../../components/ui/InfoHint";
+import { NativeSelect } from "../../components/ui/native-select";
 
 export type SettingsSection = "appearance" | "sync" | "style" | "ai" | "backup" | "attachments" | "syncLogs" | "recovery" | "mcp" | "clipTemplates" | "plugins" | "propertyTemplates";
 
@@ -165,22 +166,23 @@ function AppearanceSection({ userId }: { userId: string }) {
       <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">界面主题<InfoHint>两套皮肤：素灰（默认，冷灰底 + 云橙强调）、墨台（暖砂底 + 朱砂）。皮肤与浅色 / 深色互相独立，界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
+          <p className="mn-setlabel">界面主题<InfoHint>三套皮肤：shadcn/ui（默认）、素灰和墨台。皮肤与浅色 / 深色互相独立，界面布局与编辑阅读偏好即时生效并随账号同步。</InfoHint></p>
         </div>
-        <select
-          className="mn-propselect"
-          aria-label="界面主题"
-          value={skin}
-          onChange={(event) => {
+        {skin === "shadcn" ? (
+          <NativeSelect aria-label="界面主题" value={skin} onChange={(event) => {
             const value = event.target.value as ThemeSkin;
-            setThemeSkin(value);
-            setSkin(value);
-            void updateAppearance(userId, { skin: value });
-          }}
-        >
-          <option value="slate">素灰（默认）</option>
-          <option value="ink">墨台</option>
-        </select>
+            setThemeSkin(value); setSkin(value); void updateAppearance(userId, { skin: value });
+          }}>
+            <option value="shadcn">shadcn/ui（默认）</option><option value="slate">素灰</option><option value="ink">墨台</option>
+          </NativeSelect>
+        ) : (
+          <select className="mn-propselect" aria-label="界面主题" value={skin} onChange={(event) => {
+            const value = event.target.value as ThemeSkin;
+            setThemeSkin(value); setSkin(value); void updateAppearance(userId, { skin: value });
+          }}>
+            <option value="shadcn">shadcn/ui（默认）</option><option value="slate">素灰</option><option value="ink">墨台</option>
+          </select>
+        )}
       </div>
       <div className="mn-setrow">
         <div>
@@ -314,7 +316,7 @@ function AppearanceSection({ userId }: { userId: string }) {
           <div className="mn-appearance-preview-cols"><div className="mn-appearance-preview-nav"><i /><i /><i /><i /></div><div className="mn-appearance-preview-list"><i /><i /><i /><i /></div><div className="mn-appearance-preview-paper"><i className="is-heading" /><i /><i /><i className="is-short" /><i />{propsPos === "side" && <i className="is-props" />}</div></div>
           <div className="mn-appearance-preview-toolbar"><i /><i /><i /></div>
         </div>
-        <div className="mn-appearance-preview-chips"><span>{skin === "ink" ? "墨台" : "素灰"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "auto" ? "跟随主题版心" : measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
+        <div className="mn-appearance-preview-chips"><span>{skin === "ink" ? "墨台" : skin === "slate" ? "素灰" : "shadcn/ui"}</span><span>{railMode === "rail" ? "书脊导航" : "完整侧栏"}</span><span>Memo 侧记栏{memoWorkbarSide === "left" ? "左侧" : "右侧"}</span><span>Todo 默认{memoTodoDefault === "open" ? "展开" : "收起"}</span><span>属性{propsPos === "side" ? "侧边" : "顶部"}</span><span>工具栏{toolbar === "auto" ? "跟随主题" : toolbar === "bottom" ? "底部浮动" : "顶部固定"}</span><span>{measure === "auto" ? "跟随主题版心" : measure === "narrow" ? "窄版心" : measure === "wide" ? "加宽版心" : "撑满版心"}</span></div>
       </section>
     </div>
   );

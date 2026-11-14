@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 function resolveAppVersion(): string {
   try {
@@ -21,6 +22,8 @@ function resolveBuildCommit(): string {
 }
 
 export default defineConfig({
+  plugins: [tailwindcss()],
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   server: {
     proxy: {
       "/api": {

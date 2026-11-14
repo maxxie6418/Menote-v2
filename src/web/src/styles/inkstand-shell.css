@@ -15,6 +15,10 @@
 :root .mn-memo-hint { height: var(--app-space-30); border-color: var(--app-border); border-radius: var(--app-radius-sm); }
 :root .mn-memo-dock { border-color: var(--app-border); border-radius: var(--app-radius-sm); }
 :root .mn-quick { margin-bottom: var(--app-space-8); }
+/* 侧栏操作区保持连续节奏：避免分段贴住输入框，以及输入框与新建按钮的间距叠加。 */
+:root .mn-sidebar > .mn-formseg { margin-bottom: var(--app-space-8); }
+:root .mn-sidebar > .mn-memo-dock { margin-bottom: var(--app-zero); }
+:root .mn-sidebar > .mn-quick { margin-bottom: var(--app-space-12); }
 :root .mn-quick a { height: var(--app-space-32); flex-direction: column; gap: var(--app-space-2); border-radius: var(--app-radius-sm); font-size: var(--app-size-chip); }
 :root .mn-quick a svg { width: var(--app-space-14); height: var(--app-space-14); }
 :root .mn-queue { gap: var(--app-space-4); margin-bottom: var(--app-space-8); }
@@ -26,7 +30,7 @@
 :root .mn-tree-count { margin-left: auto; flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 :root .mn-treerow.on { background: var(--app-border-subtle); box-shadow: inset var(--app-space-2) 0 0 var(--app-accent); }
 :root .mn-tags { gap: var(--app-space-4); }
-:root .mn-sb-foot { border-top-color: var(--app-border-subtle); }
+:root .mn-sb-foot { gap: var(--app-space-4); border-top-color: var(--app-border-subtle); }
 
 /* Full sidebar versus book spine. Topic/tag navigation moves into the Note list only in spine mode. */
 :root .mn-shell[data-rail="rail"] .mn-sidebar { width: var(--app-sidebar-collapsed); padding-inline: var(--app-space-7); align-items: center; }

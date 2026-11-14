@@ -633,7 +633,7 @@
 /* 墨台 v3 → app token 映射。两种皮肤各自独立：墨台块排除 slate，
    否则它（权重更高）会盖住素灰皮肤块的取值。
    柔纸已于 2026-11-11 并入墨台（暖色纸质合并为一种皮肤），原 paper 令牌块整体下线。 */
-:root:not([data-skin="slate"])[data-theme="light"] {
+:root[data-skin="ink"][data-theme="light"] {
   color-scheme: light;
   --app-bg-side: #e2ddce;
   --app-surface: #fffdf9;
@@ -666,7 +666,7 @@
   --app-shadow-card: 0 1rem 2.75rem -0.875rem rgba(60, 50, 30, .20), 0 .125rem .375rem rgba(60, 50, 30, .06);
 }
 
-:root:not([data-skin="slate"])[data-theme="dark"] {
+:root[data-skin="ink"][data-theme="dark"] {
   color-scheme: dark;
   --app-bg-side: #0a0a09;
   --app-surface: #151614;
@@ -892,4 +892,62 @@
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* shadcn/ui neutral theme, scoped to the new skin; existing skins keep their tokens. */
+:root[data-skin="shadcn"] {
+  --radius: .625rem;
+  --background: oklch(1 0 0); --foreground: oklch(.145 0 0);
+  --primary: oklch(.205 0 0); --primary-foreground: oklch(.985 0 0);
+  --secondary: oklch(.97 0 0); --secondary-foreground: oklch(.205 0 0);
+  --muted: oklch(.97 0 0); --muted-foreground: oklch(.556 0 0);
+  --accent: oklch(.97 0 0); --accent-foreground: oklch(.205 0 0);
+  --destructive: oklch(.577 .245 27.325); --border: oklch(.922 0 0);
+  --input: oklch(.922 0 0); --ring: oklch(.708 0 0);
+  --app-surface: var(--background); --app-bg-side: oklch(.985 0 0);
+  --app-surface-sunken: var(--muted); --app-raised-on-side: var(--background);
+  --app-seg-active: var(--background); --app-selected: var(--accent); --app-hover: var(--accent);
+  --app-border: var(--border); --app-border-subtle: var(--border);
+  --app-fg: var(--foreground); --app-fg-muted: var(--muted-foreground);
+  --app-fg-subtle: var(--muted-foreground); --app-fg-faint: var(--muted-foreground);
+  --app-accent: var(--primary); --app-accent-hover: oklch(.35 0 0);
+  --app-accent-text: var(--primary-foreground); --app-accent-fg: var(--foreground);
+  --app-accent-subtle: var(--accent); --app-accent-soft: var(--border);
+  --app-link: var(--foreground); --app-danger: var(--destructive);
+  --app-surface-raised: var(--background); --app-canvas-bg: var(--background);
+  --app-paper-bg: var(--background); --app-paper-fg: var(--foreground); --app-paper-border: var(--border);
+  --app-paper-shadow: none; --app-shadow-card: none; --app-font-serif: var(--app-font);
+  --app-radius-sm: calc(var(--radius) - 4px); --app-radius-md: calc(var(--radius) - 2px);
+  --app-radius-lg: var(--radius);
+}
+:root[data-skin="shadcn"][data-theme="dark"] {
+  --background: oklch(.145 0 0); --foreground: oklch(.985 0 0);
+  --primary: oklch(.922 0 0); --primary-foreground: oklch(.205 0 0);
+  --secondary: oklch(.269 0 0); --secondary-foreground: oklch(.985 0 0);
+  --muted: oklch(.269 0 0); --muted-foreground: oklch(.708 0 0);
+  --accent: oklch(.269 0 0); --accent-foreground: oklch(.985 0 0);
+  --destructive: oklch(.704 .191 22.216); --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%); --ring: oklch(.556 0 0);
+  --app-bg-side: oklch(.205 0 0); --app-accent-hover: oklch(.8 0 0);
 }

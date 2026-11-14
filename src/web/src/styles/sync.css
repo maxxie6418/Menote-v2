@@ -6,6 +6,10 @@
 .mn-sidebar-sync-button:disabled { cursor: default; }
 .mn-sidebar-sync-button svg { width: var(--app-icon-sm); height: var(--app-icon-sm); flex: none; }
 .mn-sidebar-sync-dot { width: var(--app-dot-size); height: var(--app-dot-size); flex: none; border-radius: var(--app-radius-pill); background: var(--app-success); }
+/* 完整侧栏中状态行与账户行共用点击高度和文字起点。 */
+.mn-sb-foot .mn-sidebar-sync:not(.is-collapsed) .mn-sidebar-sync-button { min-height: var(--app-space-34); gap: var(--app-space-6); padding: var(--app-space-6); }
+.mn-sb-foot .mn-sidebar-sync:not(.is-collapsed) .mn-sidebar-sync-dot { margin-inline: calc((var(--app-avatar-size) - var(--app-dot-size)) / 2); }
+.mn-sb-foot .mn-sidebar-sync:not(.is-collapsed) .mn-sidebar-sync-state { font-size: var(--app-size-nav); }
 .mn-sidebar-sync.is-pending .mn-sidebar-sync-dot { background: var(--app-accent); }
 .mn-sidebar-sync.is-error .mn-sidebar-sync-dot { background: var(--app-danger); }
 .mn-sidebar-sync.is-offline .mn-sidebar-sync-dot { background: var(--app-fg-faint); }
@@ -15,7 +19,9 @@
 .mn-sidebar-sync.is-error .mn-sidebar-sync-state, .mn-sidebar-sync.is-error .mn-sidebar-sync-button svg { color: var(--app-danger); }
 .mn-sidebar-sync.is-offline .mn-sidebar-sync-state, .mn-sidebar-sync.is-offline .mn-sidebar-sync-button svg { color: var(--app-fg-faint); }
 .mn-sidebar-sync-progress { position: absolute; bottom: var(--app-zero); left: var(--app-space-8); width: calc(var(--app-full-size) - var(--app-space-8) * 2); height: var(--app-space-2); accent-color: var(--app-accent); }
-@media (pointer: coarse) { .mn-sidebar-sync-button { min-height: var(--app-touch-target); } }
+@media (pointer: coarse) {
+  .mn-sidebar-sync-button, .mn-sb-foot .mn-sidebar-sync:not(.is-collapsed) .mn-sidebar-sync-button { min-height: var(--app-touch-target); }
+}
 
 
 /* ---------- G6 同步状态指示 ---------- */

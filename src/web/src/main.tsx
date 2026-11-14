@@ -23,8 +23,10 @@ import "./styles/scrollbar.css";
 import "./styles/inkstand-shell.css";
 import "./styles/inkstand-memo.css";
 import "./styles/inkstand-pages.css";
+import "./styles/shadcn.css";
 import { applyDocStyle } from "./lib/docStyle";
 import { getThemeSkin } from "./lib/themeSkin";
+import { getThemeMode } from "./lib/theme";
 import { getDensityPreference } from "./lib/density";
 import { applyDocLayout } from "./lib/docLayout";
 import { installScrollHot } from "./lib/scrollHot";
@@ -33,6 +35,7 @@ import { installScrollHot } from "./lib/scrollHot";
 applyDocStyle();
 // 皮肤与文档区布局（属性位置 / 工具栏位置）在首屏即落属性，避免切换时闪一版默认形态。
 getThemeSkin();
+getThemeMode();
 applyDocLayout();
 // 界面密度（根字号一档）：同样在首屏落 data-density，否则会先按 16px 排完再跳一档。
 getDensityPreference();

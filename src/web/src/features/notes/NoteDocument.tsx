@@ -527,7 +527,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const contentCharacters = docSplit.body.length;
   const itemPlace = item.topicId ? topics.find((row) => row.id === item.topicId)?.name : item.source === "manual" ? "草稿箱" : "收件箱";
   const groupPlace = item.groupId ? topics.find((row) => row.id === item.groupId)?.name : null;
-  const documentCrumb = [itemPlace || crumb, groupPlace, title ?? item.title].filter(Boolean).join(" / ");
+  const documentCrumb = [itemPlace || crumb, groupPlace, (title ?? item.title)?.trim() || "无标题"].filter(Boolean).join(" / ");
   // 模板选择块：仅空白种子期浮出；落了笔（dirtyTick）或已点选就不再打扰编辑。
   const showFormChooser = !isTableDoc && isConvertibleBlankDraft(item) && dirtyTick === 0 && !templatePicked;
 
@@ -603,7 +603,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       onSelectCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
       <DocBar
-        crumb={documentCrumb} showBack={showBack} onBack={onBack}
+        crumb={documentCrumb} showBack={showBack} onBack={onBack} note={!isTableDoc}
         mode={mode} onMode={switchMode}
         before={(
           <>
@@ -670,7 +670,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         )}
       />
       <div className="mn-docbody">
-        {!isTableDoc && <div className="mn-doc-kicker mn-doc-section-heading"><span>NOTE</span><i aria-hidden="true" />{item.topicId === null && <b>{item.source === "manual" ? "草稿" : "收件箱"}</b>}</div>}
         <div className="mn-doc-main">
         {recoveryText && (
           <p className="mn-conflictnote">
@@ -887,6 +886,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
 interface DocBarProps {
   crumb: string;
+  note?: boolean;
   showBack: boolean;
   onBack: () => void;
   mode: "edit" | "preview";
@@ -900,7 +900,7 @@ interface DocBarProps {
 
 /* 文档栏（2026-11-13 重排）：左面包屑，右侧三组——状态 / 视图（检查器·专注·模式）/ 动作（附件·更多）。
    分段只表达编辑与预览两种常驻形态；源码是低频形态，留在「更多」里。 */
-function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, before, after }: DocBarProps) {
+function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, before, after }: DocBarProps) {
   return (
     <div className="mn-docbar">
       <span className="mn-docbar-left">
@@ -909,7 +909,8 @@ function DocBar({ crumb, showBack, onBack, mode, onMode, actionsDisabled, before
             <ChevronLeft />
           </button>
         )}
-        <span className="mn-crumb">{crumb}</span>
+        {note && <span className="mn-docbar-kind">NOTE<span aria-hidden="true">——</span></span>}
+        <span className="mn-crumb" title={crumb}>{crumb}</span>
       </span>
       <span className="mn-docbar-right">
         {before}

@@ -132,12 +132,10 @@
 .mn-appearance-preview-chips { display: flex; flex-wrap: wrap; gap: var(--app-space-2); }
 .mn-appearance-preview-chips span { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 
-/* Note paper and its persistent inspector follow the v3 two-column reading layout.
-   行模板必须显式「auto 1fr」：两行都 auto 时 align-content 默认 stretch 会把空白均分到
-   kicker 行与正文行，空白越多（新建空笔记）kicker 行被撑得越高、标题掉得越低。 */
-.mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); grid-template-rows: auto minmax(var(--app-zero), 1fr); align-items: start; gap: var(--app-doc-side-gap); }
-.mn-doc[data-form="note"] .mn-doc-main { position: relative; grid-column: 1; grid-row: 2; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); min-height: var(--app-full-size); justify-self: center; margin: 0; }
-.mn-shell[data-layout="full"] .mn-doc-inspector { grid-row: 2; margin-top: var(--app-doc-inspector-offset); }
+/* Note 正文和检查器同处一行；类型标识已移至文档栏。 */
+.mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); grid-template-rows: minmax(var(--app-zero), 1fr); align-items: start; gap: var(--app-doc-side-gap); }
+.mn-doc[data-form="note"] .mn-doc-main { position: relative; grid-column: 1; grid-row: 1; width: min(var(--app-doc-measure), var(--app-full-size)); max-width: var(--app-doc-measure); min-height: var(--app-full-size); justify-self: center; margin: 0; }
+.mn-shell[data-layout="full"] .mn-doc-inspector { grid-row: 1; margin-top: var(--app-doc-inspector-offset); }
 .mn-doc-inspector { position: sticky; top: var(--app-space-8); grid-column: 2; display: flex; width: var(--app-doc-inspector-width); max-height: calc(var(--app-full-viewport-height) - var(--app-space-2xl)); flex-direction: column; gap: var(--app-space-8); overflow: auto; padding-block: var(--app-space-4) var(--app-space-14); color: var(--app-fg); }
 .mn-inspector-mobile-head { display: none; }
 .mn-inspector-section { min-width: 0; padding-block: var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); }

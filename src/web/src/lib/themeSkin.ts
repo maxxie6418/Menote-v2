@@ -1,20 +1,11 @@
-/** 界面皮肤（设置·外观）：slate = 素灰（默认），ink = 墨台。
- *  与 lib/theme.ts 同模式：localStorage 持久化 + `<html data-skin>` 生效。
- *  - slate 的令牌集中在 tokens.css 的 `:root[data-skin="slate"]`，结构覆盖在 styles/slate.css；
- *  - ink（墨台 v3）令牌即 tokens.css 的基础值，不写属性选择器也能成立。
- *  两种皮肤互相解耦：不切到某个皮肤时，它的规则一条都不命中。
- *
- *  历史值迁移：
- *  - 旧值 "default" 曾指墨台，素灰转正后统一按新默认（slate）解释——V2 尚无存量用户，
- *    不必保留墨台为隐式默认；想继续用墨台的人在设置里选一次「墨台」即可（值 "ink"）。
- *  - 旧值 "paper"（柔纸）已于 2026-11-11 与墨台合并：两者同属暖色纸质皮肤，
- *    合并后统一落到墨台（"ink"），柔纸的令牌块、paper.css 与形态覆盖一并下线。 */
+/** 界面皮肤：shadcn 为新账号默认；保留已选素灰和墨台。
+ *  旧值 default → slate，paper → ink；存储不可用时使用新默认。 */
 
-export type ThemeSkin = "slate" | "ink";
+export type ThemeSkin = "shadcn" | "slate" | "ink";
 
 const STORAGE_KEY = "menote.skin";
-const SKINS: readonly ThemeSkin[] = ["slate", "ink"];
-const DEFAULT_SKIN: ThemeSkin = "slate";
+const SKINS: readonly ThemeSkin[] = ["shadcn", "slate", "ink"];
+const DEFAULT_SKIN: ThemeSkin = "shadcn";
 
 /** 兼容旧值：default → slate；paper → ink（并入墨台）；ink/slate 原样；其余回落默认。 */
 function normalizeSkin(raw: string | null): ThemeSkin {

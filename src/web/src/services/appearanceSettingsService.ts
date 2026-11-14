@@ -12,7 +12,7 @@ import { getDocStyle, setDocStyle, type DocStyleVars } from "../lib/docStyle";
 
 export interface AppearanceSettings {
   theme: ThemeMode;
-  /** 皮肤：slate = 素灰（默认）、ink = 墨台（柔纸已于 2026-11-11 并入墨台）。 */
+  /** 皮肤：shadcn = 默认、slate = 素灰、ink = 墨台。 */
   skin: ThemeSkin;
   font: FontPreference;
   /** 界面密度：整站按根字号等比缩放（字号/间距/控件一起走），非逐项改尺寸。 */
@@ -34,18 +34,19 @@ export interface AppearanceSettings {
 const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
 const DEFAULT_APPEARANCE: AppearanceSettings = {
-  theme: "system", skin: "slate", font: "noto", density: "standard", measure: "auto",
+  theme: "system", skin: "shadcn", font: "noto", density: "standard", measure: "auto",
   propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: {},
 };
 
 const DENSITY_MODES: readonly DensityPreference[] = ["compact", "standard", "cozy", "spacious"];
-const SKIN_MODES: readonly ThemeSkin[] = ["slate", "ink"];
+const SKIN_MODES: readonly ThemeSkin[] = ["shadcn", "slate", "ink"];
 
 /** 旧同步值迁移：`"default"` 曾指墨台，素灰转正后统一按新默认（slate）解释；
  *  `"paper"`（柔纸）已并入墨台，按 `"ink"` 落地，避免老账号同步回来落回默认冷灰。 */
 function normalizeSkin(value: unknown): ThemeSkin {
   if (value === "paper") return "ink";
-  return SKIN_MODES.includes(value as ThemeSkin) ? (value as ThemeSkin) : "slate";
+  if (value === "default") return "slate";
+  return SKIN_MODES.includes(value as ThemeSkin) ? (value as ThemeSkin) : "shadcn";
 }
 
 function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSettings {
