@@ -63,7 +63,7 @@ export function ColumnHeaderCell({
         <span className="mn-tabledoc-hname mn-tabledoc-hname-static" title={name}>{name}</span>
       ) : (
         <input
-          className="mn-tabledoc-hname" value={draft ?? name} aria-label={`字段名（${name}）`}
+          className="mn-tabledoc-hname" value={draft ?? name} aria-label={`字段名（${name}）`} title={draft ?? name}
           onChange={(event) => onDraft(event.target.value)}
           onBlur={onCommit}
           onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}

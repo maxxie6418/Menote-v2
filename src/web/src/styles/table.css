@@ -90,6 +90,9 @@
 .mn-tabledoc-add-column svg, .mn-tabledoc-add-row svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
 .mn-tabledoc-add-column-cell { min-height: var(--app-prop-height); }
 .mn-tabledoc-hcell { flex: 1; min-width: var(--app-table-cell-min); position: relative; display: flex; align-items: center; gap: var(--app-space-2); min-height: var(--app-prop-height); padding: var(--app-space-2); }
+/* 字段名独占第一行，操作放在第二行；窄列不再被透明或浮出的控件挤占。 */
+.mn-tabledoc-hcell:not(.readonly):not(.mn-tabledoc-addcol) { flex-wrap: wrap; align-content: center; }
+.mn-tabledoc-hcell:not(.readonly):not(.mn-tabledoc-addcol) .mn-tabledoc-hname { order: -1; flex: 0 0 var(--app-full-size); }
 /* 表头默认只露字段名（2026-11-09）：拖动柄、排序、类型徽标都在悬停/聚焦该列时才浮出，
    阻尼态用 opacity 而不是删元素——位置恒定，浮出时不抖（FR-TBL-19）。 */
 .mn-tabledoc-hcell .mn-tabledoc-col-drag,
