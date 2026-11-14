@@ -58,6 +58,7 @@ export { default as ListOrdered } from "lucide-react/icons/list-ordered";
 export { default as ListTodo } from "lucide-react/icons/list-todo";
 export { default as ListTree } from "lucide-react/icons/list-tree";
 export { default as Lock } from "lucide-react/icons/lock";
+export { default as LockOpen } from "lucide-react/icons/lock-open";
 export { default as LockKeyhole } from "lucide-react/icons/lock-keyhole";
 export { default as LogOut } from "lucide-react/icons/log-out";
 export { default as Menu } from "lucide-react/icons/menu";

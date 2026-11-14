@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { ChevronDown, GripVertical, Lock, Plus } from "../../icons";
+import { ChevronDown, GripVertical, Lock, LockOpen, Plus } from "../../icons";
 import { useLockVersion, useTopicItemCounts, useTopics, type BrowseSection } from "../../services/contentHooks";
 import { createTopic, moveGroupToTopic, renameTopic, softDeleteTopic } from "../../services/contentService";
 import { isTopicUnlocked } from "../../services/keyringService";
@@ -64,7 +64,6 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropIte
         <button type="button" className="mn-space" onClick={onOpenPrivate} aria-label={`加密空间，${space ? "已锁定" : "未设置"}`}>
           <Lock aria-hidden="true" />
           <span>加密空间</span>
-          <span className="mn-space-state">{space ? "已锁" : "未设置"}</span>
         </button>
       )}
 
@@ -232,7 +231,7 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
         onContextMenu={(event) => openPointerMenu(event, topic)}
         onKeyDown={(event) => openKeyboardMenu(event, topic)}
       >
-        {hasGroups ? (
+        {!fixed && (hasGroups ? (
           <button
             type="button" className="mn-tree-chevbtn" aria-expanded={open}
             aria-label={open ? `收起「${topic.name}」` : `展开「${topic.name}」`}
@@ -242,10 +241,17 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
           </button>
         ) : (
           <span className="mn-tree-slot" aria-hidden="true" />
-        )}
+        ))}
         <button type="button" className="mn-tree-label" aria-haspopup="menu" onClick={() => onSelect({ kind: "topic", id: topic.id })}>
-          {fixed && <Lock />}{topic.name}
+          {fixed ? <><LockOpen aria-hidden="true" />加密空间</> : topic.name}
         </button>
+        {fixed && hasGroups && (
+          <button type="button" className="mn-tree-chevbtn" aria-expanded={open}
+            aria-label={open ? "收起加密空间分组" : "展开加密空间分组"}
+            onClick={() => setOpen((value) => !value)}>
+            <ChevronDown className="mn-tree-chev" data-open={open} aria-hidden="true" />
+          </button>
+        )}
         {!fixed && (counts[topic.id] ?? 0) > 0 && <span className="mn-tree-count" aria-label={`${counts[topic.id]} 篇笔记`}>{counts[topic.id]}</span>}
         {!fixed && <button type="button" className="mn-tree-drag" draggable aria-label={`拖动「${topic.name}」调整目录位置`} title="拖动调整位置"
           onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", topic.id); onDragStart?.(topic.id); }} onDragEnd={onDragEnd}><GripVertical aria-hidden="true" /></button>}

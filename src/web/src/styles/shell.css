@@ -134,14 +134,13 @@
 .mn-space {
   display: flex; align-items: center; gap: var(--app-space-6);
   width: var(--app-full-size); height: var(--app-tree-row-height);
-  padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-14);
+  padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-8);
   border: var(--app-zero); border-radius: var(--app-radius-sm); background: none;
   color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-button);
   font-weight: var(--app-weight-medium); cursor: pointer; text-align: left;
 }
 .mn-space svg { width: var(--app-icon-sm); height: var(--app-icon-sm); color: var(--app-accent-fg); flex: none; }
 .mn-space:hover { background: var(--app-hover); }
-.mn-space-state { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 
 /* 段标题：11/500/faint + 右侧动作。层级由尺寸、字重、颜色三件承担，不再画延展线。 */
 .mn-sechead { display: flex; align-items: center; gap: var(--app-space-xs); height: var(--app-sechead-height); padding: var(--app-zero) var(--app-space-xs); margin-bottom: var(--app-space-6); }
@@ -183,8 +182,8 @@
 .mn-tree-chevbtn { position: relative; width: var(--app-icon-xxs); height: var(--app-icon-xxs); display: grid; place-items: center; flex: none; border: var(--app-zero); background: none; padding: var(--app-zero); color: inherit; cursor: pointer; }
 .mn-tree-chevbtn::after { content: ""; position: absolute; inset-block: calc((var(--app-target-min) - var(--app-icon-xxs)) / -2); inset-inline: calc(var(--app-space-6) * -1); }
 .mn-tree-chevbtn:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); border-radius: var(--app-radius-sm); }
-/* 展开中的加密空间列表与主题列表之间留 14 */
-.mn-tree-space { margin-bottom: var(--app-space-14); }
+/* 两种状态与主题标题保持相同间距。 */
+.mn-tree-list.mn-tree-space { margin-bottom: var(--app-space-8); }
 /* 行尾动作悬停才出现（低频动作不常驻）。几何统一由 .mn-minibtn 基类提供（28 图标槽 + 14 图标），
    此处只负责显隐，避免同一类按钮在各上下文各写一套尺寸。 */
 .mn-treerow .mn-minibtn {
@@ -394,6 +393,7 @@
 /* 标签内联图标（私人空间锁标）：与锁定态 .mn-space 同规——14 图标 + 6 间距，居于文字基线；
    不改成 flex 容器，保住长主题名的 text-overflow 省略。 */
 .mn-treerow .mn-tree-label svg { width: var(--app-icon-sm); height: var(--app-icon-sm); vertical-align: text-bottom; margin-right: var(--app-space-6); }
+.mn-treerow.priv .mn-tree-label svg { color: var(--app-accent-fg); }
 /* 新建主题的内联输入：贴在段标题正下方（低频动作收进标题行，不在列表底部常驻） */
 .mn-tree-new { width: var(--app-full-size); height: var(--app-nav-height); margin-bottom: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font-family: var(--app-font); font-size: var(--app-size-nav); padding: var(--app-zero) var(--app-space-xs); }
 .mn-tree-new:focus { border-color: var(--app-border); }

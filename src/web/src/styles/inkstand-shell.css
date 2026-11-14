@@ -24,8 +24,10 @@
 :root .mn-queue { gap: var(--app-space-4); margin-bottom: var(--app-space-8); }
 :root .mn-queue a { height: var(--app-space-30); padding-inline: var(--app-space-8); border-radius: var(--app-radius-sm); }
 :root .mn-zone { margin: var(--app-space-8) 0; background: var(--app-border-subtle); }
+:root .mn-queue:has(+ .mn-zone) { margin-bottom: var(--app-zero); }
 :root .mn-tree { gap: var(--app-space-2); margin-bottom: var(--app-space-8); }
 :root .mn-treerow { height: var(--app-space-26); border-radius: var(--app-radius-sm); font-size: var(--app-size-nav); }
+:root .mn-space { height: var(--app-space-26); font-size: var(--app-size-nav); }
 :root .mn-tree-sublist .mn-treerow { font-size: var(--app-size-nav); }
 :root .mn-tree-count { margin-left: auto; flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 :root .mn-treerow.on { background: var(--app-border-subtle); box-shadow: inset var(--app-space-2) 0 0 var(--app-accent); }
