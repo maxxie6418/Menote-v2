@@ -12,6 +12,7 @@ import {
 } from "../../services/mcpTokenService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { InfoHint } from "../../components/ui/InfoHint";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -109,7 +110,7 @@ export function McpTokenManager() {
   };
 
   const revoke = async (token: McpTokenView) => {
-    if (!window.confirm(`确定撤销 ${token.tokenPrefix}？撤销后无法恢复，客户端需改用其他 Token。`)) return;
+    if (!await confirmDialog({ title: "撤销 Token", message: `确定撤销 ${token.tokenPrefix}？撤销后无法恢复，客户端需改用其他 Token。`, danger: true })) return;
     try {
       await revokeMcpToken(token.id);
       setVisibleTokens((current) => { const next = { ...current }; delete next[token.id]; return next; });

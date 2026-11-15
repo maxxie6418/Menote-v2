@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "../icons";
+import { confirmDialog } from "../components/ui/ConfirmDialog";
 import { useHomeSnapshot } from "../services/contentHooks";
 import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { saveItemMeta } from "../services/contentService";
@@ -51,7 +52,7 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
   };
 
   const remove = async (tag: string) => {
-    if (!window.confirm(`从 ${visibleItems.filter((item) => item.tags.includes(tag)).length} 条内容中移除 #${tag}？`)) return;
+    if (!await confirmDialog({ title: "移除标签", message: `从 ${visibleItems.filter((item) => item.tags.includes(tag)).length} 条内容中移除 #${tag}？` })) return;
     setBusy(true); setError("");
     try {
       const affected = visibleItems.filter((item) => item.tags.includes(tag));

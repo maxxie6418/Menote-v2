@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser, Item } from "@menote/shared";
+import { alertDialog, confirmDialog } from "../components/ui/ConfirmDialog";
 import { Sidebar } from "./Sidebar";
 import { InboxRefresh } from "../features/sync";
 import { MainLayout } from "./MainLayout";
@@ -146,7 +147,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setSummaryRequest({ id: item.id, token: Date.now() });
   }, [navigate, section]);
   const trashNote = useCallback(async (item: Item) => {
-    if (!window.confirm(`将「${item.title}」移入回收站？之后可恢复。`)) return;
+    if (!await confirmDialog({ title: "移入回收站", message: `将「${item.title}」移入回收站？之后可恢复。` })) return;
     await softDeleteItem(userId, item.id);
     if (noteId === item.id) {
       setNoteId(null);
@@ -155,7 +156,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   }, [userId, noteId, section, navigate]);
   const trashNotes = useCallback(async (batch: Item[]) => {
     if (batch.length === 0) return false;
-    if (!window.confirm(`将 ${batch.length} 篇移入回收站？之后可恢复。`)) return false;
+    if (!await confirmDialog({ title: "移入回收站", message: `将 ${batch.length} 篇移入回收站？之后可恢复。` })) return false;
     for (const item of batch) await softDeleteItem(userId, item.id);
     if (noteId && batch.some((item) => item.id === noteId)) {
       setNoteId(null);
@@ -216,7 +217,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       setView("main"); setSection(next); setNoteId(table.id); setMobilePane("doc"); setDrawerOpen(false);
       navigate(sectionRoute(next, table.id));
     } catch {
-      window.alert("新建表格失败，请重试。");
+      void alertDialog({ title: "新建表格失败", message: "请稍后重试。" });
     }
   }, [userId, navigate]);
   const importMarkdown = useCallback(async (files: File[]) => {
@@ -371,7 +372,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onOpenPrivate={() => setPrivateGate(true)}
       onDropItem={async (itemId, topicId, groupId) => {
         try { await saveItemMeta(userId, itemId, { topicId, groupId }); }
-        catch (error) { window.alert(error instanceof Error ? error.message : "移动失败，请稍后重试。"); }
+        catch (error) { void alertDialog({ title: "移动失败", message: error instanceof Error ? error.message : "请稍后重试。" }); }
       }}
       onSelectSection={(next) => {
         setView("main");
@@ -522,7 +523,8 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           headerExtra={(
             <button type="button" className="mn-textbtn" aria-label="清空回收站"
               onClick={async () => {
-                if (!items || items.length === 0 || !window.confirm(`清空回收站（${items.length} 项）？永久删除不可恢复。`)) return;
+                if (!items || items.length === 0
+                  || !await confirmDialog({ title: "清空回收站", message: `清空回收站（${items.length} 项）？永久删除不可恢复。`, danger: true })) return;
                 await purgeItemsPermanently(userId, items.map((row) => row.id));
                 setNoteId(null);
                 navigate(sectionRoute(section));

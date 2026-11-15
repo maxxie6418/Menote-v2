@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import {
   type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget, verifyRemoteBackup, restoreRemoteBackup,
 } from "../../services/backupService";
@@ -66,7 +67,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   };
 
   const removeRemoteBackup = async (target: TargetView, backupId: string) => {
-    if (!window.confirm(`永久删除远端备份文件夹 ${target.remotePath}/${backupId}/？此操作不会删除本地数据，且无法撤销。`)) return;
+    if (!await confirmDialog({ title: "删除远端备份", message: `永久删除远端备份文件夹 ${target.remotePath}/${backupId}/？此操作不会删除本地数据，且无法撤销。`, danger: true })) return;
     const result = await deleteRemoteBackup(target.id, backupId);
     if (!result.ok) setMessage(`删除远端备份失败：${result.error ?? "未知错误"}`);
     else setRemoteBackups((previous) => ({ ...previous, [target.id]: (previous[target.id] ?? []).filter((backup) => backup.id !== backupId) }));
@@ -105,7 +106,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   };
 
   const restore = async (target: TargetView, id: string) => {
-    if (!window.confirm(`从 ${id} 合并恢复到当前账号？较新的现有条目会保留，旧数据可能被恢复版本覆盖。建议先为当前数据推送一份新备份。`)) return;
+    if (!await confirmDialog({ title: "恢复备份", message: `从 ${id} 合并恢复到当前账号？较新的现有条目会保留，旧数据可能被恢复版本覆盖。建议先为当前数据推送一份新备份。` })) return;
     setVerifying(id); setMessage("正在校验并恢复快照…");
     const result = await restoreRemoteBackup(target.id, id);
     setMessage(result.ok
@@ -115,7 +116,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm("删除此备份目标？（远端已备份内容不受影响）")) return;
+    if (!await confirmDialog({ title: "删除备份目标", message: "删除此备份目标？（远端已备份内容不受影响）", danger: true })) return;
     await deleteTarget(id);
     refresh(true);
   };

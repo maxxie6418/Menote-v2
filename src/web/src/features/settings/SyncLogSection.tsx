@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { clearSyncDiagnostics, listSyncDiagnostics, subscribeSyncDiagnostics, type SyncDiagnosticRow } from "../../services/syncDiagnosticsService";
 
 type CategoryFilter = "all" | SyncDiagnosticRow["category"];
@@ -59,7 +60,7 @@ export function SyncLogSection({ userId }: { userId: string }) {
   };
 
   const clearLogs = async () => {
-    if (!window.confirm("清除本账号在此浏览器保存的同步诊断日志？")) return;
+    if (!await confirmDialog({ title: "清除诊断日志", message: "清除本账号在此浏览器保存的同步诊断日志？", danger: true })) return;
     await clearSyncDiagnostics(userId);
     setNotice("诊断日志已清除");
   };

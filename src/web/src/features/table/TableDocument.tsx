@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "../../icons";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import {
   FIELDS_KEY, readDefs, removeDef, renameDef, reorderDefs, splitFrontmatter, writeDef,
   type OptionColor, type PropertyDef, type PropertyType,
@@ -315,9 +316,9 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     });
   };
 
-  const deleteSelectedRows = () => {
+  const deleteSelectedRows = async () => {
     if (!table || activeSelection.size === 0) return;
-    if (!window.confirm(`删除选中的 ${activeSelection.size} 行？`)) return;
+    if (!await confirmDialog({ title: "删除行", message: `删除选中的 ${activeSelection.size} 行？`, danger: true })) return;
     saveUndoPoint("批量删除");
     applyGrid(table.header, table.rows.filter((_, index) => !activeSelection.has(index)));
     setSelectedRows(new Set());
@@ -647,7 +648,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           <p>表格结构无法解析（需要表头行、`---` 分隔行与行首管道符）。</p>
           {!readOnly && (
             <button type="button" className="mn-auth-submit"
-              onClick={() => { if (window.confirm("封存当前版本并降级为普通笔记？降级后不可恢复为表格。")) onDegrade(); }}>
+              onClick={() => { void confirmDialog({ title: "转为普通笔记", message: "封存当前版本并降级为普通笔记？降级后不可恢复为表格。", danger: true }).then((confirmed) => { if (confirmed) onDegrade(); }); }}>
               转为普通笔记
             </button>
           )}
@@ -716,7 +717,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
         <div className="mn-tabledoc-selection" role="toolbar" aria-label="所选行操作">
           <span>已选 {activeSelection.size} 行</span>
           <button type="button" className="mn-textbtn" onClick={() => void copySelectedRows()}><Copy aria-hidden="true" />复制行</button>
-          <button type="button" className="mn-textbtn" onClick={deleteSelectedRows}><Trash2 aria-hidden="true" />删除行</button>
+          <button type="button" className="mn-textbtn" onClick={() => void deleteSelectedRows()}><Trash2 aria-hidden="true" />删除行</button>
           <span className="mn-tabledoc-selection-hint">拖动任一已选行手柄可批量重排</span>
         </div>
       )}
@@ -794,7 +795,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   onOptions={(raw) => setColumnOptions(col, raw)}
                   onColor={(option, color) => setColumnOptionColor(col, option, color)}
                   onWrapChange={(wrap) => toggleColumnWrap(name, wrap)}
-                  onDelete={() => { if (window.confirm(`删除字段「${name}」及其所有单元格内容？`)) removeColumn(col); }}
+                  onDelete={() => { void confirmDialog({ title: "删除字段", message: `删除字段「${name}」及其所有单元格内容？`, danger: true }).then((confirmed) => { if (confirmed) removeColumn(col); }); }}
                 />
                 );
               })}

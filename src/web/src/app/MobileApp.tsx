@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "../icons";
+import { alertDialog } from "../components/ui/ConfirmDialog";
 import type { AuthUser, Item } from "@menote/shared";
 import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
@@ -100,7 +101,7 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
       setPage("notes"); setNoteSection({ kind: "drafts" }); setSelectedNoteId(table.id);
       onNavigate({ kind: "notes", section: { kind: "drafts" }, itemId: table.id });
     } catch {
-      window.alert("新建表格失败，请重试。");
+      void alertDialog({ title: "新建表格失败", message: "请稍后重试。" });
     }
   };
 

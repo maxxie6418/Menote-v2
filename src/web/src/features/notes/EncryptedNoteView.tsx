@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "../../icons";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -199,8 +200,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
                   onClick={() => {
                     const markdown = getMarkdownRef.current?.() ?? plain;
                     if (markdown === null) return;
-                    if (!window.confirm("解除本篇加密并转为明文？")) return;
-                    void decryptToPlain(userId, item.id, markdown).then(onBack);
+                    void confirmDialog({ title: "解除本篇加密", message: "解除本篇加密并转为明文？", danger: true })
+                      .then((confirmed) => { if (confirmed) return decryptToPlain(userId, item.id, markdown).then(onBack); });
                   }}>
                   <ShieldOff />
                 </button>

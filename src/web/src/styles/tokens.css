@@ -428,6 +428,8 @@
   --app-dialog-width-xl: min(54rem, calc(100vw - var(--app-space-2xl)));
   --app-dialog-max-height: calc(100dvh - var(--app-space-2xl)); /* 让位遮罩内边距，保证不贴边 */
   --app-dialog-head-gap: var(--app-space-6);
+  --app-version-list-max: 12rem;   /* 版本历史：封存列表可视高度（约 6 行，超出滚动） */
+  --app-diff-min: 12rem;           /* 版本历史：行级对比区最小可视高度 */
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
   --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
   --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */

@@ -5,6 +5,7 @@ import { createTopic, moveGroupToTopic, renameTopic, softDeleteTopic } from "../
 import { isTopicUnlocked } from "../../services/keyringService";
 import { lockPrivateSpace } from "../../services/privateSpaceService";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
+import { confirmDialog, promptDialog } from "../../components/ui/ConfirmDialog";
 import { SectionHead } from "../../components/ui/SectionHead";
 import { DEFAULT_WORKSPACE_SETTINGS, orderIds, readWorkspaceSettings, updateWorkspaceSettings, type WorkspaceSettings } from "../../services/workspaceSettingsService";
 
@@ -173,7 +174,7 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
     ...(lockedRoot ? [] : [{
       label: "重命名",
       onSelect: async () => {
-        const next = window.prompt(`重命名${contextMenu.target.depth === 0 ? "主题" : "分组"}`, contextMenu.target.name);
+        const next = await promptDialog({ title: `重命名${contextMenu.target.depth === 0 ? "主题" : "分组"}`, initial: contextMenu.target.name, confirmLabel: "保存" });
         if (next?.trim()) await renameTopic(userId, contextMenu.target.id, next.trim());
       },
     }]),
@@ -187,7 +188,7 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
         const message = isTopic
           ? `删除主题「${contextMenu.target.name}」？主题下笔记会保留；可从回收站恢复主题。`
           : `删除分组「${contextMenu.target.name}」？其中笔记不会被删除。`;
-        if (!window.confirm(message)) return;
+        if (!await confirmDialog({ title: isTopic ? "删除主题" : "删除分组", message, danger: true })) return;
         await softDeleteTopic(userId, contextMenu.target.id);
         const currentSectionRemoved = selected.kind === "topic" && (
           selected.id === contextMenu.target.id || (isTopic && groups.some((group) => group.id === selected.id))

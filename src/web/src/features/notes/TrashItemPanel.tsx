@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronLeft } from "../../icons";
+import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import type { Item } from "@menote/shared";
 import { formatItemMeta } from "./format";
 import { purgeItemsPermanently, restoreFromTrash } from "../../services/versionService";
@@ -36,7 +37,7 @@ export function TrashItemPanel({ userId, item, onBack, showBack }: TrashItemPane
           </button>
           <button type="button" className="mn-auth-link" disabled={busy} aria-disabled={busy}
             onClick={async () => {
-              if (!window.confirm("永久删除？此操作不可恢复（加密条目的包装块一并清除）。")) return;
+              if (!await confirmDialog({ title: "永久删除", message: "永久删除？此操作不可恢复（加密条目的包装块一并清除）。", danger: true })) return;
               setBusy(true);
               await purgeItemsPermanently(userId, [item.id]);
               setBusy(false);

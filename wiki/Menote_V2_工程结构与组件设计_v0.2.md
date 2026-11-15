@@ -144,7 +144,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **同步诊断**：`services/syncDiagnosticsService.ts` 异步写入本机 IndexedDB `syncDiagnostics` 表，按账号隔离、每账号最多 2,000 条；同步引擎只记结构化阶段/回执字段，UI 经服务读取。不得写入正文、标题、附件名、完整内容哈希或密钥；诊断落库失败不可影响业务流程。
 **附件策略与同步状态**：services/attachmentPolicyService.ts 通过账号设置与 outbox 同步扩展名/大小；Worker services/attachmentService.ts 每次上传读取该策略并遵守 20 MiB 硬上限。SidebarSyncControl 读取 syncEngine 的推送队列和拉取阶段，手动同步等待 Web Lock。services/editorSaveService.ts 管理当前标签页按账号注册的编辑保存回调与变更序号（不缓存正文或密钥）；手动同步先调用该出口完成普通/加密编辑保存，再等待内容命令队列与同步锁；contentHooks 的队列订阅同时覆盖本标签页与跨标签页变化。
 **ai/**（TP8）：`AiAssistDialog`（摘要预览确认写属性区、标签勾选追加；Note 编辑器「更多」菜单入口，仅 Note）；AI 开关/模型/额度设置节在 `settings/`（`AiSection`）。UI 只经 services 调用。
-**components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。
+**components/ui/**（shadcn）：Button / Input / Dialog / DropdownMenu / Popover / Tabs / Tooltip / Toast / Checkbox / Select / Calendar 等，按需生成。另有自研公共件：`AnchoredPanel`、`ContextMenu`、`InfoHint`、`SectionHead`、`ConfirmDialog`（0.2.87：全局确认/输入/提示弹窗，Promise 服务 `confirmDialog/promptDialog/alertDialog` + 根部唯一宿主，替代全部 `window.confirm/alert/prompt` 原生弹窗；破坏性操作用 `danger` 标记并默认焦点落取消）。
 
 ## 4. Worker 架构
 
