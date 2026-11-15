@@ -152,7 +152,7 @@ backupRoutes.post("/api/backup/run/:id", resolveSession, sameOriginGuard, requir
     return c.json({ error: "target_disabled" }, 409);
   }
   return c.json(
-    result.ok ? { ok: true, shards: result.shards, backupId: result.backupId } : { ok: false, error: result.error },
+    result.ok ? { ok: true, shards: result.shards, backupId: result.backupId, missingAttachments: result.missingAttachments } : { ok: false, error: result.error },
     { status: result.ok ? 200 : 502 },
   );
 });

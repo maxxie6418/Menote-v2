@@ -75,7 +75,9 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const runOnce = async (id: string) => {
     setMessage("推送中…");
     const result = await runTargetOnce(id);
-    setMessage(result.ok ? `推送完成（${result.shards} 个月度分片）。` : `推送失败：${result.error ?? "未知错误"}`);
+    if (!result.ok) setMessage(`推送失败：${result.error ?? "未知错误"}`);
+    else if (result.missingAttachments?.length) setMessage(`推送完成（${result.shards} 个月度分片）；有 ${result.missingAttachments.length} 个引用附件在服务器缺失、未入快照，详见运行状态。`);
+    else setMessage(`推送完成（${result.shards} 个月度分片）。`);
     refresh(true);
   };
 

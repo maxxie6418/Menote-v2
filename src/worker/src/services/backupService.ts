@@ -37,8 +37,10 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
   return new TextDecoder().decode(plain);
 }
 
-/** 收集当前完整状态为备份 JSON（按月分片数据 + manifest 输入）。加密条目保持密文。 */
-export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer }> }> {
+/** 收集当前完整状态为备份 JSON（按月分片数据 + manifest 输入）。加密条目保持密文。
+ *  引用附件缺失（历史孤儿清理、恢复窗口断链）不中断备份：跳过并落账到 manifest，
+ *  由推送结果向用户提示，避免一个断链哈希卡死全部自动备份。 */
+export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer }>; missingAttachments: string[] }> {
   const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
   const monthOf = (timestamp: unknown): string => {
@@ -55,9 +57,10 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
     (months[monthOf(topic.created_at ?? 0)] ??= []).push({ kind: "topic", data: topic });
   }
   const attachments: Array<{ key: string; bytes: ArrayBuffer }> = [];
+  const missingAttachments: string[] = [];
   for (const sha256 of attachmentHashes) {
     const object = await bucket.get(`${userId}/${sha256}`);
-    if (!object) throw new Error(`缺少引用的附件：${sha256}`);
+    if (!object) { missingAttachments.push(sha256); continue; }
     attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer() });
   }
   const manifest = {
@@ -67,28 +70,30 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
     shards: Object.keys(months).sort().map((month) => ({ month, entities: months[month]!.length })),
     counts: { items: items.length, topics: topics.length, memoComments: memoComments.length, attachments: attachments.length },
     note: "加密条目为密文 + item_key_wraps 包装元数据；恢复需用户凭据（FR-BAK-5）",
+    ...(missingAttachments.length > 0 ? { missingAttachments } : {}),
   };
-  return {
-    months,
-    manifest: {
-      ...manifest,
-      extra: {
-        itemKeyWraps: itemKeyWraps.map(encodeBackupRow),
-        topicKeyWraps: topicKeyWraps.map(encodeBackupRow),
-        settings: settings.map(encodeBackupRow),
+    return {
+      months,
+      manifest: {
+        ...manifest,
+        extra: {
+          itemKeyWraps: itemKeyWraps.map(encodeBackupRow),
+          topicKeyWraps: topicKeyWraps.map(encodeBackupRow),
+          settings: settings.map(encodeBackupRow),
+        },
       },
-    },
-    attachments,
-  };
+      attachments,
+      missingAttachments,
+    };
 }
 
 /** 推送一次：建立独立快照目录，先传内容与 manifest，最后写 COMPLETE。 */
 export async function pushBackup(
   ctx: { db: D1Database; userId: string; bucket: R2Bucket },
   target: RemoteTarget,
-): Promise<{ ok: true; shards: number; backupId: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; shards: number; backupId: string; missingAttachments: string[] } | { ok: false; error: string }> {
   try {
-    const { months, manifest, attachments } = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
+    const { months, manifest, attachments, missingAttachments } = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
     const root = normalizeRemotePath(target.remotePath);
     const id = newSnapshotId();
     const directory = `${root}/${id}`;
@@ -110,7 +115,7 @@ export async function pushBackup(
       const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete);
       for (const old of backups.slice(target.retentionCount)) await deleteRemoteBackup(target, old.id);
     }
-    return { ok: true, shards: Object.keys(months).length, backupId: id };
+    return { ok: true, shards: Object.keys(months).length, backupId: id, missingAttachments };
   } catch (error) {
     return { ok: false, error: String(error).slice(0, 300) };
   }

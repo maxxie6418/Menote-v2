@@ -60,3 +60,18 @@ export function subscribeSyncDiagnostics(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+/** 最近一次完整同步轮次完成时间与最近一次错误（设置页同步摘要用；日志按时间倒序，先到先得）。 */
+export async function lastSyncCycleSummary(userId: string): Promise<{ completedAt: number | null; lastError: { at: number; code: string } | null }> {
+  await writeChain;
+  const rows = await localDb.syncDiagnostics.where("userId").equals(userId).toArray();
+  rows.sort((a, b) => b.at - a.at);
+  let completedAt: number | null = null;
+  let lastError: { at: number; code: string } | null = null;
+  for (const row of rows) {
+    if (completedAt === null && row.category === "cycle" && row.event === "sync_cycle_completed") completedAt = row.at;
+    if (lastError === null && row.category === "error" && row.code) lastError = { at: row.at, code: row.code };
+    if (completedAt !== null && lastError !== null) break;
+  }
+  return { completedAt, lastError };
+}

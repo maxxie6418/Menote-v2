@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { X } from "../../icons";
 import { BackupPanel } from "../backup";
 import { AttachmentListPanel } from "../attachments";
@@ -17,7 +17,8 @@ import { PropertyTemplatePanel } from "./PropertyTemplatePanel";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 import { SyncLogSection } from "./SyncLogSection";
 import { AttachmentPolicySettings } from "./AttachmentPolicySettings";
-import { getSyncPhase, requestSync, subscribeSyncStatus, syncQueueStatus, type SyncPhase } from "../../services/syncEngine";
+import { getDeviceId, getSyncPhase, getSyncProgress, requestSyncNow, subscribeSyncStatus, syncQueueStatus, type SyncPhase, type SyncProgress } from "../../services/syncEngine";
+import { lastSyncCycleSummary, subscribeSyncDiagnostics } from "../../services/syncDiagnosticsService";
 import { subscribeLocalChanges } from "../../lib/broadcast";
 import { InfoHint } from "../../components/ui/InfoHint";
 import { NativeSelect } from "../../components/ui/native-select";
@@ -112,22 +113,73 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
   );
 }
 
+/** 同步设置页：在侧栏状态之外补齐必要信息——上次同步时间、队列明细、失败原因、设备与自动同步机制。
+ *  数据口径：队列与设备号来自 syncEngine；上次同步与最近错误来自本机诊断日志（syncDiagnosticsService）。 */
 function SyncSection({ userId, onOpenLogs }: { userId: string; onOpenLogs: () => void }) {
   const [phase, setPhase] = useState<SyncPhase>(getSyncPhase);
-  const [pending, setPending] = useState(0);
-  const [failed, setFailed] = useState(0);
-  useEffect(() => subscribeSyncStatus(() => setPhase(getSyncPhase())), []);
+  const [progress, setProgress] = useState<SyncProgress>(getSyncProgress);
+  const [queue, setQueue] = useState({ pending: 0, failed: 0 });
+  const [summary, setSummary] = useState<{ completedAt: number | null; lastError: { at: number; code: string } | null } | null>(null);
+  const [deviceId, setDeviceId] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => subscribeSyncStatus(() => { setPhase(getSyncPhase()); setProgress(getSyncProgress()); }), []);
+  const loadQueue = useCallback(() => { void syncQueueStatus(userId).then(setQueue); }, [userId]);
+  const loadSummary = useCallback(() => { void lastSyncCycleSummary(userId).then(setSummary); }, [userId]);
   useEffect(() => {
-    const load = () => { void syncQueueStatus(userId).then((status) => { setPending(status.pending); setFailed(status.failed); }); };
-    load();
-    return subscribeLocalChanges(load);
-  }, [userId]);
-  const label = phase === "syncing" ? "正在同步" : phase === "error" || failed > 0 ? "同步失败" : pending > 0 ? "已保存，等待上传" : "已同步";
+    loadQueue();
+    return subscribeLocalChanges(loadQueue);
+  }, [loadQueue]);
+  useEffect(() => {
+    loadSummary();
+    void getDeviceId().then((id) => setDeviceId(id));
+    return subscribeSyncDiagnostics(loadSummary);
+  }, [loadSummary]);
+  const statusText = phase === "syncing"
+    ? (progress.stage === "push" && progress.total > 0 ? `正在上传 ${progress.completed}/${progress.total}` : progress.stage === "pull" ? "正在拉取更新…" : "同步中…")
+    : phase === "error" ? "同步异常" : queue.failed > 0 ? `同步异常 · ${queue.failed} 项失败` : queue.pending > 0 ? `已保存，${queue.pending} 项待上传` : "已同步";
+  const queueText = queue.pending === 0 && queue.failed === 0
+    ? "没有待上传或失败的本地改动"
+    : `${queue.pending} 项待上传${queue.failed > 0 ? ` · ${queue.failed} 项失败` : ""}`;
+  const errorText = summary?.lastError
+    ? `${new Date(summary.lastError.at).toLocaleString()} · ${summary.lastError.code}`
+    : "最近没有记录到错误";
+  const syncNow = async () => {
+    setBusy(true);
+    await requestSyncNow(userId);
+    loadQueue();
+    loadSummary();
+    setBusy(false);
+  };
   return (
     <section className="mn-settings-section" aria-label="同步">
-      <p>{label}{pending > 0 ? ` · ${pending} 项待上传` : ""}</p>
-      {(phase === "error" || failed > 0) && <button type="button" className="mn-btn" onClick={() => void requestSync(userId)}>重试同步</button>}
-      <button type="button" className="mn-textbtn" onClick={onOpenLogs}>查看诊断日志</button>
+      <p className="mn-setgroup">同步状态</p>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">当前状态<InfoHint>与侧栏同步控件同一数据源：上传队列排空且完成一轮拉取即为「已同步」。失败时可在下方立即重试。</InfoHint></p></div>
+        <span className="mn-syncvalue" role="status">{statusText}</span>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">本机队列<InfoHint>本浏览器尚未上传到服务器的本地改动数；失败项不计入自动重试节奏，需手动重试或等待下一轮。</InfoHint></p></div>
+        <span className="mn-syncvalue">{queueText}</span>
+      </div>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">上次同步完成<InfoHint>本机最近一次完整同步轮次（上传排水 + 拉取推进）的完成时间，记录在本浏览器诊断日志中。</InfoHint></p></div>
+        <span className="mn-syncvalue">{summary === null ? "…" : summary.completedAt ? new Date(summary.completedAt).toLocaleString() : "从未（等待首轮同步）"}</span>
+      </div>
+      {queue.failed > 0 && (
+        <div className="mn-setrow">
+          <div><p className="mn-setlabel">最近错误<InfoHint>诊断日志中最近一次同步错误与错误码；完整上下文在「同步日志」页按错误类型筛选查看。</InfoHint></p></div>
+          <span className="mn-syncvalue is-error">{errorText}</span>
+        </div>
+      )}
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">本设备标识<InfoHint>本浏览器的设备 ID（首次同步时生成）；服务端用它区分同步来源，可安全地提供给支持诊断。</InfoHint></p></div>
+        <code className="mn-syncvalue">{deviceId ? deviceId.slice(0, 12) : "…"}</code>
+      </div>
+      <p className="mn-sethint">自动同步：本地保存后即刻排队上传，联网时每 5 分钟与回到页面前台时各对齐一轮；离线期间改动留在本机队列，恢复联网后自动续传。</p>
+      <div className="mn-set-actions">
+        <button type="button" className="mn-btn" disabled={busy || phase === "syncing"} onClick={() => void syncNow()}>{busy ? "同步中…" : "立即同步"}</button>
+        <button type="button" className="mn-textbtn" onClick={onOpenLogs}>查看诊断日志</button>
+      </div>
     </section>
   );
 }

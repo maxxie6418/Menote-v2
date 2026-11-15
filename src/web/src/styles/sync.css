@@ -28,19 +28,24 @@
 .mn-syncbadge { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); white-space: nowrap; }
 .mn-syncbadge.err { color: var(--app-danger); }
 
-.mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-10); margin: var(--app-space-10) var(--app-zero); }
-.mn-sync-log-tools label { display: grid; gap: var(--app-space-4); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
+/* 诊断日志工具与操作条（2026-11-15 收紧：行距与上下边距各降一档） */
+.mn-sync-log-tools, .mn-sync-log-actions { display: flex; align-items: end; flex-wrap: wrap; gap: var(--app-space-6) var(--app-space-10); margin: var(--app-space-8) var(--app-zero); }
+.mn-sync-log-tools label { display: grid; gap: var(--app-space-2); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-sync-log-search { flex: 1 1 var(--app-field-width); }
 .mn-sync-log-count { margin-left: auto; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
-.mn-sync-log-actions { align-items: center; }
+.mn-sync-log-actions { align-items: center; margin-top: var(--app-space-4); }
 .mn-sync-log-actions .mn-sethint { width: auto; margin: var(--app-zero); }
 .mn-sync-log-list { max-height: var(--app-dialog-max-height); overflow: auto; border-top: var(--app-line) solid var(--app-border-subtle); }
 .mn-sync-log-entry { border-bottom: var(--app-line) solid var(--app-border-subtle); }
-.mn-sync-log-entry summary { display: flex; align-items: center; gap: var(--app-space-10); min-height: var(--app-row-height); cursor: pointer; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+/* 摘要行此前借用 60px 清单行高（--app-row-height），日志行被撑得过高；改为紧凑内边距行 */
+.mn-sync-log-entry summary { display: flex; align-items: center; gap: var(--app-space-10); padding: var(--app-space-6) var(--app-zero); cursor: pointer; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
 .mn-sync-log-entry summary time, .mn-sync-log-entry summary code { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); }
 .mn-sync-log-entry summary time { flex: none; }
 .mn-sync-log-entry summary strong { color: var(--app-fg-subtle); font-weight: var(--app-weight-medium); }
 .mn-sync-log-entry summary .is-conflict, .mn-sync-log-entry summary .is-error { color: var(--app-danger); }
 .mn-sync-log-entry summary code { max-width: var(--app-field-width); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-sync-log-entry summary em { margin-left: auto; color: var(--app-accent-fg); font-style: normal; }
-.mn-sync-log-entry pre { overflow: auto; padding: var(--app-space-10); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font-family: var(--app-font-mono); font-size: var(--app-size-chip); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mn-sync-log-entry pre { overflow: auto; margin: var(--app-zero) var(--app-zero) var(--app-space-6); padding: var(--app-space-8); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); color: var(--app-fg-muted); font-family: var(--app-font-mono); font-size: var(--app-size-chip); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 设置·同步页取值列：弱色但可读，右对齐与标签相对；错误取值用危险色 */
+.mn-syncvalue { color: var(--app-fg-muted); font-size: var(--app-size-button); text-align: right; overflow-wrap: anywhere; }
+.mn-syncvalue.is-error { color: var(--app-danger); }

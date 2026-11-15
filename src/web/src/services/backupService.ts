@@ -80,10 +80,10 @@ export async function restoreRemoteBackup(targetId: string, backupId: string): P
   } catch (error) { return { ok: false, error: String(error) }; }
 }
 
-export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string }> {
+export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string; missingAttachments?: string[] }> {
   try {
     const response = await fetch(`/api/backup/run/${id}`, { method: "POST" });
-    return (await response.json().catch(() => ({}))) as { ok: boolean; shards?: number; error?: string };
+    return (await response.json().catch(() => ({}))) as { ok: boolean; shards?: number; error?: string; missingAttachments?: string[] };
   } catch (cause) {
     return { ok: false, error: String(cause) };
   }
