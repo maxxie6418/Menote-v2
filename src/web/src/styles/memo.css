@@ -209,7 +209,6 @@
 .mn-memo-taglist button { position: relative; display: flex; align-items: center; gap: var(--app-space-xs); width: var(--app-full-size); padding: var(--app-space-6) var(--app-space-xs); border: var(--app-zero); border-radius: var(--app-radius); background: none; color: var(--app-fg-muted); font-family: var(--app-font); font-size: var(--app-size-list-title); text-align: left; cursor: pointer; }
 .mn-memo-taglist button:hover { background: var(--app-hover); color: var(--app-fg); }
 .mn-memo-taglist button[aria-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); font-weight: var(--app-weight-medium); }
-.mn-memo-taglist button[aria-pressed="true"]::before { content: ""; position: absolute; left: var(--app-zero); top: var(--app-space-xs); bottom: var(--app-space-xs); width: var(--app-focus-width); border-radius: var(--app-space-2); background: var(--app-accent); }
 .mn-memo-taglist span { margin-left: auto; color: var(--app-fg-faint); font-size: var(--app-size-nav); font-variant-numeric: tabular-nums; }
 
 .mn-memo-todo {

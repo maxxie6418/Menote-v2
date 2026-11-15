@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>选中态左侧强调条移除核验（0.2.89）</title>
+<link rel="stylesheet" href="../../src/web/dist/assets/index-DJr2SAaw.css">
+<style>
+  body { margin: 24px; background: var(--app-bg); display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  h1 { width: 100%; font: 600 14px/1.5 sans-serif; color: var(--app-fg); margin: 0 0 8px; }
+  .box { padding: 16px; border: 1px solid var(--app-border); border-radius: 8px; width: 240px; background: var(--app-bg-side); }
+  .box p { margin: 0 0 8px; font: 600 12px/1.5 sans-serif; color: var(--app-fg-faint); }
+  .mn-note-row { width: 100%; }
+  .mn-memo-taglist { width: 100%; list-style: none; margin: 0; padding: 0; }
+</style>
+</head>
+<body>
+<h1>选中态均不应再出现左侧强调条（0.2.89）</h1>
+
+<div class="box">
+  <p>侧栏导航 .mn-nav a.on</p>
+  <nav class="mn-nav">
+    <a href="#" class="on" onclick="return false">随记</a>
+    <a href="#" onclick="return false">文档</a>
+    <a href="#" onclick="return false">回收站</a>
+  </nav>
+</div>
+
+<div class="box">
+  <p>目录树 .mn-treerow.on</p>
+  <div class="mn-tree">
+    <div class="mn-treerow on"><span class="mn-tree-label">项目笔记</span><span class="mn-tree-count">12</span></div>
+    <div class="mn-treerow"><span class="mn-tree-label">灵感收集</span><span class="mn-tree-count">7</span></div>
+  </div>
+</div>
+
+<div class="box">
+  <p>笔记清单 .mn-note-row.on</p>
+  <a href="#" class="mn-note-row on" onclick="return false">
+    <span class="mn-note-title">选中行应只有底色</span>
+    <span class="mn-note-meta">2026-11-15</span>
+  </a>
+  <a href="#" class="mn-note-row" onclick="return false">
+    <span class="mn-note-title">普通行对照</span>
+    <span class="mn-note-meta">2026-11-14</span>
+  </a>
+</div>
+
+<div class="box">
+  <p>Memo 标签 [aria-pressed=true]</p>
+  <div class="mn-memo-taglist">
+    <button type="button" aria-pressed="true">工作 <span>5</span></button>
+    <button type="button" aria-pressed="false">生活 <span>3</span></button>
+  </div>
+</div>
+
+</body>
+</html>
