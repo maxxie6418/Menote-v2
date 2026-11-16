@@ -341,9 +341,15 @@ export function RaindropPanel({ userId }: { userId: string }) {
             : <ul className="mn-mcp-token-list">
                 {runs.map((run) => (
                   <li key={run.id} className="mn-sethint">
-                    {formatTime(run.finishedAt)} · {run.direction === "pull" ? "拉取" : "推送"}
-                    （{run.source === "manual" ? "手动" : "定时"}）· {STATUS_LABELS[run.status]}
-                    · {runSummary(run)}{run.detail ? ` · ${runDetailText(run.detail)}` : ""}
+                    <div className="mn-raindrop-run-summary">
+                      <strong>{STATUS_LABELS[run.status]}</strong>
+                      <span>{formatTime(run.finishedAt)} · {run.direction === "pull" ? "拉取" : "推送"}（{run.source === "manual" ? "手动" : "定时"}）</span>
+                      <span>{runSummary(run)}</span>
+                    </div>
+                    {run.detail && <details className="mn-raindrop-run-error">
+                      <summary>查看错误详情</summary>
+                      <p>{runDetailText(run.detail)}</p>
+                    </details>}
                   </li>
                 ))}
               </ul>}

@@ -7,6 +7,13 @@ import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetc
 
 interface BackupPanelProps { userId: string }
 
+function getPushStatus(result: string | null): { label: string; error: string | null } {
+  if (!result) return { label: "从未推送", error: null };
+  if (result.startsWith("失败:")) return { label: "失败", error: result.slice("失败:".length).trim() || "未知错误" };
+  if (result.startsWith("ok:")) return { label: "成功", error: null };
+  return { label: result, error: null };
+}
+
 /** 备份目标管理（G9，FR-BAK-1/2/8）：目标 CRUD、凭据复显（C-7）、手动推送一次、运行状态。 */
 export function BackupPanel({ userId }: BackupPanelProps) {
   void userId;
@@ -76,7 +83,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const runOnce = async (id: string) => {
     setMessage("推送中…");
     const result = await runTargetOnce(id);
-    if (!result.ok) setMessage(`推送失败：${result.error ?? "未知错误"}`);
+    if (!result.ok) setMessage("推送失败，详细错误见该备份条目的折叠详情。");
     else if (result.missingAttachments?.length) setMessage(`推送完成（${result.shards} 个月度分片）；有 ${result.missingAttachments.length} 个引用附件在服务器缺失、未入快照，详见运行状态。`);
     else setMessage(`推送完成（${result.shards} 个月度分片）。`);
     refresh(true);
@@ -131,7 +138,8 @@ export function BackupPanel({ userId }: BackupPanelProps) {
           {targets.map((target) => (
             <li key={target.id} className="mn-backuprow">
               <span className="mn-backupname">{target.name}（{target.kind} · {target.enabled ? "启用" : "停用"}）</span>
-              <span className="mn-attachmeta">{target.endpoint}/{target.remotePath}/ · 保留 {target.retentionCount === 0 ? "不限" : `${target.retentionCount} 份`} · 最近推送 {target.lastPushedAt ? new Date(target.lastPushedAt).toLocaleString() : "从未"}{target.lastResult ? ` · ${target.lastResult}` : ""}</span>
+              <span className="mn-attachmeta">{target.endpoint}/{target.remotePath}/ · 保留 {target.retentionCount === 0 ? "不限" : `${target.retentionCount} 份`}</span>
+              <span className="mn-attachmeta">上次推送状态：{getPushStatus(target.lastResult).label}{target.lastPushedAt ? ` · 最近成功 ${new Date(target.lastPushedAt).toLocaleString()}` : ""}</span>
               <div className="mn-backupactions">
                 <label><input type="checkbox" checked={target.schedule !== "manual"} onChange={(event) => void changeSchedule(target, event.target.checked ? "daily" : "manual")} /> 自动备份</label>
                 {target.schedule !== "manual" && <select aria-label={`${target.name}自动备份频率`} className="mn-propselect" value={target.schedule} onChange={(event) => void changeSchedule(target, event.target.value as "daily" | "weekly")}>
@@ -159,6 +167,10 @@ export function BackupPanel({ userId }: BackupPanelProps) {
                   <button type="button" className="mn-textbtn" onClick={() => void removeRemoteBackup(target, backup.id)}>删除远端内容</button>
                 </div>)}
               </div>}
+              {getPushStatus(target.lastResult).error && <details className="mn-backuperror">
+                <summary className="mn-attachmeta">查看错误详情</summary>
+                <p className="mn-attachmeta">{getPushStatus(target.lastResult).error}</p>
+              </details>}
             </li>
           ))}
         </ul>

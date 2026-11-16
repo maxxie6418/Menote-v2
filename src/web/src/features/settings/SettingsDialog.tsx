@@ -187,6 +187,7 @@ function SyncSection({ userId, onOpenLogs }: { userId: string; onOpenLogs: () =>
 /** 外观节：界面主题、字体、阅读宽度、属性位置与工具栏位置。
  *  偏好分别经 lib/themeSkin、lib/fontPreference、lib/measurePreference、lib/docLayout 即时生效。 */
 function AppearanceSection({ userId }: { userId: string }) {
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [skin, setSkin] = useState<ThemeSkin>(getThemeSkin);
   const [font, setFont] = useState<FontPreference>(getFontPreference);
   const [density, setDensity] = useState<DensityPreference>(getDensityPreference);
@@ -215,6 +216,15 @@ function AppearanceSection({ userId }: { userId: string }) {
   }, [userId]);
   return (
     <div>
+      <p className="mn-setgroup">个人</p>
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">导入数据</p><p className="mn-sethint">从 Flomo 或 Obsidian 导入笔记。</p></div>
+        <button type="button" className="mn-textbtn" aria-expanded={showImportOptions} onClick={() => setShowImportOptions((open) => !open)}>{showImportOptions ? "收起" : "选择来源"}</button>
+      </div>
+      {showImportOptions && <div className="mn-import-source-list" aria-label="导入来源">
+        <button type="button" className="mn-textbtn" disabled>Flomo <span>即将支持</span></button>
+        <button type="button" className="mn-textbtn" disabled>Obsidian <span>即将支持</span></button>
+      </div>}
       <p className="mn-setgroup">界面</p>
       <div className="mn-setrow">
         <div>
