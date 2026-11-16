@@ -16,6 +16,7 @@
 .mn-import-feedback { position: absolute; top: calc(var(--app-template-center) + var(--app-space-6)); left: var(--app-template-center); width: var(--app-doc-measure); max-width: var(--app-full-size); transform: translateX(-50%); margin: 0; color: var(--app-fg-subtle); font-size: var(--app-size-chip); text-align: center; }
 
 .mn-tabledoc { display: flex; flex-direction: column; gap: var(--app-space-4); }
+.mn-tabledoc-source-view { flex: 1; min-height: var(--app-zero); }
 .mn-tabledoc-workspace { position: relative; display: flex; flex: 1; min-width: var(--app-zero); min-height: var(--app-zero); }
 .mn-tabledoc-main { display: flex; flex: 1; flex-direction: column; min-width: var(--app-zero); min-height: var(--app-zero); }
 .mn-tabledoc-error { margin: var(--app-zero); color: var(--app-danger); font-size: var(--app-size-chip); }

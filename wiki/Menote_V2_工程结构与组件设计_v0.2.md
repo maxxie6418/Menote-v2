@@ -9,7 +9,7 @@
 ## 9. TP12 v3 组件映射增补（2026-11-06）
 
 - 首页仍归 `src/web/src/app/HomePage.tsx`；视图编排留在 `app/`，数据通过 `services/contentHooks` / `contentService` 获取与写入。
-- v3 样式映射分为 `src/web/src/styles/inkstand-shell.css`（外壳/导航）、`inkstand-memo.css`（Memo）与 `inkstand-pages.css`（首页、Note、表格页面）；token 统一登记于 `tokens.css`，不得在组件增加行内样式。
+- v3 样式映射分为 `src/web/src/styles/inkstand-shell.css`（外壳/导航）、`inkstand-memo.css`（Memo）、`inkstand-pages.css`（首页、Note、表格页面）与 `settings.css`（设置与账户窗口）；token 统一登记于 `tokens.css`，不得在组件增加行内样式。
 - Memo 视图由 `features/memo/MemoWorkspace.tsx` 编排；日期统计、侧记栏、图册、时间线、Todo 与互动各归现有 memo 子组件。一级评论通过 shared `MemoComment.parentId` 契约，web service/db、sync Worker db/service、迁移、备份恢复全链路维护。
 - 新增 `appearance` 偏好字段用于侧栏完整/书脊、Memo 侧记栏左右及 Todo 默认展开；兼容旧设置并沿既有账号设置同步链路保存。
 - 组件公共入口约束、UI→services→db 分层、1000 行单文件软上限和 Worker 入口 200 行限制保持不变。

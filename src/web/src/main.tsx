@@ -11,6 +11,7 @@ import "./styles/tokens.css";
 import "./styles/slate.css";
 import "./styles/app.css";
 import "./styles/shell.css";
+import "./styles/settings.css";
 import "./styles/sync.css";
 import "./styles/doc.css";
 import "./styles/table.css";

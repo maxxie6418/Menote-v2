@@ -54,7 +54,7 @@ attachmentRoutes.get("/api/attachments/:sha256", requireSession, async (c) => {
   return new Response(found.object.body, {
     headers: {
       "Content-Type": found.mime,
-      "Cache-Control": "private, max-age=86400",
+      "Cache-Control": "private, no-store",
       "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });

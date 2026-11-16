@@ -54,7 +54,6 @@ interface SettingsDialogProps {
 /** 设置对话框：外观、远程备份、附件与恢复码。 */
 export function SettingsDialog({ userId, initialSection = "appearance", onClose, onSectionChange }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
-  const [advancedOpen, setAdvancedOpen] = useState(ADVANCED.some((entry) => entry.id === initialSection));
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -85,8 +84,8 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
                 {entry.label}
               </a>
             ))}
-            <p className="mn-nav-label"><button type="button" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>{advancedOpen ? "高级" : "高级 · 连接器与诊断"}</button></p>
-            {advancedOpen && ADVANCED.map((entry) => (
+            <p className="mn-nav-label">高级</p>
+            {ADVANCED.map((entry) => (
               <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
                 onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
                 {entry.label}
@@ -95,7 +94,7 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
           </nav>
           <div className="mn-dlg-content">
             {section === "appearance" && <AppearanceSection userId={userId} />}
-            {section === "sync" && <SyncSection userId={userId} onOpenLogs={() => { setAdvancedOpen(true); setSection("syncLogs"); onSectionChange?.("syncLogs"); }} />}
+            {section === "sync" && <SyncSection userId={userId} onOpenLogs={() => { setSection("syncLogs"); onSectionChange?.("syncLogs"); }} />}
             {section === "style" && <StyleSection userId={userId} />}
             {section === "ai" && <AiSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}

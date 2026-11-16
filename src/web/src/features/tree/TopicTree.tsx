@@ -17,6 +17,23 @@ interface TopicTreeProps {
   onDropItem: (itemId: string, topicId: string, groupId: string | null) => void | Promise<unknown>;
 }
 
+function handleItemDragOver(event: React.DragEvent<HTMLElement>, accepts: boolean) {
+  const itemDrag = event.dataTransfer.types.includes("application/x-menote-item");
+  const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
+  const treeDrag = event.dataTransfer.types.includes("application/x-menote-topic");
+  const valid = itemDrag && accepts === privateItem;
+  if (!valid && !(treeDrag && !accepts)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  if (valid) event.currentTarget.classList.add("drop-target");
+}
+
+function clearItemDropHighlight(event: React.DragEvent<HTMLElement>) {
+  const related = event.relatedTarget;
+  if (related instanceof Node && event.currentTarget.contains(related)) return;
+  event.currentTarget.classList.remove("drop-target");
+}
+
 /** 主题树（FR-IA-1/3：主题与分组，分组最多一层）。
     2026-11-03 定稿：加密空间是「空间」不是「分类」，独立成行放在主题段之上；
     「新建主题」收进段标题行，内联输入贴在标题正下方，列表底部不再常驻创建入口。 */
@@ -212,13 +229,10 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
     <li>
       <div
         className={`${isSelected ? `mn-treerow on${fixed ? " priv" : ""}` : `mn-treerow${fixed ? " priv" : ""}`} ${draggingId === topic.id ? "dragging" : ""}`}
-        onDragOver={(event) => {
-          const itemDrag = event.dataTransfer.types.includes("application/x-menote-item");
-          const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
-          const treeDrag = event.dataTransfer.types.includes("application/x-menote-topic");
-          if ((itemDrag && (fixed === privateItem)) || (!fixed && treeDrag)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }
-        }}
+        onDragOver={(event) => handleItemDragOver(event, fixed)}
+        onDragLeave={clearItemDropHighlight}
         onDrop={(event) => {
+          event.currentTarget.classList.remove("drop-target");
           const itemId = event.dataTransfer.getData("application/x-menote-item");
           const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
           if (itemId && fixed === privateItem) { event.preventDefault(); event.stopPropagation(); void onDropItem(itemId, topic.id, null); return; }
@@ -253,7 +267,6 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
             <ChevronDown className="mn-tree-chev" data-open={open} aria-hidden="true" />
           </button>
         )}
-        {!fixed && (counts[topic.id] ?? 0) > 0 && <span className="mn-tree-count" aria-label={`${counts[topic.id]} 篇笔记`}>{counts[topic.id]}</span>}
         {!fixed && <button type="button" className="mn-tree-drag" draggable aria-label={`拖动「${topic.name}」调整目录位置`} title="拖动调整位置"
           onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", topic.id); onDragStart?.(topic.id); }} onDragEnd={onDragEnd}><GripVertical aria-hidden="true" /></button>}
         {fixed && onLock && (
@@ -285,13 +298,10 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
                 draggable={!fixed}
                 onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-topic", group.id); onDragStart?.(group.id); }}
                 onDragEnd={onDragEnd}
-                onDragOver={(event) => {
-                  const itemDrag = event.dataTransfer.types.includes("application/x-menote-item");
-                  const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
-                  const treeDrag = event.dataTransfer.types.includes("application/x-menote-topic");
-                  if ((itemDrag && (fixed === privateItem)) || (!fixed && treeDrag)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }
-                }}
+                onDragOver={(event) => handleItemDragOver(event, fixed)}
+                onDragLeave={clearItemDropHighlight}
                 onDrop={(event) => {
+                  event.currentTarget.classList.remove("drop-target");
                   const itemId = event.dataTransfer.getData("application/x-menote-item");
                   const privateItem = event.dataTransfer.types.includes("application/x-menote-private-item");
                   if (itemId && fixed === privateItem) { event.preventDefault(); event.stopPropagation(); void onDropItem(itemId, topic.id, group.id); return; }

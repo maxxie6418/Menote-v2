@@ -272,6 +272,7 @@
   /* 桌面点击目标底线（DESIGN §8.2「桌面 28px 起」）：所有可点控件的槽不小于 --app-target-min */
   --app-minibtn-size: 1.75rem;     /* 28px 小按钮图标槽（树行尾 / 段标题动作），原 18px */
   --app-attach-thumb-size: 3.5rem;
+  --app-attach-gallery-min: 10rem;
   --app-textbtn-height: 1.5rem;    /* 24px 行内文字按钮（WCAG 2.2 AA 最小目标），原 20px */
   --app-vt-size: 1.75rem;          /* 28px 视图切换段宽 */
   --app-vt-height: 1.75rem;        /* 28px 视图切换段高：凹槽 2+28+2=32，对齐 --app-formseg-height */
@@ -944,12 +945,15 @@
   --app-radius-lg: var(--radius);
 }
 :root[data-skin="shadcn"][data-theme="dark"] {
-  --background: oklch(.145 0 0); --foreground: oklch(.985 0 0);
+  /* 2026-11-16 负责人指示：深色底过黑，提亮并带微冷倾向（hue 255 / chroma .007）。
+     背景族三层（background .175 / bg-side .235 / muted .299）相对原值统一 +.03 明度，
+     层差不变；浅色档与其余令牌不动。 */
+  --background: oklch(.175 .007 255); --foreground: oklch(.985 0 0);
   --primary: oklch(.922 0 0); --primary-foreground: oklch(.205 0 0);
-  --secondary: oklch(.269 0 0); --secondary-foreground: oklch(.985 0 0);
-  --muted: oklch(.269 0 0); --muted-foreground: oklch(.708 0 0);
-  --accent: oklch(.269 0 0); --accent-foreground: oklch(.985 0 0);
+  --secondary: oklch(.299 .007 255); --secondary-foreground: oklch(.985 0 0);
+  --muted: oklch(.299 .007 255); --muted-foreground: oklch(.708 0 0);
+  --accent: oklch(.299 .007 255); --accent-foreground: oklch(.985 0 0);
   --destructive: oklch(.704 .191 22.216); --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%); --ring: oklch(.556 0 0);
-  --app-bg-side: oklch(.205 0 0); --app-accent-hover: oklch(.8 0 0);
+  --app-bg-side: oklch(.235 .007 255); --app-accent-hover: oklch(.8 0 0);
 }

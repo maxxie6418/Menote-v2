@@ -732,9 +732,17 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-backupname { color: var(--app-fg); flex: 0 1 auto; min-width: var(--app-zero); }
 .mn-backupactions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--app-space-2) var(--app-space-6); width: var(--app-full-size); }
 .mn-backupsecret { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-muted); word-break: break-all; width: var(--app-full-size); }
+.mn-backuperror { width: var(--app-full-size); margin-top: var(--app-space-4); }
+.mn-backuperror summary { cursor: pointer; }
+.mn-backuperror p { margin: var(--app-space-4) var(--app-zero) var(--app-zero); overflow-wrap: anywhere; }
 .mn-backupform { display: flex; flex-wrap: wrap; gap: var(--app-space-6); margin-top: var(--app-space-sm); align-items: center; }
 .mn-backupform .mn-propinput { flex: 1; min-width: var(--app-note-grid-min); }
 .mn-backupform .mn-auth-submit { margin-top: var(--app-zero); }
+.mn-raindrop-run-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--app-space-2) var(--app-space-sm); color: var(--app-fg-muted); }
+.mn-raindrop-run-summary strong { color: var(--app-fg); }
+.mn-raindrop-run-error { margin-top: var(--app-space-2); }
+.mn-raindrop-run-error summary { color: var(--app-fg-faint); cursor: pointer; }
+.mn-raindrop-run-error p { margin: var(--app-space-2) var(--app-zero) var(--app-space-4); overflow-wrap: anywhere; white-space: pre-wrap; }
 
 /* ---------- 设计核对修正（DESIGN §4：属性单列、doc-foot、memo 列表、todo 圆点、锁定卡、设置对话框） ---------- */
 .mn-doc-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--app-space-10); flex: none; padding: var(--app-space-10) var(--app-doc-pad) var(--app-space-14); border-top: var(--app-line) solid var(--app-border-subtle); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }

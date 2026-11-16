@@ -164,7 +164,7 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-docmore-menu svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
 .mn-editor-host { display: flex; flex-direction: column; min-height: var(--app-editor-min); }
 .mn-editor-host .milkdown { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.mn-editor-source { min-height: var(--app-editor-min); border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
+.mn-editor-source { flex: 1; width: var(--app-full-size); min-height: var(--app-editor-min); box-sizing: border-box; border: var(--app-zero); background: none; color: var(--app-fg); font-family: var(--md-code-font); font-size: var(--app-font-body); line-height: var(--md-body-leading); resize: none; padding: var(--app-zero); }
 .mn-editor-source:focus-visible { outline: none; }
 .mn-doc-preview { flex: 1; }
 

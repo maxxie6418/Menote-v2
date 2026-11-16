@@ -29,8 +29,8 @@
 :root .mn-treerow { height: var(--app-space-26); border-radius: var(--app-radius-sm); font-size: var(--app-size-nav); }
 :root .mn-space { height: var(--app-space-26); font-size: var(--app-size-nav); }
 :root .mn-tree-sublist .mn-treerow { font-size: var(--app-size-nav); }
-:root .mn-tree-count { margin-left: auto; flex: none; color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 :root .mn-treerow.on { background: var(--app-border-subtle); }
+:root .mn-treerow.drop-target, :root .mn-treerow.drop-target.on { background: var(--app-accent-subtle); color: var(--app-accent-fg); outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
 :root .mn-tags { gap: var(--app-space-4); }
 :root .mn-sb-foot { gap: var(--app-space-4); border-top-color: var(--app-border-subtle); }
 
