@@ -32,26 +32,6 @@ export function useTopics(userId: string): TopicNode[] {
   return useData(() => (userId ? listTopics(userId) : undefined), [userId], Boolean(userId)) ?? [];
 }
 
-/** Real non-Memo note/table counts for sidebar topic and group rows. */
-export function useTopicItemCounts(userId: string): Record<string, number> {
-  return useData(async () => {
-    if (!userId) return {};
-    const { localDb } = await import("../db/localDb");
-    const [items, topics] = await Promise.all([
-      localDb.items.where("userId").equals(userId).filter((item) => item.deletedAt === null && item.type !== "memo").toArray(),
-      listTopics(userId),
-    ]);
-    const hidden = hiddenPrivateTopicIds(topics);
-    const counts: Record<string, number> = {};
-    for (const item of items) {
-      if (!item.topicId || hidden.has(item.topicId)) continue;
-      counts[item.topicId] = (counts[item.topicId] ?? 0) + 1;
-      if (item.groupId && !hidden.has(item.groupId)) counts[item.groupId] = (counts[item.groupId] ?? 0) + 1;
-    }
-    return counts;
-  }, [userId], Boolean(userId)) ?? {};
-}
-
 export function useNotesInTopic(userId: string, topicId: string): Item[] {
   return useData(async () => {
     if (!userId || !topicId) return [];

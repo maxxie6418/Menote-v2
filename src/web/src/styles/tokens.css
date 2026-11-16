@@ -944,12 +944,15 @@
   --app-radius-lg: var(--radius);
 }
 :root[data-skin="shadcn"][data-theme="dark"] {
-  --background: oklch(.145 0 0); --foreground: oklch(.985 0 0);
+  /* 2026-11-16 负责人指示：深色底过黑，提亮并带微冷倾向（hue 255 / chroma .007）。
+     背景族三层（background .175 / bg-side .235 / muted .299）相对原值统一 +.03 明度，
+     层差不变；浅色档与其余令牌不动。 */
+  --background: oklch(.175 .007 255); --foreground: oklch(.985 0 0);
   --primary: oklch(.922 0 0); --primary-foreground: oklch(.205 0 0);
-  --secondary: oklch(.269 0 0); --secondary-foreground: oklch(.985 0 0);
-  --muted: oklch(.269 0 0); --muted-foreground: oklch(.708 0 0);
-  --accent: oklch(.269 0 0); --accent-foreground: oklch(.985 0 0);
+  --secondary: oklch(.299 .007 255); --secondary-foreground: oklch(.985 0 0);
+  --muted: oklch(.299 .007 255); --muted-foreground: oklch(.708 0 0);
+  --accent: oklch(.299 .007 255); --accent-foreground: oklch(.985 0 0);
   --destructive: oklch(.704 .191 22.216); --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%); --ring: oklch(.556 0 0);
-  --app-bg-side: oklch(.205 0 0); --app-accent-hover: oklch(.8 0 0);
+  --app-bg-side: oklch(.235 .007 255); --app-accent-hover: oklch(.8 0 0);
 }
