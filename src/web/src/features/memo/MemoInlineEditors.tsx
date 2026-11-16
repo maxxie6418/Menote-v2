@@ -111,7 +111,7 @@ export function MemoQuotePanel({ userId, memo, onCreated, onCancel }: {
       <textarea className="mn-memo-quote-input" autoFocus aria-label="引述正文" placeholder="写下你的引述…" value={draft} onChange={(event) => setDraft(event.target.value)} />
       <aside className="mn-memo-quote-snapshot">
         <div className="mn-memo-quote-head"><span><Quote /> 引自 {new Date(memo.createdAt).toLocaleString()}</span></div>
-        {memo.content.scope === "plain" && <MarkdownView markdown={appendTags(memo.content.markdown, memo.tags)} className="mn-memo-quote-content" />}
+        {memo.content.scope === "plain" && <MarkdownView markdown={appendTags(memo.content.markdown, memo.tags)} className="mn-memo-quote-content" highlightMemoTags />}
       </aside>
       {availableTags.length > 0 && <div className="mn-memo-quote-tags" aria-label="引述标签">
         <span>标签</span>

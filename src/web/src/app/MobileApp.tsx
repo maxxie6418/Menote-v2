@@ -74,11 +74,23 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
     else onNavigate({ kind: "me" });
   };
 
-  const openSection = (section: NoteSection) => {
+  const openSection = (section: BrowseSection) => {
+    if (section.kind === "home") {
+      setPage("home");
+      onNavigate({ kind: "home" });
+      return;
+    }
+    if (section.kind === "memos") {
+      setPage("memo");
+      setMobileMemoTab("all");
+      onNavigate({ kind: "memos", ...(section.tag ? { tag: section.tag } : {}) });
+      return;
+    }
+    const next = section as NoteSection;
     setPage("notes");
-    setNoteSection(section);
+    setNoteSection(next);
     setSelectedNoteId(null);
-    onNavigate({ kind: "notes", section });
+    onNavigate({ kind: "notes", section: next });
   };
 
   const createAndOpenNote = async () => {
@@ -188,10 +200,10 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
         }}
         onNavigate={(next: BrowseSection) => {
           if (next.kind === "home") goPage("home");
-          else if (next.kind === "memos") { setMobileMemoTab("all"); goPage("memo"); }
+          else if (next.kind === "memos") { setPage("memo"); setMobileMemoTab("all"); onNavigate({ kind: "memos", ...(next.tag ? { tag: next.tag } : {}) }); }
           else openSection(next as NoteSection);
         }} />}
-      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} initialTab={mobileMemoTab} />}
+      {page === "memo" && <MobileMemo userId={userId} onLongPress={onLongPress} onOpenMemo={openMemo} selectedId={route.kind === "memos" ? route.itemId : null} initialTab={mobileMemoTab} initialTag={route.kind === "memos" ? route.tag ?? null : null} />}
       {page === "notes" && <MobileNotes userId={userId} section={noteSection} selectedId={selectedNoteId} onSelect={(item) => {
         if (item?.type === "memo") { openMemo(item.id); return; }
         setSelectedNoteId(item?.id ?? null);

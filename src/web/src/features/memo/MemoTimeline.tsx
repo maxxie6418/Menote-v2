@@ -127,7 +127,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
           />
         ) : plain ? (
           <>
-            <MarkdownView markdown={rendered.markdown} className="mn-memo-body" onToggleTask={(ordinal, checked) => void toggleTask(ordinal, checked)} onImageClick={(src, alt) => onImagePreview({ src, alt })} />
+            <MarkdownView markdown={rendered.markdown} className="mn-memo-body" highlightMemoTags onToggleTask={(ordinal, checked) => void toggleTask(ordinal, checked)} onImageClick={(src, alt) => onImagePreview({ src, alt })} />
             {rendered.raw.length > 0 && (
               <pre className="mn-memo-raw">{rendered.raw.join("\n")}</pre>
             )}
@@ -143,7 +143,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
                 ? <button type="button" onClick={() => onOpenSource(memo.memoQuote!.sourceMemoId)}>查看来源</button>
                 : <span>来源已删除</span>}
             </div>
-            <MarkdownView markdown={memo.memoQuote.snapshot} className="mn-memo-quote-content" onImageClick={(src, alt) => onImagePreview({ src, alt })} />
+            <MarkdownView markdown={memo.memoQuote.snapshot} className="mn-memo-quote-content" highlightMemoTags onImageClick={(src, alt) => onImagePreview({ src, alt })} />
           </aside>
         )}
         {plain && !editing && (

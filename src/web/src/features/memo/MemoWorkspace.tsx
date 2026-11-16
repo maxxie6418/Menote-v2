@@ -16,6 +16,7 @@ interface MemoWorkspaceProps {
   userId: string;
   username: string;
   layout: LayoutMode;
+  initialTag?: string | null;
   todoOpen: boolean;
   onToggleTodo: () => void;
   selectedMemoId?: string;
@@ -34,17 +35,29 @@ export function MemoWorkspace(props: MemoWorkspaceProps) {
   );
 }
 
-function MemoWorkspaceContent({ userId, username, layout, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
+function MemoWorkspaceContent({ userId, username, layout, initialTag = null, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
   const allMemos = useMemos(userId);
   const topics = useTopics(userId);
   const memos = allMemos.filter((memo) => memo.topicId === null || !alwaysHiddenPrivateTopicIds(topics).has(memo.topicId));
   const [range, setRange] = useState<MemoRange>("all");
-  const [tag, setTag] = useState<string | null>(null);
+  const [tag, setTag] = useState<string | null>(initialTag);
   const [view, setView] = useState<MemoView>("timeline");
   const [workbarOpen, setWorkbarOpen] = useState(false);
   const visible = filterMemos(memos, range, tag);
   const images = memoImages(visible);
   const singlePane = layout === "tablet" || layout === "mobile";
+
+  useEffect(() => {
+    setRange("all");
+    setTag(initialTag);
+    if (initialTag) setView("timeline");
+  }, [initialTag]);
+
+  useEffect(() => {
+    const firstMemoId = visible[0]?.id;
+    if (!initialTag || tag !== initialTag || !firstMemoId) return;
+    window.setTimeout(() => document.getElementById(`memo-${firstMemoId}`)?.scrollIntoView({ block: "start" }), 0);
+  }, [initialTag, tag, visible[0]?.id]);
 
   useEffect(() => {
     if (!selectedMemoId) return;

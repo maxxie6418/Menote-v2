@@ -154,6 +154,7 @@
 .mn-memo-body :is(p, ul, ol, blockquote, pre) { margin: var(--app-zero) var(--app-zero) var(--app-space-6); }
 .mn-memo-body :is(p, ul, ol, blockquote, pre):last-child { margin-bottom: var(--app-zero); }
 .mn-memo-body strong { font-weight: var(--app-weight-medium); color: var(--app-fg); }
+.mn-memo-inline-tag { padding-inline: var(--app-space-2); border-radius: var(--app-radius-sm); background: var(--app-accent-subtle); color: var(--app-accent-fg); font-weight: var(--app-weight-medium); }
 .mn-memo-body del { color: var(--app-fg-faint); }
 .mn-memo-body a { color: var(--app-link); text-decoration: none; }
 .mn-memo-body a:hover { text-decoration: underline; text-underline-offset: var(--app-space-2); }

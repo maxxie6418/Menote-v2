@@ -4,7 +4,7 @@ import type { AuthUser } from "@menote/shared";
 import type { LayoutMode } from "../lib/layout";
 import { getDensityScale } from "../lib/density";
 import type { BrowseSection } from "../services/contentHooks";
-import { useAllTags, useDrafts, useInbox } from "../services/contentHooks";
+import { useAllTags, useDrafts, useInbox, useMemoTags } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { AccountMenu } from "./AccountMenu";
@@ -80,6 +80,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
   const inbox = useInbox(userId);
   const drafts = useDrafts(userId);
   const tags = useAllTags(userId);
+  const memoTags = useMemoTags(userId);
 
   return (
     <>
@@ -166,8 +167,8 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
         <div className="mn-tags">
           {tags.length === 0 && <p className="mn-tree-empty">暂无标签</p>}
           {tags.map((tag) => (
-            <a key={tag} href="#" className={section.kind === "tag" && section.tag === tag ? "mn-taglink on" : "mn-taglink"}
-              onClick={(event) => { event.preventDefault(); onSelectSection({ kind: "tag", tag }); }}>
+            <a key={tag} href="#" className={(section.kind === "tag" || section.kind === "memos") && section.tag === tag ? "mn-taglink on" : "mn-taglink"}
+              onClick={(event) => { event.preventDefault(); onSelectSection(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); }}>
               #{tag}
             </a>
           ))}

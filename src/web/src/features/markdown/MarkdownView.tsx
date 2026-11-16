@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { findMemoTagRanges } from "@menote/shared";
 import { attachmentUrl } from "../../services/attachmentService";
 import { perfProbe } from "../../lib/perfProbe";
 import { remarkTextColorForRender } from "../editor";
@@ -20,7 +21,51 @@ interface MarkdownViewProps {
   onToggleTask?: (ordinal: number, checked: boolean) => void;
   /** 传入时图片可用鼠标或键盘打开预览；Memo 时间线使用。 */
   onImageClick?: (src: string, alt: string) => void;
+  /** 随记展示态将正文里的 #标签渲染为轻量强调样式，不修改源文本。 */
+  highlightMemoTags?: boolean;
   className?: string;
+}
+
+interface HastNode {
+  type: string;
+  value?: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+}
+
+function rehypeMemoTags() {
+  return (tree: unknown) => decorateMemoTags(tree as HastNode);
+}
+
+function decorateMemoTags(node: HastNode): void {
+  if (!node.children) return;
+  const children: HastNode[] = [];
+  for (const child of node.children) {
+    if (child.type === "text" && typeof child.value === "string") {
+      const ranges = findMemoTagRanges(child.value);
+      if (ranges.length === 0) {
+        children.push(child);
+        continue;
+      }
+      let cursor = 0;
+      for (const range of ranges) {
+        if (range.start > cursor) children.push({ type: "text", value: child.value.slice(cursor, range.start) });
+        children.push({
+          type: "element",
+          tagName: "span",
+          properties: { className: ["mn-memo-inline-tag"] },
+          children: [{ type: "text", value: child.value.slice(range.start, range.end) }],
+        });
+        cursor = range.end;
+      }
+      if (cursor < child.value.length) children.push({ type: "text", value: child.value.slice(cursor) });
+      continue;
+    }
+    decorateMemoTags(child);
+    children.push(child);
+  }
+  node.children = children;
 }
 
 /** 相对附件引用解析为鉴权 URL（FR-SYNC-7）；会话 cookie 授权。 */
@@ -46,7 +91,7 @@ function cancelIdle(handle: { kind: "idle" | "timer"; id: number }): void {
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
-export function MarkdownView({ markdown, onToggleTask, onImageClick, className }: MarkdownViewProps) {
+export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className }: MarkdownViewProps) {
   // 渲染耗时基线（FR-EDT-10 / W0）：渲染开始 → 布局提交完成。诊断关闭时不打点。
   const renderStart = perfProbe.isEnabled ? performance.now() : 0;
   const renderStartRef = useRef(renderStart);
@@ -159,7 +204,7 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, className }
       },
     };
     return (
-      <ReactMarkdown key={key} remarkPlugins={[remarkGfm, remarkTextColorForRender]} components={chunkComponents}>{chunk.text}</ReactMarkdown>
+      <ReactMarkdown key={key} remarkPlugins={[remarkGfm, remarkTextColorForRender]} rehypePlugins={highlightMemoTags ? [rehypeMemoTags] : undefined} components={chunkComponents}>{chunk.text}</ReactMarkdown>
     );
   };
 
@@ -185,7 +230,7 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, className }
 
   return (
     <div className={className ?? "md-body"}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTextColorForRender]} components={components}>{markdown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTextColorForRender]} rehypePlugins={highlightMemoTags ? [rehypeMemoTags] : undefined} components={components}>{markdown}</ReactMarkdown>
     </div>
   );
 }

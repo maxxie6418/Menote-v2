@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "../icons";
 import type { Item } from "@menote/shared";
-import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
+import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, useMemoTags, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
 import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
@@ -77,14 +77,16 @@ interface MobileMemoProps {
   onOpenMemo: (id: string) => void;
   selectedId?: string | null;
   initialTab?: "all" | "todo" | "gallery";
+  initialTag?: string | null;
 }
 
 export function MobileMemo(props: MobileMemoProps) {
   return <MemoAccessGate userId={props.userId}><MobileMemoContent {...props} /></MemoAccessGate>;
 }
 
-function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initialTab = "all" }: MobileMemoProps) {
-  const memos = useMemos(userId);
+function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initialTab = "all", initialTag = null }: MobileMemoProps) {
+  const allMemos = useMemos(userId);
+  const memos = initialTag ? allMemos.filter((memo) => memo.tags.includes(initialTag)) : allMemos;
   const [tab, setTab] = useState<"all" | "todo" | "gallery">(initialTab);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(["done"]));
   const images = memoImages(memos);
@@ -114,7 +116,7 @@ function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initia
           {memos.length ? groupByDay(memos).map((group) => <section key={group.key}>
             <div className="m-day"><b>{group.label}</b><i /></div>
             {group.memos.map((memo) => <MobileMemoRow key={memo.id} memo={memo} userId={userId} onLongPress={onLongPress} />)}
-          </section>) : <p className="m-empty">还没有 Memo，点底部记录键随手记下。</p>}
+          </section>) : <p className="m-empty">{initialTag ? `没有带 #${initialTag} 的 Memo。` : "还没有 Memo，点底部记录键随手记下。"}</p>}
         </div> : <div className="m-stream m-todos">
           {([ ["todo", "待办"], ["doing", "进行中"], ["done", "已完成"] ] as const).map(([status, label]) => {
             const rows = memos.filter((memo) => memo.status === status);
@@ -140,7 +142,7 @@ function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: I
 
   return <>
     <article id={`memo-${memo.id}`} className={`m-memo${compact ? " compact" : ""}`} onPointerDown={startHold} onPointerUp={stopHold} onPointerLeave={stopHold} onPointerCancel={stopHold} onContextMenu={(event) => { event.preventDefault(); onLongPress(memo); }}>
-    {memo.content.scope === "plain" ? <div className="m-memo-prose"><MarkdownView markdown={markdown} onImageClick={(src, alt) => setImagePreview({ src, alt })} onToggleTask={(ordinal, checked) => {
+    {memo.content.scope === "plain" ? <div className="m-memo-prose"><MarkdownView markdown={markdown} highlightMemoTags onImageClick={(src, alt) => setImagePreview({ src, alt })} onToggleTask={(ordinal, checked) => {
       const next = setTaskCheckbox(markdown, ordinal, checked); if (next !== markdown) void saveItemContent(userId, memo.id, next);
     }} /></div> : <p>已加密</p>}
     <div className="m-meta"><time>{new Date(memo.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
@@ -183,7 +185,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
 
 export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, onStatus, onLogout, onOpenSection }: {
   userId: string; username: string; role: string; onSettings: (section?: SettingsSection) => void; onOpenPrivate: () => void; onStatus: () => void; onLogout: () => void;
-  onOpenSection: (section: NoteSection) => void;
+  onOpenSection: (section: BrowseSection) => void;
 }) {
   useLockVersion();
   const { items: allItems, topics } = useHomeSnapshot(userId);
@@ -194,6 +196,7 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
   const pending = usePendingOutboxCount();
   const notes = items.filter((item) => item.type !== "memo");
   const memos = items.filter((item) => item.type === "memo");
+  const memoTags = useMemoTags(userId);
   const attachments = new Set(items.flatMap((item) => item.attachmentHashes)).size;
   const weekStart = Date.now() - 7 * 86_400_000;
   const week = items.filter((item) => item.createdAt >= weekStart).length;
@@ -209,7 +212,7 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
       </div></section>
       <div className="m-msec"><b>内容</b></div>
       <button type="button" className="m-mi" onClick={onOpenPrivate}><LockKeyhole />私人空间<em>{spaceLabel}</em><ChevronRight className="chev" /></button>
-      <button type="button" className="m-mi" onClick={() => tags[0] && onOpenSection({ kind: "tag", tag: tags[0] })}><Tag />标签<em>{tags.length}</em><ChevronRight className="chev" /></button>
+      <button type="button" className="m-mi" onClick={() => { const tag = tags[0]; if (tag) onOpenSection(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); }}><Tag />标签<em>{tags.length}</em><ChevronRight className="chev" /></button>
       <div className="m-msec"><b>设置</b></div>
       <button type="button" className="m-mi" onClick={() => onSettings("appearance")}><Settings />外观与账户<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => onSettings("backup")}><Archive />同步与备份<ChevronRight className="chev" /></button>
@@ -222,13 +225,14 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
 }
 
 export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onSelect }: {
-  userId: string; selected: NoteSection; onClose: () => void; onOpenPrivate: () => void; onSelect: (section: NoteSection) => void;
+  userId: string; selected: BrowseSection; onClose: () => void; onOpenPrivate: () => void; onSelect: (section: BrowseSection) => void;
 }) {
   useLockVersion();
   const topics = useTopics(userId).filter((topic) => topic.deletedAt === null);
   const space = topics.find((topic) => topic.depth === 0 && topic.isEncSpace);
   const roots = topics.filter((topic) => topic.depth === 0 && !topic.isEncSpace).sort((a, b) => a.name.localeCompare(b.name));
   const allTags = [...new Set(useHomeSnapshot(userId).items.filter((item) => item.type === "memo" || !item.topicId || !alwaysHiddenPrivateTopicIds(topics).has(item.topicId)).flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
+  const memoTags = useMemoTags(userId);
 
   return <div className="m-sheet-overlay" role="presentation" onClick={onClose}><section className="m-topic-sheet" role="dialog" aria-modal="true" aria-label="主题导航" onClick={(event) => event.stopPropagation()}>
     <header className="m-sheet-head"><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><ArrowLeft /></button><b>主题与标签</b><span className="grow" /><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><X /></button></header>
@@ -248,7 +252,7 @@ export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onS
         onOpenPrivate();
         onClose();
       }}><LockKeyhole />私人空间<em>{space && isTopicUnlocked(space.id) ? "已解锁" : space ? "锁定" : "未设置"}</em></button>
-      <div className="m-lsec"><b>标签</b></div><div className="m-tagrow">{allTags.length ? allTags.map((tag) => <button type="button" key={tag} className={selected.kind === "tag" && selected.tag === tag ? "on" : ""} onClick={() => { onSelect({ kind: "tag", tag }); onClose(); }}>#{tag}</button>) : <span>暂无标签</span>}</div>
+      <div className="m-lsec"><b>标签</b></div><div className="m-tagrow">{allTags.length ? allTags.map((tag) => <button type="button" key={tag} className={(selected.kind === "tag" || selected.kind === "memos") && selected.tag === tag ? "on" : ""} onClick={() => { onSelect(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); onClose(); }}>#{tag}</button>) : <span>暂无标签</span>}</div>
     </div>
   </section></div>;
 }

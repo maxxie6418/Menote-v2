@@ -6,7 +6,7 @@ import { listMemoComments } from "../db/memoCommentsRepo";
 import { listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { subscribeLocalChanges } from "../lib/broadcast";
 import { countPendingOutbox } from "../db/outboxRepo";
-import { hiddenPrivateTopicIds } from "./privateSpaceService";
+import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "./privateSpaceService";
 import { syncQueueStatus } from "./syncEngine";
 
 /** 服务层数据钩子：UI 只经此读取本地库（结构检查：UI 禁直连 IndexedDB）。
@@ -108,7 +108,8 @@ export function useTrashedItems(userId: string): Item[] {
 
 /** 侧栏导航分区（UI 会话级状态，不含内容）。 */
 export type BrowseSection =
-  | { kind: "home" | "recent" | "inbox" | "drafts" | "memos" | "starred" | "trash" }
+  | { kind: "home" | "recent" | "inbox" | "drafts" | "starred" | "trash" }
+  | { kind: "memos"; tag?: string }
   | { kind: "topic"; id: string }
   | { kind: "tag"; tag: string };
 
@@ -125,6 +126,16 @@ export function useAllTags(userId: string): string[] {
     return [...new Set(rows.filter((row) => row.topicId === null || !hidden.has(row.topicId)).flatMap((row) => row.tags))]
       .sort((a, b) => a.localeCompare(b));
   }, [userId], Boolean(userId)) ?? [];
+}
+
+/** 普通 Memo 时间线可见标签，用于全局标签入口定位到 Memo。 */
+export function useMemoTags(userId: string): Set<string> {
+  const memos = useMemos(userId);
+  const topics = useTopics(userId);
+  const hidden = alwaysHiddenPrivateTopicIds(topics);
+  return new Set(memos
+    .filter((memo) => memo.content.scope === "plain" && (memo.topicId === null || !hidden.has(memo.topicId)))
+    .flatMap((memo) => memo.tags));
 }
 
 export function useTagItems(userId: string, tag: string): Item[] {

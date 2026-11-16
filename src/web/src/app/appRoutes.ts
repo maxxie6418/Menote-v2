@@ -10,7 +10,7 @@ export type AppRoute =
   | { kind: "me" }
   | { kind: "status" }
   | { kind: "notes"; section: RouteSection; itemId?: string }
-  | { kind: "memos"; itemId?: string }
+  | { kind: "memos"; itemId?: string; tag?: string }
   | { kind: "settings"; section: SettingsSection };
 
 const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "style", "backup", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
@@ -46,7 +46,10 @@ export function appRoutePath(route: AppRoute): string {
   if (route.kind === "me") return "/me";
   if (route.kind === "status") return "/status";
   if (route.kind === "settings") return `/settings/${encodeURIComponent(route.section)}`;
-  if (route.kind === "memos") return route.itemId ? `/memos/${encodeItemId(route.itemId)}` : "/memos";
+  if (route.kind === "memos") {
+    if (route.tag) return `/memos/tag/${encodeURIComponent(route.tag)}`;
+    return route.itemId ? `/memos/${encodeItemId(route.itemId)}` : "/memos";
+  }
   if (route.itemId) return `/n/${encodeItemId(route.itemId)}`;
 
   if (route.section.kind === "recent") return "/notes";
@@ -67,7 +70,10 @@ export function parseAppRoute(pathname: string): AppRoute {
     return { kind: "settings", section };
   }
   if (root === "n") return { kind: "notes", section: { kind: "recent" }, ...(second ? { itemId: decodeItemId(second) } : {}) };
-  if (root === "memos") return { kind: "memos", ...(second ? { itemId: decodeItemId(second) } : {}) };
+  if (root === "memos") {
+    if (second === "tag" && third) return { kind: "memos", tag: third };
+    return { kind: "memos", ...(second ? { itemId: decodeItemId(second) } : {}) };
+  }
   if (root === "notes" || root === "inbox" || root === "drafts" || root === "starred" || root === "trash") {
     const section: RouteSection = root === "notes" ? { kind: "recent" }
       : root === "inbox" ? { kind: "inbox" }

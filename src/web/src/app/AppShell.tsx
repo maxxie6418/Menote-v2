@@ -84,13 +84,13 @@ const SECTION_EMPTY: Record<"recent" | "inbox" | "drafts" | "starred" | "trash",
 
 function routeSection(route: AppRoute): BrowseSection {
   if (route.kind === "notes") return route.section;
-  if (route.kind === "memos") return { kind: "memos" };
+  if (route.kind === "memos") return { kind: "memos", ...(route.tag ? { tag: route.tag } : {}) };
   return { kind: "home" };
 }
 
 function sectionRoute(section: BrowseSection, itemId?: string): AppRoute {
   if (section.kind === "home") return { kind: "home" };
-  if (section.kind === "memos") return { kind: "memos", ...(itemId ? { itemId } : {}) };
+  if (section.kind === "memos") return section.tag ? { kind: "memos", tag: section.tag } : { kind: "memos", ...(itemId ? { itemId } : {}) };
   return { kind: "notes", section: section as RouteSection, ...(itemId ? { itemId } : {}) };
 }
 
@@ -488,6 +488,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
           userId={userId}
           username={user.username}
           layout={layout}
+          initialTag={route.kind === "memos" ? route.tag ?? null : null}
           todoOpen={todoOpen}
           onToggleTodo={() => setTodoOpen((value) => !value)}
           selectedMemoId={route.kind === "memos" ? route.itemId : undefined}

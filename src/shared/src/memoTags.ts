@@ -9,12 +9,23 @@ const TAG_PATTERN = /(?<![A-Za-z0-9/.\-])#([^\s#]+)/g;
 /** 标签名尾部的中英文标点不算标签的一部分（`#工作。` → `工作`）。 */
 const TRAILING_PUNCTUATION = /[.,;:!?、，。；：！？）)\]】」』"'“”‘’]+$/;
 
+/** 标签在原文中的位置；展示层可用它强调标签，同时保留原始正文文本。 */
+export function findMemoTagRanges(text: string): Array<{ name: string; start: number; end: number }> {
+  const ranges: Array<{ name: string; start: number; end: number }> = [];
+  for (const match of text.matchAll(TAG_PATTERN)) {
+    const name = match[1]!.replace(TRAILING_PUNCTUATION, "").trim();
+    if (!name) continue;
+    const start = match.index ?? 0;
+    ranges.push({ name, start, end: start + 1 + name.length });
+  }
+  return ranges;
+}
+
 /** 正文里的标签（按出现顺序去重）。 */
 export function extractTags(markdown: string): string[] {
   const tags: string[] = [];
-  for (const match of markdown.matchAll(TAG_PATTERN)) {
-    const name = match[1]!.replace(TRAILING_PUNCTUATION, "").trim();
-    if (!name || tags.includes(name)) continue;
+  for (const { name } of findMemoTagRanges(markdown)) {
+    if (tags.includes(name)) continue;
     tags.push(name);
   }
   return tags;
