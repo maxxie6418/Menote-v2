@@ -87,7 +87,6 @@ export function TopicTree({ userId, selected, onSelect, onOpenPrivate, onDropIte
 
       <SectionHead
         label="主题"
-        count={roots.length}
         action={{
           label: "新建主题",
           icon: <Plus aria-hidden="true" />,
@@ -316,7 +315,7 @@ function TopicNodeView({ userId, topic, groups, counts, selected, onSelect, onDr
                 onContextMenu={(event) => openPointerMenu(event, group)}
                 onKeyDown={(event) => openKeyboardMenu(event, group)}
               >
-                {group.name}
+                <span className="mn-tree-name">{group.name}</span>
                 {(counts[group.id] ?? 0) > 0 && <span className="mn-tree-count" aria-label={`${counts[group.id]} 篇笔记`}>{counts[group.id]}</span>}
               </button>
             </li>
