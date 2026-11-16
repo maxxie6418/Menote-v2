@@ -1,4 +1,5 @@
 import type { SettingsSection } from "../features/settings";
+import type { BrowseSection } from "../services/contentHooks";
 
 export type RouteSection =
   | { kind: "recent" | "inbox" | "drafts" | "starred" | "trash" }
@@ -12,6 +13,13 @@ export type AppRoute =
   | { kind: "notes"; section: RouteSection; itemId?: string }
   | { kind: "memos"; itemId?: string; tag?: string }
   | { kind: "settings"; section: SettingsSection };
+
+/** 全局标签入口再次点击当前标签时清除筛选。 */
+export function toggleGlobalTagSection(current: BrowseSection, tag: string, memoTags: ReadonlySet<string>): BrowseSection {
+  const currentTag = current.kind === "tag" || current.kind === "memos" ? current.tag : null;
+  if (currentTag === tag) return current.kind === "memos" ? { kind: "memos" } : { kind: "recent" };
+  return memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag };
+}
 
 const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "style", "backup", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
 

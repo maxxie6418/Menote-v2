@@ -1,6 +1,7 @@
 import { Tag } from "../icons";
 import { useAllTags, useMemoTags, type BrowseSection } from "../services/contentHooks";
 import { TopicTree } from "../features/tree";
+import { toggleGlobalTagSection } from "./appRoutes";
 
 interface ListNavigationProps {
   userId: string;
@@ -21,7 +22,7 @@ export function ListNavigation(props: ListNavigationProps) {
         <div className="mn-list-navigation-label"><Tag aria-hidden="true" />标签</div>
         {tags.length === 0 ? <p>暂无标签</p> : tags.map((tag) => (
           <button key={tag} type="button" className={(props.selected.kind === "tag" || props.selected.kind === "memos") && props.selected.tag === tag ? "on" : ""}
-            onClick={() => props.onSelect(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag })}>#{tag}</button>
+            onClick={() => props.onSelect(toggleGlobalTagSection(props.selected, tag, memoTags))}>#{tag}</button>
         ))}
       </div>
     </nav>

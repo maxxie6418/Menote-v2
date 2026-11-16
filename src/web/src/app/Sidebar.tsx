@@ -8,6 +8,7 @@ import { useAllTags, useDrafts, useInbox, useMemoTags } from "../services/conten
 import { TopicTree } from "../features/tree";
 import { QuickComposer } from "../features/memo";
 import { AccountMenu } from "./AccountMenu";
+import { toggleGlobalTagSection } from "./appRoutes";
 import { SidebarSyncControl } from "../features/sync";
 import { TagManagerDialog } from "./TagManagerDialog";
 import { SectionHead } from "../components/ui/SectionHead";
@@ -168,7 +169,7 @@ export function Sidebar({ userId, account, layout, collapsed, drawerOpen, sectio
           {tags.length === 0 && <p className="mn-tree-empty">暂无标签</p>}
           {tags.map((tag) => (
             <a key={tag} href="#" className={(section.kind === "tag" || section.kind === "memos") && section.tag === tag ? "mn-taglink on" : "mn-taglink"}
-              onClick={(event) => { event.preventDefault(); onSelectSection(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); }}>
+              onClick={(event) => { event.preventDefault(); onSelectSection(toggleGlobalTagSection(section, tag, memoTags)); }}>
               #{tag}
             </a>
           ))}

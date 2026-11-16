@@ -5,6 +5,7 @@ import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, useMemoTags,
 import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
+import { toggleGlobalTagSection } from "./appRoutes";
 import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, statusLabel, MemoGallery, type MemoImagePreviewData } from "../features/memo";
 import { NoteDocument, noteSnippet } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
@@ -252,7 +253,7 @@ export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onS
         onOpenPrivate();
         onClose();
       }}><LockKeyhole />私人空间<em>{space && isTopicUnlocked(space.id) ? "已解锁" : space ? "锁定" : "未设置"}</em></button>
-      <div className="m-lsec"><b>标签</b></div><div className="m-tagrow">{allTags.length ? allTags.map((tag) => <button type="button" key={tag} className={(selected.kind === "tag" || selected.kind === "memos") && selected.tag === tag ? "on" : ""} onClick={() => { onSelect(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); onClose(); }}>#{tag}</button>) : <span>暂无标签</span>}</div>
+      <div className="m-lsec"><b>标签</b></div><div className="m-tagrow">{allTags.length ? allTags.map((tag) => <button type="button" key={tag} className={(selected.kind === "tag" || selected.kind === "memos") && selected.tag === tag ? "on" : ""} onClick={() => { onSelect(toggleGlobalTagSection(selected, tag, memoTags)); onClose(); }}>#{tag}</button>) : <span>暂无标签</span>}</div>
     </div>
   </section></div>;
 }
