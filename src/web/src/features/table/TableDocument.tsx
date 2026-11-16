@@ -31,6 +31,8 @@ interface TableDocumentProps {
   onSwitchToNote: () => void;
   /** 预览态：沿用同一套网格与列宽，但内容只读（FR-TBL-20）。 */
   readOnly?: boolean;
+  /** 只读展示完整 Markdown 源文档；编辑仍通过结构化网格完成（FR-TBL-24）。 */
+  showSource?: boolean;
   /** 文档栏触发新增字段（标题栏快捷入口）。 */
   addColumnSignal?: number;
   /** 加密文档没有获批的附件密文上传协议时，禁止走明文附件接口。 */
@@ -50,7 +52,7 @@ function removeFirstTable(body: string): string {
 /** 多维表格整页网格（TP2）：列管理 + 行管理 + 类型化单元格编辑；载体永远是标准 GFM（FR-TBL-1）。
  *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。
  *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
-export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, addColumnSignal = 0, allowAttachments = true }: TableDocumentProps) {
+export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
   const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
@@ -640,6 +642,14 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   /* ---------- 渲染 ---------- */
+
+  if (showSource) {
+    return (
+      <div className="mn-tabledoc mn-tabledoc-source-view" aria-label="多维表格 Markdown 源码">
+        <textarea className="mn-editor-source" aria-label="多维表格 Markdown 源码（只读）" value={markdown} readOnly spellCheck={false} />
+      </div>
+    );
+  }
 
   if (!table && !blank) {
     return (

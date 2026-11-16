@@ -165,6 +165,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [organizing, setOrganizing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [tableSourceOpen, setTableSourceOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [encrypting, setEncrypting] = useState(false);
   const [history, setHistory] = useState(false);
@@ -643,6 +644,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                       <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
                     </button>
                   )}
+                  {isTableDoc && (
+                    <button type="button" role="menuitem" onClick={() => { setTableSourceOpen((open) => !open); setMoreOpen(false); }}>
+                      <Code />{tableSourceOpen ? "返回表格" : "查看 Markdown 源码"}
+                    </button>
+                  )}
                   <button type="button" role="menuitem" onClick={() => { setHistory(true); setMoreOpen(false); }}>
                     <Clock />版本历史
                   </button>
@@ -741,6 +747,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onDegrade={degradeDoc}
             onSwitchToNote={switchToNoteForm}
             readOnly={mode === "preview"}
+            showSource={tableSourceOpen}
             addColumnSignal={tableAddColumnSignal}
           />
         )}
