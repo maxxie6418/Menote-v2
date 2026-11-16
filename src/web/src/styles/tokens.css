@@ -272,6 +272,7 @@
   /* 桌面点击目标底线（DESIGN §8.2「桌面 28px 起」）：所有可点控件的槽不小于 --app-target-min */
   --app-minibtn-size: 1.75rem;     /* 28px 小按钮图标槽（树行尾 / 段标题动作），原 18px */
   --app-attach-thumb-size: 3.5rem;
+  --app-attach-gallery-min: 10rem;
   --app-textbtn-height: 1.5rem;    /* 24px 行内文字按钮（WCAG 2.2 AA 最小目标），原 20px */
   --app-vt-size: 1.75rem;          /* 28px 视图切换段宽 */
   --app-vt-height: 1.75rem;        /* 28px 视图切换段高：凹槽 2+28+2=32，对齐 --app-formseg-height */

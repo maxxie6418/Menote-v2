@@ -4,6 +4,7 @@ import { attachmentUrl, deleteAttachment, listAttachmentReferences, listAttachme
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 interface AttachmentListPanelProps { userId: string }
+type AttachmentView = "list" | "gallery";
 function formatSize(size: number): string {
   if (size >= 1_048_576) return `${(size / 1_048_576).toFixed(1)} MB`;
   if (size >= 1024) return `${(size / 1024).toFixed(0)} KB`;
@@ -17,6 +18,7 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
   const [error, setError] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [message, setMessage] = useState("");
+  const [view, setView] = useState<AttachmentView>("list");
 
   const refresh = useCallback(async (fresh = false) => {
     try {
@@ -50,11 +52,29 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
     <section className="status-panel" aria-labelledby="attachments-heading">
       <h2 id="attachments-heading">附件管理</h2>
       <p className="app-description">查看附件及引用文章；删除引用 30 天后自动清理（FR-SYNC-8）。</p>
+      <div className="mn-attach-toolbar">
+        <button type="button" className="mn-textbtn" disabled={cleaning || orphaned.length === 0} onClick={() => void clean()}>{cleaning ? "清理中…" : `一键清理未引用资源${orphaned.length ? `（${orphaned.length}）` : ""}`}</button>
+        <div className="mn-attach-view" role="group" aria-label="附件显示方式">
+          <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>列表</button>
+          <button type="button" aria-pressed={view === "gallery"} className={view === "gallery" ? "on" : ""} onClick={() => setView("gallery")}>图册</button>
+        </div>
+      </div>
       {attachments !== null && <div className="mn-attach-overview" aria-label="附件统计"><span>共 {attachments.length} 个附件</span><span>未引用 {orphaned.length} 个</span></div>}
       {error && <p className="status-detail">附件列表暂不可用。</p>}
       {!error && attachments === null && <p className="status-detail">加载中…</p>}
       {attachments !== null && attachments.length === 0 && <p className="status-detail">暂无附件。</p>}
-      {attachments !== null && attachments.length > 0 && (
+      {view === "gallery" && attachments?.some((attachment) => attachment.mime.startsWith("image/")) && <div className="mn-attach-gallery" aria-label="图片附件图册">
+        {attachments.filter((attachment) => attachment.mime.startsWith("image/")).map((attachment) => {
+          const detail = references[attachment.sha256];
+          const name = detail?.name ?? `${attachment.sha256.slice(0, 12)}…`;
+          return <a key={attachment.sha256} className="mn-attach-gallery-item" href={attachmentUrl(attachment.sha256)} target="_blank" rel="noreferrer" aria-label={`查看图片 ${name}`}>
+            <img src={attachmentUrl(attachment.sha256)} alt={name} loading="lazy" />
+            <span>{name}</span>
+          </a>;
+        })}
+      </div>}
+      {view === "gallery" && attachments && !attachments.some((attachment) => attachment.mime.startsWith("image/")) && <p className="status-detail">暂无图片附件；其他文件可在列表模式查看。</p>}
+      {view === "list" && attachments !== null && attachments.length > 0 && (
         <ul className="mn-attachlist" aria-label="附件列表">
           {attachments.map((attachment) => {
             const detail = references[attachment.sha256];
@@ -75,9 +95,7 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
           })}
         </ul>
       )}
-      {attachments !== null && attachments.length === 0 && <div className="mn-attach-clean"><button type="button" className="mn-textbtn" disabled>一键清理未引用资源</button></div>}
       {message && <p className="status-detail" role="status">{message}</p>}
-      <div className="mn-attach-clean"><button type="button" className="mn-textbtn" disabled={cleaning || orphaned.length === 0} onClick={() => void clean()}>{cleaning ? "清理中…" : `一键清理未引用资源${orphaned.length ? `（${orphaned.length}）` : ""}`}</button></div>
     </section>
   );
 }
