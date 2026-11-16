@@ -12,6 +12,23 @@
 .mn-import-radio { width: var(--app-size-chip); height: var(--app-size-chip); flex: none; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-pill); }
 .mn-import-type-list .is-selected .mn-import-radio { border: var(--app-space-4) solid var(--app-accent); }
 .mn-import-coming-soon { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+
+/* Flomo 导入面板（FR-IMP-1）：选包 → 摘要 → 预览 → 进度。 */
+.mn-flomo-import { display: grid; gap: var(--app-space-sm); }
+.mn-flomo-import > p { margin: var(--app-zero); }
+.mn-flomo-import-pick { display: inline-flex; align-items: center; justify-content: center; gap: var(--app-space-6); min-height: var(--app-touch-target); padding: var(--app-space-8) var(--app-space-md); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); color: var(--app-fg); font: inherit; cursor: pointer; }
+.mn-flomo-import-pick svg { width: var(--app-icon-xs); height: var(--app-icon-xs); }
+.mn-flomo-import-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--app-import-summary-min), 1fr)); gap: var(--app-space-8); margin: var(--app-zero); }
+.mn-flomo-import-summary > div { display: grid; gap: var(--app-space-2); padding: var(--app-space-8); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
+.mn-flomo-import-summary dt { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-flomo-import-summary dd { margin: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-nav); }
+.mn-flomo-import-preview { display: grid; gap: var(--app-space-6); max-height: var(--app-import-preview-height); overflow: auto; padding: var(--app-space-8); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-flomo-import-preview p { display: grid; grid-template-columns: auto 1fr; gap: var(--app-space-8); margin: var(--app-zero); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-flomo-import-preview time { color: var(--app-fg-faint); font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
+.mn-flomo-import-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-flomo-import-preview .mn-flomo-import-more { display: block; color: var(--app-fg-faint); }
+.mn-flomo-import-bar { height: var(--app-space-4); overflow: hidden; border-radius: var(--app-radius-pill); background: var(--app-surface-sunken); }
+.mn-flomo-import-bar i { display: block; width: var(--app-zero); height: var(--app-full-size); border-radius: inherit; background: var(--app-accent); transition: width 120ms linear; }
 .mn-memo-gal-error { display: grid; width: var(--app-full-size); height: var(--app-full-size); place-items: center; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-attach-overview { display: flex; flex-wrap: wrap; gap: var(--app-space-4); margin: var(--app-space-sm) var(--app-zero); }
 .mn-attach-overview span { padding: var(--app-space-2) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-muted); font-size: var(--app-size-chip); }

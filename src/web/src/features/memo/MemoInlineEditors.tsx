@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowUp, Pencil, Quote, Trash2 } from "../../icons";
 import type { Item, MemoComment } from "@menote/shared";
+import { appendTags, extractTags, toggleTagInText } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { addMemoComment, createQuoteMemo, deleteMemoComment, editMemoComment } from "../../services/memoService";
 import { useAllTags, useMemoComments } from "../../services/contentHooks";
@@ -101,18 +102,20 @@ export function MemoQuotePanel({ userId, memo, onCreated, onCancel }: {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  const [tags, setTags] = useState<string[]>(memo.tags);
+  // FR-MEMO-9：引述的标签同样写进引述正文，标签勾选即写入/移除 `#标签`。
+  const tags = extractTags(draft);
   const availableTags = useAllTags(userId);
+  const applyTag = (tag: string) => setDraft((current) => toggleTagInText(current, tag));
   return (
     <div className="mn-memo-inline-editor" aria-label="引述">
       <textarea className="mn-memo-quote-input" autoFocus aria-label="引述正文" placeholder="写下你的引述…" value={draft} onChange={(event) => setDraft(event.target.value)} />
       <aside className="mn-memo-quote-snapshot">
         <div className="mn-memo-quote-head"><span><Quote /> 引自 {new Date(memo.createdAt).toLocaleString()}</span></div>
-        {memo.content.scope === "plain" && <MarkdownView markdown={memo.content.markdown} className="mn-memo-quote-content" />}
+        {memo.content.scope === "plain" && <MarkdownView markdown={appendTags(memo.content.markdown, memo.tags)} className="mn-memo-quote-content" />}
       </aside>
       {availableTags.length > 0 && <div className="mn-memo-quote-tags" aria-label="引述标签">
         <span>标签</span>
-        {availableTags.map((tag) => <button key={tag} type="button" aria-pressed={tags.includes(tag)} onClick={() => setTags((current) => current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag])}>#{tag}</button>)}
+        {availableTags.map((tag) => <button key={tag} type="button" aria-pressed={tags.includes(tag)} onClick={() => applyTag(tag)}>#{tag}</button>)}
       </div>}
       {error && <p className="mn-memo-action-error" role="alert">引述发布失败，请重试。</p>}
       <footer className="mn-memo-quote-footer">
@@ -121,7 +124,7 @@ export function MemoQuotePanel({ userId, memo, onCreated, onCancel }: {
         <button type="button" disabled={!draft.trim() || saving} onClick={() => {
           setSaving(true);
           setError(false);
-          void createQuoteMemo(userId, memo, draft.trim(), tags).then(onCreated).catch(() => setError(true)).finally(() => setSaving(false));
+          void createQuoteMemo(userId, memo, draft.trim(), []).then(onCreated).catch(() => setError(true)).finally(() => setSaving(false));
         }}>发布</button>
       </footer>
     </div>

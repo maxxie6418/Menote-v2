@@ -119,6 +119,9 @@
   --app-home-greeting-margin: 0.9375rem 0 1.75rem;
   --app-home-greeting-size: 1.3125rem;
   --app-home-greeting-mobile-size: 1.125rem;
+  /* Flomo 导入预览区高度（FR-IMP-1）：摘要下面滚动显示前几条笔记。 */
+  --app-import-preview-height: 12rem;
+  --app-import-summary-min: 7rem;
   --app-home-greeting-track: -0.008em;
   --app-home-capture-height: 7rem;
   --app-home-capture-pad: 1.1875rem 1.3125rem 0;

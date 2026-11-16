@@ -3,6 +3,7 @@ import { Activity, Download, LogOut, SlidersHorizontal, X } from "../icons";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
 import { updateAppearance } from "../services/appearanceSettingsService";
+import { FlomoImportPanel } from "../features/import";
 
 const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
   { mode: "system", label: "跟随系统" },
@@ -137,9 +138,11 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
             <div className="mn-import-type-list" role="radiogroup" aria-label="数据来源">
               {([ ["flomo", "Flomo", "导入 Flomo 导出的压缩包"], ["obsidian", "Obsidian", "从 Obsidian 文件夹或库文件导入"], ["notion", "Notion", "导入 Notion 导出的数据"] ] as const).map(([value, label, description]) => <button type="button" role="radio" aria-checked={importType === value} className={importType === value ? "is-selected" : ""} key={value} onClick={() => setImportType(value)}><span className="mn-import-radio" aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}
             </div>
-            <p className="mn-import-coming-soon" role="status">{importType === "flomo" ? "Flomo" : importType === "obsidian" ? "Obsidian" : "Notion"} 导入功能即将开放。</p>
+            {importType === "flomo"
+              ? <FlomoImportPanel userId={userId} />
+              : <p className="mn-import-coming-soon" role="status">{importType === "obsidian" ? "Obsidian" : "Notion"} 导入功能即将开放。</p>}
           </div>
-          <footer className="mn-dialog-actions"><button type="button" className="mn-auth-submit" onClick={() => setImportDialogOpen(false)}>完成</button></footer>
+          {importType !== "flomo" && <footer className="mn-dialog-actions"><button type="button" className="mn-auth-submit" onClick={() => setImportDialogOpen(false)}>完成</button></footer>}
         </section>
       </div>}
     </>

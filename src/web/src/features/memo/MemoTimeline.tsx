@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, FileText, MessageCircle, Pencil, Pin, Repeat2, Star, Trash2 } from "../../icons";
 import type { Item } from "@menote/shared";
+import { appendTags } from "@menote/shared";
 import { MarkdownView } from "../markdown";
 import { setTaskCheckbox } from "../../lib/markdownTasks";
 import { convertMemoToNote, saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
@@ -47,24 +48,27 @@ export function MemoTimeline({ userId, username, memos, allMemos, onDragItem, on
 function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, onOpenNote, onQuoted }: { userId: string; username: string; memo: Item; allMemos: Item[]; onDragItem: (event: React.DragEvent, id: string) => void; onOpenSource: (id: string) => void; onOpenNote: (id: string) => void; onQuoted: (item: Item) => void }) {
   const plain = isPlainMemo(memo);
   const source = memoText(memo);
+  // FR-MEMO-9：标签写在正文里。存量条目的标签还没落进正文时，末尾补齐后再展示与编辑。
+  const body = appendTags(source, memo.tags);
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(source);
+  const [value, setValue] = useState(body);
   const [panel, setPanel] = useState<"comments" | "quote" | null>(null);
   const [conversion, setConversion] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [createdNoteId, setCreatedNoteId] = useState<string | null>(null);
   const comments = useMemoComments(userId, memo.id);
-  const rendered = degradeMemoMarkdown(source);
+  const rendered = degradeMemoMarkdown(body);
   const status = statusLabel(memo.status);
 
   const commit = async () => {
     setEditing(false);
+    // 与已存正文比较而不是与展示正文比较：存量条目补齐标签后保存一次即完成落库。
     if (plain && value !== source) await saveItemContent(userId, memo.id, value);
   };
 
   const toggleTask = async (ordinal: number, checked: boolean) => {
     if (!plain) return;
-    const next = setTaskCheckbox(source, ordinal, checked);
-    if (next !== source) await saveItemContent(userId, memo.id, next);
+    const next = setTaskCheckbox(body, ordinal, checked);
+    if (next !== body) await saveItemContent(userId, memo.id, next);
   };
 
   const convertToNote = async () => {
@@ -127,9 +131,6 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
           </>
         ) : (
           <p className="mn-memo-locked">已加密</p>
-        )}
-        {plain && memo.tags.length > 0 && (
-          <p className="mn-memo-tags">{memo.tags.map((tag) => <span key={tag} className="mn-memo-tag">#{tag}</span>)}</p>
         )}
         {status && <span className={`mn-memo-status ${memo.status}`}><i />{status}</span>}
         {memo.type === "memo" && plain && memo.memoQuote && (

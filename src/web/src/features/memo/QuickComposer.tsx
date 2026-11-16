@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, ImagePlus, Tags } from "../../icons";
+import { extractTags, toggleTagInText } from "@menote/shared";
 import { createMemo } from "../../services/contentService";
 import { useAllTags } from "../../services/contentHooks";
 import { uploadAttachment } from "../../services/attachmentService";
@@ -16,12 +17,13 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [newTag, setNewTag] = useState("");
   const allTags = useAllTags(userId);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // FR-MEMO-9：标签写在正文里，这里显示的是正文解析出的标签。
+  const tags = extractTags(value);
 
   useEffect(() => {
     if (openSignal <= 0) return;
@@ -34,9 +36,8 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     if (!text || busy || uploading) return;
     setBusy(true);
     try {
-      await createMemo(userId, text, tags);
+      await createMemo(userId, text);
       setValue("");
-      setTags([]);
       setError(null);
       setExpanded(keepOpenAfterSubmit);
     } catch {
@@ -45,6 +46,18 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     } finally {
       setBusy(false);
     }
+  };
+
+  /** 标签快捷入口：点一下就在正文里写入或移除 `#标签`，正文始终是标签的唯一载体（FR-MEMO-9）。 */
+  const applyTag = (tag: string) => {
+    setValue((current) => toggleTagInText(current, tag));
+    requestAnimationFrame(() => {
+      const node = textRef.current;
+      if (!node) return;
+      node.focus();
+      const caret = node.value.length;
+      node.setSelectionRange(caret, caret);
+    });
   };
 
   /** 逐个上传并把附件引用插到光标处（FR-MEMO-2）：失败只留一行提示，正文不受影响。 */
@@ -146,8 +159,9 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
             <Tags aria-hidden="true" />标签{tags.length > 0 ? ` ${tags.length}` : ""}
           </button>
           {tagMenuOpen && <div className="mn-composer-tag-menu" role="dialog" aria-label="Memo 标签" onKeyDown={(event) => { if (event.key === "Escape") setTagMenuOpen(false); }}>
-            {allTags.map((tag) => <label key={tag}><input type="checkbox" checked={tags.includes(tag)} onChange={(event) => setTags((current) => event.target.checked ? [...current, tag] : current.filter((item) => item !== tag))} />#{tag}</label>)}
-            <form onSubmit={(event) => { event.preventDefault(); const tag = newTag.trim().replace(/^#/, ""); if (tag && !tags.includes(tag)) setTags((current) => [...current, tag]); setNewTag(""); }}>
+            <p className="mn-composer-tag-hint">点标签即在正文里写入或移除</p>
+            {allTags.map((tag) => <button key={tag} type="button" className="mn-composer-tag-option" aria-pressed={tags.includes(tag)} onClick={() => applyTag(tag)}>#{tag}</button>)}
+            <form onSubmit={(event) => { event.preventDefault(); const tag = newTag.trim().replace(/^#/, ""); if (tag) { applyTag(tag); setNewTag(""); } }}>
               <input aria-label="添加标签" value={newTag} onChange={(event) => setNewTag(event.target.value)} placeholder="新标签" />
               <button type="submit" disabled={!newTag.trim()}>添加</button>
             </form>

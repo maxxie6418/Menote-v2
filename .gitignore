@@ -6,5 +6,6 @@ dist/
 .dev.vars*
 .env*
 /draft/tmp/
+/.temp/
 /.zcode/
 editor-adapter.bundle.tmp.mjs

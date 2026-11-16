@@ -1,4 +1,5 @@
 import type { Item, MemoComment, MemoQuote } from "@menote/shared";
+import { appendTags } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { getItem } from "../db/itemsRepo";
 import { getMemoComment, listMemoComments, putMemoComment } from "../db/memoCommentsRepo";
@@ -15,7 +16,8 @@ export function createQuoteMemo(userId: string, source: Item, markdown: string, 
   const memoQuote: MemoQuote = {
     sourceMemoId: source.id,
     sourceCreatedAt: source.createdAt,
-    snapshot: source.content.markdown,
+    // FR-MEMO-9：冻结的原文快照带上标签正文，与时间线里的呈现一致。
+    snapshot: appendTags(source.content.markdown, source.tags),
   };
   return createMemo(userId, markdown, tags, memoQuote);
 }

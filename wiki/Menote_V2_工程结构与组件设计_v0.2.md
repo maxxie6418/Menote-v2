@@ -135,6 +135,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
 **table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色；整页表格附件列支持上传和下载）、`FieldTypeMenu`（8 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段可从文档标题栏或表格工具条创建，类型菜单 portal 到视口以免被滚动容器裁切）、`TableColumnVisibility`（列显隐设置，只改当前账号视图）、`TableRowDetailsPanel`（行详情侧栏与封面预览）。隐藏列经 `tableViewSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings` 的 `tableViews` 键；列宽继续只保存在本机偏好（FR-TBL-17）。
 **memo/**：`Timeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoDetailDialog`（评论列表与编辑）、`MemoQuoteDialog`、`QuickComposer`（单行展开）、`TodoSidePanel`、`TodoGroup`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。
+**import/**（TP15，FR-IMP-1）：`FlomoImportPanel`（账户菜单「导入数据」里的 Flomo 面板：选压缩包 → 摘要与预览 → 确认导入 → 进度与结果）。解析在 `lib/flomoParse.ts`（纯函数：zip → 笔记 HTML → Markdown 与图片清单），落库在 `services/flomoImportService.ts`（图片上传 + 批量写 + 去重）；面板只调服务，不直接碰 IndexedDB 或网络。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
 **search/**：本地检索查询在 `services/searchService.ts`。入口是首页与清单顶部搜索框，不另建命令面板（负责人 2026-11-02）。

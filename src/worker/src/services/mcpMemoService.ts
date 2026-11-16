@@ -1,4 +1,5 @@
 import type { Item, McpMemoRequest, McpMemoResult, OutboxOperation } from "@menote/shared";
+import { appendTags, extractTags } from "@menote/shared";
 import { applyOperation } from "./syncService";
 
 const MAX_TEXT_LENGTH = 20_000;
@@ -16,12 +17,12 @@ function hex(digest: ArrayBuffer): string {
 }
 
 /** 选区文本转为逐行引用块；来源行统一放在引文之后，保持时间线里的可读出处。 */
-export function buildMemoMarkdown(input: { text: string; sourceUrl?: string; sourceTitle?: string }): string {
+export function buildMemoMarkdown(input: { text: string; sourceUrl?: string; sourceTitle?: string; tags?: string[] }): string {
   const quote = input.text.trim().split(/\r?\n/).map((line) => `> ${line.trimEnd()}`).join("\n");
-  if (!input.sourceUrl) return quote;
+  if (!input.sourceUrl) return appendTags(quote, input.tags ?? []);
   const host = new URL(input.sourceUrl).host;
   const label = (input.sourceTitle ?? "").trim().slice(0, MAX_SOURCE_TITLE_LENGTH) || host;
-  return `${quote}\n\n—— [${label}](${input.sourceUrl})`;
+  return appendTags(`${quote}\n\n—— [${label}](${input.sourceUrl})`, input.tags ?? []);
 }
 
 export async function createMcpMemo(ctx: McpMemoContext, input: McpMemoRequest): Promise<McpMemoResult> {
@@ -35,12 +36,13 @@ export async function createMcpMemo(ctx: McpMemoContext, input: McpMemoRequest):
         input.tags.some((tag) => typeof tag !== "string" || !tag.trim() || tag.length > 200)))) {
     throw new Error("invalid_memo_payload");
   }
-  const markdown = buildMemoMarkdown({ text, ...(sourceUrl ? { sourceUrl } : {}), ...(sourceTitle ? { sourceTitle } : {}) });
+  const markdown = buildMemoMarkdown({ text, ...(sourceUrl ? { sourceUrl } : {}), ...(sourceTitle ? { sourceTitle } : {}), ...(input.tags ? { tags: input.tags } : {}) });
   const contentHash = hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown)));
   // 与剪藏一致：operationId 直接作 item id，重试天然幂等，无需额外去重表。
   const item: Item = {
     id: input.operationId, userId: ctx.userId, type: "memo", topicId: null, groupId: null,
-    title: null, tags: [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))], status: null, attachmentHashes: [], source: "clipper", rev: 1, metaRev: 1,
+    // FR-MEMO-9：标签写进正文，tags 字段是正文解析结果，与 Web 端同一口径。
+    title: null, tags: extractTags(markdown), status: null, attachmentHashes: [], source: "clipper", rev: 1, metaRev: 1,
     contentHash, pinned: false, starred: false, createdAt: ctx.now, updatedAt: ctx.now, deletedAt: null,
     content: { scope: "plain", markdown },
   };

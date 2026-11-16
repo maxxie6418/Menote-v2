@@ -1,4 +1,5 @@
 import type { Item, MemoQuote, TopicNode } from "@menote/shared";
+import { appendTags, extractTags } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId, sha256Hex } from "../lib/hash";
@@ -141,13 +142,15 @@ async function nextUntitledTitle(userId: string): Promise<string> {
 }
 
 export async function createMemo(userId: string, markdown: string, tags: string[] = [], memoQuote?: MemoQuote): Promise<Item> {
+  // FR-MEMO-9：标签正文化。传入的标签写进正文末尾，正文里的 `#标签` 即标签本体。
+  const body = appendTags(markdown, tags);
   const now = Date.now();
   const item: Item = {
     id: newId(), userId, type: "memo", topicId: null, groupId: null,
-    title: null, tags, status: null, attachmentHashes: attachmentHashesOf(markdown), source: "manual",
-    rev: 1, metaRev: 1, contentHash: await sha256Hex(markdown),
+    title: null, tags: extractTags(body), status: null, attachmentHashes: attachmentHashesOf(body), source: "manual",
+    rev: 1, metaRev: 1, contentHash: await sha256Hex(body),
     pinned: false, starred: false, createdAt: now, updatedAt: now, deletedAt: null,
-    content: { scope: "plain", markdown }, ...(memoQuote ? { memoQuote } : {}),
+    content: { scope: "plain", markdown: body }, ...(memoQuote ? { memoQuote } : {}),
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(item);
@@ -292,6 +295,8 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
     ...current, rev: current.rev + 1, contentHash, updatedAt: Date.now(),
     // 附件引用随正文重算：服务端引用计数与备份收录都以这份列表为准（FR-SYNC-7）。
     attachmentHashes: attachmentHashesOf(markdown),
+    // FR-MEMO-9：随记标签以正文为准，保存即回写解析结果（正文删掉标签即同步去掉）。
+    ...(current.type === "memo" ? { tags: extractTags(markdown) } : {}),
     content: { scope: "plain", markdown },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {

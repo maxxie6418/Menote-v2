@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "../icons";
 import { alertDialog } from "../components/ui/ConfirmDialog";
 import type { AuthUser, Item } from "@menote/shared";
+import { setTagsInText } from "@menote/shared";
 import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
 import { restoreFromTrash } from "../services/versionService";
@@ -146,7 +147,12 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   const saveTags = async () => {
     if (!actionItem) return;
     const tags = [...new Set(actionTags.split(/[，,\s]+/).map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean))];
-    await saveItemMeta(userId, actionItem.id, { tags });
+    // FR-MEMO-9：随记的标签住在正文里，改标签要改正文；普通文档仍走标签字段。
+    if (actionItem.type === "memo" && actionItem.content.scope === "plain") {
+      await saveItemContent(userId, actionItem.id, setTagsInText(actionItem.content.markdown, tags));
+    } else {
+      await saveItemMeta(userId, actionItem.id, { tags });
+    }
     setActionItem(null);
   };
 

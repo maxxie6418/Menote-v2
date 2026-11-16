@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline } from "../src/features/editor/markdownEdit.ts";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
+
+// markdownEdit 现在依赖 lib/attachmentNames（相对导入在 Node ESM 下需要显式扩展名），测试改用打包后导入。
+const bundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/features/editor/markdownEdit.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "node",
+});
+const { applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline } =
+  await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
 test("行内加粗：无选区插入空标记，光标在中间", () => {
   const result = toggleInline("你好", 2, 2, "bold");

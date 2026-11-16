@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "../icons";
+import type { Item } from "@menote/shared";
+import { removeTagFromText, renameTagInText } from "@menote/shared";
 import { confirmDialog } from "../components/ui/ConfirmDialog";
 import { useHomeSnapshot } from "../services/contentHooks";
 import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
-import { saveItemMeta } from "../services/contentService";
+import { saveItemContent, saveItemMeta } from "../services/contentService";
 
 export function TagManagerDialog({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { items, topics } = useHomeSnapshot(userId);
@@ -45,7 +47,7 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
     setBusy(true); setError("");
     try {
       const affected = visibleItems.filter((item) => item.tags.includes(oldTag));
-      await Promise.all(affected.map((item) => saveItemMeta(userId, item.id, { tags: [...new Set(item.tags.map((tag) => tag === oldTag ? nextTag : tag))] })));
+      await Promise.all(affected.map((item) => renameItemTag(item, oldTag, nextTag)));
       setEditing(null);
     } catch { setError("部分条目改名未完成，请重试。"); }
     finally { setBusy(false); }
@@ -56,9 +58,26 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
     setBusy(true); setError("");
     try {
       const affected = visibleItems.filter((item) => item.tags.includes(tag));
-      await Promise.all(affected.map((item) => saveItemMeta(userId, item.id, { tags: item.tags.filter((value) => value !== tag) })));
+      await Promise.all(affected.map((item) => removeItemTag(item, tag)));
     } catch { setError("部分条目移除未完成，请重试。"); }
     finally { setBusy(false); }
+  };
+
+  /** FR-MEMO-9：随记的标签住在正文里，改名/移除要改正文；普通文档仍走标签字段。 */
+  const renameItemTag = async (item: Item, oldTag: string, nextTag: string) => {
+    if (item.type === "memo" && item.content.scope === "plain") {
+      await saveItemContent(userId, item.id, renameTagInText(item.content.markdown, oldTag, nextTag));
+      return;
+    }
+    await saveItemMeta(userId, item.id, { tags: [...new Set(item.tags.map((tag) => tag === oldTag ? nextTag : tag))] });
+  };
+
+  const removeItemTag = async (item: Item, tag: string) => {
+    if (item.type === "memo" && item.content.scope === "plain") {
+      await saveItemContent(userId, item.id, removeTagFromText(item.content.markdown, tag));
+      return;
+    }
+    await saveItemMeta(userId, item.id, { tags: item.tags.filter((value) => value !== tag) });
   };
 
   return <div className="mn-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>

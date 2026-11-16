@@ -1,5 +1,6 @@
 import { $markSchema, $remark } from "@milkdown/kit/utils";
 import type { Processor } from "unified";
+import { ALLOWED_MEMO_COLORS } from "../../lib/memoColors";
 
 type MarkdownNode = {
   type: string;
@@ -9,9 +10,7 @@ type MarkdownNode = {
   data?: Record<string, unknown>;
 };
 
-const ALLOWED_COLORS = new Set([
-  "#c2412d", "#b45309", "#8a6d00", "#287044", "#2459a6", "#7046a6", "#6c6f6b",
-]);
+const ALLOWED_COLORS = ALLOWED_MEMO_COLORS;
 const OPEN_COLOR = /^<span\s+style=["']color:\s*(#[0-9a-f]{6});?["']\s*>$/i;
 const CLOSE_COLOR = /^<\/span\s*>$/i;
 
