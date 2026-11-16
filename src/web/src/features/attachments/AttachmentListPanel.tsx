@@ -50,11 +50,12 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
     <section className="status-panel" aria-labelledby="attachments-heading">
       <h2 id="attachments-heading">附件管理</h2>
       <p className="app-description">查看附件及引用文章；删除引用 30 天后自动清理（FR-SYNC-8）。</p>
+      {attachments !== null && <div className="mn-attach-overview" aria-label="附件统计"><span>共 {attachments.length} 个附件</span><span>未引用 {orphaned.length} 个</span></div>}
       {error && <p className="status-detail">附件列表暂不可用。</p>}
       {!error && attachments === null && <p className="status-detail">加载中…</p>}
       {attachments !== null && attachments.length === 0 && <p className="status-detail">暂无附件。</p>}
       {attachments !== null && attachments.length > 0 && (
-        <ul className="mn-attachlist">
+        <ul className="mn-attachlist" aria-label="附件列表">
           {attachments.map((attachment) => {
             const detail = references[attachment.sha256];
             const name = detail?.name ?? `${attachment.sha256.slice(0, 12)}…`;

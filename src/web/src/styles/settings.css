@@ -1,0 +1,24 @@
+/* 设置与账户窗口：导入来源选择、附件上传限制和附件列表。 */
+.mn-import-overlay { z-index: 30; }
+.mn-import-dialog { width: min(var(--app-dialog-width-md), var(--app-full-size)); padding: var(--app-zero); }
+.mn-import-dialog-body { display: grid; gap: var(--app-space-sm); padding: var(--app-space-lg); }
+.mn-import-dialog-body > p { margin: var(--app-zero); }
+.mn-import-type-list { display: flex; gap: var(--app-space-4); }
+.mn-import-type-list button { display: flex; flex: 1; align-items: center; justify-content: center; gap: var(--app-space-4); min-width: var(--app-zero); padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); color: var(--app-fg); text-align: left; cursor: pointer; }
+.mn-import-type-list button.is-selected { border-color: var(--app-accent); background: var(--app-accent-subtle); }
+.mn-import-type-list button > span:last-child { display: grid; gap: var(--app-space-2); }
+.mn-import-type-list small { display: none; }
+.mn-import-type-list button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-import-radio { width: var(--app-size-chip); height: var(--app-size-chip); flex: none; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-pill); }
+.mn-import-type-list .is-selected .mn-import-radio { border: var(--app-space-4) solid var(--app-accent); }
+.mn-import-coming-soon { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-memo-gal-error { display: grid; width: var(--app-full-size); height: var(--app-full-size); place-items: center; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
+.mn-attach-overview { display: flex; flex-wrap: wrap; gap: var(--app-space-4); margin: var(--app-space-sm) var(--app-zero); }
+.mn-attach-overview span { padding: var(--app-space-2) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-attachment-policy { padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); }
+.mn-attachment-section-head h4, .mn-attachment-section-head p { margin: var(--app-zero); }
+.mn-attachment-policy .mn-setrow { display: flex; align-items: center; gap: var(--app-space-sm); }
+.mn-attachment-policy .mn-setrow > span { flex: 1; }
+.mn-attachment-policy-hint { margin: var(--app-zero); }
+.mn-attachrow { padding: var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); }
+.mn-import-dialog .mn-dialog-actions { padding: var(--app-space-sm) var(--app-space-lg); }

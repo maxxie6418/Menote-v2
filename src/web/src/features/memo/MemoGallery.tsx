@@ -33,10 +33,12 @@ function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: str
   const thumbRef = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
   const [ratio, setRatio] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
     }, { rootMargin: "12rem" });
@@ -54,13 +56,14 @@ function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: str
   return (
     <button ref={ref} type="button" className="mn-memo-gal-item" onClick={() => onOpen(image.memoId)}>
       <span ref={thumbRef} className="mn-memo-gal-thumb" data-loaded={ratio !== null}>
-        {visible && (
+        {failed ? <span className="mn-memo-gal-error">图片暂不可用</span> : visible && (
           <img
             src={attachmentUrl(image.sha256)}
             alt=""
+            onError={() => setFailed(true)}
             onLoad={(event) => {
               const img = event.currentTarget;
-              if (img.naturalWidth > 0) setRatio(img.naturalWidth / img.naturalHeight);
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) setRatio(img.naturalWidth / img.naturalHeight);
             }}
           />
         )}

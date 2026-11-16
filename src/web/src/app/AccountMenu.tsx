@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Activity, LogOut, SlidersHorizontal } from "../icons";
+import { Activity, Download, LogOut, SlidersHorizontal, X } from "../icons";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
 import { updateAppearance } from "../services/appearanceSettingsService";
@@ -23,6 +23,8 @@ interface AccountMenuProps {
 /** 侧栏脚部账户菜单：主题、系统状态、设置与退出登录。菜单用 fixed 定位逃出侧栏 overflow 裁剪。 */
 export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpenSettings, onOpenStatus }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importType, setImportType] = useState<"flomo" | "obsidian" | "notion">("flomo");
   const [mode, setMode] = useState<ThemeMode>(getThemeMode);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [position, setPosition] = useState({ left: 0, bottom: 0 });
@@ -117,12 +119,29 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
             设置
           </button>
           <button type="button" className="mn-menu-item" role="menuitem"
+            onClick={() => { setOpen(false); setImportDialogOpen(true); }}>
+            <Download aria-hidden="true" />导入数据
+          </button>
+          <button type="button" className="mn-menu-item" role="menuitem"
             onClick={() => { setOpen(false); onLogout(); }}>
             <LogOut aria-hidden="true" />
             退出登录
           </button>
         </div>
       )}
+      {importDialogOpen && <div className="mn-overlay mn-import-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setImportDialogOpen(false); }}>
+        <section className="mn-dialog mn-import-dialog" role="dialog" aria-modal="true" aria-labelledby="mn-import-title">
+          <header className="mn-dlg-head"><h3 id="mn-import-title">导入数据</h3><button type="button" className="mn-iconbtn" aria-label="关闭导入窗口" onClick={() => setImportDialogOpen(false)}><X /></button></header>
+          <div className="mn-import-dialog-body">
+            <p className="mn-sethint">选择要导入的数据来源。</p>
+            <div className="mn-import-type-list" role="radiogroup" aria-label="数据来源">
+              {([ ["flomo", "Flomo", "导入 Flomo 导出的压缩包"], ["obsidian", "Obsidian", "从 Obsidian 文件夹或库文件导入"], ["notion", "Notion", "导入 Notion 导出的数据"] ] as const).map(([value, label, description]) => <button type="button" role="radio" aria-checked={importType === value} className={importType === value ? "is-selected" : ""} key={value} onClick={() => setImportType(value)}><span className="mn-import-radio" aria-hidden="true" /><span><strong>{label}</strong><small>{description}</small></span></button>)}
+            </div>
+            <p className="mn-import-coming-soon" role="status">{importType === "flomo" ? "Flomo" : importType === "obsidian" ? "Obsidian" : "Notion"} 导入功能即将开放。</p>
+          </div>
+          <footer className="mn-dialog-actions"><button type="button" className="mn-auth-submit" onClick={() => setImportDialogOpen(false)}>完成</button></footer>
+        </section>
+      </div>}
     </>
   );
 }

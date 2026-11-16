@@ -738,9 +738,6 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-backupform { display: flex; flex-wrap: wrap; gap: var(--app-space-6); margin-top: var(--app-space-sm); align-items: center; }
 .mn-backupform .mn-propinput { flex: 1; min-width: var(--app-note-grid-min); }
 .mn-backupform .mn-auth-submit { margin-top: var(--app-zero); }
-.mn-import-source-list { display: flex; gap: var(--app-space-sm); padding: var(--app-zero) var(--app-zero) var(--app-space-sm); }
-.mn-import-source-list button { display: flex; gap: var(--app-space-4); }
-.mn-import-source-list button span { color: var(--app-fg-faint); }
 .mn-raindrop-run-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--app-space-2) var(--app-space-sm); color: var(--app-fg-muted); }
 .mn-raindrop-run-summary strong { color: var(--app-fg); }
 .mn-raindrop-run-error { margin-top: var(--app-space-2); }
