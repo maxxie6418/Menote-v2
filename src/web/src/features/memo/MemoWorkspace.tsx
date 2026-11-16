@@ -10,6 +10,7 @@ import { MemoWorkbar } from "./MemoWorkbar";
 import { TodoSidePanel } from "./TodoSidePanel";
 import { filterMemos, memoImages, pickRandomMemo, type MemoRange } from "./memoView";
 import { QuickComposer } from "./QuickComposer";
+import { MemoAccessGate } from "./MemoAccessGate";
 
 interface MemoWorkspaceProps {
   userId: string;
@@ -25,7 +26,15 @@ interface MemoWorkspaceProps {
 }
 
 /** Memo 视图：顶栏 + 工作栏浮层 + 时间线或图册。Todo 只在时间轴出现。 */
-export function MemoWorkspace({ userId, username, layout, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
+export function MemoWorkspace(props: MemoWorkspaceProps) {
+  return (
+    <MemoAccessGate userId={props.userId} lockedAs="main" lockedClassName="mn-main mn-memo-main mn-memo-access-main" lockedLabel="Memo">
+      <MemoWorkspaceContent {...props} />
+    </MemoAccessGate>
+  );
+}
+
+function MemoWorkspaceContent({ userId, username, layout, todoOpen, onToggleTodo, selectedMemoId, onSelectMemo, onOpenNote, onBackToNotes }: MemoWorkspaceProps) {
   const allMemos = useMemos(userId);
   const topics = useTopics(userId);
   const memos = allMemos.filter((memo) => memo.topicId === null || !alwaysHiddenPrivateTopicIds(topics).has(memo.topicId));

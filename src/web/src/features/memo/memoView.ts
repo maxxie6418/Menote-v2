@@ -89,7 +89,7 @@ export function memoStats(memos: Item[], now = Date.now()): MemoStats {
   return { total: memos.length, month, days: days.size };
 }
 
-/** Month cells and current writing streak for the Memo workbar. */
+/** Current-month calendar cells for the Memo workbar. */
 export function memoCalendar(memos: Item[], now = Date.now()) {
   const today = new Date(now);
   const start = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -101,33 +101,8 @@ export function memoCalendar(memos: Item[], now = Date.now()) {
       days.set(date.getDate(), (days.get(date.getDate()) ?? 0) + 1);
     }
   }
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const byDay = new Map<string, number>();
-  for (const memo of memos) {
-    const date = new Date(memo.createdAt);
-    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    byDay.set(key, (byDay.get(key) ?? 0) + 1);
-  }
-  let streak = 0;
-  const cursor = new Date(todayStart);
-  const todayKey = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
-  if (!byDay.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
-  // 连续记录按 byDay 全量回溯，跨月不断档（1 号没写也能接上个月的连击）；366 天封顶。
-  while (streak < 366) {
-    const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
-    if (!byDay.has(key)) break;
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  const streakCells = Array.from({ length: 12 }, (_, index) => {
-    const day = new Date(todayStart);
-    day.setDate(day.getDate() - (11 - index));
-    const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`;
-    const count = byDay.get(key) ?? 0;
-    return { day: day.getTime(), count, level: count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count <= 4 ? 3 : 4 };
-  });
   const count = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  return { year: today.getFullYear(), month: today.getMonth(), offset, count, days, streak, streakCells };
+  return { year: today.getFullYear(), month: today.getMonth(), offset, count, days };
 }
 
 export interface HeatCell {

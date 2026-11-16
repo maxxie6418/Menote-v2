@@ -7,6 +7,7 @@ import { setTaskCheckbox } from "../../lib/markdownTasks";
 import { convertMemoToNote, saveItemContent, saveItemMeta, softDeleteItem } from "../../services/contentService";
 import { useMemoComments } from "../../services/contentHooks";
 import { MemoCommentPanel, MemoQuotePanel } from "./MemoInlineEditors";
+import { MemoImagePreview, type MemoImagePreviewData } from "./MemoImagePreview";
 import { degradeMemoMarkdown, groupByDay, isPlainMemo, memoText, statusLabel } from "./memoView";
 
 interface MemoTimelineProps {
@@ -22,6 +23,7 @@ interface MemoTimelineProps {
 
 /** Memo 时间线（FR-MEMO-1）：默认视图、原位编辑（源文本，保存/失焦渲染）、任务复选框可点。 */
 export function MemoTimeline({ userId, username, memos, allMemos, onDragItem, onOpenSource, onOpenNote, onQuoted }: MemoTimelineProps) {
+  const [imagePreview, setImagePreview] = useState<MemoImagePreviewData | null>(null);
   if (memos.length === 0) {
     return (
       <div className="mn-empty" role="status">
@@ -38,14 +40,15 @@ export function MemoTimeline({ userId, username, memos, allMemos, onDragItem, on
       {groups.map((group) => (
         <section key={group.key}>
           <p className="mn-mgroup">{group.label}</p>
-          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} username={username} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onOpenNote={onOpenNote} onQuoted={onQuoted} />)}
+          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} username={username} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onOpenNote={onOpenNote} onQuoted={onQuoted} onImagePreview={setImagePreview} />)}
         </section>
       ))}
+      {imagePreview && <MemoImagePreview image={imagePreview} onClose={() => setImagePreview(null)} />}
     </div>
   );
 }
 
-function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, onOpenNote, onQuoted }: { userId: string; username: string; memo: Item; allMemos: Item[]; onDragItem: (event: React.DragEvent, id: string) => void; onOpenSource: (id: string) => void; onOpenNote: (id: string) => void; onQuoted: (item: Item) => void }) {
+function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, onOpenNote, onQuoted, onImagePreview }: { userId: string; username: string; memo: Item; allMemos: Item[]; onDragItem: (event: React.DragEvent, id: string) => void; onOpenSource: (id: string) => void; onOpenNote: (id: string) => void; onQuoted: (item: Item) => void; onImagePreview: (image: MemoImagePreviewData) => void }) {
   const plain = isPlainMemo(memo);
   const source = memoText(memo);
   // FR-MEMO-9：标签写在正文里。存量条目的标签还没落进正文时，末尾补齐后再展示与编辑。
@@ -124,7 +127,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
           />
         ) : plain ? (
           <>
-            <MarkdownView markdown={rendered.markdown} className="mn-memo-body" onToggleTask={(ordinal, checked) => void toggleTask(ordinal, checked)} />
+            <MarkdownView markdown={rendered.markdown} className="mn-memo-body" onToggleTask={(ordinal, checked) => void toggleTask(ordinal, checked)} onImageClick={(src, alt) => onImagePreview({ src, alt })} />
             {rendered.raw.length > 0 && (
               <pre className="mn-memo-raw">{rendered.raw.join("\n")}</pre>
             )}
@@ -140,7 +143,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
                 ? <button type="button" onClick={() => onOpenSource(memo.memoQuote!.sourceMemoId)}>查看来源</button>
                 : <span>来源已删除</span>}
             </div>
-            <MarkdownView markdown={memo.memoQuote.snapshot} className="mn-memo-quote-content" />
+            <MarkdownView markdown={memo.memoQuote.snapshot} className="mn-memo-quote-content" onImageClick={(src, alt) => onImagePreview({ src, alt })} />
           </aside>
         )}
         {plain && !editing && (

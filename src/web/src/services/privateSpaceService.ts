@@ -96,6 +96,22 @@ export async function unlockPrivateSpace(userId: string, credential: string, use
   return unlockTopic(topic.id, credential, useRecovery);
 }
 
+/** 只验证 Memo 入口口令：解开后立即清零临时主题密钥，不把私人空间标记为已解锁。 */
+export async function verifyPrivateSpacePassword(userId: string, password: string): Promise<"ok" | "bad_credential" | "no_wraps" | "missing"> {
+  const topic = await findPrivateSpace(userId);
+  if (!topic) return "missing";
+  const row = await localDb.topicWraps.get(topic.id);
+  const wrap = row?.wraps.find((entry) => entry.wrapper === "password");
+  if (!wrap) return "no_wraps";
+  try {
+    const key = await unwrapContentKey(wrap, password);
+    key.fill(0);
+    return "ok";
+  } catch {
+    return "bad_credential";
+  }
+}
+
 export async function lockPrivateSpace(userId: string): Promise<void> {
   const topic = await findPrivateSpace(userId);
   if (topic) lockTopic(topic.id);

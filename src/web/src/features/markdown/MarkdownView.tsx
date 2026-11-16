@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { attachmentUrl } from "../../services/attachmentService";
@@ -18,6 +18,8 @@ interface MarkdownViewProps {
   markdown: string;
   /** 传入时任务复选框可点击（FR-MEMO-3）；不传则复选框只读（Note 预览态）。 */
   onToggleTask?: (ordinal: number, checked: boolean) => void;
+  /** 传入时图片可用鼠标或键盘打开预览；Memo 时间线使用。 */
+  onImageClick?: (src: string, alt: string) => void;
   className?: string;
 }
 
@@ -44,7 +46,7 @@ function cancelIdle(handle: { kind: "idle" | "timer"; id: number }): void {
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
-export function MarkdownView({ markdown, onToggleTask, className }: MarkdownViewProps) {
+export function MarkdownView({ markdown, onToggleTask, onImageClick, className }: MarkdownViewProps) {
   // 渲染耗时基线（FR-EDT-10 / W0）：渲染开始 → 布局提交完成。诊断关闭时不打点。
   const renderStart = perfProbe.isEnabled ? performance.now() : 0;
   const renderStartRef = useRef(renderStart);
@@ -102,7 +104,36 @@ export function MarkdownView({ markdown, onToggleTask, className }: MarkdownView
       const imgProps: Record<string, unknown> = { ...rest };
       delete imgProps.src;
       delete imgProps.alt;
-      return <img src={resolveSrc(src)} alt={alt} loading="lazy" {...imgProps} />;
+      const resolved = resolveSrc(src);
+      const imageClass = [typeof imgProps.className === "string" ? imgProps.className : "", onImageClick ? "md-image-zoomable" : ""]
+        .filter(Boolean).join(" ");
+      return (
+        <img
+          {...imgProps}
+          src={resolved}
+          alt={alt}
+          loading="lazy"
+          className={imageClass || undefined}
+          {...(onImageClick && resolved ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": alt ? `放大查看图片：${alt}` : "放大查看图片",
+            draggable: false,
+            onPointerDown: (event: ReactPointerEvent<HTMLImageElement>) => event.stopPropagation(),
+            onClick: (event: ReactMouseEvent<HTMLImageElement>) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onImageClick(resolved, alt);
+            },
+            onKeyDown: (event: ReactKeyboardEvent<HTMLImageElement>) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              event.stopPropagation();
+              onImageClick(resolved, alt);
+            },
+          } : {})}
+        />
+      );
     },
   };
 

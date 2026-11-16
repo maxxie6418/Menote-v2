@@ -76,15 +76,13 @@
 :root .mn-home-foot { min-height: var(--app-home-footer-height); }
 :root .mn-memo-work-block { order: 0; }
 :root .mn-memo-calendar-block { order: 1; }
-:root .mn-memo-streak-block { order: 2; }
-:root .mn-memo-week-summary { order: 3; }
-:root .mn-memo-tag-distribution { order: 4; }
-:root .mn-memo-current-summary { order: 5; }
-:root .mn-memo-heat-block { order: 6; }
-:root .mn-memo-wander-block { order: 7; }
-:root .mn-memo-on-this-day { order: 8; }
-:root .mn-memo-date-block { order: 9; }
-:root .mn-memo-tag-filter { order: 10; }
+:root .mn-memo-week-summary { order: 2; }
+:root .mn-memo-current-summary { order: 3; }
+:root .mn-memo-heat-block { order: 4; }
+:root .mn-memo-wander-block { order: 5; }
+:root .mn-memo-on-this-day { order: 6; }
+:root .mn-memo-date-block { order: 7; }
+:root .mn-memo-tag-filter { order: 8; }
 :root .mn-memo-week-stat { display: flex; justify-content: space-between; padding: var(--app-space-2) 0; color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 :root .mn-memo-week-stat b { color: var(--app-fg); font-family: var(--app-font-mono); font-weight: var(--app-weight-regular); }
 :root .mn-memo-week-stat b.is-accent { color: var(--app-accent-fg); }

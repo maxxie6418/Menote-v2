@@ -30,26 +30,6 @@
 :root .mn-memo-calendar > .mn-memo-calendar-weekday { color: var(--app-fg-faint); font-weight: var(--app-weight-medium); }
 :root .mn-memo-calendar > span.has-memo { background: var(--app-accent-subtle); color: var(--app-accent-fg); font-weight: var(--app-weight-medium); }
 :root .mn-memo-calendar > .is-empty { min-height: var(--app-space-20); }
-:root .mn-memo-streak { margin: var(--app-space-8) 0 0; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
-:root .mn-memo-streak b { color: var(--app-accent-fg); font-size: var(--app-size-button); }
-:root .mn-memo-work-heading { display: flex; align-items: center; justify-content: space-between; }
-:root .mn-memo-work-heading strong { color: var(--app-accent-fg); font-size: var(--app-size-chip); }
-:root .mn-memo-streak-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: end; gap: var(--app-space-2); height: var(--app-space-34); }
-:root .mn-memo-streak-chart i { min-height: var(--app-space-2); height: var(--app-space-2); border-radius: var(--app-radius-sm); background: var(--app-border); }
-:root .mn-memo-streak-chart i[data-level="1"] { height: var(--app-chart-height-1); background: var(--app-accent); }
-:root .mn-memo-streak-chart i[data-level="2"] { height: var(--app-chart-height-2); background: var(--app-accent); }
-:root .mn-memo-streak-chart i[data-level="3"] { height: var(--app-chart-height-3); background: var(--app-accent); }
-:root .mn-memo-streak-chart i[data-level="4"] { height: var(--app-chart-height-4); background: var(--app-accent); }
-:root .mn-memo-streak-legend { display: flex; justify-content: space-between; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
-:root .mn-memo-tag-bars { display: grid; gap: var(--app-space-8); }
-:root .mn-memo-tag-bar > div { display: flex; justify-content: space-between; color: var(--app-fg-muted); font-size: var(--app-size-chip); }
-:root .mn-memo-tag-bar > div b { color: var(--app-fg-subtle); font-weight: var(--app-weight-medium); }
-:root .mn-memo-tag-bar > i { display: block; height: var(--app-space-2); margin-top: var(--app-space-2); overflow: hidden; border-radius: var(--app-radius-pill); background: var(--app-border-subtle); }
-:root .mn-memo-tag-bar > i > span { display: block; height: var(--app-full-size); border-radius: inherit; background: var(--app-accent); }
-:root .mn-memo-tag-bar > i > span[data-level="1"] { width: var(--app-chart-width-1); }
-:root .mn-memo-tag-bar > i > span[data-level="2"] { width: var(--app-chart-width-2); }
-:root .mn-memo-tag-bar > i > span[data-level="3"] { width: var(--app-chart-width-3); }
-:root .mn-memo-tag-bar > i > span[data-level="4"] { width: var(--app-chart-width-4); }
 :root .mn-memo-scroll > .mn-composer { --app-composer-open-height: var(--app-memo-composer-height); width: min(var(--app-memo-composer-max), var(--app-doc-measure), calc(var(--app-full-size) - var(--app-space-18) - var(--app-space-18))); margin: var(--app-space-14) auto 0; }
 :root .mn-memo-scroll > .mn-composer .mn-composer-actions { padding-top: var(--app-space-4); border-top: var(--app-line) solid var(--app-border-subtle); }
 :root .mn-memo-scroll > .mn-memo-hint { display: flex; width: min(var(--app-memo-composer-max), var(--app-doc-measure), calc(var(--app-full-size) - var(--app-space-18) - var(--app-space-18))); margin: var(--app-space-14) auto 0; }

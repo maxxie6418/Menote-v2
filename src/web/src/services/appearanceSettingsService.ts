@@ -28,6 +28,8 @@ export interface AppearanceSettings {
   memoWorkbarSide: "left" | "right";
   /** Memo 首次进入时 Todo 侧板状态。 */
   memoTodoDefault: "open" | "closed";
+  /** Memo 页面入口口令门禁；仅拦截前端入口，不加密 Memo 内容。 */
+  memoAccessGate: boolean;
   docStyle: DocStyleVars;
 }
 
@@ -35,7 +37,7 @@ const SETTING_KEY = "appearance";
 const LEGACY_IMPORTED_KEY = "appearanceLegacyImported";
 const DEFAULT_APPEARANCE: AppearanceSettings = {
   theme: "system", skin: "shadcn", font: "noto", density: "standard", measure: "auto",
-  propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: {},
+  propsPos: "top", toolbar: "auto", railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", memoAccessGate: false, docStyle: {},
 };
 
 const DENSITY_MODES: readonly DensityPreference[] = ["compact", "standard", "cozy", "spacious"];
@@ -58,6 +60,7 @@ function normalizeAppearance(value: Partial<AppearanceSettings>): AppearanceSett
     railMode: value.railMode === "rail" ? "rail" : "bar",
     memoWorkbarSide: value.memoWorkbarSide === "right" ? "right" : "left",
     memoTodoDefault: value.memoTodoDefault === "closed" ? "closed" : "open",
+    memoAccessGate: value.memoAccessGate === true,
     docStyle: value.docStyle ?? {},
   };
 }
@@ -122,7 +125,7 @@ export async function applyPulledSettings(userId: string, settings: UserSetting[
   // Import old browser-only preferences once, into the first account that signs in on this device.
   const legacy: AppearanceSettings = {
     theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), density: getDensityPreference(), measure: getMeasurePreference(),
-    propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
+    propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", memoAccessGate: false, docStyle: getDocStyle(),
   };
   await saveAppearance(userId, legacy);
   await setMeta(LEGACY_IMPORTED_KEY, true);
@@ -134,7 +137,7 @@ export async function updateAppearance(userId: string, patch: Partial<Appearance
     ? normalizeAppearance(current.value as Partial<AppearanceSettings>)
     : {
         theme: getThemeMode(), skin: getThemeSkin(), font: getFontPreference(), density: getDensityPreference(), measure: getMeasurePreference(),
-        propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", docStyle: getDocStyle(),
+        propsPos: getPropsPlacement(), toolbar: getToolbarPlacement(), railMode: "bar", memoWorkbarSide: "left", memoTodoDefault: "open", memoAccessGate: false, docStyle: getDocStyle(),
       };
   await saveAppearance(userId, normalizeAppearance({ ...base, ...patch, docStyle: patch.docStyle ?? base.docStyle }));
 }

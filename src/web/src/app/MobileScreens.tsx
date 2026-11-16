@@ -5,7 +5,7 @@ import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, usePendingOu
 import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
-import { groupByDay, memoImages, statusLabel, MemoGallery } from "../features/memo";
+import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, statusLabel, MemoGallery, type MemoImagePreviewData } from "../features/memo";
 import { NoteDocument, noteSnippet } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
@@ -71,9 +71,19 @@ export function MobileHome({ userId, onOpenItem, onOpenSection }: {
   );
 }
 
-export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId, initialTab = "all" }: {
-  userId: string; onLongPress: (item: Item) => void; onOpenMemo: (id: string) => void; selectedId?: string | null; initialTab?: "all" | "todo" | "gallery";
-}) {
+interface MobileMemoProps {
+  userId: string;
+  onLongPress: (item: Item) => void;
+  onOpenMemo: (id: string) => void;
+  selectedId?: string | null;
+  initialTab?: "all" | "todo" | "gallery";
+}
+
+export function MobileMemo(props: MobileMemoProps) {
+  return <MemoAccessGate userId={props.userId}><MobileMemoContent {...props} /></MemoAccessGate>;
+}
+
+function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initialTab = "all" }: MobileMemoProps) {
   const memos = useMemos(userId);
   const [tab, setTab] = useState<"all" | "todo" | "gallery">(initialTab);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(["done"]));
@@ -123,12 +133,14 @@ export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId, initia
 
 function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: Item; userId: string; onLongPress: (item: Item) => void; compact?: boolean }) {
   const timer = useRef<number | undefined>(undefined);
+  const [imagePreview, setImagePreview] = useState<MemoImagePreviewData | null>(null);
   const markdown = memo.content.scope === "plain" ? memo.content.markdown : "";
   const stopHold = () => { window.clearTimeout(timer.current); };
   const startHold = () => { timer.current = window.setTimeout(() => { onLongPress(memo); }, 480); };
 
-  return <article id={`memo-${memo.id}`} className={`m-memo${compact ? " compact" : ""}`} onPointerDown={startHold} onPointerUp={stopHold} onPointerLeave={stopHold} onPointerCancel={stopHold} onContextMenu={(event) => { event.preventDefault(); onLongPress(memo); }}>
-    {memo.content.scope === "plain" ? <div className="m-memo-prose"><MarkdownView markdown={markdown} onToggleTask={(ordinal, checked) => {
+  return <>
+    <article id={`memo-${memo.id}`} className={`m-memo${compact ? " compact" : ""}`} onPointerDown={startHold} onPointerUp={stopHold} onPointerLeave={stopHold} onPointerCancel={stopHold} onContextMenu={(event) => { event.preventDefault(); onLongPress(memo); }}>
+    {memo.content.scope === "plain" ? <div className="m-memo-prose"><MarkdownView markdown={markdown} onImageClick={(src, alt) => setImagePreview({ src, alt })} onToggleTask={(ordinal, checked) => {
       const next = setTaskCheckbox(markdown, ordinal, checked); if (next !== markdown) void saveItemContent(userId, memo.id, next);
     }} /></div> : <p>已加密</p>}
     <div className="m-meta"><time>{new Date(memo.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
@@ -136,7 +148,9 @@ function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: I
       {statusLabel(memo.status) && <span className="st"><i />{statusLabel(memo.status)}</span>}
       <button className="more" type="button" aria-label="更多操作" onClick={() => onLongPress(memo)}><MoreHorizontal /></button>
     </div>
-  </article>;
+    </article>
+    {imagePreview && <MemoImagePreview image={imagePreview} onClose={() => setImagePreview(null)} />}
+  </>;
 }
 
 export function MobileNotes({ userId, section, selectedId, onSelect, onTopicSheet, onCreate, onLongPress }: {
