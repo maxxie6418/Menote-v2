@@ -599,7 +599,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   };
 
   return (
-    <article ref={documentRootRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-focus={focusMode || undefined} data-inspector-open={inspectorOpen || undefined}
+    <article ref={documentRootRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-editor={isTableDoc ? undefined : editorKind} data-focus={focusMode || undefined} data-inspector-open={inspectorOpen || undefined}
       onMouseUpCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onSelectCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>

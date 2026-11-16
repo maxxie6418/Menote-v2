@@ -1,6 +1,6 @@
 {
   "name": "menote-v2",
-  "version": "0.2.99",
+  "version": "0.2.100",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
