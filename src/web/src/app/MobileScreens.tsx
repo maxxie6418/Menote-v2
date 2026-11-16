@@ -101,7 +101,7 @@ export function MobileMemo({ userId, onLongPress, onOpenMemo, selectedId, initia
       </div>
       {tab === "gallery" ? <div className="m-gallery"><MemoGallery images={images} onOpen={goMemo} /></div>
         : tab === "all" ? <div className="m-stream">
-          {memos.length ? groupByDay(memos).map((group) => <section key={group.label}>
+          {memos.length ? groupByDay(memos).map((group) => <section key={group.key}>
             <div className="m-day"><b>{group.label}</b><i /></div>
             {group.memos.map((memo) => <MobileMemoRow key={memo.id} memo={memo} userId={userId} onLongPress={onLongPress} />)}
           </section>) : <p className="m-empty">还没有 Memo，点底部记录键随手记下。</p>}

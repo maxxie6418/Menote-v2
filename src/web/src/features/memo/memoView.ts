@@ -45,13 +45,24 @@ export function dayLabel(createdAt: number, now = Date.now()): string {
   return new Date(createdAt).toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
 }
 
-export function groupByDay(memos: Item[], now = Date.now()): Array<{ label: string; memos: Item[] }> {
-  const groups: Array<{ label: string; memos: Item[] }> = [];
+/** 某一天 0 点：分组的真实身份（跨年同月同日也是不同的天）。 */
+function startOfDay(timestamp: number): number {
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+/** 按天分组。`key` 是当天的起始时间戳，唯一；`label` 只是展示文案（往年同月同日会重名）。 */
+export function groupByDay(memos: Item[], now = Date.now()): Array<{ key: string; label: string; memos: Item[] }> {
+  const groups: Array<{ key: string; label: string; memos: Item[] }> = [];
+  const index = new Map<number, { key: string; label: string; memos: Item[] }>();
   for (const memo of memos) {
-    const label = dayLabel(memo.createdAt, now);
-    const last = groups[groups.length - 1];
-    if (last && last.label === label) last.memos.push(memo);
-    else groups.push({ label, memos: [memo] });
+    const day = startOfDay(memo.createdAt);
+    const existing = index.get(day);
+    if (existing) { existing.memos.push(memo); continue; }
+    const group = { key: `day-${day}`, label: dayLabel(memo.createdAt, now), memos: [memo] };
+    index.set(day, group);
+    groups.push(group);
   }
   return groups;
 }

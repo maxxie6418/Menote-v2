@@ -39,9 +39,17 @@ function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: str
     const node = ref.current;
     if (!node) return;
     if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
-    }, { rootMargin: "12rem" });
+    let observer: IntersectionObserver;
+    try {
+      observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
+      }, { rootMargin: "192px" });
+    } catch {
+      // rootMargin 只接受 px / %，写 rem 会让构造函数抛错并把整页打崩（白屏）。
+      // 观察器建不起来就直接显示图片，别让图册空着。
+      setVisible(true);
+      return;
+    }
     observer.observe(node);
     return () => observer.disconnect();
   }, []);

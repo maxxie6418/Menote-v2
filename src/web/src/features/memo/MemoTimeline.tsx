@@ -36,7 +36,7 @@ export function MemoTimeline({ userId, username, memos, allMemos, onDragItem, on
   return (
     <div className="mn-timeline" aria-label="Memo 时间线">
       {groups.map((group) => (
-        <section key={group.label}>
+        <section key={group.key}>
           <p className="mn-mgroup">{group.label}</p>
           {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} username={username} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onOpenNote={onOpenNote} onQuoted={onQuoted} />)}
         </section>
