@@ -921,42 +921,60 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* shadcn/ui neutral theme, scoped to the new skin; existing skins keep their tokens. */
+/* shadcn/ui skin — 默认皮肤（新账号 DEFAULT_SKIN）。
+   2026-11-17 方案 B 定稿（负责人确认）：暖中性底 + Cloudflare 橙，与 logo 同色系。
+   - 中性仅极弱暖：R≥B、通道差 ≤5，遮住橙后仍近似中性，未变成象牙滤镜。
+   - 橙只做标记不做正文；橙底字 #241505 压到 6.87:1，链接用深橙 #b4530f 守 AA。
+   - 值在此处显式写全（不走 var 链）：hover/selected 需要各自的暖度，一个 shadcn 原语装不下。 */
 :root[data-skin="shadcn"] {
   --radius: .625rem;
-  --background: oklch(1 0 0); --foreground: oklch(.145 0 0);
-  --primary: oklch(.205 0 0); --primary-foreground: oklch(.985 0 0);
-  --secondary: oklch(.97 0 0); --secondary-foreground: oklch(.205 0 0);
-  --muted: oklch(.97 0 0); --muted-foreground: oklch(.556 0 0);
-  --accent: oklch(.97 0 0); --accent-foreground: oklch(.205 0 0);
-  --destructive: oklch(.577 .245 27.325); --border: oklch(.922 0 0);
-  --input: oklch(.922 0 0); --ring: oklch(.708 0 0);
-  --app-surface: var(--background); --app-bg-side: oklch(.985 0 0);
-  --app-surface-sunken: var(--muted); --app-raised-on-side: var(--background);
-  --app-seg-active: var(--background); --app-selected: var(--accent); --app-hover: var(--accent);
-  --app-border: var(--border); --app-border-subtle: var(--border);
-  --app-fg: var(--foreground); --app-fg-muted: var(--muted-foreground);
-  --app-fg-subtle: var(--muted-foreground); --app-fg-faint: var(--muted-foreground);
-  --app-accent: var(--primary); --app-accent-hover: oklch(.35 0 0);
-  --app-accent-text: var(--primary-foreground); --app-accent-fg: var(--foreground);
-  --app-accent-subtle: var(--accent); --app-accent-soft: var(--border);
-  --app-link: var(--foreground); --app-danger: var(--destructive);
-  --app-surface-raised: var(--background); --app-canvas-bg: var(--background);
-  --app-paper-bg: var(--background); --app-paper-fg: var(--foreground); --app-paper-border: var(--border);
+  /* shadcn/ui 基础色板：primary 由中性改橙，default/link 按钮随之呼应 logo。 */
+  --background: #fffefc; --foreground: #1c1b18;
+  --primary: #f6821f; --primary-foreground: #241505;
+  --secondary: #f3f0ea; --secondary-foreground: #1c1b18;
+  --muted: #f6f2ec; --muted-foreground: #56544e;
+  --accent: #fbf4ea; --accent-foreground: #b4530f;
+  --destructive: #b3261e; --border: #e8e4db;
+  --input: #e8e4db; --ring: rgba(246, 130, 31, .35);
+  /* 应用外壳 */
+  --app-surface: #fffefc; --app-bg-side: #f7f5f0;
+  --app-surface-sunken: #f3f0ea; --app-raised-on-side: #fffefc;
+  --app-seg-active: #fffefc; --app-selected: #fbf4ea; --app-hover: #f6f2ec;
+  --app-border: #e8e4db; --app-border-subtle: #f0ede6;
+  --app-fg: #1c1b18; --app-fg-muted: #56544e;
+  --app-fg-subtle: #736f67; --app-fg-faint: #89857c;
+  --app-accent: #f6821f; --app-accent-hover: #e5760f;
+  --app-accent-text: #241505; --app-accent-fg: #b4530f;
+  --app-accent-subtle: #fef2e7; --app-accent-soft: rgba(246, 130, 31, .18);
+  --app-link: #b4530f; --app-danger: var(--destructive);
+  --app-surface-raised: #fffefc; --app-canvas-bg: #fffefc;
+  --app-paper-bg: #fffefc; --app-paper-fg: #1c1b18; --app-paper-border: #e8e4db;
   --app-paper-shadow: none; --app-shadow-card: none; --app-font-serif: var(--app-font);
   --app-radius-sm: calc(var(--radius) - 4px); --app-radius-md: calc(var(--radius) - 2px);
   --app-radius-lg: var(--radius);
 }
 :root[data-skin="shadcn"][data-theme="dark"] {
-  /* 2026-11-16 负责人指示：深色底过黑，提亮并带微冷倾向（hue 255 / chroma .007）。
-     背景族三层（background .175 / bg-side .235 / muted .299）相对原值统一 +.03 明度，
-     层差不变；浅色档与其余令牌不动。 */
-  --background: oklch(.175 .007 255); --foreground: oklch(.985 0 0);
-  --primary: oklch(.922 0 0); --primary-foreground: oklch(.205 0 0);
-  --secondary: oklch(.299 .007 255); --secondary-foreground: oklch(.985 0 0);
-  --muted: oklch(.299 .007 255); --muted-foreground: oklch(.708 0 0);
-  --accent: oklch(.299 .007 255); --accent-foreground: oklch(.985 0 0);
-  --destructive: oklch(.704 .191 22.216); --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%); --ring: oklch(.556 0 0);
-  --app-bg-side: oklch(.235 .007 255); --app-accent-hover: oklch(.8 0 0);
+  /* 变更轨迹：2026-11-16 曾提亮到 .175 并带微冷倾向（hue 255）解决"深色底过黑"；
+     2026-11-17 方案 B 定稿把中性回拉到近中性微暖（R≥B、通道差 1–5，不再发闷），
+     并把前景从近白压到 #dcdcd7（正文/背景约 11:1，去掉刺眼感，仍高于 AAA 7:1）。
+     橙强调 #f6821f / #fbad41 两轮均未动。 */
+  --background: #232322; --foreground: #dcdcd7;
+  --primary: #f6821f; --primary-foreground: #1a1208;
+  --secondary: #34342f; --secondary-foreground: #dcdcd7;
+  --muted: #30302d; --muted-foreground: #aeaea9;
+  --accent: #302e2b; --accent-foreground: #fbad41;
+  --destructive: #f2b8b5; --border: rgba(255, 255, 255, .1);
+  --input: rgba(255, 255, 255, .15); --ring: rgba(246, 130, 31, .4);
+  --app-surface: #232322; --app-bg-side: #2b2b29;
+  --app-surface-sunken: #34342f; --app-raised-on-side: #2b2b29;
+  --app-seg-active: #34342f; --app-selected: #302e2b; --app-hover: #30302d;
+  --app-border: rgba(255, 255, 255, .1); --app-border-subtle: rgba(255, 255, 255, .07);
+  --app-fg: #dcdcd7; --app-fg-muted: #aeaea9;
+  --app-fg-subtle: #979792; --app-fg-faint: #8a8a85;
+  --app-accent: #f6821f; --app-accent-hover: #ff9a3c;
+  --app-accent-text: #1a1208; --app-accent-fg: #fbad41;
+  --app-accent-subtle: #3a2716; --app-accent-soft: rgba(246, 130, 31, .26);
+  --app-link: #fbad41; --app-danger: var(--destructive);
+  --app-surface-raised: #232322; --app-canvas-bg: #232322;
+  --app-paper-bg: #232322; --app-paper-fg: #dcdcd7; --app-paper-border: rgba(255, 255, 255, .1);
 }

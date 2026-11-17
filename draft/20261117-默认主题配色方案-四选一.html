@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menote 默认主题配色 · 四选一</title>
+<style>
+  :root{
+    --ui:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",Consolas,"Cascadia Mono",monospace;
+    --page-bg:#0c0d0f; --page-fg:#c9ccd2; --hi:#eceef2; --dim:#8a909c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--page-bg);color:var(--page-fg);font-family:var(--ui);
+    padding:26px 30px 72px;-webkit-font-smoothing:antialiased}
+
+  .page-head{max-width:1180px;margin:0 auto 20px}
+  .page-head h1{font-size:16px;font-weight:500;color:var(--hi);display:flex;align-items:center;gap:9px}
+  .page-head h1 .logo-mini{width:20px;height:20px;flex:none}
+  .page-head .sub{margin-top:8px;font-size:12.5px;line-height:1.75;color:var(--dim);max-width:1000px}
+  .page-head .sub b{color:#d7dbe2;font-weight:600}
+  .diag{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+  .diag .chip{font-size:11.5px;line-height:1.6;color:#aeb4be;background:#17191d;
+    border:1px solid #262a30;border-radius:7px;padding:8px 11px}
+  .diag .chip b{color:#fbad41;font-weight:600}
+  .diag .chip.code{font-family:var(--mono);color:#e8b98a}
+
+  .toolbar{max-width:1180px;margin:0 auto 22px;display:flex;align-items:center;gap:12px}
+  .toolbar .label{font-size:11.5px;color:#6f7580}
+  .mode{display:inline-flex;border:1px solid #2a2e34;background:#14161a;border-radius:8px;padding:2px}
+  .mode button{border:0;background:none;color:#8a909c;font:inherit;font-size:12px;
+    padding:5px 14px;border-radius:6px;cursor:pointer}
+  .mode button.on{background:#f6821f;color:#241505;font-weight:600}
+
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:24px 26px}
+  .card{min-width:0}
+  .card-head{margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
+  .card-head .idx{width:19px;height:19px;border-radius:5px;background:#22262c;color:#9aa0ab;
+    font:600 11px/19px var(--mono);text-align:center;flex:none;margin-top:1px}
+  .card-head h2{font-size:13px;font-weight:500;color:var(--hi);display:flex;align-items:center;gap:8px}
+  .tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:9px;letter-spacing:.02em}
+  .tag.now{background:#2a2e34;color:#9aa0ab}
+  .tag.rec{background:#f6821f;color:#241505}
+  .card-head p{margin-top:5px;font-size:11.5px;line-height:1.65;color:#7d828d}
+
+  /* ============ 应用窗口 ============ */
+  .win{--surface:#fff;--side:#fafafa;--sunken:#f5f5f5;--sel:#f4f4f5;--hover:#f4f4f5;
+    --border:#e4e4e7;--line2:#ececef;--fg:#18181b;--muted:#71717a;--subtle:#8f8f98;--faint:#9a9aa3;
+    --accent:#27272a;--accent-h:#3f3f46;--accent-tx:#fafafa;--accent-fg:#18181b;
+    --accent-sub:#f4f4f5;--link:#18181b;--ring:rgba(39,39,42,.3);--brand:#18181b;
+    --btn-bg:var(--accent);--side-tint:none;
+    width:100%;height:452px;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;
+    color:var(--fg);font-family:var(--ui);font-size:11px;
+    box-shadow:0 16px 40px -18px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.07);
+    transition:background .25s,color .25s}
+
+  /* ---- 方案 A：中性骨架 + logo 橙强调 ---- */
+  .scheme-a{--sel:#fef6ee;--accent:#f6821f;--accent-h:#e5760f;--accent-tx:#241505;
+    --accent-fg:#b4530f;--accent-sub:#fef2e7;--link:#b4530f;--ring:rgba(246,130,31,.35)}
+  /* ---- 方案 B：极弱暖中性 + logo 橙（推荐） ---- */
+  .scheme-b{--surface:#fffefc;--side:#f7f5f0;--sunken:#f3f0ea;--sel:#fbf4ea;--hover:#f6f2ec;
+    --border:#e8e4db;--line2:#f0ede6;--fg:#1c1b18;--muted:#56544e;--subtle:#736f67;--faint:#89857c;
+    --accent:#f6821f;--accent-h:#e5760f;--accent-tx:#241505;--accent-fg:#b4530f;
+    --accent-sub:#fef2e7;--link:#b4530f;--ring:rgba(246,130,31,.35)}
+  /* ---- 方案 C：淡橙 tint + 品牌深橙 + logo 渐变按钮 ---- */
+  .scheme-c{--surface:#fffefb;--side:#faf1e6;--sunken:#f6ede1;--sel:#fbe9d4;--hover:#f8eedf;
+    --border:#eee0cf;--line2:#f4e8d9;--fg:#201a14;--muted:#5f564b;--subtle:#7d7265;--faint:#938779;
+    --accent:#f6821f;--accent-h:#e5760f;--accent-tx:#241505;--accent-fg:#b4530f;
+    --accent-sub:#fbe9d4;--link:#b4530f;--ring:rgba(246,130,31,.4);--brand:#b4530f;
+    --btn-bg:linear-gradient(135deg,#f6821f,#fbad41);--side-tint:linear-gradient(180deg,rgba(246,130,31,.07),transparent 55%)}
+
+  /* ---- 深色档覆盖 ---- */
+  body[data-mode="dark"] .win{
+    --surface:#1c1c1f;--side:#232326;--sunken:#303034;--sel:#303034;--hover:#2a2a2e;
+    --border:rgba(255,255,255,.1);--line2:rgba(255,255,255,.07);--fg:#fafafa;--muted:#b4b4b8;
+    --subtle:#a0a0a5;--faint:#8f8f95;--accent:#ebebeb;--accent-h:#fff;--accent-tx:#1a1a1a;
+    --accent-fg:#fafafa;--accent-sub:#303034;--link:#fafafa;--ring:rgba(235,235,235,.3);--brand:#fafafa;
+    --btn-bg:var(--accent);--side-tint:none}
+  body[data-mode="dark"] .scheme-a{--sel:#2b2118;--accent:#f6821f;--accent-h:#ff9a3c;
+    --accent-tx:#1a1208;--accent-fg:#fbad41;--accent-sub:#3a2716;--link:#fbad41;--ring:rgba(246,130,31,.4)}
+  body[data-mode="dark"] .scheme-b{--surface:#232322;--side:#2b2b29;--sunken:#34342f;--sel:#302e2b;
+    --hover:#30302d;--fg:#dcdcd7;--muted:#aeaea9;--subtle:#979792;--faint:#8a8a85;
+    --accent:#f6821f;--accent-h:#ff9a3c;--accent-tx:#1a1208;--accent-fg:#fbad41;
+    --accent-sub:#3a2716;--link:#fbad41;--ring:rgba(246,130,31,.4)}
+  body[data-mode="dark"] .scheme-c{--surface:#1c1916;--side:#262019;--sunken:#30281f;--sel:#3a2a19;
+    --hover:#2a231b;--fg:#f6efe7;--muted:#c2b3a3;--subtle:#9c8b79;--faint:#8a7c6c;
+    --accent:#f6821f;--accent-h:#ff9a3c;--accent-tx:#1a1208;--accent-fg:#fbad41;
+    --accent-sub:#3a2716;--link:#fbad41;--ring:rgba(246,130,31,.42);--brand:#fbad41;
+    --btn-bg:linear-gradient(135deg,#f15a24,#f6821f);
+    --side-tint:linear-gradient(180deg,rgba(246,130,31,.1),transparent 55%)}
+
+  /* ---- 窗口顶栏 ---- */
+  .wbar{height:38px;flex:none;display:flex;align-items:center;gap:10px;padding:0 11px;
+    background:var(--surface);border-bottom:1px solid var(--border)}
+  .wbrand{display:flex;align-items:center;gap:6px;font-weight:600;font-size:11.5px;color:var(--brand)}
+  .wbrand svg{width:17px;height:17px;flex:none}
+  .wseg{margin-left:2px;display:flex;gap:2px}
+  .wseg span{padding:3px 7px;color:var(--faint);font-size:10.5px;border-radius:4px}
+  .wseg span.on{color:var(--fg);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+  .wsearch{margin-left:auto;color:var(--faint);font-size:13px}
+
+  .wbody{flex:1;display:grid;grid-template-columns:96px 104px 1fr;min-height:0}
+
+  /* ---- 侧栏 ---- */
+  .wside{background-image:var(--side-tint);background-color:var(--side);padding:9px 7px;
+    border-right:1px solid var(--border);display:flex;flex-direction:column;gap:7px}
+  .minput{height:25px;border:1px solid var(--border);border-radius:5px;background:var(--surface);
+    display:flex;align-items:center;padding:0 7px;color:var(--faint);font-size:10px}
+  .mcta{height:25px;border:0;border-radius:5px;background:var(--btn-bg);color:var(--accent-tx);
+    font:inherit;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:3px}
+  .msech{font-size:9px;color:var(--faint);letter-spacing:.04em;margin-top:2px}
+  .mtree{display:flex;flex-direction:column;gap:1px}
+  .mi{display:flex;align-items:center;justify-content:space-between;height:20px;padding:0 6px;
+    border-radius:4px;color:var(--muted);font-size:10px}
+  .mi i{font-style:normal;font-family:var(--mono);font-size:9px;color:var(--faint)}
+  .mi.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}
+  .mi.on i{color:var(--accent-fg)}
+  .mtags{display:flex;flex-wrap:wrap;gap:3px}
+  .mtags span{font-size:9px;color:var(--muted);background:var(--sunken);border-radius:8px;padding:2px 6px}
+
+  /* ---- 清单 ---- */
+  .wlist{background:var(--surface);border-right:1px solid var(--border);overflow:hidden}
+  .wlhead{height:27px;display:flex;align-items:center;padding:0 10px;font-size:9.5px;
+    color:var(--faint);border-bottom:1px solid var(--line2)}
+  .wlrow{padding:8px 10px;position:relative;border-bottom:1px solid var(--line2)}
+  .wlrow b{display:block;font-size:10.5px;font-weight:600;color:var(--fg);line-height:1.3;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wlrow span{display:block;font-size:9px;color:var(--subtle);margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wlrow em{position:absolute;right:9px;top:8px;font-style:normal;font:9px var(--mono);color:var(--faint)}
+  .wlrow.on{background:var(--sel);box-shadow:inset 2px 0 0 var(--accent)}
+  .wlrow.on b{color:var(--accent-fg)}
+
+  /* ---- 文档 ---- */
+  .wdoc{background:var(--surface);padding:14px 16px;overflow:hidden;position:relative}
+  .dkicker{width:14px;height:2px;background:var(--accent);border-radius:1px;margin-bottom:9px}
+  .dtitle{font-size:16px;font-weight:600;line-height:1.3;color:var(--fg)}
+  .dprop{margin-top:8px;font-size:9.5px;color:var(--subtle);display:flex;gap:8px}
+  .dprop b{color:var(--faint);font-weight:400}
+  .wdoc p{margin-top:9px;font-size:10px;line-height:1.7;color:var(--muted)}
+  .wdoc p a{color:var(--link);text-decoration:none;border-bottom:1px solid var(--accent-sub)}
+  .dquote{margin-top:9px;padding:5px 9px;border-left:2px solid var(--accent);
+    background:var(--sunken);font-size:10px;color:var(--muted);line-height:1.5;border-radius:0 4px 4px 0}
+  .dchips{margin-top:10px;display:flex;gap:5px}
+  .dchips span{font-size:9px;color:var(--accent-fg);background:var(--accent-sub);border-radius:9px;padding:2px 7px}
+  .dbtn{margin-top:12px;height:25px;border:0;border-radius:5px;background:var(--btn-bg);
+    color:var(--accent-tx);font:inherit;font-size:10px;font-weight:600;padding:0 14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+
+  /* ---- 色板 + 说明 ---- */
+  .swatches{margin-top:9px;display:flex;gap:0;height:22px;border-radius:6px;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(255,255,255,.09)}
+  .sw{flex:1;position:relative}
+  .sw span{position:absolute;inset:0;display:grid;place-items:center;font:8.5px var(--mono);
+    color:rgba(0,0,0,.55);mix-blend-mode:normal}
+  .notes{margin-top:10px;font-size:11px;line-height:1.7;color:#7d828d}
+  .notes b{color:#b8bec8;font-weight:500}
+  .notes .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin:0 5px 1px 0}
+
+  /* ---- 落地建议 ---- */
+  .landing{max-width:1180px;margin:34px auto 0}
+  .landing h3{font-size:13px;font-weight:500;color:var(--hi);margin-bottom:4px}
+  .landing .lead{font-size:11.5px;color:var(--dim);line-height:1.7;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid #23262b;vertical-align:top;line-height:1.55}
+  th{color:#9aa0ab;font-weight:500;background:#121418}
+  td code{font-family:var(--mono);font-size:10.5px;color:#e8b98a}
+  td .old{color:#7d828d;text-decoration:line-through}
+  td .new{color:#fbad41}
+  .warn{margin-top:14px;font-size:11px;line-height:1.75;color:#9aa0ab;border-left:2px solid #f6821f;
+    padding-left:12px}
+  .warn b{color:#fbad41;font-weight:600}
+</style>
+</head>
+<body data-mode="light">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg-cloud" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F6821F"/><stop offset="100%" stop-color="#FBAD41"/></linearGradient>
+    <linearGradient id="lg-edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F15A24"/><stop offset="100%" stop-color="#F6821F"/></linearGradient>
+    <linearGradient id="lg-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FDBA74"/><stop offset="100%" stop-color="#F6821F"/></linearGradient>
+  </defs>
+  <symbol id="mnlogo" viewBox="0 0 512 512">
+    <path d="M108 307C76 304 54 279 54 248C54 216 79 190 110 188C121 141 163 110 213 110C257 110 295 134 313 169C328 160 346 155 365 155C414 155 454 195 454 244C454 290 420 327 375 333L128 333C120 333 114 323 108 307Z" fill="url(#lg-cloud)"/>
+    <path d="M292 181C313 164 338 155 365 155C414 155 454 195 454 244C454 290 420 327 375 333L292 333C310 315 320 290 320 261C320 230 309 202 292 181Z" fill="#F15A24" opacity=".35"/>
+    <g transform="translate(0 40) rotate(-20 245 260)">
+      <path d="M157 177Q157 157 177 157L352 157Q373 157 373 178L373 383Q373 405 351 405L155 405Q133 405 133 383L133 199Q133 177 157 177Z" fill="url(#lg-edge)"/>
+      <path d="M145 158Q145 138 165 138L340 138Q361 138 361 159L361 361Q361 382 340 382L145 382Q124 382 124 361L124 180Q124 158 145 158Z" fill="#fff"/>
+      <g fill="#F6821F"><rect x="105" y="177" width="52" height="18" rx="9"/><rect x="105" y="227" width="52" height="18" rx="9"/><rect x="105" y="277" width="52" height="18" rx="9"/><rect x="105" y="327" width="52" height="18" rx="9"/></g>
+      <g fill="url(#lg-line)"><rect x="184" y="205" width="126" height="13" rx="6.5"/><rect x="184" y="247" width="126" height="13" rx="6.5"/><rect x="184" y="289" width="92" height="13" rx="6.5"/></g>
+    </g>
+  </symbol>
+</svg>
+
+<div class="page-head">
+  <h1><svg class="logo-mini"><use href="#mnlogo"/></svg> Menote 默认主题配色 · 四选一</h1>
+  <p class="sub">问题根因：新账号默认皮肤 <b>shadcn</b> 的所有颜色都是 <b>oklch(x 0 0)</b>——彩度为 0 的<b>纯灰阶</b>，并且把 <b>--app-accent</b> 直接映射到了黑白 primary。结果是：logo 是暖橙的，界面却连那枚橙都丢了，主按钮黑底白字，整屏黑白。下面四个方案在同一个真实界面上切换对比，点右上角切浅色/深色。</p>
+  <div class="diag">
+    <span class="chip">Logo 渐变 <b>#F6821F → #FBAD41</b> · 深橙 #F15A24 · 浅橙 #FDBA74</span>
+    <span class="chip code">现状 --app-accent: var(--primary) = oklch(.205 0 0)</span>
+    <span class="chip">约束：橙色 2.58:1 <b>不做正文</b>，只做标记；按钮字用深棕 #241505</span>
+  </div>
+</div>
+
+<div class="toolbar">
+  <span class="label">界面配色预览</span>
+  <div class="mode" id="mode">
+    <button data-mode="light" class="on">浅色</button>
+    <button data-mode="dark">深色</button>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="landing">
+  <h3>落地建议（推荐方案 B）</h3>
+  <p class="lead">只改 <code style="font-family:var(--mono);color:#e8b98a">tokens.css</code> 里 <code style="font-family:var(--mono);color:#e8b98a">[data-skin="shadcn"]</code> 的令牌块，结构与组件尺寸一律不动——和 2026-11-12「只换强调色」的处理方式同源。下面是浅色档的关键改动：</p>
+  <table>
+    <thead><tr><th style="width:22%">令牌</th><th style="width:28%">现状（纯灰）</th><th style="width:28%">方案 B（暖中性 + 橙）</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td><code>--app-accent</code></td><td><span class="old">oklch(.205 0 0)</span> 近黑</td><td><span class="new">#f6821f</span></td><td>主按钮、选中条、装饰短线、引用线</td></tr>
+      <tr><td><code>--app-accent-text</code></td><td><span class="old">oklch(.985 0 0)</span> 白</td><td><span class="new">#241505</span></td><td>橙底上的字，压深到 6.87:1</td></tr>
+      <tr><td><code>--app-accent-fg</code></td><td><span class="old">var(--foreground)</span></td><td><span class="new">#b4530f</span>（深 <span class="new">#fbad41</span>）</td><td>浅橙底上的文字 / 选中项文字</td></tr>
+      <tr><td><code>--app-accent-subtle</code></td><td><span class="old">var(--accent)</span> 冷灰</td><td><span class="new">#fef2e7</span>（深 <span class="new">#3a2716</span>）</td><td>标签胶囊、收件箱浅底</td></tr>
+      <tr><td><code>--app-link</code></td><td><span class="old">var(--foreground)</span> 黑</td><td><span class="new">#b4530f</span>（深 <span class="new">#fbad41</span>）</td><td>可点击文本，对比度 AA 以上</td></tr>
+      <tr><td><code>--app-bg-side</code></td><td><span class="old">oklch(.985 0 0)</span></td><td><span class="new">#f7f5f0</span></td><td>侧栏底，带极弱暖意，与橙同源</td></tr>
+      <tr><td><code>--app-ring / focus</code></td><td><span class="old">oklch(.708 0 0)</span> 灰</td><td><span class="new">rgba(246,130,31,.35)</span></td><td>焦点环改橙，与强调色一致</td></tr>
+      <tr><td><code>--app-surface</code>（深）</td><td><span class="old">#1c1c1f</span> 微冷</td><td><span class="new">#232322</span></td><td rowspan="3">深色：中性保留极弱暖倾向（R≥B，通道差 1–5）；正文/背景对比约 11:1，去掉近白文字的刺眼感；橙强调不变</td></tr>
+      <tr><td><code>--app-bg-side</code>（深）</td><td><span class="old">#232326</span> 微冷</td><td><span class="new">#2b2b29</span></td></tr>
+      <tr><td><code>--app-fg</code>（深）</td><td><span class="old">#f4f0ea</span> 近白</td><td><span class="new">#dcdcd7</span></td></tr>
+    </tbody>
+  </table>
+  <div class="warn"><b>取舍提醒：</b>方案 B 的中性只是「极弱暖」（侧栏 #f7f5f0、纸面 #fffefc），远没到象牙底，遮住橙后仍近似中性——没有破坏「界面后退、内容在前」。方案 C 的品牌渐变按钮最贴 logo，但暖度与橙色面积明显更大，是最跳跃的一档。三档都 satisfies 对比度红线；<b>需负责人确认采用哪一档后，我再落到 tokens.css 并同步 DESIGN.md</b>，当前不擅自改生产令牌。</div>
+</div>
+
+<script>
+const schemes = [
+  {
+    cls:"scheme-current", idx:"0", tag:"现状", tagCls:"now",
+    name:"当前默认（shadcn）",
+    desc:"彩度 0 的纯灰阶，强调色被映射成黑白。logo 是暖橙的，界面却完全没有橙——这就是“素”的来源。",
+    swatches:[["#ffffff","纸面"],["#fafafa","侧栏"],["#27272a","强调"],["#71717a","次级字"],["#e4e4e7","描边"]],
+    notes:"<b>诊断基线。</b>主按钮黑底白字、选中无暖色、装饰线是黑的。可作为对照，不建议作为成品。"
+  },
+  {
+    cls:"scheme-a", idx:"A", tag:"最小改动", tagCls:"",
+    name:"方案 A · 品牌橙点睛",
+    desc:"中性骨架原样不动，只把强调色从黑白换回 logo 橙。改动面最小、风险最低，等于把 11-12 的处理补到默认皮肤上。",
+    swatches:[["#ffffff","纸面"],["#fafafa","侧栏"],["#f6821f","强调"],["#b4530f","强调字"],["#fef2e7","浅橙底"]],
+    notes:"<b>只换一枚橙：</b>主按钮、选中条、tab 下划线、引用竖线、标题短线、链接、焦点环全部转橙；冷灰中性保持不变。界面仍偏冷静，橙是唯一暖色来源。"
+  },
+  {
+    cls:"scheme-b", idx:"B", tag:"推荐", tagCls:"rec",
+    name:"方案 B · 暖中性 + 橙",
+    desc:"在 A 的基础上，把中性灰阶调成「极弱暖」——和 logo 的橙同源，整屏底色透出一点点温度，但仍保持低饱和、内容在前。",
+    swatches:[["#fffefc","纸面"],["#f7f5f0","侧栏"],["#f6821f","强调"],["#b4530f","强调字"],["#fef2e7","浅橙底"]],
+    notes:"<b>最平衡。</b>浅色侧栏 #f7f5f0、纸面 #fffefc 只带一丝暖；<b>深色档两轮微调</b>——先回拉暖意（背景 #232322，通道差 1–5），再压低正文对比（前景 #f0f0ed→#dcdcd7，正文对背景约 11:1，仍有 AAA 余量），长时间看不闷也不刺眼。橙强调不变。"
+  },
+  {
+    cls:"scheme-c", idx:"C", tag:"最跳跃", tagCls:"",
+    name:"方案 C · 橙韵加深",
+    desc:"品牌感最强的一档：侧栏刷淡橙 tint、品牌字用深橙、主按钮改用 logo 的橙→芒果渐变，强调面积明显加大。",
+    swatches:[["#fffefb","纸面"],["#faf1e6","侧栏"],["#f6821f","强调"],["#b4530f","品牌字"],["#fbe9d4","选中底"]],
+    notes:"<b>最贴 logo 基因。</b>渐变按钮与品牌深橙直接取自 logo；代价是暖度与橙色面积都上了一档，更“有情绪”。若觉得方案 B 仍偏素，可选这档，但建议先小范围验证观感。"
+  }
+];
+
+function win(s){
+  return `<div class="win ${s.cls}">
+    <div class="wbar">
+      <div class="wbrand"><svg><use href="#mnlogo"/></svg> Menote</div>
+      <div class="wseg"><span>首页</span><span class="on">笔记</span><span>Memo</span></div>
+      <div class="wsearch">⌕</div>
+    </div>
+    <div class="wbody">
+      <aside class="wside">
+        <div class="minput">记一条 Memo…</div>
+        <div class="mcta">＋ 新建笔记</div>
+        <div class="msech">主题</div>
+        <div class="mtree">
+          <div class="mi">全部 <i>12</i></div>
+          <div class="mi on">产品 <i>5</i></div>
+          <div class="mi">设计 <i>3</i></div>
+          <div class="mi">阅读 <i>4</i></div>
+        </div>
+        <div class="msech">标签</div>
+        <div class="mtags"><span>#复盘</span><span>#灵感</span></div>
+      </aside>
+      <div class="wlist">
+        <div class="wlhead">产品 · 5 篇</div>
+        <div class="wlrow on"><b>Q4 路线图复盘</b><span>把三件事讲清楚…</span><em>11-17</em></div>
+        <div class="wlrow"><b>令牌迁移记录</b><span>从散落变量到统一…</span><em>11-16</em></div>
+        <div class="wlrow"><b>设计系统笔记</b><span>关于橙色的用量…</span><em>11-15</em></div>
+      </div>
+      <div class="wdoc">
+        <div class="dkicker"></div>
+        <div class="dtitle">Q4 路线图复盘</div>
+        <div class="dprop"><span><b>主题</b> 产品</span><span><b>更新</b> 11-17</span></div>
+        <p>这一季度我们做了三个关键决策，核心是让界面后退、把表达留给内容。</p>
+        <div class="dquote">把情绪留给内容，界面只负责退后。</div>
+        <p>完整记录见 <a>项目复盘文档</a>，标签见下方。</p>
+        <div class="dchips"><span>#复盘</span><span>#产品</span></div>
+        <button class="dbtn">保存修改</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+document.getElementById('grid').innerHTML = schemes.map(s=>`
+  <div class="card">
+    <div class="card-head">
+      <div class="idx">${s.idx}</div>
+      <div>
+        <h2>${s.name} <span class="tag ${s.tagCls}">${s.tag}</span></h2>
+        <p>${s.desc}</p>
+      </div>
+    </div>
+    ${win(s)}
+    <div class="swatches">${s.swatches.map(c=>`<div class="sw" style="background:${c[0]}"><span>${c[1]}</span></div>`).join('')}</div>
+    <div class="notes">${s.notes}</div>
+  </div>
+`).join('');
+
+const modeBox=document.getElementById('mode');
+function setMode(m){
+  document.body.dataset.mode=m;
+  [...modeBox.querySelectorAll('button')].forEach(x=>x.classList.toggle('on',x.dataset.mode===m));
+}
+setMode(new URLSearchParams(location.search).get('mode')==='dark'?'dark':'light');
+modeBox.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  setMode(b.dataset.mode);
+});
+</script>
+</body>
+</html>
