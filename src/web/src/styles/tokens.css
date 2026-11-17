@@ -109,11 +109,11 @@
   --app-home-lift: -0.125rem;
   --app-home-tag-menu-height: 12rem;
   --app-home-tag-menu-width: 10rem;
-  --app-home-search-width: 16rem;
+  --app-home-search-width: 24rem;
   --app-home-layout-max: 63.375rem;
   --app-home-aside-width: 17.875rem;
   --app-home-layout-gap: 2.875rem;
-  --app-home-layout-pad: 2.125rem 2.5rem 1.875rem;
+  --app-home-layout-pad: 1.5rem 2.5rem 3rem;
   --app-home-clock-size: 2.375rem;
   --app-home-clock-mobile-size: 1.875rem;
   --app-home-greeting-margin: 0.9375rem 0 1.75rem;
@@ -256,10 +256,10 @@
   --app-composer-hint-height: 2.125rem;  /* 34px 收起态提示行 */
   --app-composer-open-height: 5.5rem;    /* 88px 展开态 = 提示行 + 间距 + 新建笔记按钮区 */
   --app-composer-action-height: 1.5rem;  /* 24px 展开态操作按钮 */
-  --app-memo-dock-height: 3.75rem;       /* 60px 侧栏快记：两排输入面（2026-11-13，56 → 60 给按钮留气） */
+  --app-memo-dock-height: 5rem;          /* 80px 侧栏快记：较 60px 增高三分之一 */
   --app-memo-send-size: 1.25rem;         /* 20px 侧栏快记的框内提交按钮（24 → 20：别压过输入面本身） */
   --app-memo-send-icon: 0.75rem;         /* 12px 提交按钮内的箭头 */
-  --app-memo-dock-input: 2.375rem;       /* 38px 输入面高度 = 12px 字号 × 1.55 行高 × 2 排 */
+  --app-memo-dock-input: 3.625rem;       /* 58px：为增高后的侧栏快记提供更多书写空间 */
   --app-sidebar-composer-open-height: 8.125rem; /* 130px 侧栏展开态，覆盖新建与三项回看入口 */
   --app-composer-cover: calc(var(--app-composer-open-height) - var(--app-composer-hint-height) - var(--app-space-10));
   /* 版心：正文最大行宽（14px 字号下约 48 个汉字/行）；表格形态需要横向空间，单独放宽 */

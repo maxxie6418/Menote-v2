@@ -19,11 +19,8 @@ function formatTime(timestamp: number): string {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
-/** 顶部时间牌自带秒级步进：秒针只重渲染这块，不拖动整页（问候/统计走父级分钟级时钟）。 */
-function HomeStamp() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(timer); }, []);
-  return <div className="mn-home-stamp"><time>{now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}</time><span>{now.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>;
+function HomeStamp({ now }: { now: Date }) {
+  return <div className="mn-home-stamp"><time>{now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time><span>{now.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>;
 }
 
 export function HomePage({ userId, username, onCreateNote, onCreateTable, onImportMarkdown, onOpenItem, onNavigate }: HomePageProps) {
@@ -113,13 +110,13 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
 
   return <main className="mn-home" aria-label="首页">
     <header className="mn-home-bar">
-      <label className="mn-home-search"><Search aria-hidden="true" /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索笔记、Memo" aria-label="搜索笔记、Memo" /></label>
+      <label className="mn-home-search"><Search aria-hidden="true" /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索笔记、Memo、标签…" aria-label="搜索笔记、Memo、标签" /></label>
     </header>
     <div className="mn-home-scroll"><div className="mn-home-layout">
       <section className="mn-home-main">
         {!searching && <>
-          <HomeStamp />
-          <h1 className="mn-home-greeting">{greeting}，<b>{username.slice(0, 1)}</b>。想记点什么？</h1>
+          <HomeStamp now={clock} />
+          <h1 className="mn-home-greeting">{greeting}，<b>{username}</b>。想记点什么？</h1>
           <form className="mn-home-capture" onSubmit={saveMemo}>
             <textarea ref={memoInputRef} aria-label="快速记录 Memo" placeholder="随手写…" value={memoDraft} disabled={memoUploading} onChange={(event) => { setMemoDraft(event.target.value); setMemoSaved(false); }} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
             <div className="mn-home-capture-tools"><button type="button" className="mn-home-capture-tool" aria-expanded={memoTagsOpen} onClick={() => setMemoTagsOpen((open) => !open)}><Tag />标签</button>{memoTagsOpen && <input className="mn-home-tag-input" autoFocus value={memoTagInput} onChange={(event) => setMemoTagInput(event.target.value)} aria-label="Memo 标签" placeholder="输入标签，用空格或逗号分隔" />}<button type="button" className="mn-home-capture-tool" disabled={memoUploading} onClick={() => memoAttachmentRef.current?.click()}><Paperclip />{memoUploading ? "上传中…" : "附件"}</button><input ref={memoAttachmentRef} type="file" accept="image/*" multiple hidden onChange={(event) => { void attachMemoFiles(event.target.files); event.currentTarget.value = ""; }} /><span className="mn-home-capture-feedback" role={memoSaveError || memoUploadError ? "alert" : undefined}>{memoSaveError ? "保存失败，请重试" : memoUploadError ? "附件上传失败，请重试" : memoSaved ? "已存入收集箱" : ""}</span><button type="submit" disabled={!memoDraft.trim() || memoUploading}>保存</button></div>

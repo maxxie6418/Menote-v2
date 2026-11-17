@@ -34,6 +34,33 @@
 :root .mn-tags { gap: var(--app-space-4); }
 :root .mn-sb-foot { gap: var(--app-space-4); border-top-color: var(--app-border-subtle); }
 
+/* Desktop collapse is controlled by data-sidebar (rail mode is a separate preference). */
+:root .mn-shell[data-sidebar="collapsed"] .mn-sidebar { width: var(--app-sidebar-collapsed); padding-inline: var(--app-space-7); align-items: center; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-brand { display: none; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-sb-top { justify-content: center; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-sb-top-actions { display: flex; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-formseg,
+:root .mn-shell[data-sidebar="collapsed"] .mn-memo-dock,
+:root .mn-shell[data-sidebar="collapsed"] .mn-quick a span,
+:root .mn-shell[data-sidebar="collapsed"] .mn-queue a span,
+:root .mn-shell[data-sidebar="collapsed"] .mn-zone,
+:root .mn-shell[data-sidebar="collapsed"] .mn-tree,
+:root .mn-shell[data-sidebar="collapsed"] .mn-sechead,
+:root .mn-shell[data-sidebar="collapsed"] .mn-tags,
+:root .mn-shell[data-sidebar="collapsed"] .mn-sidebar-resize { display: none; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-quick,
+:root .mn-shell[data-sidebar="collapsed"] .mn-queue { display: flex; flex-direction: column; align-self: stretch; width: var(--app-full-size); }
+:root .mn-shell[data-sidebar="collapsed"] .mn-quick a,
+:root .mn-shell[data-sidebar="collapsed"] .mn-queue a { justify-content: center; min-height: var(--app-space-32); overflow: hidden; padding: var(--app-space-4); font-size: var(--app-zero); }
+:root .mn-shell[data-sidebar="collapsed"] .mn-quick a svg,
+:root .mn-shell[data-sidebar="collapsed"] .mn-queue a svg { width: var(--app-space-14); height: var(--app-space-14); flex: none; }
+:root .mn-shell[data-sidebar="collapsed"] .mn-btn { width: var(--app-space-34); min-height: var(--app-space-32); padding: var(--app-zero); font-size: var(--app-zero); }
+:root .mn-shell[data-sidebar="collapsed"] .mn-sb-foot { flex-direction: column; justify-content: center; padding-inline: var(--app-zero); }
+:root .mn-shell[data-sidebar="collapsed"] .mn-foot-user { width: var(--app-space-34); flex: none; justify-content: center; padding-inline: var(--app-zero); }
+:root .mn-shell[data-sidebar="collapsed"] .mn-foot-user .mn-foot-user-name,
+:root .mn-shell[data-sidebar="collapsed"] .mn-foot-user .mn-sync,
+:root .mn-shell[data-sidebar="collapsed"] .mn-foot-user .mn-foot-version { display: none; }
+
 /* Full sidebar versus book spine. Topic/tag navigation moves into the Note list only in spine mode. */
 :root .mn-shell[data-rail="rail"] .mn-sidebar { width: var(--app-sidebar-collapsed); padding-inline: var(--app-space-7); align-items: center; }
 :root .mn-shell[data-rail="rail"] .mn-brand,
