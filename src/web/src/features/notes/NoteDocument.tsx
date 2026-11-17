@@ -27,6 +27,7 @@ import { DocSyncStatus } from "../sync";
 import { notifyEditorChange, registerEditorSave } from "../../services/editorSaveService";
 import { ConflictCompare } from "./ConflictCompare";
 import { getPropsPlacement, resolveToolbar, setPropsPlacement, subscribeDocLayout } from "../../lib/docLayout";
+import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -145,6 +146,17 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const conflictOf = item?.conflictOf ?? null;
   const conflictSource = useItem(userId, conflictOf);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const modeReadyRef = useRef(false);
+  useEffect(() => {
+    let active = true;
+    modeReadyRef.current = false;
+    void readAppearance(userId).then((appearance) => {
+      if (!active) return;
+      setMode(appearance?.noteModes[noteId] ?? "edit");
+      modeReadyRef.current = true;
+    });
+    return () => { active = false; };
+  }, [userId, noteId]);
   const [tableAddColumnSignal, setTableAddColumnSignal] = useState(0);
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const editorKindRef = useRef(editorKind);
@@ -469,6 +481,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const switchMode = async (next: "edit" | "preview") => {
     if (next === "preview") await flush();
     setMode(next);
+    if (modeReadyRef.current) void updateAppearance(userId, { noteModes: { [noteId]: next } });
   };
 
   /* 源码是低频形态，留在「更多」里（2026-11-13 负责人确认），不占常驻分段。
