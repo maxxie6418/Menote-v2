@@ -47,3 +47,21 @@
 .mn-attach-gallery-item { display: flex; min-width: var(--app-zero); flex-direction: column; gap: var(--app-space-4); padding: var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); color: var(--app-link); text-decoration: none; }
 .mn-attach-gallery-item img { width: var(--app-full-size); aspect-ratio: var(--app-memo-gallery-default-ratio); object-fit: cover; border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
 .mn-attach-gallery-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--app-size-chip); }
+/* Obsidian 导入（FR-IMP-2）：拖入来源 → 摘要与勾选列表 → 目标选择 → 进度与结果。复用 mn-flomo-import-summary 与 mn-flomo-import-bar。 */
+.mn-obsidian-import { display: grid; gap: var(--app-space-sm); }
+.mn-obsidian-import > p { margin: var(--app-zero); }
+.mn-obsidian-drop { display: grid; min-height: var(--app-touch-target); place-items: center; padding: var(--app-space-md); border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface-sunken); color: var(--app-fg-faint); font-size: var(--app-size-nav); text-align: center; }
+.mn-obsidian-drop.is-over { border-color: var(--app-accent); color: var(--app-fg-muted); }
+.mn-obsidian-drop p { margin: var(--app-zero); }
+.mn-obsidian-pick-actions { display: flex; flex-wrap: wrap; gap: var(--app-space-8); }
+.mn-obsidian-target { min-height: var(--app-touch-target); padding: var(--app-space-4) var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); font: inherit; }
+.mn-obsidian-list { display: grid; max-height: var(--app-import-list-height); overflow: auto; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-obsidian-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--app-space-8); padding: var(--app-space-4) var(--app-space-8); border-bottom: var(--app-line) solid var(--app-border-subtle); cursor: pointer; }
+.mn-obsidian-row:last-child { border-bottom: none; }
+.mn-obsidian-row:hover { background: var(--app-surface-sunken); }
+.mn-obsidian-row input[type="checkbox"] { width: var(--app-icon-sm); height: var(--app-icon-sm); accent-color: var(--app-accent); }
+.mn-obsidian-row-main { display: grid; min-width: var(--app-zero); gap: var(--app-space-2); }
+.mn-obsidian-row-main strong { overflow: hidden; color: var(--app-fg); font-size: var(--app-size-nav); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.mn-obsidian-row-main small { overflow: hidden; color: var(--app-fg-faint); font-size: var(--app-size-chip); text-overflow: ellipsis; white-space: nowrap; }
+.mn-obsidian-row-missing { padding: var(--app-space-2) var(--app-space-6); border-radius: var(--app-radius-pill); background: var(--app-danger); color: var(--app-fg); font-size: var(--app-size-chip); }
+.mn-obsidian-row-head { position: sticky; top: 0; z-index: 1; background: var(--app-surface); color: var(--app-fg-muted); font-size: var(--app-size-chip); }

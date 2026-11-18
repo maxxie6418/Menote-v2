@@ -122,6 +122,8 @@
   /* Flomo 导入预览区高度（FR-IMP-1）：摘要下面滚动显示前几条笔记。 */
   --app-import-preview-height: 12rem;
   --app-import-summary-min: 7rem;
+  /* Obsidian 导入勾选列表高度（FR-IMP-2）：整库可能有几百篇，列表区独立滚动。 */
+  --app-import-list-height: 16rem;
   --app-home-greeting-track: -0.008em;
   --app-home-capture-height: 7rem;
   --app-home-capture-pad: 1.1875rem 1.3125rem 0;
