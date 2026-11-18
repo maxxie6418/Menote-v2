@@ -1,6 +1,6 @@
 # AGENTS.md — Menote V2 开发纪律
 
-本文件是人与 AI Agent 共同遵守的开发纪律，M1 起作为每里程碑 DoD 的检查依据。产品需求见 `wiki/Menote_V2_需求说明书_v1.2.md`，结构设计见 `wiki/Menote_V2_工程结构与组件设计_v0.2.md`，产品定稿见 `wiki/Menote_核心重设计方案_讨论汇总_v0.7.md`（冲突时以主文档为准）。
+本文件是人与 AI Agent 共同遵守的开发纪律，M1 起作为每里程碑 DoD 的检查依据。产品需求见 `wiki/Menote_V2_需求说明书_v1.64.md`，结构设计见 `wiki/Menote_V2_工程结构与组件设计_v0.21.md`，产品定稿见 `wiki/Menote_核心重设计方案_讨论汇总_v0.39.md`（冲突时以主文档为准）。
 
 ## 1. 项目一句话
 

@@ -2,7 +2,7 @@
 
 - **文档状态**：设计基线 v0.1（2026-11-01）。
 - **可视化**：移动端 `wiki/monitor.html`（375×812，三屏）；桌面端 `wiki/monitor-desktop.html`（1360×792，单屏）。
-- **上游依据**：`Menote_V2_需求说明书_v1.2.md` §3.14 FR-MON-1~7、`DESIGN.md`（令牌与选择态）、`Menote_V2_工程结构与组件设计_v0.2.md`（`monitor` 模块边界、`MonitorSample` 表）。
+- **上游依据**：`Menote_V2_需求说明书_v1.64.md` §3.14 FR-MON-1~7、`DESIGN.md`（令牌与选择态）、`Menote_V2_工程结构与组件设计_v0.21.md`（`monitor` 模块边界、`MonitorSample` 表）。
 - **文档定位**：把「官方接口能给什么、不能给什么」落成文字。界面可以重画，接口能力不会变，这份文档的价值在后者。
 
 ---
