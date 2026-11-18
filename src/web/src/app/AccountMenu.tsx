@@ -3,7 +3,7 @@ import { Activity, Download, LogOut, SlidersHorizontal, X } from "../icons";
 import { getThemeMode, setThemeMode, subscribeTheme, type ThemeMode } from "../lib/theme";
 import { APP_BUILD_LABEL, APP_VERSION_LABEL } from "../lib/version";
 import { updateAppearance } from "../services/appearanceSettingsService";
-import { FlomoImportPanel } from "../features/import";
+import { FlomoImportPanel, ObsidianImportPanel } from "../features/import";
 
 const THEME_OPTIONS: ReadonlyArray<{ mode: ThemeMode; label: string }> = [
   { mode: "system", label: "跟随系统" },
@@ -140,9 +140,11 @@ export function AccountMenu({ userId, username, role, collapsed, onLogout, onOpe
             </div>
             {importType === "flomo"
               ? <FlomoImportPanel userId={userId} />
-              : <p className="mn-import-coming-soon" role="status">{importType === "obsidian" ? "Obsidian" : "Notion"} 导入功能即将开放。</p>}
+              : importType === "obsidian"
+                ? <ObsidianImportPanel userId={userId} />
+                : <p className="mn-import-coming-soon" role="status">Notion 导入功能即将开放。</p>}
           </div>
-          {importType !== "flomo" && <footer className="mn-dialog-actions"><button type="button" className="mn-auth-submit" onClick={() => setImportDialogOpen(false)}>完成</button></footer>}
+          {importType === "notion" && <footer className="mn-dialog-actions"><button type="button" className="mn-auth-submit" onClick={() => setImportDialogOpen(false)}>完成</button></footer>}
         </section>
       </div>}
     </>
