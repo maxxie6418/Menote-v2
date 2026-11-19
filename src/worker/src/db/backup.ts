@@ -1,4 +1,4 @@
-
+import { recoveryBindingFromRow, recoveryCodeReadStatement } from "./recoveryCode";
 
 /** 备份目标与凭据（G9）。secret 仅存可逆加密密文（C-7：默认不明文展示、支持事后查看与复制分发）。 */
 
@@ -9,7 +9,6 @@ interface TargetRow {
   remote_path?: string; retention_count?: number; last_pushed_at?: number | null;
   cursor_seq?: number; last_result?: string | null;
 }
-
 function toTarget(row: TargetRow) {
   return {
     id: row.id, userId: row.user_id,
@@ -113,29 +112,42 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   topicKeyWraps: Record<string, unknown>[];
   settings: Record<string, unknown>[];
   attachmentHashes: string[];
+  attachmentObjects: Map<string, { key: string | null; mime: string }>;
+  recoveryCodeBinding: ReturnType<typeof recoveryBindingFromRow>;
 }> {
-  const items = await db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const topics = await db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const itemKeyWraps = await db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const memoComments = await db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const topicKeyWraps = await db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const settings = await db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
+  // Read rows and their key wraps within one transaction so a concurrent sync can't split them.
+  const [items, topics, itemKeyWraps, memoComments, topicKeyWraps, settings, attachmentRows, recoveryCode] = await db.batch<Record<string, unknown>>([
+    db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT w.* FROM item_key_wraps w JOIN items i ON i.user_id = w.user_id AND i.id = w.item_id
+      WHERE w.user_id = ? AND ((i.enc_self = 1 AND w.wrapper IN ('password', 'recovery')) OR (i.in_enc_space = 1 AND w.wrapper = 'topic'))`).bind(userId),
+    db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT w.* FROM topic_key_wraps w JOIN topic_nodes t ON t.user_id = w.user_id AND t.id = w.topic_id
+      WHERE w.user_id = ? AND t.is_enc_space = 1`).bind(userId),
+    db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT a.sha256, a.mime, CASE WHEN a.retired_at IS NULL THEN COALESCE(a.r2_key, a.user_id || '/' || a.sha256) END AS key
+      FROM (SELECT DISTINCT sha256 FROM attachment_item_refs WHERE user_id = ?) ref
+      JOIN attachments a ON a.user_id = ? AND a.sha256 = ref.sha256`).bind(userId, userId),
+    recoveryCodeReadStatement(db, userId),
+  ]);
   const hashes = new Set<string>();
-  for (const item of items.results) {
-    // 附件收集口径与引用计数一致（attachments.ts 只数未删条目）：软删条目的引用已随软删归零，
-    // 其文件可能已过 30 天孤儿期被物理删除；若仍按其哈希收集备份会撞上必然缺失的对象。
-    if (item.deleted_at !== null && item.deleted_at !== undefined) continue;
+  for (const item of items!.results) {
+    // 快照包含回收站条目；它们的附件也必须一同保存，才能通过完整性校验并恢复。
     try {
       for (const hash of JSON.parse(String(item.attachment_hashes_json ?? "[]")) as string[]) hashes.add(hash);
     } catch { /* 忽略坏行。 */ }
   }
   return {
-    items: items.results, topics: topics.results, memoComments: memoComments.results, itemKeyWraps: itemKeyWraps.results,
-    topicKeyWraps: topicKeyWraps.results, settings: settings.results, attachmentHashes: [...hashes],
+    items: items!.results, topics: topics!.results, memoComments: memoComments!.results, itemKeyWraps: itemKeyWraps!.results,
+    topicKeyWraps: topicKeyWraps!.results, settings: settings!.results, attachmentHashes: [...hashes],
+    attachmentObjects: new Map(attachmentRows!.results.map((row) => [
+      String(row.sha256), { key: typeof row.key === "string" ? row.key : null, mime: String(row.mime) },
+    ])),
+    recoveryCodeBinding: recoveryBindingFromRow(recoveryCode?.results[0]),
   };
 }
 
-/** 恢复设置：rev 不高于本地则跳过。密文列只接受字节。 */
+/** 恢复设置：版本更旧则跳过。密文列只接受字节。 */
 export function restoreSettingStatement(
   db: D1Database, userId: string, row: Record<string, unknown>,
 ): D1PreparedStatement | null {
@@ -154,10 +166,4 @@ export function restoreSettingStatement(
        rev = excluded.rev, updated_at = excluded.updated_at
      WHERE user_settings.rev <= excluded.rev`,
   ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now()));
-}
-
-export async function readSettingRev(db: D1Database, userId: string, key: string): Promise<number | null> {
-  const row = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
-    .bind(userId, key).first<{ rev: number }>();
-  return row?.rev ?? null;
 }

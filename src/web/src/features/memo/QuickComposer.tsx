@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, ImagePlus, Tags } from "../../icons";
 import { extractTags, toggleTagInText } from "@menote/shared";
-import { createMemo } from "../../services/contentService";
 import { useAllTags } from "../../services/contentHooks";
-import { uploadAttachment } from "../../services/attachmentService";
-import { insertAttachment } from "../editor";
+import { useMemoCapture } from "./useMemoCapture";
 
 /** Memo 快速输入（FR-IA-5）。
  *  - 侧栏：常驻两排输入面 + 框内提交按钮，原地写、原地交，不再弹浮层、不盖住「新建笔记」；
@@ -13,10 +11,11 @@ import { insertAttachment } from "../editor";
 export function QuickComposer({ userId, openSignal = 0, expandedByDefault = false, keepOpenAfterSubmit = false }: { userId: string; openSignal?: number; expandedByDefault?: boolean; keepOpenAfterSubmit?: boolean }) {
   const [expanded, setExpanded] = useState(expandedByDefault);
   const [focusOnExpand, setFocusOnExpand] = useState(false);
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const capture = useMemoCapture(expandedByDefault ? "timeline" : "sidebar");
+  const { body: value, feedback, setBody: setValue } = capture;
+  const busy = capture.pending === "save";
+  const uploading = capture.pending === "upload";
+  const canSubmit = Boolean(value.trim()) && !capture.pending;
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [newTag, setNewTag] = useState("");
   const allTags = useAllTags(userId);
@@ -32,19 +31,12 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
   }, [openSignal, expandedByDefault]);
 
   const submit = async () => {
-    const text = value.trim();
-    if (!text || busy || uploading) return;
-    setBusy(true);
-    try {
-      await createMemo(userId, text);
-      setValue("");
-      setError(null);
-      setExpanded(keepOpenAfterSubmit);
-    } catch {
-      // 保存失败保留草稿与标签，给出可见反馈（不静默吞错）。
-      setError("Memo 保存失败，请重试。");
-    } finally {
-      setBusy(false);
+    if (!canSubmit) return;
+    textRef.current?.focus({ preventScroll: true });
+    if (await capture.save()) {
+      if (!keepOpenAfterSubmit) setExpanded(false);
+      setTagMenuOpen(false);
+      setNewTag("");
     }
   };
 
@@ -53,47 +45,19 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
     setValue((current) => toggleTagInText(current, tag));
     requestAnimationFrame(() => {
       const node = textRef.current;
-      if (!node) return;
+      if (!node?.isConnected) return;
       node.focus();
       const caret = node.value.length;
       node.setSelectionRange(caret, caret);
     });
   };
 
-  /** 逐个上传并把附件引用插到光标处（FR-MEMO-2）：失败只留一行提示，正文不受影响。 */
-  const placeFiles = async (files: File[]) => {
-    if (files.length === 0) return;
-    const node = textRef.current;
-    let markdown = value;
-    let caret = node?.selectionStart ?? markdown.length;
-    setUploading(true);
-    setError(null);
-    try {
-      for (const file of files) {
-        const uploaded = await uploadAttachment(userId, file);
-        if ("error" in uploaded) {
-          setError("图片上传失败，请检查网络后重试。");
-          continue;
-        }
-        const placed = insertAttachment(markdown, caret, { sha256: uploaded.sha256, name: uploaded.name }, file.type.startsWith("image/"));
-        markdown = placed.markdown;
-        caret = placed.selectionStart;
-        setValue(markdown);
-      }
-    } finally {
-      setUploading(false);
-      requestAnimationFrame(() => {
-        node?.focus();
-        node?.setSelectionRange(caret, caret);
-      });
-    }
-  };
+  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => capture.onPaste(event, () => textRef.current);
 
   if (!expandedByDefault) {
     /* 侧栏常驻两排输入面（2026-11-13）：不再点开盖住「新建笔记」的浮层，
        直接在原地写、原地交。提交按钮空态只留一个弱图标，有内容才浮出实底——
        否则一整条侧栏里会同时挂着两个亮色按钮（新建笔记 + 提交），谁是主操作说不清。 */
-    const canSubmit = Boolean(value.trim()) && !busy && !uploading;
     return (
       <>
         <div className="mn-memo-dock" data-filled={canSubmit}>
@@ -105,22 +69,16 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
             aria-label="Memo 快速输入"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            onPaste={(event) => {
-              const files = [...(event.clipboardData?.files ?? [])];
-              if (files.length === 0) return;
-              event.preventDefault();
-              void placeFiles(files);
-            }}
-            onKeyDown={(event) => {
-              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); void submit(); }
-            }}
+            onPaste={handlePaste}
+            {...capture.compositionProps}
+            onKeyDown={(event) => capture.onShortcut(event, () => void submit())}
           />
           <button type="button" className="mn-memo-send" aria-label="提交 Memo" title="提交（Ctrl / ⌘ + Enter）"
             aria-disabled={!canSubmit} disabled={!canSubmit} onClick={() => void submit()}>
             <ArrowUp aria-hidden="true" />
           </button>
         </div>
-        {error && <p className="mn-memo-dock-error" role="alert">{error}</p>}
+        {feedback && <p className="mn-memo-dock-feedback" role={feedback.role}>{feedback.text}</p>}
       </>
     );
   }
@@ -142,16 +100,9 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
         aria-label="Memo 快速输入"
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        onPaste={(event) => {
-          const files = [...(event.clipboardData?.files ?? [])];
-          if (files.length === 0) return;
-          event.preventDefault();
-          void placeFiles(files);
-        }}
-        onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); void submit(); }
-          if (event.key === "Escape") { event.preventDefault(); setExpanded(false); }
-        }}
+        onPaste={handlePaste}
+        {...capture.compositionProps}
+        onKeyDown={(event) => capture.onShortcut(event, () => void submit(), () => setExpanded(false))}
       />
       <div className="mn-composer-actions">
         <div className="mn-composer-tag-control">
@@ -167,20 +118,20 @@ export function QuickComposer({ userId, openSignal = 0, expandedByDefault = fals
             </form>
           </div>}
         </div>
-        <button type="button" className="mn-composer-tool" disabled={uploading} onClick={() => fileRef.current?.click()}>
+        <button type="button" className="mn-composer-tool" disabled={Boolean(capture.pending)} onClick={() => fileRef.current?.click()}>
           <ImagePlus aria-hidden="true" />
           {uploading ? "上传中…" : "图片"}
         </button>
-        {error && <span className="mn-composer-error" role="alert">{error}</span>}
+        {feedback && <span className="mn-composer-feedback" role={feedback.role}>{feedback.text}</span>}
         <button type="button" className="mn-textbtn" onClick={() => setExpanded(false)}>收起</button>
-        <button type="button" className="mn-composer-save" disabled={busy || uploading || !value.trim()}
-          aria-disabled={busy || uploading || !value.trim()} onClick={() => void submit()}>
+        <button type="button" className="mn-composer-save" disabled={!canSubmit}
+          aria-disabled={!canSubmit} onClick={() => void submit()}>
           {busy ? "保存中…" : "保存"}
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" multiple hidden aria-hidden="true"
         onChange={(event) => {
-          void placeFiles([...(event.target.files ?? [])]);
+          void capture.attachFiles([...(event.target.files ?? [])], () => textRef.current);
           event.target.value = "";
         }} />
     </div>

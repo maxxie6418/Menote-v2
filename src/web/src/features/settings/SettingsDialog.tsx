@@ -18,6 +18,7 @@ import { PropertyTemplatePanel } from "./PropertyTemplatePanel";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
 import { SyncLogSection } from "./SyncLogSection";
 import { AttachmentPolicySettings } from "./AttachmentPolicySettings";
+import { RecoveryCodeSettings } from "./RecoveryCodeSettings";
 import { getDeviceId, getSyncPhase, getSyncProgress, requestSyncNow, subscribeSyncStatus, syncQueueStatus, type SyncPhase, type SyncProgress } from "../../services/syncEngine";
 import { lastSyncCycleSummary, subscribeSyncDiagnostics } from "../../services/syncDiagnosticsService";
 import { subscribeLocalChanges } from "../../lib/broadcast";
@@ -444,14 +445,7 @@ function RecoverySection({ userId }: { userId: string }) {
         </select>
       </div>
       {gateError && <p className="mn-auth-error" role="alert">{gateError}</p>}
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">恢复码<InfoHint>
-            恢复码在首次启用加密时一次性展示，明文永不入库、无法事后查看；
-            遗失 = 对应内容永久不可解。轮换恢复码（统一重包装全部内容密钥）将随后续版本开放。
-          </InfoHint></p>
-        </div>
-      </div>
+      <RecoveryCodeSettings key={userId} userId={userId} />
       <div className="mn-setrow">
         <div>
           <p className="mn-setlabel">已启用加密的条目</p>

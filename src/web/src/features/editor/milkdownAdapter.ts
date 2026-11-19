@@ -4,7 +4,7 @@ import { gfm } from "@milkdown/kit/preset/gfm";
 import { history } from "@milkdown/kit/plugin/history";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
-import { TextSelection } from "@milkdown/kit/prose/state";
+import { Selection, TextSelection } from "@milkdown/kit/prose/state";
 import type { Node } from "@milkdown/kit/prose/model";
 import { lift, setBlockType, wrapIn } from "@milkdown/kit/prose/commands";
 import { wrapInList } from "@milkdown/kit/prose/schema-list";
@@ -14,6 +14,7 @@ import { locateTable, runTableCommand as runTableCommandOn, type TableCommandId,
 import type { EditorAdapter } from "./EditorAdapter";
 import { textColorMark, textColorRemark, isAllowedTextColor } from "./textColorPlugin";
 import type { BlockAction, InlineAction } from "./markdownEdit";
+import { unlockedImageView } from "./unlockedImageView";
 
 /**
  * markdown 前缀长度（UTF-16 字符数）。
@@ -66,7 +67,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
 
   static async create(
     host: HTMLElement,
-    options: { initialMarkdown: string; onInput: () => void },
+    options: { initialMarkdown: string; onInput: () => void; attachmentItemId?: string },
   ): Promise<MilkdownWysiwygAdapter> {
     const adapter = new MilkdownWysiwygAdapter();
     // 键入延迟基线（FR-EDT-10 / W0）：按一次键 → 变更被感知（updated 触发）。诊断关闭时不打点。
@@ -82,6 +83,9 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ctx.update(editorViewOptionsCtx, (previous) => ({
           ...previous,
           attributes: { class: "md-body mn-editor-prose" },
+          ...(options.attachmentItemId ? {
+            nodeViews: { ...previous.nodeViews, image: (node: Node) => unlockedImageView(node, options.attachmentItemId!) },
+          } : {}),
         }));
         // 只订阅 `updated`：文档级事件，不触发序列化器。
         // listener 的 `updated` 条件是 `prevDoc && !prevDoc.eq(doc)`——本版本里
@@ -388,6 +392,39 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       const start = markdownPrefix(serializer, doc, from, scale);
       const end = from === to ? start : markdownPrefix(serializer, doc, to, scale);
       return { start, end };
+    });
+  }
+
+  getCursorPosition(): { start: number; end: number } {
+    if (!this.editor) return { start: 0, end: 0 };
+    return this.editor.action((ctx) => {
+      const { anchor, head } = ctx.get(editorViewCtx).state.selection;
+      return { start: anchor, end: head };
+    });
+  }
+
+  restoreCursorPosition(start: number, end: number): void {
+    if (!this.editor) return;
+    this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { doc, tr } = view.state;
+      const resolve = (position: number) => doc.resolve(Math.max(0, Math.min(doc.content.size, position)));
+      const anchor = resolve(start);
+      const head = resolve(end);
+      const selection = anchor.parent.inlineContent && head.parent.inlineContent
+        ? new TextSelection(anchor, head) : Selection.near(head);
+      view.dispatch(tr.setSelection(selection));
+    });
+  }
+
+  restoreCursorAtBlock(index: number): void {
+    if (!this.editor) return;
+    this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { doc, tr } = view.state;
+      doc.forEach((_block, offset, blockIndex) => {
+        if (blockIndex === index) view.dispatch(tr.setSelection(Selection.near(doc.resolve(offset + 1))));
+      });
     });
   }
 

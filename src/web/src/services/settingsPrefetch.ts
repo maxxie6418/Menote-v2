@@ -24,7 +24,7 @@ export const SETTINGS_CACHE = {
   usage: "ai.usage",
   raindrop: (userId: string) => `raindrop.settings:${userId}`,
   raindropStatus: "raindrop.status",
-  attachments: (userId: string) => `attachments:${userId}`,
+  attachments: (userId: string, cursor = "") => `attachments:${userId}:${cursor}`,
   attachmentRefs: (userId: string) => `attachment.refs:${userId}`,
   clipTemplates: "clip.templates",
 } as const;
@@ -63,7 +63,7 @@ export function prefetchSettings(userId: string): void {
   void loadShared(SETTINGS_CACHE.usage, () => readAiUsage()).catch(() => undefined);
   void loadShared(SETTINGS_CACHE.raindrop(userId), () => readRaindropSettings(userId)).catch(() => undefined);
   void loadShared(SETTINGS_CACHE.raindropStatus, () => readRaindropStatus()).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.attachments(userId), () => listAttachments(userId)).catch(() => undefined);
+  void loadShared(SETTINGS_CACHE.attachments(userId), listAttachments).catch(() => undefined);
   void loadShared(SETTINGS_CACHE.attachmentRefs(userId), () => listAttachmentReferences(userId)).catch(() => undefined);
   void loadShared(SETTINGS_CACHE.clipTemplates, listClipTemplates).catch(() => undefined);
 }

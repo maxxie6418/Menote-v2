@@ -3,11 +3,22 @@
  *  保存时据此回填条目的 attachmentHashes（服务端引用计数以此为准）。 */
 
 const REF_PATTERN = /attachments\/([0-9a-f]{64})--([^\s)\\]+)/g;
+const DESTINATION = /^attachments\/([0-9a-f]{64})--([^\s)\\/]+)$/;
 
 export interface AttachmentRef {
   sha256: string;
   name: string;
 }
+
+export function parseAttachmentDestination(value: string): AttachmentRef | null {
+  const match = value.match(DESTINATION);
+  if (!match) return null;
+  let name = match[2]!;
+  try { name = decodeURIComponent(name); } catch { /* Preserve legacy literal percent characters. */ }
+  return { sha256: match[1]!, name: name.replace(/[\/\\\u0000-\u001f]/g, "-") };
+}
+
+export const isRasterAttachment = (mime: string) => /^image\/(?:avif|bmp|gif|jpeg|png|webp)$/.test(mime);
 
 /** 正文里引用的附件（按出现顺序，可重复）。 */
 export function extractAttachmentRefs(markdown: string): AttachmentRef[] {
@@ -28,4 +39,12 @@ export function attachmentHashesOf(markdown: string): string[] {
     hashes.push(ref.sha256);
   }
   return hashes;
+}
+
+/** 只换引用哈希，保留原名称、编码及 Markdown 格式。 */
+export function replaceAttachmentHashes(markdown: string, replacements: ReadonlyMap<string, string>): string {
+  return markdown.replace(REF_PATTERN, (path, hash: string) => {
+    const replacement = replacements.get(hash);
+    return replacement ? `attachments/${replacement}${path.slice("attachments/".length + hash.length)}` : path;
+  });
 }

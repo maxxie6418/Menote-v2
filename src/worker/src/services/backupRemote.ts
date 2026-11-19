@@ -174,8 +174,9 @@ export async function deleteRemoteBackup(target: RemoteTarget, id: string): Prom
     const xml = await listing.text();
     const basePath = new URL(davUrl(target, directory)).pathname.replace(/\/+$/, "");
     const children = [...xml.matchAll(/<(?:[\w.-]+:)?href\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?href>/gi)]
-      .map((match) => new URL(match[1]!, base))
-      .filter((url) => url.pathname.replace(/\/+$/, "") !== basePath && url.origin === base.origin);
+      .map((match) => new URL(decodeXml(match[1]!), base))
+      .filter((url) => url.origin === base.origin && url.pathname.startsWith(`${basePath}/`) && !url.search
+        && /^(?:COMPLETE|manifest\.json|\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(url.pathname.slice(basePath.length + 1)));
     for (const child of children) {
       const response = await fetch(child, { method: "DELETE", headers: { Authorization: auth(target) } });
       const status = response.status;

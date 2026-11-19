@@ -134,11 +134,8 @@ export async function runTargetPushById(
     const secret = await openSecret(pepper, target.secretCiphertext ?? "");
     const result = await pushBackup({ db: ctx.db, userId: ctx.userId, bucket: ctx.bucket }, toRemoteTarget(target, secret));
     const pushedAt = Date.now();
-    // 缺失附件作为 ok 快照上的警告后缀落账（ok:<ISO> 前缀是调度解析的合同，保持原样）。
-    const missingNote = result.ok && result.missingAttachments.length > 0
-      ? `；警告 ${result.missingAttachments.length} 个引用附件在服务器缺失，快照未含（首例 ${result.missingAttachments[0]!.slice(0, 8)}…）`
-      : "";
-    await recordTargetResult(ctx.db, ctx.userId, target.id, result.ok ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片${missingNote}` : `失败:${result.error}`, result.ok ? pushedAt : null);
+    // ok:<ISO> 前缀是定时调度判断上次成功时间的合同。
+    await recordTargetResult(ctx.db, ctx.userId, target.id, result.ok ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片` : `失败:${result.error}`, result.ok ? pushedAt : null);
     return result;
   } catch (error) {
     await recordTargetResult(ctx.db, ctx.userId, target.id, `失败:${String(error).slice(0, 200)}`);

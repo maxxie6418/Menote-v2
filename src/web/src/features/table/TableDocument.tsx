@@ -37,6 +37,15 @@ interface TableDocumentProps {
   addColumnSignal?: number;
   /** 加密文档没有获批的附件密文上传协议时，禁止走明文附件接口。 */
   allowAttachments?: boolean;
+  sealedAttachments?: boolean;
+}
+
+interface RowDetailsSelection {
+  table: ParsedTable;
+  userId: string;
+  itemId: string;
+  rowIndex: number;
+  opener: HTMLButtonElement;
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
@@ -52,7 +61,7 @@ function removeFirstTable(body: string): string {
 /** 多维表格整页网格（TP2）：列管理 + 行管理 + 类型化单元格编辑；载体永远是标准 GFM（FR-TBL-1）。
  *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。
  *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
-export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true }: TableDocumentProps) {
+export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true, sealedAttachments = false }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
   const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
@@ -68,7 +77,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const [selectedRows, setSelectedRows] = useState<Set<number>>(() => new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(() => readHiddenTableColumns(userId, itemId));
-  const [detailRow, setDetailRow] = useState<number | null>(null);
+  const [detailSelection, setDetailSelection] = useState<RowDetailsSelection | null>(null);
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [filterCol, setFilterCol] = useState(0);
@@ -88,6 +97,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const pendingRowFocus = useRef<{ row: number; col: number } | null>(null);
   const hiddenColumnsLoad = useRef(0);
   const selectAllRef = useRef<HTMLInputElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (addColumnSignal <= seenAddColumnSignal.current) return;
@@ -102,7 +112,6 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     setWrapColumns(readTableWrapColumns(userId, itemId));
     const cachedHidden = readHiddenTableColumns(userId, itemId);
     setHiddenColumns(cachedHidden);
-    setDetailRow(null);
     setSelectedRows(new Set());
     setSelectMode(false);
     setSortCol(null);
@@ -290,6 +299,15 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     return table.rows.map((cells, rowIndex) => ({ cells, rowIndex })).filter(({ cells }) =>
       !filterValue || matchesGridFilter(cells[filterCol] ?? "", filterValue, filterOperator, fieldAt(filterCol)));
   }, [table, filterCol, filterOperator, filterValue, fieldDefs]);
+  // GFM rows have no stable IDs. A new table revision can put a different row at the same index.
+  const detailIndex = detailSelection && !showSource && detailSelection.table === table &&
+    detailSelection.userId === userId && detailSelection.itemId === itemId
+    ? visibleRows.findIndex(({ rowIndex }) => rowIndex === detailSelection.rowIndex)
+    : -1;
+  if (detailSelection && detailIndex < 0) setDetailSelection(null);
+  const detailRow = visibleRows[detailIndex];
+  const previousDetail = detailIndex > 0 ? visibleRows[detailIndex - 1] : undefined;
+  const nextDetail = detailIndex >= 0 ? visibleRows[detailIndex + 1] : undefined;
   const activeSelection = new Set(visibleRows.filter(({ rowIndex }) => selectedRows.has(rowIndex)).map(({ rowIndex }) => rowIndex));
   const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(({ rowIndex }) => selectedRows.has(rowIndex));
   const someVisibleSelected = visibleRows.some(({ rowIndex }) => selectedRows.has(rowIndex));
@@ -675,7 +693,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           <span className="mn-tabledoc-bar-meta">{header.length} 字段 · {(table?.rows ?? []).length} 行</span>
           <div className="mn-tabledoc-bar-actions">
             {!readOnly && undoLabel && <button type="button" className="mn-textbtn" onClick={undoLastBulkAction} aria-label={`撤销${undoLabel}`}><RotateCcw aria-hidden="true" />撤销{undoLabel}</button>}
-            <button type="button" className="mn-textbtn" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Filter aria-hidden="true" />筛选</button>
+            <button ref={filterButtonRef} type="button" className="mn-textbtn" aria-expanded={filterOpen} onClick={() => setFilterOpen((open) => !open)}><Filter aria-hidden="true" />筛选</button>
             <TableColumnVisibility columns={header} hidden={hiddenColumns} onChange={toggleColumnVisibility} />
             {!readOnly && sortCol !== null && <button type="button" className="mn-textbtn" onClick={clearSort}>清除排序</button>}
             {!readOnly && (
@@ -853,7 +871,10 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                       }}
                       onClick={(event) => event.stopPropagation()}><GripVertical aria-hidden="true" /></button>
                   ) : null}
-                  <button type="button" className="mn-tabledoc-rowopen" aria-label={`查看第 ${row + 1} 行详情`} title="查看详情" onClick={() => setDetailRow(row)}>{row + 1}</button>
+                  <button type="button" className="mn-tabledoc-rowopen" aria-label={`查看第 ${row + 1} 行详情`} title="查看详情"
+                    onClick={(event) => {
+                      if (table) setDetailSelection({ table, userId, itemId, rowIndex: row, opener: event.currentTarget });
+                    }}>{row + 1}</button>
                 </div>
                 {visibleColumnIndices.map((col) => {
                   const name = header[col]!;
@@ -863,6 +884,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                     <TableCellEditor
                       userId={userId}
                       allowAttachments={allowAttachments}
+                      attachmentItemId={sealedAttachments ? itemId : undefined}
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
                       onChange={(value) => setCell(row, col, value)}
                     />
@@ -884,13 +906,19 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           </div>
         </div>
         </div>
-        {detailRow !== null && table?.rows[detailRow] && (
+        {detailSelection && detailRow && table && (
           <TableRowDetailsPanel
-            rowNumber={detailRow + 1}
+            rowNumber={detailRow.rowIndex + 1}
+            visiblePosition={detailIndex + 1}
+            visibleCount={visibleRows.length}
             columns={table.header}
-            cells={table.rows[detailRow]}
-            onClose={() => setDetailRow(null)}
-            onDelete={readOnly ? undefined : () => { removeRow(detailRow); setDetailRow(null); }}
+            cells={detailRow.cells}
+            attachmentItemId={sealedAttachments ? itemId : undefined}
+            onPrevious={previousDetail && (() => setDetailSelection({ ...detailSelection, rowIndex: previousDetail.rowIndex }))}
+            onNext={nextDetail && (() => setDetailSelection({ ...detailSelection, rowIndex: nextDetail.rowIndex }))}
+            onClose={() => setDetailSelection(null)}
+            restoreFocus={() => (detailSelection.opener.isConnected ? detailSelection.opener : filterButtonRef.current)?.focus({ preventScroll: true })}
+            onDelete={readOnly ? undefined : () => { removeRow(detailRow.rowIndex); setDetailSelection(null); }}
           />
         )}
         </div>

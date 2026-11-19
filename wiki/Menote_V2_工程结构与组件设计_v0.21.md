@@ -140,6 +140,9 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
 **table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色；整页表格附件列支持上传和下载）、`FieldTypeMenu`（8 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段可从文档标题栏或表格工具条创建，类型菜单 portal 到视口以免被滚动容器裁切）、`TableColumnVisibility`（列显隐设置，只改当前账号视图）、`TableRowDetailsPanel`（行详情侧栏与封面预览）。隐藏列经 `tableViewSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings` 的 `tableViews` 键；列宽继续只保存在本机偏好（FR-TBL-17）。
 **memo/**：`MemoWorkspace`、`MemoAccessGate`（前端页面门禁；设置经 `appearanceSettingsService`，口令校验经 `privateSpaceService` 且不解锁空间）、`MemoTimeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoImagePreview`（复用已鉴权附件 URL 的原图预览）、`MemoGallery`、`MemoWorkbar`、`QuickComposer`、`TodoSidePanel`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。`MarkdownView` 只在调用方提供 `onImageClick` 时把图片变为可键盘激活的预览入口。
+
+- Note 的 `notes/useNoteViewPosition.ts` 连接文档滚动区与编辑器选区，`lib/noteViewPosition.ts` 按账号和条目管理数字位置。普通 Note 使用标签页会话存储，加密 Note 的位置只留在当前页面内存。
+- Memo 的 `memo/useMemoCapture.tsx` 统一首页、侧栏、时间线和移动速记的提交、附件与输入法行为。未保存草稿按入口保存在已登录页面的会话状态中，已提交内容通过既有内容服务落库。
 **import/**（TP15，FR-IMP-1；TP19，FR-IMP-2）：`FlomoImportPanel`（账户菜单「导入数据」里的 Flomo 面板：选压缩包 → 摘要与预览 → 确认导入 → 进度与结果）。解析在 `lib/flomoParse.ts`（纯函数：zip → 笔记 HTML → Markdown 与图片清单），落库在 `services/flomoImportService.ts`（图片上传 + 批量写 + 去重）；面板只调服务，不直接碰 IndexedDB 或网络。`ObsidianImportPanel`（TP19：拖入/选择整库、文件夹或 .md → 摘要与勾选列表 → 目标选择 → 确认导入）；扫描收敛在 `lib/obsidianScan.ts`（目录句柄/拖拽树/webkitdirectory 三路 → 扫描清单），解析在 `lib/obsidianParse.ts`（纯函数：分类、整库识别、wiki 与标准图片引用三级解析），落库在 `services/obsidianImportService.ts`（图片上传缓存、引用重写、缺图计数、标题+正文哈希去重）。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。
@@ -158,6 +161,11 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - routes ↔ services ↔ db 三层；业务逻辑只在 services；SQL 只在 db 层。
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
 - 快照只读校验由 `services/backupVerifyService.ts` 负责，检查完成标记、清单、分片和附件；校验通过不代表恢复演练通过。
+- FR-ENC-6 账户恢复码登记：Web `services/recoveryCodeService.ts` 验证本机包装及账户校验信封；Worker `routes/recoveryCode.ts` → `services/recoveryCodeService.ts` → `db/recoveryCode.ts`，使用 `account_recovery_codes` 原子登记绑定。共享契约由 `contracts/recoveryCode.ts` 校验，迁移 0039 约束同步包装和兼容重放。快照保存绑定 ID 与密文校验信封。
+- FR-ENC-6 恢复码更换与旧码合并：`features/settings/RecoveryCodeSettings.tsx` 收集旧码并确认新码已保存，Web 恢复码服务在浏览器里重新包装原有密钥。恢复码路由的轮换接口使用相同 Worker 分层，按账户修订和现有包装集合原子替换绑定、恢复包装和同步事件。
+- FR-ENC-2/5 加密附件：Web `services/sealedAttachmentService.ts` 从笔记内容密钥派生附件密钥，`features/attachments/UnlockedAttachment` 和 Milkdown 图片视图仅在解锁态渲染。共享 `contracts/sealedAttachment.ts` 定义信封格式，Worker 复用附件路由及内容寻址存储。备份按密文哈希存取，ZIP 导出在浏览器解锁后进行。
+- FR-ENC-2/5 存量附件转换：`services/encryptionCommandService.ts` 调用 `sealedAttachmentService.ts` 生成密文副本，校验笔记、本机历史及恢复稿的修改状态后，原子更新各处引用与同步队列。历史恢复沿用密文附件校验。
+- FR-SYNC-8 附件回收：迁移 0040 建立 `attachment_item_refs` 和 `attachment_object_deletions`。Worker `db/attachments.ts` 管理按账户哈希索引的引用、对象键发布和退役队列，`services/attachmentService.ts` 编排 R2 上传及物理删除。回收站保有引用。定时任务和附件管理页共用 30 天保留条件，备份及恢复按已发布对象键读写。
 - 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
 - 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。

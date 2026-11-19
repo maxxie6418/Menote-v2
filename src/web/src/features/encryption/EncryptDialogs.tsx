@@ -1,76 +1,90 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lock } from "../../icons";
 import { generateRecoveryCode } from "../../services/cryptoService";
 import { NOTE_PASSWORD_MIN } from "../../services/encryptionCommandService";
+import { recoveryCodeExists } from "../../services/recoveryCodeService";
+import { requestSyncNow } from "../../services/syncEngine";
 
 /** 启用单篇加密（FR-ENC-2/3/6）：独立单篇密码；恢复码生成并一次性展示（明文永不入库）。 */
-export function EncryptSetupDialog({ onConfirm, onCancel }: {
+export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
+  userId: string;
   onConfirm: (password: string, recoveryCode: string) => Promise<"ok" | "error">;
   onCancel: () => void;
 }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [code, setCode] = useState(() => generateRecoveryCode());
+  const [code] = useState(() => generateRecoveryCode());
+  const [existingCode, setExistingCode] = useState("");
+  const [hasRecovery, setHasRecovery] = useState<boolean | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stage, setStage] = useState<"form" | "code">("form");
-
-  if (stage === "code") {
-    return (
-      <div className="mn-overlay" role="presentation">
-        <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="恢复码">
-          <div className="mn-dialog-head"><p className="mn-dialog-title">恢复码（仅此一次展示）</p></div>
-          <div className="mn-dialog-body">
-            <p className="mn-codebox">{code}</p>
-            <p className="mn-auth-hint mn-danger-text">
-              恢复码是密码遗失时的唯一解锁途径：遗失 = 对应内容永久不可解；单码泄漏 = 全部加密内容暴露。
-              请抄写到安全处（不会同步到服务器）。
-            </p>
-            <label className="mn-propmulti-option">
-              <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-              我已抄写并妥善保存恢复码
-            </label>
-          </div>
-          <div className="mn-dialog-actions">
-            <button type="button" className="mn-auth-submit" disabled={!acknowledged || busy} aria-disabled={!acknowledged || busy}
-              onClick={() => { setStage("form"); onCancel(); }}>
-              完成
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    let active = true;
+    void requestSyncNow(userId).then((ok) => {
+      if (!ok) throw new Error("sync_failed");
+      return recoveryCodeExists(userId);
+    }).then((value) => { if (active) setHasRecovery(value); })
+      .catch(() => { if (active) setError("无法检查恢复码包装，请先完成同步后重试。"); });
+    return () => { active = false; };
+  }, [userId]);
 
   return (
     <div className="mn-overlay" role="presentation">
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="启用单篇加密">
         <div className="mn-dialog-head"><p className="mn-dialog-title">启用单篇加密</p></div>
         <div className="mn-dialog-body">
-          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位，不要求复杂组合。正文与附件将始终密文存储，标题保持明文。</p>
+          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位。标题保持明文。</p>
+          <p className="mn-auth-hint">已有附件会在本机加密后上传副本，并更新正文、本机历史与恢复稿。原明文文件和旧备份仍会保留。仅被本机历史或恢复稿引用的附件仍受未引用附件保留期限影响。</p>
+          {hasRecovery === null && !error && <p className="mn-auth-hint">正在同步并检查账户恢复码…</p>}
           <label className="mn-auth-field"><span>单篇密码（至少 {NOTE_PASSWORD_MIN} 位）</span>
             <input type="password" value={password} autoComplete="new-password" minLength={NOTE_PASSWORD_MIN} onChange={(event) => setPassword(event.target.value)} />
           </label>
           <label className="mn-auth-field"><span>再次输入密码</span>
             <input type="password" value={confirm} autoComplete="new-password" onChange={(event) => setConfirm(event.target.value)} />
           </label>
+          {hasRecovery === true && <label className="mn-auth-field"><span>已有恢复码</span>
+            <input type="password" value={existingCode} autoComplete="off" onChange={(event) => setExistingCode(event.target.value)} />
+          </label>}
+          {hasRecovery === false && <>
+            <p className="mn-auth-hint mn-danger-text">首次启用加密，请先妥善保存以下恢复码。密码遗失后只能用恢复码解锁；恢复码明文不会保存。</p>
+            <p className="mn-codebox">{code}</p>
+            <label className="mn-propmulti-option"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />我已抄写并妥善保存恢复码</label>
+          </>}
           {error && <p className="mn-auth-error" role="alert">{error}</p>}
         </div>
         <div className="mn-dialog-actions">
-          <button type="button" className="mn-auth-submit" disabled={busy} aria-disabled={busy}
+          <button type="button" className="mn-auth-submit" disabled={busy || hasRecovery === null} aria-disabled={busy || hasRecovery === null}
             onClick={async () => {
               if (password.length < NOTE_PASSWORD_MIN) { setError(`密码至少 ${NOTE_PASSWORD_MIN} 位。`); return; }
               if (password !== confirm) { setError("两次输入的密码不一致。"); return; }
+              if (hasRecovery && !existingCode.trim()) { setError("请输入已有恢复码。"); return; }
+              if (!hasRecovery && !acknowledged) { setError("请先保存恢复码并确认。"); return; }
               setBusy(true);
-              const result = await onConfirm(password, code);
-              setBusy(false);
-              if (result === "ok") setStage("code");
-              else setError("加密失败，请重试。");
+              setError(null);
+              try {
+                const result = await onConfirm(password, hasRecovery ? existingCode.trim() : code);
+                if (result === "ok") onCancel();
+                else setError("加密失败，请重试。");
+              } catch (cause) {
+                const message = cause instanceof Error ? cause.message : "";
+                if (message === "attachment_migration_source_unavailable") setError("正文、本机历史或恢复稿中的附件无法读取。请确认文件仍可下载后重试。");
+                else if (message === "attachment_migration_upload_failed") setError("附件密文副本上传失败。请检查网络和附件限额后重试。");
+                else if (message === "encryption_item_changed") setError("笔记、历史或恢复稿在加密期间发生变化，请重试。");
+                else if (message === "encryption_pending_sync") setError("笔记还有未同步的修改，请先完成同步后再加密。");
+                else if (message === "recovery_code_mismatch") {
+                  setHasRecovery(true);
+                  setError("请输入账号已有的恢复码。如果旧版本曾生成多枚恢复码，请保留每一枚。");
+                }
+                else if (message === "recovery_code_unavailable") setError("暂时无法确认账户恢复码，请检查连接后重试。");
+                else if (message === "recovery_wrap_missing") setError("现有加密内容的密钥包装尚未就绪，请先完成同步。");
+                else if (message === "recovery_lock_unavailable") setError("当前浏览器无法安全协调加密设置，请使用支持 Web Locks 的浏览器重试。");
+                else setError("加密失败，请重试。");
+              } finally { setBusy(false); }
             }}>
-            加密并生成恢复码
+            {busy ? "正在加密…" : "加密笔记和附件"}
           </button>
-          <button type="button" className="mn-auth-link" onClick={onCancel}>取消</button>
+          <button type="button" className="mn-auth-link" onClick={onCancel} disabled={busy}>取消</button>
         </div>
       </div>
     </div>

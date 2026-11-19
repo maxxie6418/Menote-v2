@@ -6,6 +6,7 @@ export { MemoTimeline } from "./MemoTimeline";
 export { MemoWorkbar } from "./MemoWorkbar";
 export { MemoWorkspace } from "./MemoWorkspace";
 export { QuickComposer } from "./QuickComposer";
+export { MemoCaptureProvider, parseCaptureTags, useMemoCapture } from "./useMemoCapture";
 export { TodoSidePanel } from "./TodoSidePanel";
 export { groupByDay, memoImages, statusLabel } from "./memoView";
 export type { MemoImage } from "./memoView";

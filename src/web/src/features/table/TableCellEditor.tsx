@@ -7,10 +7,13 @@ import { Paperclip, X } from "../../icons";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
 import { attachmentUrl, fetchAttachmentBlob, uploadAttachment } from "../../services/attachmentService";
 import { readAttachmentPolicy } from "../../services/attachmentPolicyService";
+import { uploadSealedAttachment } from "../../services/sealedAttachmentService";
+import { UnlockedAttachment } from "../attachments";
 
 interface TableCellEditorProps {
   userId?: string;
   allowAttachments?: boolean;
+  attachmentItemId?: string;
   value: string;
   type: PropertyType;
   /** 字段定义（候选值来源）；无定义的列由调用方按 text 分派（FR-TBL-4/5）。 */
@@ -24,11 +27,13 @@ interface TableCellEditorProps {
 
 /** 类型化单元格控件（FR-TBL-7）：表格文档与 Note 内表格弹窗（双轨 FR-TBL-2）共用。
  *  写回契约见 lib/gfmTable（FR-TBL-6）；历史值不静默修正，编辑时才按类型覆盖（FR-TBL-4 精神）。 */
-export function TableCellEditor({ userId, allowAttachments = true, value, type, def, onChange, readOnly = false, wrap = false }: TableCellEditorProps) {
-  if (readOnly) return <CellContent value={value} type={type} def={def} wrap={wrap} />;
+export function TableCellEditor({ userId, allowAttachments = true, attachmentItemId, value, type, def, onChange, readOnly = false, wrap = false }: TableCellEditorProps) {
+  if (readOnly) return <CellContent value={value} type={type} def={def} wrap={wrap} attachmentItemId={attachmentItemId} />;
   let editor: ReactNode;
   if (type === "attachment") {
-    editor = allowAttachments && userId ? <AttachmentCell userId={userId} value={value} onChange={onChange} /> : <AttachmentList value={value} />;
+    editor = allowAttachments && userId
+      ? <AttachmentCell userId={userId} value={value} onChange={onChange} attachmentItemId={attachmentItemId} />
+      : <AttachmentList value={value} attachmentItemId={attachmentItemId} />;
   } else if (type === "checkbox") {
     editor = <CheckboxCell value={value} onChange={onChange} />;
   } else if (type === "select") {
@@ -144,9 +149,9 @@ function CellEditorShell({ value, onRestore, children }: { value: string; onRest
 }
 
 /** 预览态只读呈现：与编辑态共用类型与色调，但没有任何可输入控件（FR-TBL-20）。 */
-function CellContent({ value, type, def, wrap }: { value: string; type: PropertyType; def?: PropertyDef; wrap: boolean }) {
+function CellContent({ value, type, def, wrap, attachmentItemId }: { value: string; type: PropertyType; def?: PropertyDef; wrap: boolean; attachmentItemId?: string }) {
   const colors = def?.optionColors ?? {};
-  if (type === "attachment") return <AttachmentList value={value} />;
+  if (type === "attachment") return <AttachmentList value={value} attachmentItemId={attachmentItemId} />;
   if (type === "checkbox") {
     return (
       <span className="mn-tcell-checkwrap">
@@ -187,7 +192,7 @@ function rememberThumbnail(sha256: string, dataUrl: string): void {
   }
 }
 
-function AttachmentList({ value }: { value: string }) {
+function AttachmentList({ value, attachmentItemId }: { value: string; attachmentItemId?: string }) {
   const refs = extractAttachmentRefs(value);
   const [preview, setPreview] = useState<(typeof refs)[number] | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -208,6 +213,10 @@ function AttachmentList({ value }: { value: string }) {
     };
   }, [preview]);
   if (!refs.length) return <span className="mn-tcell-attachment-empty">无附件</span>;
+  if (attachmentItemId) return <span className="mn-tcell-attachments">{refs.map((ref, index) =>
+    <span className="mn-tcell-attachment" key={`${ref.sha256}-${index}`}>
+      <UnlockedAttachment itemId={attachmentItemId} {...ref} />
+    </span>)}</span>;
   return (
     <>
       <span className="mn-tcell-attachments">{refs.map((ref, index) => (
@@ -288,7 +297,7 @@ function AttachmentThumbnail({ refItem, onOpen }: { refItem: { sha256: string; n
   );
 }
 
-function AttachmentCell({ userId, value, onChange }: { userId: string; value: string; onChange: (value: string) => void }) {
+function AttachmentCell({ userId, value, onChange, attachmentItemId }: { userId: string; value: string; onChange: (value: string) => void; attachmentItemId?: string }) {
   const [accept, setAccept] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -305,7 +314,7 @@ function AttachmentCell({ userId, value, onChange }: { userId: string; value: st
     try {
       let next = value;
       for (const file of Array.from(files)) {
-        const uploaded = await uploadAttachment(userId, file);
+        const uploaded = await (attachmentItemId ? uploadSealedAttachment(userId, attachmentItemId, file) : uploadAttachment(userId, file));
         if ("error" in uploaded) { setError(uploaded.error === "size_exceeded" ? "文件超过大小限制" : uploaded.error === "format_not_allowed" ? "格式不受支持" : "上传失败"); continue; }
         const name = uploaded.name.replace(/[\s()[\]<>|]+/g, "-");
         next = `${next}${next ? " · " : ""}[${name}](attachments/${uploaded.sha256}--${name})`;
@@ -315,7 +324,7 @@ function AttachmentCell({ userId, value, onChange }: { userId: string; value: st
     finally { setBusy(false); if (inputRef.current) inputRef.current.value = ""; }
   };
   return <div className="mn-tcell-attachment-editor">
-    <AttachmentList value={value} />
+    <AttachmentList value={value} attachmentItemId={attachmentItemId} />
     <button type="button" className="mn-tcell-attach-button" disabled={busy} aria-label={busy ? "正在上传附件" : "上传附件"} title={busy ? "正在上传…" : "上传附件"} onClick={() => inputRef.current?.click()}><Paperclip aria-hidden="true" /></button>
     <input ref={inputRef} type="file" multiple hidden accept={accept} onChange={(event) => void upload(event.currentTarget.files)} />
     {error && <span className="mn-tcell-attachment-error" role="alert">{error}</span>}

@@ -447,7 +447,8 @@
 .mn-composer-tool:disabled { color: var(--app-fg-faint); cursor: default; }
 .mn-composer-tool svg { width: var(--app-icon-xs); height: var(--app-icon-xs); flex: none; }
 .mn-composer-tag-control { position: relative; }
-.mn-composer-error { flex: 0 1 auto; min-width: var(--app-zero); overflow: hidden; color: var(--app-danger); font-size: var(--app-size-nav); white-space: nowrap; text-overflow: ellipsis; }
+.mn-composer-feedback { flex: 0 1 auto; min-width: var(--app-zero); overflow: hidden; color: var(--app-fg-muted); font-size: var(--app-size-nav); white-space: nowrap; text-overflow: ellipsis; }
+.mn-composer-feedback[role="alert"] { color: var(--app-danger); }
 .mn-composer-actions .mn-textbtn { height: var(--app-composer-action-height); margin-left: auto; color: var(--app-fg-muted); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius); padding: var(--app-zero) var(--app-space-10); font-size: var(--app-size-button); white-space: nowrap; flex: none; }
 .mn-composer-actions .mn-textbtn:hover { color: var(--app-fg); border-color: var(--app-fg-faint); background: none; }
 .mn-composer-save {

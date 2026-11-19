@@ -151,13 +151,25 @@ test("migration failure is unavailable and does not expose SQL or internal excep
 });
 
 
-test("scheduled placeholder runs without creating application tables", async () => {
-  await withWorker({ DB: db, BUCKET: bucket }, async (mf) => {
-    const response = await req(mf, "/cdn-cgi/local/scheduled?cron=0+*+*+*+*");
-    assert.equal(response.status, 200);
-    assert.equal(await response.text(), "ok");
+test("scheduled work skips uninitialized storage even with the deployment secret", async () => {
+  for (const secret of [{}, { AUTH_PEPPER: pepper }]) {
+    await withWorker({ DB: db, BUCKET: bucket, ...secret }, async (mf) => {
+      const response = await req(mf, "/cdn-cgi/local/scheduled?cron=0+*+*+*+*");
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "ok");
+      const database = await mf.getD1Database("DB");
+      const row = await database.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','items','monitor_samples')").first();
+      assert.equal(row.n, 0);
+    });
+  }
+});
+
+test("scheduled work runs cleanup after readiness has applied the schema", async () => {
+  await withWorker({ DB: db, BUCKET: bucket, AUTH_PEPPER: pepper }, async (mf) => {
+    assert.equal((await req(mf, "/api/health/ready")).status, 200);
+    assert.equal((await req(mf, "/cdn-cgi/local/scheduled?cron=0+*+*+*+*")).status, 200);
     const database = await mf.getD1Database("DB");
-    const row = await database.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('schema_migrations','items','monitor_samples')").first();
-    assert.equal(row.n, 0);
+    const cleanup = await database.prepare("SELECT status FROM job_runs WHERE name = 'cleanup'").first();
+    assert.equal(cleanup?.status, "ok");
   });
 });

@@ -1,6 +1,7 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 import type { McpBookmarkRequest, McpClipRequest, McpMemoRequest } from "@menote/shared";
+import { SEALED_ATTACHMENT_MIME } from "@menote/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { appendMcpAudit, incrementMcpRateLimit } from "../db/mcpAudit";
@@ -245,7 +246,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
         inputSchema: uploadInput,
       }, async ({ name, mime, base64 }) => {
         try {
-          if (!/^[\w.+-]+\/[\w.+-]+(?:\s*;[^\r\n]*)?$/.test(mime)) throw new Error("invalid_attachment");
+          if (mime.split(";")[0] === SEALED_ATTACHMENT_MIME || !/^[\w.+-]+\/[\w.+-]+(?:\s*;[^\r\n]*)?$/.test(mime)) throw new Error("invalid_attachment");
           const attachment = await storeAttachment({ db: c.env.DB, bucket: c.env.BUCKET }, token.userId, decodeBase64(base64), mime, name);
           await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
             tool: "upload_attachment", itemId: null, resourceId: attachment.sha256, revBefore: null, revAfter: null,
@@ -273,7 +274,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
           return { isError: true, content: [{ type: "text", text: "attachment_not_available" }] };
         }
         const attachment = await readUserAttachment({ db: c.env.DB, bucket: c.env.BUCKET }, token.userId, sha256);
-        if (!attachment) {
+        if (!attachment || attachment.mime === SEALED_ATTACHMENT_MIME) {
           await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
             tool: "read_attachment", itemId, resourceId: sha256, revBefore: null, revAfter: null,
             result: "missing_object", operationId: null, at: now });

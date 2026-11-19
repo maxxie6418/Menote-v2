@@ -2,10 +2,11 @@ import type { Item } from "@menote/shared";
 import { localDb, type VersionRow } from "../db/localDb";
 import { notifyLocalChange } from "../lib/broadcast";
 import { sha256Hex } from "../lib/hash";
-import { enqueueWrite, outboxUpsert, requireItem } from "./contentShared";
+import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope } from "./contentShared";
 import { getContentKey } from "./keyringService";
-import { encryptMarkdown } from "./cryptoService";
+import { decryptMarkdown, encryptMarkdown } from "./cryptoService";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
+import { verifyAddedSealedAttachments } from "./sealedAttachmentService";
 
 /** 版本历史与回收站（G8，FR-VER-1~7；G10 整理自 contentService）。 */
 
@@ -51,48 +52,61 @@ export async function listVersions(itemId: string) {
 
 /** 恢复版本（FR-VER-1）：先封存当前稿，再以历史内容写回（明文走统一保存链路）。 */
 export async function restoreVersion(userId: string, itemId: string, versionId: number): Promise<Item> {
-  const current = await requireItem(userId, itemId);
-  const version = await localDb.versions.get(versionId);
-  if (!version || version.itemId !== itemId) throw new Error("version_not_found");
-  await localDb.versions.add({
-    itemId, userId, title: current.title ?? "", content: current.content.scope === "plain" ? current.content.markdown : current.content.ciphertext,
-    scope: current.content.scope === "plain" ? "plain" : "sealed", rev: current.rev, reason: "restore", createdAt: Date.now(),
-  });
-  if (version.scope === "plain") {
-    if (current.content.scope !== "plain") throw new Error("scope_mismatch");
-    return enqueueWrite(() => applyContentMarkdown(userId, current.id, version.content));
-  }
-  // 加密条目恢复：以会话密钥重加密历史密文（解封验签失败 = 包装已失效，如实抛出）。
-  if (current.content.scope === "plain" || current.type === "memo") throw new Error("scope_mismatch");
-  const key = getContentKey(itemId);
-  if (!key) throw new Error("locked");
-  const envelope = await encryptMarkdown(version.content, key);
-  const scope = current.content.scope;
-  const next: Item = {
-    ...current, rev: current.rev + 1, contentHash: "enc-" + envelope.ciphertext.slice(0, 16),
-    updatedAt: Date.now(), content: { scope, ciphertext: `${envelope.iv}:${envelope.ciphertext}` },
-  };
-  await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
-    await localDb.items.put(next);
-    // 恢复的是历史正文：按正文操作上报（带 contentHash），正文版本号随之推进。
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
-  });
-  notifyLocalChange();
-  return next;
+  return enqueueWrite(() => restoreVersionInner(userId, itemId, versionId));
 }
 
-async function applyContentMarkdown(userId: string, id: string, markdown: string): Promise<Item> {
-  const current = await requireItem(userId, id);
-  if (current.content.scope !== "plain") throw new Error("not_plain");
-  const contentHash = await sha256Hex(markdown);
-  const next: Item = {
-    ...current, rev: current.rev + 1, contentHash, updatedAt: Date.now(),
-    attachmentHashes: attachmentHashesOf(markdown),
-    content: { scope: "plain", markdown },
-  };
-  await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+async function restoreVersionInner(userId: string, itemId: string, versionId: number): Promise<Item> {
+  const current = await requireItem(userId, itemId);
+  const version = await localDb.versions.get(versionId);
+  if (!version || version.itemId !== itemId || version.userId !== userId) throw new Error("version_not_found");
+
+  let markdown: string;
+  let nextContent: Item["content"];
+  let contentHash: string;
+  let sessionKey: Uint8Array | undefined;
+  if (version.scope === "plain") {
+    if (current.content.scope !== "plain") throw new Error("scope_mismatch");
+    markdown = version.content;
+    contentHash = await sha256Hex(markdown);
+    nextContent = { scope: "plain", markdown };
+  } else {
+    if (current.content.scope === "plain" || current.type === "memo") throw new Error("scope_mismatch");
+    const key = getContentKey(itemId);
+    if (!key) throw new Error("locked");
+    sessionKey = key;
+    // 先验证并解开历史信封；错误密钥或损坏数据不能改变当前稿或生成恢复记录。
+    markdown = await decryptMarkdown(unpackEnvelope(version.content), key);
+    try {
+      await verifyAddedSealedAttachments(itemId, attachmentHashesOf(markdown), current.attachmentHashes);
+    } catch {
+      if (getContentKey(itemId) !== key) throw new Error("locked");
+      throw new Error("历史附件无法验证为密文。请在解锁后先加密旧附件，再恢复此版本。");
+    }
+    const envelope = await encryptMarkdown(markdown, key);
+    contentHash = "enc-" + envelope.ciphertext.slice(0, 16);
+    nextContent = { scope: current.content.scope, ciphertext: packEnvelope(envelope.iv, envelope.ciphertext) };
+  }
+  const next = {
+    ...current, rev: current.rev + 1, contentHash, attachmentHashes: attachmentHashesOf(markdown),
+    updatedAt: Date.now(), content: nextContent,
+  } as Item; // 上方已排除 Memo 密文和版本作用域不匹配。
+  // 当前稿封存、写回和同步入队必须一起成功，且都在写队列中取最新状态。
+  await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.versions, async () => {
+    // 写队列只覆盖当前页面；事务内复核其他标签页是否在解密期间修改了条目或历史。
+    const latest = await localDb.items.get(itemId);
+    const latestVersion = await localDb.versions.get(versionId);
+    if (!latest || latest.userId !== userId || latest.rev !== current.rev || latest.metaRev !== current.metaRev ||
+        latest.contentHash !== current.contentHash || !latestVersion || latestVersion.userId !== userId ||
+        latestVersion.itemId !== itemId || latestVersion.scope !== version.scope || latestVersion.content !== version.content) {
+      throw new Error("version_restore_changed");
+    }
+    await localDb.versions.add({
+      itemId, userId, title: current.title ?? "", content: current.content.scope === "plain" ? current.content.markdown : current.content.ciphertext,
+      scope: current.content.scope === "plain" ? "plain" : "sealed", rev: current.rev, reason: "restore", createdAt: Date.now(),
+    });
     await localDb.items.put(next);
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash));
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
+    if (sessionKey && getContentKey(itemId) !== sessionKey) throw new Error("locked");
   });
   notifyLocalChange();
   return next;

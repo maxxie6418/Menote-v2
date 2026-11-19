@@ -1,9 +1,11 @@
+import { parseRecoveryCodeBinding, type RecoveryCodeBinding } from "@menote/shared";
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
 
 export interface VerifiedSnapshot {
   files: number; shards: number; attachments: number;
   entries: unknown[]; itemKeyWraps: unknown[]; topicKeyWraps: unknown[]; settings: unknown[];
-  attachmentFiles: Array<{ sha256: string; bytes: Uint8Array }>;
+  recoveryCodeBinding: RecoveryCodeBinding | null;
+  attachmentFiles: Array<{ sha256: string; bytes: Uint8Array; mime: string }>;
 }
 
 /** Verify every file in a snapshot without modifying either storage. */
@@ -16,24 +18,25 @@ export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: strin
   if (!/^[a-f0-9]{64}$/i.test(marker) || await hash(manifestBytes) !== marker.toLowerCase()) throw new Error("备份清单校验失败");
   const manifest = JSON.parse(decode.decode(manifestBytes)) as {
     format?: unknown; version?: unknown; snapshotId?: unknown;
-    files?: Array<{ path?: unknown; size?: unknown; sha256?: unknown }>;
+    files?: Array<{ path?: unknown; size?: unknown; sha256?: unknown; mime?: unknown }>;
     shards?: Array<{ month?: unknown }>;
     counts?: { attachments?: unknown };
-    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown };
+    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown; recoveryCodeBinding?: unknown };
   };
   if (manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id || !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
   const names = new Set<string>();
   const references = new Set<string>();
-  const contents = new Map<string, Uint8Array>();
+  const shards = new Map<string, unknown[]>();
+  const attachments = new Map<string, VerifiedSnapshot["attachmentFiles"][number]>();
   for (const file of manifest.files) {
     if (!file || typeof file.path !== "string" || !/^(?:\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(file.path) || names.has(file.path) || !Number.isSafeInteger(file.size) || (file.size as number) < 0 || typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error("备份文件清单无效");
     names.add(file.path);
     const bytes = await remoteGet(target, `${root}/${file.path}`);
-    contents.set(file.path, bytes);
     if (bytes.length !== file.size || await hash(bytes) !== file.sha256) throw new Error(`文件校验失败：${file.path}`);
     if (file.path.endsWith(".json")) {
       const entries: unknown = JSON.parse(decode.decode(bytes));
       if (!Array.isArray(entries)) throw new Error(`分片格式错误：${file.path}`);
+      shards.set(file.path, entries);
       for (const entry of entries) {
         if (entry?.kind !== "item") continue;
         const raw: unknown = entry.data?.attachment_hashes_json;
@@ -42,19 +45,27 @@ export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: strin
         for (const h of hashes) references.add(h);
       }
     }
-    if (file.path.startsWith("attachment-") && file.path.slice(11) !== file.sha256) throw new Error(`附件内容哈希不符：${file.path}`);
+    if (file.path.startsWith("attachment-")) {
+      if (file.path.slice(11) !== file.sha256) throw new Error(`附件内容哈希不符：${file.path}`);
+      const mime = typeof file.mime === "string" && /^[a-z0-9][a-z0-9.+-]{0,62}\/[a-z0-9][a-z0-9.+-]{0,126}$/i.test(file.mime)
+        ? file.mime : "application/octet-stream";
+      attachments.set(file.sha256, { sha256: file.sha256, bytes, mime });
+    }
   }
   const shardNames = manifest.shards.map((shard) => `${String(shard.month)}.json`);
   if (new Set(shardNames).size !== shardNames.length || shardNames.some((name) => !names.has(name)) || [...names].filter((name) => name.endsWith(".json")).length !== shardNames.length || [...names].filter((name) => name.startsWith("attachment-")).length !== manifest.counts?.attachments) throw new Error("备份清单文件不完整");
   if ([...references].some((h) => !names.has(`attachment-${h}`))) throw new Error("快照缺少笔记引用的附件");
   const allEntries: unknown[] = [];
-  for (const name of shardNames) allEntries.push(...JSON.parse(decode.decode(contents.get(name)!)) as unknown[]);
-  const extra = manifest.extra as { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown } | undefined;
+  for (const name of shardNames) for (const entry of shards.get(name)!) allEntries.push(entry);
+  const extra = manifest.extra;
   if (!Array.isArray(extra?.itemKeyWraps) || !Array.isArray(extra?.topicKeyWraps) || !Array.isArray(extra?.settings)) throw new Error("备份缺少密钥或设置数据");
+  const recoveryCodeBinding = parseRecoveryCodeBinding(extra.recoveryCodeBinding);
+  if (extra.recoveryCodeBinding !== undefined && !recoveryCodeBinding) throw new Error("备份恢复码绑定无效");
   return {
     files: names.size, shards: shardNames.length, attachments: manifest.counts.attachments as number,
     entries: allEntries, itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings,
-    attachmentFiles: [...references].map((sha256) => ({ sha256, bytes: contents.get(`attachment-${sha256}`)! })),
+    recoveryCodeBinding,
+    attachmentFiles: [...references].map((sha256) => attachments.get(sha256)!),
   };
 }
 

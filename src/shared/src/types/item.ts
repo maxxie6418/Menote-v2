@@ -57,4 +57,10 @@ export interface Attachment {
   size: number;
   mime: string;
   refCount: number;
+  cleanupEligibleAt?: number | null;
+}
+
+export interface AttachmentPage {
+  attachments: Attachment[];
+  nextCursor?: string;
 }
