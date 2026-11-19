@@ -1,4 +1,4 @@
-import { deleteAttachmentIfUnreferenced, getAttachment, listAttachments, upsertAttachment } from "../db/attachments";
+import { getAttachment, listAttachments, upsertAttachment } from "../db/attachments";
 import { readSettingState } from "../db/sync";
 
 /**
@@ -39,20 +39,11 @@ export async function storeAttachment(ctx: AttachmentStoreContext, userId: strin
   const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   const mime = rawMime?.split(";")[0] ?? "application/octet-stream";
   const key = `${userId}/${sha256}`;
-  const existed = (await ctx.bucket.head(key)) !== null;
   await ctx.bucket.put(key, body);
   try {
     await upsertAttachment(ctx.db, userId, sha256, body.byteLength, mime);
   } catch (error) {
-    // Compensate only newly-created objects; never remove a prior valid object on metadata failure.
-    // 并发同内容上传（或引用对齐补行）可能在补偿前提交元数据行：删除对象前后各查一次，
-    // 若行已出现则把对象放回，避免把对方的引用删成断链；残余窗口由下次同内容上传自愈。
-    if (!existed && await getAttachment(ctx.db, userId, sha256) === null) {
-      try { await ctx.bucket.delete(key); } catch { /* orphan cleanup will reconcile transient R2 failures */ }
-      if (await getAttachment(ctx.db, userId, sha256) !== null) {
-        try { await ctx.bucket.put(key, body); } catch { /* 对象缺失由下次同内容上传或 30 天孤儿清理兜底 */ }
-      }
-    }
+    // 并发上传可能已写入相同对象；无跨 D1/R2 互斥时保留对象，避免补偿误删。
     throw error;
   }
   return { sha256, size: body.byteLength, mime };
@@ -65,12 +56,4 @@ export async function readUserAttachment(ctx: AttachmentStoreContext, userId: st
   const object = await ctx.bucket.get(`${userId}/${sha256}`);
   if (!object) return null;
   return { mime: meta.mime, object };
-}
-
-/** 删除：仅零引用可删（引用中返回 false → 路由映射 409 referenced）；删行后移除 R2 对象。 */
-export async function deleteUserAttachment(ctx: AttachmentStoreContext, userId: string, sha256: string): Promise<boolean> {
-  const deleted = await deleteAttachmentIfUnreferenced(ctx.db, userId, sha256);
-  if (!deleted) return false;
-  await ctx.bucket.delete(`${userId}/${sha256}`);
-  return true;
 }

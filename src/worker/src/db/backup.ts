@@ -122,9 +122,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   const settings = await db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
   const hashes = new Set<string>();
   for (const item of items.results) {
-    // 附件收集口径与引用计数一致（attachments.ts 只数未删条目）：软删条目的引用已随软删归零，
-    // 其文件可能已过 30 天孤儿期被物理删除；若仍按其哈希收集备份会撞上必然缺失的对象。
-    if (item.deleted_at !== null && item.deleted_at !== undefined) continue;
+    // 快照包含回收站条目；它们的附件也必须一同保存，才能通过完整性校验并恢复。
     try {
       for (const hash of JSON.parse(String(item.attachment_hashes_json ?? "[]")) as string[]) hashes.add(hash);
     } catch { /* 忽略坏行。 */ }

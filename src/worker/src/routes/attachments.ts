@@ -3,11 +3,11 @@ import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
 import {
-  deleteUserAttachment, listUserAttachments, readAttachmentPolicy, readUserAttachment, storeAttachment,
+  listUserAttachments, readAttachmentPolicy, readUserAttachment, storeAttachment,
 } from "../services/attachmentService";
 
 /** 附件路由（G5）：R2 内容寻址存储 + 鉴权读取（FR-SYNC-7/8）。
- *  编排（上限/哈希/引用检查/R2 写删）在 attachmentService；本层只做鉴权、
+ *  编排（上限/哈希/R2 写入）在 attachmentService；本层只做鉴权、
  *  请求形态校验与 HTTP 映射。跨源变更请求走 sameOriginGuard。 */
 export const attachmentRoutes = new Hono<AppEnv>();
 
@@ -63,9 +63,6 @@ attachmentRoutes.get("/api/attachments/:sha256", requireSession, async (c) => {
 attachmentRoutes.delete("/api/attachments/:sha256", sameOriginGuard, requireSession, async (c) => {
   const sha256 = c.req.param("sha256");
   if (!SHA256_PATTERN.test(sha256)) return c.json({ error: "invalid_attachment" }, 400);
-  const deleted = await deleteUserAttachment(
-    { db: c.env.DB, bucket: c.env.BUCKET }, c.get("authUser")!.id, sha256,
-  );
-  if (!deleted) return c.json({ error: "referenced" }, 409);
-  return c.json({ ok: true });
+  // No atomic exclusion spans D1 reference updates and R2 deletion yet.
+  return c.json({ error: "attachment_cleanup_unavailable" }, 503);
 });

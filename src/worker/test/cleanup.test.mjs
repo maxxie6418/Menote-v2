@@ -38,7 +38,7 @@ async function withDatabase(run) {
 }
 const ctx = { waitUntil() {} };
 
-test("cleanup purges expired orphans, soft-deleted items, logs and run records (G10)", async () => {
+test("cleanup 保留孤儿附件，同时清除过期条目和日志", async () => {
   await withDatabase(async (db, bucket) => {
     await db.prepare("INSERT INTO users (id, username, role, created_at) VALUES ('u1', 'owner', 'owner', 1)").run();
     // 孤儿附件：归零且 orphaned_at 超 30 天 → 真删；未到期的保留
@@ -59,12 +59,28 @@ test("cleanup purges expired orphans, soft-deleted items, logs and run records (
     assert.equal(cleanupJob.enabled, true);
     await cleanupJob.run({ DB: db, BUCKET: bucket }, ctx, now);
 
-    assert.equal(await bucket.get("u1/orphan1"), null, "孤儿对象已真删");
+    assert.notEqual(await bucket.get("u1/orphan1"), null, "并发安全回收落地前保留孤儿对象");
     assert.notEqual(await bucket.get("u1/keep1"), null, "观察期内附件保留");
-    assert.equal(await db.prepare("SELECT COUNT(*) AS n FROM attachments WHERE sha256 = 'orphan1'").first().then((row) => row.n), 0);
+    assert.equal(await db.prepare("SELECT COUNT(*) AS n FROM attachments WHERE sha256 = 'orphan1'").first().then((row) => row.n), 1);
     assert.equal(await db.prepare("SELECT COUNT(*) AS n FROM items WHERE id = 'gone'").first().then((row) => row.n), 0, "超期软删本体清除");
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM items WHERE id = 'fresh'").first()).n, 1);
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM sync_log").first()).n, 0, "超期日志清除");
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM job_runs WHERE started_at <= ?").bind(now - 90 * DAY).first()).n, 0);
+  });
+});
+
+test("回收站附件及其条目清除后的附件均在安全回收机制落地前保留", async () => {
+  await withDatabase(async (db, bucket) => {
+    await db.prepare("INSERT INTO users (id, username, role, created_at) VALUES ('u1', 'owner', 'owner', 1)").run();
+    await bucket.put("u1/trash-file", "data");
+    await db.prepare("INSERT INTO attachments (user_id, sha256, size, mime, ref_count, orphaned_at) VALUES ('u1', 'trash-file', 4, 'text/plain', 0, ?)").bind(now - 60 * DAY).run();
+    await db.prepare(`INSERT INTO items (id, user_id, type, title, content_markdown, tags_json, attachment_hashes_json, source, rev, meta_rev, content_hash, created_at, updated_at, deleted_at)
+      VALUES ('trash', 'u1', 'note', '回收站', 'x', '[]', '["trash-file"]', 'manual', 1, 1, 'h', 1, 1, ?)`).bind(now - 60 * DAY).run();
+    const cleanupJob = scheduler.scheduledJobs.find((job) => job.name === "cleanup");
+    await cleanupJob.run({ DB: db, BUCKET: bucket }, ctx, now);
+    assert.notEqual(await bucket.get("u1/trash-file"), null);
+    await db.prepare("DELETE FROM items WHERE id = 'trash'").run();
+    await cleanupJob.run({ DB: db, BUCKET: bucket }, ctx, now);
+    assert.notEqual(await bucket.get("u1/trash-file"), null);
   });
 });

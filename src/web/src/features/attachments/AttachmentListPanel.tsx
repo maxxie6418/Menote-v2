@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Attachment } from "@menote/shared";
-import { attachmentUrl, deleteAttachment, listAttachmentReferences, listAttachments, type AttachmentDetails } from "../../services/attachmentService";
+import { attachmentUrl, listAttachmentReferences, listAttachments, type AttachmentDetails } from "../../services/attachmentService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
 interface AttachmentListPanelProps { userId: string }
@@ -11,13 +11,11 @@ function formatSize(size: number): string {
   return `${size} B`;
 }
 
-/** 附件管理：显示文件名、缩略图与引用文章；删除由服务端再次校验零引用。 */
+/** 附件管理：显示文件名、缩略图与引用文章。 */
 export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
   const [attachments, setAttachments] = useState<Attachment[] | null>(() => peek<Attachment[]>(SETTINGS_CACHE.attachments(userId)) ?? null);
   const [references, setReferences] = useState<Record<string, AttachmentDetails>>(() => peek<Record<string, AttachmentDetails>>(SETTINGS_CACHE.attachmentRefs(userId)) ?? {});
   const [error, setError] = useState(false);
-  const [cleaning, setCleaning] = useState(false);
-  const [message, setMessage] = useState("");
   const [view, setView] = useState<AttachmentView>("list");
 
   const refresh = useCallback(async (fresh = false) => {
@@ -32,28 +30,14 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
     } catch { setError(true); }
   }, [userId]);
   useEffect(() => { void refresh(); }, [refresh]);
-
-  const orphaned = useMemo(() => (attachments ?? []).filter((item) => item.refCount === 0), [attachments]);
-  const clean = async () => {
-    if (cleaning || orphaned.length === 0) return;
-    setCleaning(true);
-    setMessage("");
-    let removed = 0;
-    for (const attachment of orphaned) if (await deleteAttachment(attachment.sha256)) removed += 1;
-    await refresh(true);
-    setMessage(`已清理 ${removed} 个未引用附件。`);
-    setCleaning(false);
-  };
-  const remove = async (sha256: string) => {
-    if (await deleteAttachment(sha256)) await refresh(true);
-  };
+  const orphaned = (attachments ?? []).filter((item) => item.refCount === 0);
 
   return (
     <section className="status-panel" aria-labelledby="attachments-heading">
       <h2 id="attachments-heading">附件管理</h2>
-      <p className="app-description">查看附件及引用文章；删除引用 30 天后自动清理（FR-SYNC-8）。</p>
+      <p className="app-description">查看附件及引用文章。为保护数据，附件自动清理和手动删除暂不可用。</p>
       <div className="mn-attach-toolbar">
-        <button type="button" className="mn-textbtn" disabled={cleaning || orphaned.length === 0} onClick={() => void clean()}>{cleaning ? "清理中…" : `一键清理未引用资源${orphaned.length ? `（${orphaned.length}）` : ""}`}</button>
+        <button type="button" className="mn-textbtn" disabled>一键清理未引用资源（暂不可用）</button>
         <div className="mn-attach-view" role="group" aria-label="附件显示方式">
           <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>列表</button>
           <button type="button" aria-pressed={view === "gallery"} className={view === "gallery" ? "on" : ""} onClick={() => setView("gallery")}>图册</button>
@@ -89,13 +73,11 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
                   <span className="mn-attachmeta">{attachment.mime} · {formatSize(attachment.size)} · 引用 {attachment.refCount}</span>
                   {detail?.references.length ? <div className="mn-attachrefs">引用文章：{detail.references.map((ref, index) => <span key={ref.id}>{index > 0 && "、"}<a href={ref.href}>{ref.title}</a></span>)}</div> : <span className="mn-attachmeta">暂无引用文章</span>}
                 </div>
-                {attachment.refCount === 0 && <button type="button" className="mn-textbtn" aria-label="删除未引用附件" onClick={() => void remove(attachment.sha256)}>删除</button>}
               </li>
             );
           })}
         </ul>
       )}
-      {message && <p className="status-detail" role="status">{message}</p>}
     </section>
   );
 }

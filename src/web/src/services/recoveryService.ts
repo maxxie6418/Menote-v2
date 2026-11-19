@@ -35,10 +35,15 @@ export async function openRecoveryMarkdown(row: RecoveryRow): Promise<string | n
 }
 
 export async function discardRecovery(itemId: string): Promise<void> {
+  cancelScheduledRecovery(itemId);
+  await localDb.recovery.delete(itemId);
+}
+
+/** 取消尚未执行的节流任务，不删除已经保存的恢复副本。 */
+export function cancelScheduledRecovery(itemId: string): void {
   const pending = timers.get(itemId);
   if (pending !== undefined) window.clearTimeout(pending);
   timers.delete(itemId);
-  await localDb.recovery.delete(itemId);
 }
 
 /** 节流写入。加密条目在没有会话密钥时直接跳过。 */
@@ -61,5 +66,11 @@ export async function writeRecovery(userId: string, itemId: string, markdown: st
     });
     return;
   }
-  await localDb.recovery.put({ itemId, userId, scope: "plain", content: markdown, updatedAt: Date.now() });
+  // 已排队的明文写入可能在笔记启用加密后才到达。与切换加密共用事务锁，
+  // 防止旧编辑器的延迟回调重新写入明文恢复副本。
+  await localDb.transaction("rw", localDb.items, localDb.recovery, async () => {
+    const item = await localDb.items.get(itemId);
+    if (!item || item.userId !== userId || item.content.scope !== "plain") return;
+    await localDb.recovery.put({ itemId, userId, scope: "plain", content: markdown, updatedAt: Date.now() });
+  });
 }

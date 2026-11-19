@@ -1,6 +1,8 @@
 import { bytesToBase64, encodeBackupRow } from "@menote/shared";
 import { collectBackupRows } from "../db/backup";
 import { deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath, remotePut, type RemoteTarget } from "./backupRemote";
+import { verifyRemoteSnapshot } from "./backupVerifyService";
+import { MAX_IMPORT_ENTRIES } from "./restoreService";
 
 /**
  * 备份服务（G9，FR-BAK-1~8；备份专项设计=管理线计划 G9 定稿）：
@@ -37,9 +39,7 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
   return new TextDecoder().decode(plain);
 }
 
-/** 收集当前完整状态为备份 JSON（按月分片数据 + manifest 输入）。加密条目保持密文。
- *  引用附件缺失（历史孤儿清理、恢复窗口断链）不中断备份：跳过并落账到 manifest，
- *  由推送结果向用户提示，避免一个断链哈希卡死全部自动备份。 */
+/** 收集当前状态；引用附件缺失时记录清单，推送前拒绝生成不可恢复的快照。 */
 export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer }>; missingAttachments: string[] }> {
   const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
@@ -94,6 +94,8 @@ export async function pushBackup(
 ): Promise<{ ok: true; shards: number; backupId: string; missingAttachments: string[] } | { ok: false; error: string }> {
   try {
     const { months, manifest, attachments, missingAttachments } = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
+    if (missingAttachments.length > 0) throw new Error(`备份失败：${missingAttachments.length} 个引用附件缺失（首例 ${missingAttachments[0]!.slice(0, 8)}…）`);
+    const entryCount = Object.values(months).reduce((count, entries) => count + entries.length, 0);
     const root = normalizeRemotePath(target.remotePath);
     const id = newSnapshotId();
     const directory = `${root}/${id}`;
@@ -111,9 +113,14 @@ export async function pushBackup(
     for (const file of files) await remotePut(target, `${directory}/${file.path}`, file.bytes, file.contentType);
     await remotePut(target, `${directory}/manifest.json`, manifestBytes, "application/json");
     await remotePut(target, `${directory}/COMPLETE`, new TextEncoder().encode(manifestHash), "text/plain");
+    // 远端实际读回并校验通过之前，绝不清理已有快照。
+    await verifyRemoteSnapshot(target, id);
+    // 保存完整快照供未来恢复工具使用，但当前恢复入口会拒绝超限快照，不能借此删除可恢复旧快照。
+    if (entryCount > MAX_IMPORT_ENTRIES) throw new Error(`快照 ${id} 已保存，但 ${entryCount} 条记录超过当前单次恢复上限 ${MAX_IMPORT_ENTRIES}，无法通过当前恢复入口恢复；已保留已有快照`);
     if (target.retentionCount > 0) {
-      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete);
-      for (const old of backups.slice(target.retentionCount)) await deleteRemoteBackup(target, old.id);
+      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete && backup.id !== id);
+      // 无论时钟或目录排序如何，保留刚刚验证过的快照。
+      for (const old of backups.slice(target.retentionCount - 1)) await deleteRemoteBackup(target, old.id);
     }
     return { ok: true, shards: Object.keys(months).length, backupId: id, missingAttachments };
   } catch (error) {

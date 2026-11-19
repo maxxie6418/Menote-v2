@@ -14,7 +14,7 @@ import {
  * 包装块非法编码直接拒绝，不把对象转成垃圾字节。
  */
 
-const MAX_IMPORT_ENTRIES = 5000;
+export const MAX_IMPORT_ENTRIES = 5000;
 
 export interface ImportContext { db: D1Database; userId: string }
 

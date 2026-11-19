@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash, webcrypto } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
@@ -11,6 +12,12 @@ const bundle = await build({
   // 整个 worker 入口打不出来，这批集成测试会集体失败。
   conditions: ["worker", "browser"], loader: { ".sql": "text" },
 });
+globalThis.crypto ??= webcrypto;
+const backupBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/services/backupService.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "node",
+});
+const backupService = await import(`data:text/javascript;base64,${Buffer.from(backupBundle.outputFiles[0].text).toString("base64")}`);
 
 async function withWorker(run) {
   const mf = new Miniflare({ workers: [{ config: {
@@ -31,6 +38,68 @@ async function login(mf) {
   const boot = await json(mf, "", "POST", "/api/auth/bootstrap", { username: "owner", password: "owner-password-1" });
   return boot.headers.get("set-cookie").split(";")[0];
 }
+
+test("备份包含回收站附件；缺失或远端读回损坏时不清理旧快照", async () => {
+  await withWorker(async (mf) => {
+    await login(mf);
+    const db = await mf.getD1Database("DB");
+    const bucket = await mf.getR2Bucket("BUCKET");
+    const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const content = Buffer.from("trash attachment");
+    const hash = createHash("sha256").update(content).digest("hex");
+    await db.prepare(`INSERT INTO items (id, user_id, type, title, content_markdown, tags_json, attachment_hashes_json, source, rev, meta_rev, content_hash, created_at, updated_at, deleted_at)
+      VALUES ('trash-item', ?, 'note', '回收站', 'x', '[]', ?, 'manual', 1, 1, 'h', 1, 1, 2)`)
+      .bind(user.id, JSON.stringify([hash])).run();
+    const target = { kind: "webdav", endpoint: "https://example.invalid/dav", bucket: null, username: "u", secret: "s", remotePath: "menote", retentionCount: 1 };
+    const ctx = { db, userId: user.id, bucket };
+    const originalFetch = globalThis.fetch;
+    const files = new Map();
+    const calls = [];
+    let corruptRead = false;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      const method = init.method ?? "GET";
+      calls.push({ method, path });
+      if (method === "MKCOL") return new Response(null, { status: 201 });
+      if (method === "PUT") { files.set(path, new Uint8Array(init.body)); return new Response(null, { status: 201 }); }
+      if (method === "GET") {
+        if (corruptRead && path.endsWith(".json") && !path.endsWith("manifest.json")) return new Response("corrupt");
+        return files.has(path) ? new Response(files.get(path)) : new Response(null, { status: 404 });
+      }
+      if (method === "PROPFIND") return new Response("<?xml version='1.0'?><d:multistatus xmlns:d='DAV:'></d:multistatus>", { status: 207 });
+      if (method === "DELETE") return new Response(null, { status: 204 });
+      throw new Error(`unexpected ${method} ${path}`);
+    };
+    try {
+      const missing = await backupService.pushBackup(ctx, target);
+      assert.equal(missing.ok, false);
+      assert.match(missing.error, /引用附件缺失/);
+      assert.equal(calls.length, 0, "缺附件时不访问远端，更不能删旧备份");
+
+      await bucket.put(`${user.id}/${hash}`, content);
+      const snapshot = await backupService.collectBackup(db, user.id, bucket);
+      assert.equal(snapshot.attachments.length, 1, "包含仅由回收站条目引用的附件");
+      corruptRead = true;
+      const damaged = await backupService.pushBackup(ctx, target);
+      assert.equal(damaged.ok, false);
+      assert.match(damaged.error, /文件校验失败/);
+      assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "读回校验失败不得清理旧快照");
+
+      corruptRead = false;
+      const complete = await backupService.pushBackup(ctx, target);
+      assert.equal(complete.ok, true, "含回收站附件的快照可通过真实恢复校验器");
+
+      calls.length = 0;
+      const manyTopics = Array.from({ length: 5001 }, (_, index) => ({ id: `topic-${index}`, created_at: 1 }));
+      const largeDb = { prepare: (sql) => ({ bind: () => ({ all: async () => ({ results: sql.includes("FROM topic_nodes") ? manyTopics : [] }) }) }) };
+      const tooLarge = await backupService.pushBackup({ db: largeDb, userId: user.id, bucket }, target);
+      assert.equal(tooLarge.ok, false);
+      assert.match(tooLarge.error, /已保存.*超过当前单次恢复上限/);
+      assert.ok(calls.some((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")), "超限快照仍保留备份文件");
+      assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "超限快照不触发旧备份清理");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
 
 test("backup target CRUD with reversible secret storage and reveal (FR-BAK-1, C-7)", async () => {
   await withWorker(async (mf) => {

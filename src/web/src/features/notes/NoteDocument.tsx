@@ -852,6 +852,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       )}
       {encrypting && item && (
         <EncryptSetupDialog
+          userId={userId}
           onCancel={() => setEncrypting(false)}
           onConfirm={async (password, code) => {
             const current = draft ?? (item.content.scope === "plain" ? item.content.markdown : "");

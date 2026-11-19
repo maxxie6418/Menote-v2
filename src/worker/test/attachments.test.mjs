@@ -43,7 +43,7 @@ const PNG = Uint8Array.from(Buffer.from(
   "base64",
 ));
 
-test("元数据落库失败时清理本次新建的孤儿 R2 对象", async () => {
+test("元数据落库失败时保留 R2 对象，避免并发上传被补偿误删", async () => {
   await withWorker(async (mf) => {
     const cookie = await login(mf);
     const db = await mf.getD1Database("DB");
@@ -55,7 +55,21 @@ test("元数据落库失败时清理本次新建的孤儿 R2 对象", async () =
       method: "POST", headers: { "content-type": "image/png", "X-File-Extension": ".png", origin: "http://localhost", cookie }, body: PNG,
     });
     assert.equal(response.status, 503);
-    assert.equal(await bucket.head(`${user.id}/${sha256}`), null);
+    assert.notEqual(await bucket.head(`${user.id}/${sha256}`), null);
+  });
+});
+
+test("手动删除附件在安全回收机制落地前返回不可用并保留内容", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const uploaded = await req(mf, "/api/attachments", {
+      method: "POST", headers: { "content-type": "image/png", "X-File-Extension": ".png", origin: "http://localhost", cookie }, body: PNG,
+    });
+    const { sha256 } = await uploaded.json();
+    const result = await req(mf, `/api/attachments/${sha256}`, { method: "DELETE", headers: { origin: "http://localhost", cookie } });
+    assert.equal(result.status, 503);
+    assert.deepEqual(await result.json(), { error: "attachment_cleanup_unavailable" });
+    assert.equal((await req(mf, `/api/attachments/${sha256}`, { headers: { cookie } })).status, 200);
   });
 });
 

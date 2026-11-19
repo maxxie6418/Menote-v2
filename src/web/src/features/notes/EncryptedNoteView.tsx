@@ -68,6 +68,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     void openSpaceNote(item.id, item.topicId).then((result) => {
       if (cancelled) return;
       if (result === "no_wrap") setUnlockError("这则笔记缺少空间密钥包装，暂时打不开。");
+    }).catch(() => {
+      if (!cancelled) setUnlockError("无法保护这则笔记的本机恢复副本或历史，请稍后重试；原数据未改动。");
     });
     return () => { cancelled = true; };
   }, [inSpace, item.id, item.topicId, unlocked]);
@@ -160,6 +162,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
 
   const onUnlock = async (credential: string, useRecovery: boolean) => {
     setUnlockError(null);
+    try {
     if (inSpace) {
       const result = await unlockPrivateSpace(userId, credential, useRecovery);
       if (result === "ok") {
@@ -172,6 +175,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     const result = await unlockNote(item.id, credential, useRecovery);
     if (result === "bad_credential") setUnlockError("凭据不正确，或与当前作用域不符。");
     if (result === "no_wraps") setUnlockError("包装块尚未同步到本机，请稍后重试。");
+    } catch {
+      setUnlockError("无法保护这则笔记的本机恢复副本或历史，请检查笔记密钥并重试；原数据未改动。");
+    }
   };
 
   const plainFlow = plain !== null && unlocked;
@@ -226,6 +232,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         <DocTitle value={item.title ?? ""} readOnly />
         {item.conflictOf && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={plain} onKeptOriginal={onBack} />
+        )}
+        {item.attachmentHashes.length > 0 && (
+          <p className="mn-conflictnote" role="status">这篇笔记含旧版附件：附件本身未加密，不应视为保密内容。可继续阅读或移除引用。</p>
         )}
         {readError && <p className="mn-conflictnote">{readError}</p>}
         {recoveryText && (

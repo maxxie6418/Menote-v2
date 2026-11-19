@@ -1,4 +1,4 @@
-import type { Item, KeyWrap, TopicNode } from "@menote/shared";
+import type { Item, TopicNode } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { getTopic, listTopics } from "../db/topicsRepo";
 import { notifyLocalChange } from "../lib/broadcast";
@@ -7,6 +7,7 @@ import { encryptMarkdown, generateContentKey, unwrapContentKey, wrapContentKey, 
 import { createNote } from "./contentService";
 import { outboxTopic, outboxUpsert } from "./contentShared";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
+import { enforceRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
 import {
   getTopicKey, isTopicUnlocked, lockTopic, rememberSpaceNote, setSessionKey, setTopicKey, unlockTopic,
 } from "./keyringService";
@@ -36,49 +37,22 @@ export async function privateSpaceReady(topicId: string): Promise<boolean> {
   return Boolean(row?.wraps.some((wrap) => wrap.wrapper === "password"));
 }
 
-/** 账户里是否已经有恢复码包装（单篇或私人空间）。有则不得再发一枚新码。 */
-export async function recoveryWrapExists(): Promise<boolean> {
-  const items = await localDb.wraps.toArray();
-  if (items.some((row) => row.wraps.some((wrap) => wrap.wrapper === "recovery"))) return true;
-  const topics = await localDb.topicWraps.toArray();
-  return topics.some((row) => row.wraps.some((wrap) => wrap.wrapper === "recovery"));
-}
-
-/** 用既有恢复码包装验证用户输入。成功只说明码正确，不把解开的密钥留下。 */
-export async function verifyRecoveryCode(code: string): Promise<boolean> {
-  const candidates: KeyWrap[] = [];
-  for (const row of await localDb.wraps.toArray()) {
-    const wrap = row.wraps.find((entry) => entry.wrapper === "recovery");
-    if (wrap) candidates.push(wrap);
-  }
-  for (const row of await localDb.topicWraps.toArray()) {
-    const wrap = row.wraps.find((entry) => entry.wrapper === "recovery");
-    if (wrap) candidates.push(wrap);
-  }
-  for (const wrap of candidates) {
-    try {
-      await unwrapContentKey(wrap, code);
-      return true;
-    } catch { /* 下一份包装。 */ }
-  }
-  return false;
-}
-
 export async function setupPrivateSpace(userId: string, password: string, recoveryCode: string): Promise<TopicNode> {
+  return withRecoveryCodeLock(userId, () => setupPrivateSpaceInner(userId, password, recoveryCode));
+}
+
+async function setupPrivateSpaceInner(userId: string, password: string, recoveryCode: string): Promise<TopicNode> {
   if (password.length < PRIVATE_SPACE_PASSWORD_MIN) throw new Error(`密码至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位`);
   const existing = await findPrivateSpace(userId);
   if (existing && await privateSpaceReady(existing.id)) throw new Error("私人空间已设置");
-  if (await recoveryWrapExists()) {
-    const matches = await verifyRecoveryCode(recoveryCode);
-    if (!matches) throw new Error("恢复码不正确");
-  }
+  const code = await enforceRecoveryCode(userId, recoveryCode);
   const topic: TopicNode = existing ?? {
     id: newId(), userId, parentId: null, name: PRIVATE_SPACE_NAME, depth: 0, isEncSpace: true, deletedAt: null,
   };
   const key = generateContentKey();
   const wraps = [
     await wrapContentKey(key, password, "password"),
-    await wrapContentKey(key, recoveryCode, "recovery"),
+    await wrapContentKey(key, code, "recovery"),
   ];
   await localDb.transaction("rw", localDb.topics, localDb.topicWraps, localDb.outbox, async () => {
     await localDb.topics.put(topic);

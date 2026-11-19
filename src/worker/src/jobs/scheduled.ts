@@ -40,22 +40,17 @@ export const scheduledJobs: ScheduledJob[] = [
   },
   {
     name: "cleanup",
-    description: "孤儿附件 30 天真删、软删/日志 90 天保留期清理（G10）",
+    description: "软删/日志 90 天保留期清理（附件物理回收暂停）",
     enabled: true,
     run: async (env) => {
       const {
         listUsers, listExpiredSoftDeleted, purgeItemsWithWraps,
         purgeSyncLogBefore, purgeSyncOperationsBefore, purgeJobRunsBefore,
       } = await import("../db/cleanup");
-      const { listExpiredOrphans, deleteAttachmentRow } = await import("../db/attachments");
       const { failStaleAiTasks, deleteStaleAiTasks } = await import("../db/ai");
       const now = Date.now();
       const DAY = 86_400_000;
-      // 孤儿附件：归零观察 30 天后真删 R2 对象与元数据行（FR-SYNC-8）。
-      for (const orphan of await listExpiredOrphans(env.DB, now - 30 * DAY)) {
-        await env.BUCKET.delete(`${orphan.userId}/${orphan.sha256}`);
-        await deleteAttachmentRow(env.DB, orphan.userId, orphan.sha256);
-      }
+      // D1 引用写入与 R2 删除没有跨服务事务；安全互斥方案完成前暂停物理回收。
       // 软删本体 / sync_log / sync_operations：90 天保留期（G2 定稿）。
       for (const user of await listUsers(env.DB)) {
         const expired = await listExpiredSoftDeleted(env.DB, user.id, now - 90 * DAY);

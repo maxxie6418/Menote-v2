@@ -27,17 +27,7 @@ export async function listAttachments(db: D1Database, userId: string): Promise<A
   }));
 }
 
-/** 仅引用计数为 0 时允许删除（FR-SYNC-8 真删延迟 30 天由 G10 cleanup 执行）。 */
-export async function deleteAttachmentIfUnreferenced(db: D1Database, userId: string, sha256: string): Promise<boolean> {
-  const row = await db.prepare(
-    "SELECT ref_count FROM attachments WHERE user_id = ? AND sha256 = ?",
-  ).bind(userId, sha256).first<{ ref_count: number }>();
-  if (!row || row.ref_count > 0) return false;
-  await db.prepare("DELETE FROM attachments WHERE user_id = ? AND sha256 = ?").bind(userId, sha256).run();
-  return true;
-}
-
-/** G6 推送应用时按正文哈希列表对齐引用计数；归零进入孤儿观察期（30 天后真删，G10）。 */
+/** G6 推送应用时按正文哈希列表对齐引用计数；归零记录观察时间，物理回收暂缓。 */
 export async function setAttachmentRefs(
   db: D1Database, userId: string, sha256: string, refCount: number, now = Date.now(),
 ): Promise<void> {
@@ -53,20 +43,6 @@ export async function countAttachmentRefs(db: D1Database, userId: string, sha256
     AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`)
     .bind(userId, sha256).first<{ count: number }>();
   return row?.count ?? 0;
-}
-
-export interface OrphanRow { userId: string; sha256: string }
-
-/** 孤儿期已满（30 天）的附件清单。 */
-export async function listExpiredOrphans(db: D1Database, cutoff: number): Promise<OrphanRow[]> {
-  const rows = await db.prepare(
-    "SELECT user_id, sha256 FROM attachments WHERE ref_count = 0 AND orphaned_at IS NOT NULL AND orphaned_at <= ? LIMIT 200",
-  ).bind(cutoff).all<{ user_id: string; sha256: string }>();
-  return rows.results.map((row) => ({ userId: row.user_id, sha256: row.sha256 }));
-}
-
-export async function deleteAttachmentRow(db: D1Database, userId: string, sha256: string): Promise<void> {
-  await db.prepare("DELETE FROM attachments WHERE user_id = ? AND sha256 = ?").bind(userId, sha256).run();
 }
 
 /** 引用对齐时补齐缺失的元数据行（不覆盖既有 size/mime；计数另设）。 */

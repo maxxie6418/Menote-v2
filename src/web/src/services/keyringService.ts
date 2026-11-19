@@ -1,6 +1,7 @@
 import type { Item, KeyWrap } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { decryptMarkdown, unwrapContentKey, unwrapKeyWithRaw } from "./cryptoService";
+import { sealLegacyLocalContent } from "./legacyEncryptionService";
 
 /**
  * 会话密钥环与锁定策略（G7，G4 设计 §5）：
@@ -104,12 +105,13 @@ export async function unlockNote(itemId: string, credential: string, useRecovery
   for (const wrapper of order) {
     const wrap = row.wraps.find((entry) => entry.wrapper === wrapper);
     if (!wrap) continue;
-    try {
-      const key = await unwrapContentKey(wrap, credential);
-      noteKeys.set(itemId, key);
-      bump();
-      return "ok";
-    } catch { /* 试下一个包装块。 */ }
+    let key: Uint8Array;
+    try { key = await unwrapContentKey(wrap, credential); }
+    catch { continue; /* 试下一个包装块。 */ }
+    await sealLegacyLocalContent(itemId, key);
+    noteKeys.set(itemId, key);
+    bump();
+    return "ok";
   }
   return "bad_credential";
 }
@@ -163,15 +165,14 @@ export async function openSpaceNote(itemId: string, topicId: string | null): Pro
   const row = await localDb.wraps.get(itemId);
   const wrap = row?.wraps.find((entry) => entry.wrapper === "topic");
   if (!wrap) return "no_wrap";
-  try {
-    const key = await unwrapKeyWithRaw(wrap, topicKey);
-    noteKeys.set(itemId, key);
-    spaceNotes.set(itemId, rootId);
-    bump();
-    return "ok";
-  } catch {
-    return "no_wrap";
-  }
+  let key: Uint8Array;
+  try { key = await unwrapKeyWithRaw(wrap, topicKey); }
+  catch { return "no_wrap"; }
+  await sealLegacyLocalContent(itemId, key);
+  noteKeys.set(itemId, key);
+  spaceNotes.set(itemId, rootId);
+  bump();
+  return "ok";
 }
 
 /** 解锁私人空间主题密钥。只认空间密码或恢复码，不认笔记包装。 */
