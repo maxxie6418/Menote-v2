@@ -2,7 +2,6 @@ import { bytesToBase64, encodeBackupRow } from "@menote/shared";
 import { collectBackupRows } from "../db/backup";
 import { deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath, remotePut, type RemoteTarget } from "./backupRemote";
 import { verifyRemoteSnapshot } from "./backupVerifyService";
-import { MAX_IMPORT_ENTRIES } from "./restoreService";
 
 /**
  * 备份服务（G9，FR-BAK-1~8；备份专项设计=管理线计划 G9 定稿）：
@@ -40,8 +39,8 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
 }
 
 /** 收集当前状态；引用附件缺失时记录清单，推送前拒绝生成不可恢复的快照。 */
-export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer }>; missingAttachments: string[] }> {
-  const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes } = await collectBackupRows(db, userId);
+export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }>; missingAttachments: string[] }> {
+  const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes, attachmentMimes } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
   const monthOf = (timestamp: unknown): string => {
     const date = new Date(typeof timestamp === "number" ? timestamp : Number(timestamp ?? 0));
@@ -56,12 +55,12 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   for (const topic of topics.map(encodeBackupRow)) {
     (months[monthOf(topic.created_at ?? 0)] ??= []).push({ kind: "topic", data: topic });
   }
-  const attachments: Array<{ key: string; bytes: ArrayBuffer }> = [];
+  const attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }> = [];
   const missingAttachments: string[] = [];
   for (const sha256 of attachmentHashes) {
     const object = await bucket.get(`${userId}/${sha256}`);
     if (!object) { missingAttachments.push(sha256); continue; }
-    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer() });
+    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer(), mime: attachmentMimes.get(sha256) ?? "application/octet-stream" });
   }
   const manifest = {
     format: "menote-backup",
@@ -95,7 +94,6 @@ export async function pushBackup(
   try {
     const { months, manifest, attachments, missingAttachments } = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
     if (missingAttachments.length > 0) throw new Error(`备份失败：${missingAttachments.length} 个引用附件缺失（首例 ${missingAttachments[0]!.slice(0, 8)}…）`);
-    const entryCount = Object.values(months).reduce((count, entries) => count + entries.length, 0);
     const root = normalizeRemotePath(target.remotePath);
     const id = newSnapshotId();
     const directory = `${root}/${id}`;
@@ -104,9 +102,12 @@ export async function pushBackup(
       await ensureDavSnapshotDirectories(target, root, directory);
     }
     const files: Array<{ path: string; bytes: Uint8Array; contentType: string }> = [];
-    for (const attachment of attachments) files.push({ path: `attachment-${attachment.key.split("/").pop()}`, bytes: new Uint8Array(attachment.bytes), contentType: "application/octet-stream" });
+    for (const attachment of attachments) files.push({ path: `attachment-${attachment.key.split("/").pop()}`, bytes: new Uint8Array(attachment.bytes), contentType: attachment.mime });
     for (const month of Object.keys(months).sort()) files.push({ path: `${month}.json`, bytes: new TextEncoder().encode(JSON.stringify(months[month])), contentType: "application/json" });
-    const fileMetadata = await Promise.all(files.map(async (file) => ({ path: file.path, size: file.bytes.byteLength, sha256: await hashHex(file.bytes) })));
+    const fileMetadata = await Promise.all(files.map(async (file) => ({
+      path: file.path, size: file.bytes.byteLength, sha256: await hashHex(file.bytes),
+      ...(file.path.startsWith("attachment-") ? { mime: file.contentType } : {}),
+    })));
     const completeManifest = { ...manifest, snapshotId: id, files: fileMetadata };
     const manifestBytes = new TextEncoder().encode(JSON.stringify(completeManifest));
     const manifestHash = await hashHex(manifestBytes);
@@ -115,11 +116,9 @@ export async function pushBackup(
     await remotePut(target, `${directory}/COMPLETE`, new TextEncoder().encode(manifestHash), "text/plain");
     // 远端实际读回并校验通过之前，绝不清理已有快照。
     await verifyRemoteSnapshot(target, id);
-    // 保存完整快照供未来恢复工具使用，但当前恢复入口会拒绝超限快照，不能借此删除可恢复旧快照。
-    if (entryCount > MAX_IMPORT_ENTRIES) throw new Error(`快照 ${id} 已保存，但 ${entryCount} 条记录超过当前单次恢复上限 ${MAX_IMPORT_ENTRIES}，无法通过当前恢复入口恢复；已保留已有快照`);
     if (target.retentionCount > 0) {
-      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete && backup.id !== id);
-      // 无论时钟或目录排序如何，保留刚刚验证过的快照。
+      // 只清理严格更早的快照，避免两个并发推送互相删除刚验证的快照。
+      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete && backup.id < id);
       for (const old of backups.slice(target.retentionCount - 1)) await deleteRemoteBackup(target, old.id);
     }
     return { ok: true, shards: Object.keys(months).length, backupId: id, missingAttachments };

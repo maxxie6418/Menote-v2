@@ -103,6 +103,10 @@ export async function readTopicWraps(db: D1Database, userId: string, topicId: st
 }
 
 /** 移除条目全部包装块（永久删除/表格降级清理时随行）。 */
+export function deleteItemWrapsStatement(db: D1Database, userId: string, itemId: string): D1PreparedStatement {
+  return db.prepare("DELETE FROM item_key_wraps WHERE user_id = ? AND item_id = ?").bind(userId, itemId);
+}
+
 export async function deleteItemWraps(db: D1Database, userId: string, itemId: string): Promise<void> {
-  await db.prepare("DELETE FROM item_key_wraps WHERE user_id = ? AND item_id = ?").bind(userId, itemId).run();
+  await deleteItemWrapsStatement(db, userId, itemId).run();
 }

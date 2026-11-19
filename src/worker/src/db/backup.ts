@@ -9,7 +9,6 @@ interface TargetRow {
   remote_path?: string; retention_count?: number; last_pushed_at?: number | null;
   cursor_seq?: number; last_result?: string | null;
 }
-
 function toTarget(row: TargetRow) {
   return {
     id: row.id, userId: row.user_id,
@@ -113,27 +112,33 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   topicKeyWraps: Record<string, unknown>[];
   settings: Record<string, unknown>[];
   attachmentHashes: string[];
+  attachmentMimes: Map<string, string>;
 }> {
-  const items = await db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const topics = await db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const itemKeyWraps = await db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const memoComments = await db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const topicKeyWraps = await db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
-  const settings = await db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId).all<Record<string, unknown>>();
+  // Read rows and their key wraps within one transaction so a concurrent sync can't split them.
+  const [items, topics, itemKeyWraps, memoComments, topicKeyWraps, settings, attachmentRows] = await db.batch<Record<string, unknown>>([
+    db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId),
+    db.prepare("SELECT sha256, mime FROM attachments WHERE user_id = ?").bind(userId),
+  ]);
   const hashes = new Set<string>();
-  for (const item of items.results) {
+  for (const item of items!.results) {
     // 快照包含回收站条目；它们的附件也必须一同保存，才能通过完整性校验并恢复。
     try {
       for (const hash of JSON.parse(String(item.attachment_hashes_json ?? "[]")) as string[]) hashes.add(hash);
     } catch { /* 忽略坏行。 */ }
   }
   return {
-    items: items.results, topics: topics.results, memoComments: memoComments.results, itemKeyWraps: itemKeyWraps.results,
-    topicKeyWraps: topicKeyWraps.results, settings: settings.results, attachmentHashes: [...hashes],
+    items: items!.results, topics: topics!.results, memoComments: memoComments!.results, itemKeyWraps: itemKeyWraps!.results,
+    topicKeyWraps: topicKeyWraps!.results, settings: settings!.results, attachmentHashes: [...hashes],
+    attachmentMimes: new Map(attachmentRows!.results.map((row) => [String(row.sha256), String(row.mime)])),
   };
 }
 
-/** 恢复设置：rev 不高于本地则跳过。密文列只接受字节。 */
+/** 恢复设置：版本更旧则跳过。密文列只接受字节。 */
 export function restoreSettingStatement(
   db: D1Database, userId: string, row: Record<string, unknown>,
 ): D1PreparedStatement | null {
@@ -152,10 +157,4 @@ export function restoreSettingStatement(
        rev = excluded.rev, updated_at = excluded.updated_at
      WHERE user_settings.rev <= excluded.rev`,
   ).bind(userId, key, secret ? 1 : 0, valueJson, ciphertext, rev, Number(row.updated_at ?? Date.now()));
-}
-
-export async function readSettingRev(db: D1Database, userId: string, key: string): Promise<number | null> {
-  const row = await db.prepare("SELECT rev FROM user_settings WHERE user_id = ? AND key = ?")
-    .bind(userId, key).first<{ rev: number }>();
-  return row?.rev ?? null;
 }

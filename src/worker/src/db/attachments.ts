@@ -11,6 +11,17 @@ export async function upsertAttachment(
   ).bind(userId, sha256, size, mime).run();
 }
 
+/** Restore keeps a known MIME type when an older snapshot has no attachment metadata. */
+export function restoreAttachmentStatement(
+  db: D1Database, userId: string, sha256: string, size: number, mime: string,
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, ?, ?, 0)
+     ON CONFLICT (user_id, sha256) DO UPDATE SET size = excluded.size,
+       mime = CASE WHEN excluded.mime = 'application/octet-stream' THEN attachments.mime ELSE excluded.mime END`,
+  ).bind(userId, sha256, size, mime);
+}
+
 export async function getAttachment(db: D1Database, userId: string, sha256: string): Promise<Attachment | null> {
   const row = await db.prepare(
     "SELECT user_id, sha256, size, mime, ref_count FROM attachments WHERE user_id = ? AND sha256 = ?",

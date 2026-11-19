@@ -251,26 +251,27 @@ export async function deleteSyncOperation(db: D1Database, userId: string, operat
   ).bind(userId, operationId).run();
 }
 
-export function upsertItemRowStatement(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
-): D1PreparedStatement {
-  return db.prepare(
-    `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
+function itemUpsertSql(source: string, restore = false): string {
+  return `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
        memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ${source}
      ON CONFLICT (user_id, id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
        tags_json = excluded.tags_json, attachment_hashes_json = excluded.attachment_hashes_json, status = excluded.status,
        source = excluded.source, rev = MAX(rev, excluded.rev), meta_rev = MAX(meta_rev, excluded.meta_rev),
        content_hash = excluded.content_hash, pinned = excluded.pinned, starred = excluded.starred,
+       ${restore ? "enc_self = excluded.enc_self, in_enc_space = excluded.in_enc_space," : ""}
        updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device,
        conflict_of = excluded.conflict_of,
        memo_quote_source_id = excluded.memo_quote_source_id,
-       memo_quote_source_created_at = excluded.memo_quote_source_created_at, memo_quote_snapshot = excluded.memo_quote_snapshot`,
-  ).bind(
+       memo_quote_source_created_at = excluded.memo_quote_source_created_at, memo_quote_snapshot = excluded.memo_quote_snapshot`;
+}
+
+function itemBindings(userId: string, deviceId: string, item: Item, rev: number, metaRev: number) {
+  return [
     item.id, userId, item.type, item.topicId, item.groupId, item.title,
     item.content.scope === "plain" ? item.content.markdown : null,
     item.content.scope === "plain" ? null : item.content.ciphertext,
@@ -281,7 +282,55 @@ export function upsertItemRowStatement(
     item.type === "memo" ? item.memoQuote?.sourceMemoId ?? null : null,
     item.type === "memo" ? item.memoQuote?.sourceCreatedAt ?? null : null,
     item.type === "memo" ? item.memoQuote?.snapshot ?? null : null,
-  );
+  ];
+}
+
+export function upsertItemRowStatement(
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
+): D1PreparedStatement {
+  return db.prepare(itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+    .bind(...itemBindings(userId, deviceId, item, rev, metaRev));
+}
+
+/** Restoring thousands of individual statements would exceed the D1 batch time budget. */
+export function restoreItemRowStatements(db: D1Database, userId: string, items: Item[]): D1PreparedStatement[] {
+  const projection = Array.from({ length: 27 }, (_, index) => `json_extract(value, '$[${index}]')`).join(", ");
+  const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`, true);
+  const single = itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", true);
+  const result: D1PreparedStatement[] = [];
+  let rows: string[] = [];
+  let chars = 0;
+  const flush = () => {
+    if (rows.length) result.push(db.prepare(bulk).bind(`[${rows.join(",")}]`));
+    rows = [];
+    chars = 0;
+  };
+  for (const item of items) {
+    const values = itemBindings(userId, "restore", item, item.rev, item.metaRev);
+    const row = JSON.stringify(values);
+    if (chars + row.length > 512_000 || rows.length >= 250) flush();
+    // Preserve the ordinary per-value binding for individual very large notes.
+    if (row.length > 512_000) result.push(db.prepare(single).bind(...values));
+    else {
+      rows.push(row);
+      chars += row.length + 1;
+    }
+  }
+  flush();
+  return result;
+}
+
+export function appendRestoredItemLogs(db: D1Database, userId: string, items: Item[], now: number): D1PreparedStatement[] {
+  const statements: D1PreparedStatement[] = [];
+  for (let i = 0; i < items.length; i += 500) {
+    const rows = items.slice(i, i + 500).map((item) => [item.id, item.rev, item.metaRev]);
+    statements.push(db.prepare(
+      `INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at)
+       SELECT ?, 'item', json_extract(value, '$[0]'), 'upsert', json_extract(value, '$[1]'), json_extract(value, '$[2]'), ?
+       FROM json_each(?)`,
+    ).bind(userId, now, JSON.stringify(rows)));
+  }
+  return statements;
 }
 
 export async function upsertItemRow(

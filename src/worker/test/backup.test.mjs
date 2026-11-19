@@ -14,7 +14,11 @@ const bundle = await build({
 });
 globalThis.crypto ??= webcrypto;
 const backupBundle = await build({
-  entryPoints: [fileURLToPath(new URL("../src/services/backupService.ts", import.meta.url))],
+  stdin: { resolveDir: fileURLToPath(new URL("..", import.meta.url)), contents: `
+    export * from "./src/services/backupService";
+    export { restoreRemoteSnapshot } from "./src/services/remoteRestoreService";
+    export { generateRecoveryCode, generateContentKey, wrapContentKey, unwrapContentKey, encryptMarkdown, decryptMarkdown }
+      from "../web/src/services/cryptoService";` },
   bundle: true, write: false, format: "esm", platform: "node",
 });
 const backupService = await import(`data:text/javascript;base64,${Buffer.from(backupBundle.outputFiles[0].text).toString("base64")}`);
@@ -56,6 +60,8 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
     const files = new Map();
     const calls = [];
     let corruptRead = false;
+    const oldDirectory = "/dav/menote/20000101T000000000Z-00000001";
+    const newerDirectory = "/dav/menote/20990101T000000000Z-00000002";
     globalThis.fetch = async (url, init = {}) => {
       const path = new URL(url).pathname;
       const method = init.method ?? "GET";
@@ -66,7 +72,11 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
         if (corruptRead && path.endsWith(".json") && !path.endsWith("manifest.json")) return new Response("corrupt");
         return files.has(path) ? new Response(files.get(path)) : new Response(null, { status: 404 });
       }
-      if (method === "PROPFIND") return new Response("<?xml version='1.0'?><d:multistatus xmlns:d='DAV:'></d:multistatus>", { status: 207 });
+      if (method === "PROPFIND") {
+        const hrefs = path === "/dav/menote" ? [oldDirectory, newerDirectory] : [`${oldDirectory}/manifest.json`, "/dav/other/manifest.json"];
+        return new Response(`<d:multistatus xmlns:d="DAV:">${hrefs.map((href) =>
+          `<d:response><d:href>${href}</d:href><d:collection/></d:response>`).join("")}</d:multistatus>`, { status: 207 });
+      }
       if (method === "DELETE") return new Response(null, { status: 204 });
       throw new Error(`unexpected ${method} ${path}`);
     };
@@ -86,17 +96,93 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
       assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "读回校验失败不得清理旧快照");
 
       corruptRead = false;
+      files.set(`${oldDirectory}/COMPLETE`, new Uint8Array([1]));
+      files.set(`${newerDirectory}/COMPLETE`, new Uint8Array([1]));
       const complete = await backupService.pushBackup(ctx, target);
       assert.equal(complete.ok, true, "含回收站附件的快照可通过真实恢复校验器");
+      assert.deepEqual(calls.filter((call) => call.method === "DELETE").map((call) => call.path),
+        [`${oldDirectory}/manifest.json`, oldDirectory], "只在旧快照目录内删除，保留并发产生的更新快照");
 
-      calls.length = 0;
-      const manyTopics = Array.from({ length: 5001 }, (_, index) => ({ id: `topic-${index}`, created_at: 1 }));
-      const largeDb = { prepare: (sql) => ({ bind: () => ({ all: async () => ({ results: sql.includes("FROM topic_nodes") ? manyTopics : [] }) }) }) };
-      const tooLarge = await backupService.pushBackup({ db: largeDb, userId: user.id, bucket }, target);
-      assert.equal(tooLarge.ok, false);
-      assert.match(tooLarge.error, /已保存.*超过当前单次恢复上限/);
-      assert.ok(calls.some((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")), "超限快照仍保留备份文件");
-      assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "超限快照不触发旧备份清理");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复码解密", async () => {
+  await withWorker(async (source) => {
+    const sourceCookie = await login(source);
+    const db = await source.getD1Database("DB");
+    const bucket = await source.getR2Bucket("BUCKET");
+    const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const upload = await req(source, "/api/attachments", { method: "POST", headers: {
+      origin: "http://localhost", cookie: sourceCookie, "Content-Type": "image/png", "X-File-Extension": ".png",
+    }, body: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]) });
+    assert.equal(upload.status, 201);
+    const { sha256 } = await upload.json();
+    await db.prepare(`WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM n WHERE i<5000)
+      INSERT INTO items (id,user_id,type,title,content_markdown,tags_json,attachment_hashes_json,source,rev,meta_rev,content_hash,created_at,updated_at)
+      SELECT 'note-'||i,?,'note','Note '||i,'body','[]',CASE WHEN i=1 THEN ? ELSE '[]' END,'manual',1,1,'h',1,1 FROM n`)
+      .bind(user.id, JSON.stringify([sha256])).run();
+    const recovery = backupService.generateRecoveryCode();
+    const key = backupService.generateContentKey();
+    const oldKey = backupService.generateContentKey();
+    const password = "test-note-password";
+    const [body, wrap, oldWrap, passwordWrap] = await Promise.all([
+      backupService.encryptMarkdown("原始加密正文", key),
+      backupService.wrapContentKey(key, recovery, "recovery"),
+      backupService.wrapContentKey(oldKey, recovery, "recovery"),
+      backupService.wrapContentKey(key, password, "password"),
+    ]);
+    const backupItem = (rev, envelope) => ({ id: "sealed", type: "note", title: "加密笔记", content_ciphertext: `${envelope.iv}:${envelope.ciphertext}`, tags_json: "[]",
+      attachment_hashes_json: "[]", source: "manual", rev, meta_rev: 1, content_hash: `encrypted-${rev}`, enc_self: 1, created_at: 1, updated_at: 1 });
+    const wrapRow = (value) => ({ item_id: "sealed", wrapper: value.wrapper, kdf_salt: value.kdfSalt,
+      kdf_iterations: value.kdfIterations, iv: value.iv, ciphertext: value.ciphertext, generation: value.generation });
+    const created = await json(source, sourceCookie, "POST", "/api/restore", {
+      entries: [{ kind: "item", data: backupItem(5, body) }], itemKeyWraps: [wrapRow(wrap), wrapRow(passwordWrap)],
+    });
+    assert.equal(created.status, 200);
+    const target = { kind: "webdav", endpoint: "https://example.invalid/dav", bucket: null, username: "u", secret: "s", remotePath: "menote", retentionCount: 0 };
+    const originalFetch = globalThis.fetch;
+    const objects = new Map();
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (init.method === "MKCOL") return new Response(null, { status: 201 });
+      if (init.method === "PUT") { objects.set(path, new Uint8Array(init.body)); return new Response(null, { status: 201 }); }
+      return objects.has(path) ? new Response(objects.get(path)) : new Response(null, { status: 404 });
+    };
+    try {
+      const pushed = await backupService.pushBackup({ db, userId: user.id, bucket }, target);
+      assert.equal(pushed.ok, true, pushed.error);
+      assert.ok([...objects.values()].every((bytes) => {
+        const buffer = Buffer.from(bytes);
+        return !buffer.includes(recovery) && !buffer.includes(password) && !buffer.includes("原始加密正文");
+      }), "快照不含恢复码、密码或加密笔记正文的明文");
+      await withWorker(async (destination) => {
+        const cookie = await login(destination);
+        const cleanDb = await destination.getD1Database("DB");
+        const cleanBucket = await destination.getR2Bucket("BUCKET");
+        const cleanUser = await cleanDb.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+        assert.notEqual(cleanUser.id, user.id);
+        const restored = await backupService.restoreRemoteSnapshot({ db: cleanDb, userId: cleanUser.id, bucket: cleanBucket }, target, pushed.backupId);
+        assert.equal(restored.items, 5001);
+        assert.equal(restored.attachments, 1);
+        assert.equal((await cleanDb.prepare("SELECT COUNT(*) AS n FROM items").first()).n, 5001);
+        const stale = await json(destination, cookie, "POST", "/api/restore", { entries: [{ kind: "item", data: backupItem(2, body) }], itemKeyWraps: [wrapRow(oldWrap)] });
+        assert.equal(stale.status, 200);
+        assert.equal((await stale.json()).skipped, 1);
+        const sealed = await cleanDb.prepare("SELECT content_ciphertext FROM items WHERE id = 'sealed'").first();
+        const wraps = (await cleanDb.prepare("SELECT wrapper, kdf_salt, kdf_iterations, iv, ciphertext FROM item_key_wraps WHERE item_id = 'sealed'").all()).results;
+        assert.equal(wraps.length, 2);
+        const [iv, ciphertext] = sealed.content_ciphertext.split(":");
+        for (const raw of wraps) {
+          const unwrapped = await backupService.unwrapContentKey({ wrapper: raw.wrapper, kdfSalt: Buffer.from(raw.kdf_salt).toString("base64"),
+            kdfIterations: raw.kdf_iterations, iv: Buffer.from(raw.iv).toString("base64"), ciphertext: Buffer.from(raw.ciphertext).toString("base64") },
+          raw.wrapper === "recovery" ? recovery : password);
+          assert.equal(await backupService.decryptMarkdown({ iv, ciphertext }, unwrapped), "原始加密正文");
+        }
+        const attachment = await req(destination, `/api/attachments/${sha256}`, { headers: { cookie } });
+        assert.equal(attachment.headers.get("Content-Type"), "image/png");
+        assert.equal(createHash("sha256").update(Buffer.from(await attachment.arrayBuffer())).digest("hex"), sha256);
+      });
     } finally { globalThis.fetch = originalFetch; }
   });
 });
@@ -235,5 +321,10 @@ test("restore does not roll newer content back to an older backup revision", asy
     const db = await mf.getD1Database("DB");
     const item = await db.prepare("SELECT content_markdown, rev FROM items WHERE id = 'rev-item'").first();
     assert.deepEqual(item, { content_markdown: "新版正文", rev: 5 });
+    const third = await json(mf, cookie, "POST", "/api/restore", { entries: [{ kind: "item", data: row(6, "更新后的正文") }] });
+    assert.equal(third.status, 200);
+    assert.equal((await third.json()).items, 1);
+    assert.deepEqual(await db.prepare("SELECT content_markdown, rev FROM items WHERE id = 'rev-item'").first(),
+      { content_markdown: "更新后的正文", rev: 6 });
   });
 });

@@ -56,6 +56,7 @@ attachmentRoutes.get("/api/attachments/:sha256", requireSession, async (c) => {
       "Content-Type": found.mime,
       "Cache-Control": "private, no-store",
       "Content-Security-Policy": "default-src 'none'; sandbox",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 });
