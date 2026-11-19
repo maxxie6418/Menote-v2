@@ -17,6 +17,7 @@ const backupBundle = await build({
   stdin: { resolveDir: fileURLToPath(new URL("..", import.meta.url)), contents: `
     export * from "./src/services/backupService";
     export { restoreRemoteSnapshot } from "./src/services/remoteRestoreService";
+    export { importBackupEntries } from "./src/services/restoreService";
     export { generateRecoveryCode, generateContentKey, wrapContentKey, unwrapContentKey, encryptMarkdown, decryptMarkdown }
       from "../web/src/services/cryptoService";
     export { sealAttachment, openSealedAttachment } from "../web/src/services/sealedAttachmentService";` },
@@ -266,6 +267,141 @@ test("两台设备只能登记同一恢复码，旧客户端不能另写一套�
     assert.equal((await db.prepare("SELECT recovery_code_id FROM item_key_wraps WHERE item_id = ? AND wrapper = 'recovery'").bind(itemId).first()).recovery_code_id, winner.binding.id);
     const wrongAccount = await req(mf, "/api/recovery-code?account=unrelated", { headers: { cookie: firstCookie } });
     assert.equal(wrongAccount.status, 409);
+  });
+});
+
+test("换码原子归并多枚旧码，回收站和空间包装同步，旧包不能覆盖", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await login(mf);
+    const db = await mf.getD1Database("DB");
+    const bucket = await mf.getR2Bucket("BUCKET");
+    const { id: userId } = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const path = `/api/recovery-code/rotation?account=${userId}`;
+    const oldCodes = [backupService.generateRecoveryCode(), backupService.generateRecoveryCode()];
+    const newCode = backupService.generateRecoveryCode();
+    const wrap = backupService.wrapContentKey;
+    const open = backupService.unwrapContentKey;
+    const notePassword = "test-note-password";
+    const noteKey = backupService.generateContentKey();
+    const spaceKey = backupService.generateContentKey();
+    const [noteRecovery, notePwWrap, spaceRecovery, spacePwWrap, encrypted] = await Promise.all([
+      wrap(noteKey, oldCodes[0], "recovery"), wrap(noteKey, notePassword, "password"),
+      wrap(spaceKey, oldCodes[1], "recovery"), wrap(spaceKey, "test-space-password", "password"),
+      backupService.encryptMarkdown("保留密文与内容密钥", noteKey),
+    ]);
+    const item = (id, { rev = 1, deletedAt = null, conflictOf = null } = {}) => ({
+      id, userId, type: "note", title: id, topicId: null, groupId: null, tags: [], attachmentHashes: [], status: null,
+      source: "manual", rev, metaRev: 1, contentHash: `body-${rev}`, pinned: false, starred: false,
+      createdAt: 1, updatedAt: rev, deletedAt, conflictOf,
+      content: { scope: "self", ciphertext: `${encrypted.iv}:${encrypted.ciphertext}` },
+    });
+    const itemOp = (input, wraps) => ({
+      operationId: crypto.randomUUID(), entityId: input.id, entity: "item", action: "upsert",
+      baseRev: input.rev - 1, baseMetaRev: 1, contentHash: input.contentHash, payload: { item: input }, wraps,
+    });
+    const push = async (...operations) => (await (await json(mf, cookie, "POST", "/api/sync/push", {
+      deviceId: "device", operations,
+    })).json()).results;
+    const [trash, purged, stale, topic] = ["trash-note", "purged-note", "old-wrap-note", "space"];
+    const owner = { id: topic, userId, name: "空间", parentId: null, depth: 0, isEncSpace: true, deletedAt: null };
+    const seeded = await push(
+      itemOp(item(trash, { deletedAt: 2 }), [notePwWrap, noteRecovery]),
+      itemOp(item(purged, { deletedAt: 2 }), [notePwWrap, noteRecovery]),
+      itemOp(item(stale), [notePwWrap, noteRecovery]),
+      { operationId: crypto.randomUUID(), entityId: topic, entity: "topic", action: "upsert", baseRev: 0, baseMetaRev: 0,
+        payload: { topic: owner }, wraps: [spacePwWrap, spaceRecovery] },
+    );
+    assert.deepEqual(seeded.map(({ result }) => result), ["applied", "applied", "applied", "applied"]);
+    // Simulate legacy leftovers from a decrypted note and a previously interrupted space setup.
+    await db.batch([
+      db.prepare("UPDATE items SET enc_self = 0, content_ciphertext = NULL, content_markdown = 'clear' WHERE id = ?").bind(stale),
+      db.prepare("INSERT INTO topic_nodes (id, user_id, name, depth, is_enc_space) VALUES ('empty-placeholder', ?, '空间', 0, 1)").bind(userId),
+    ]);
+    await db.prepare(`INSERT INTO topic_key_wraps (user_id, topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, created_at)
+      SELECT user_id, 'empty-placeholder', wrapper, kdf_salt, kdf_iterations, iv, ciphertext, created_at
+      FROM topic_key_wraps WHERE user_id = ? AND topic_id = ? AND wrapper = 'password'`).bind(userId, topic).run();
+    const missing = await json(mf, cookie, "GET", path);
+    assert.deepEqual([missing.status, await missing.json()], [409, { error: "recovery_code_wrap_missing" }]);
+    await db.prepare("DELETE FROM topic_key_wraps WHERE user_id = ? AND topic_id = 'empty-placeholder'").bind(userId).run();
+    const getState = async () => {
+      const state = await json(mf, cookie, "GET", path);
+      assert.equal(state.status, 200);
+      assert.equal(state.headers.get("Cache-Control"), "no-store");
+      return await state.json();
+    };
+    assert.equal((await json(mf, cookie, "GET", "/api/recovery-code/rotation?account=other")).status, 409);
+    const binding = { id: crypto.randomUUID(), verifier: await wrap(backupService.generateContentKey(), newCode, "recovery") };
+    const replacement = async ({ kind, id, wrap: prior }) => ({
+      kind, id, wrap: { ...await wrap(kind === "item" ? noteKey : spaceKey, newCode, "recovery", prior.generation + 1), recoveryCodeId: binding.id },
+    });
+    const before = await getState();
+    assert.equal(before.binding, null);
+    assert.deepEqual(before.wraps.map(({ id }) => id), [purged, trash, topic]);
+    const replacements = await Promise.all(before.wraps.map(replacement));
+    const partial = await json(mf, cookie, "POST", path, { binding, revision: before.revision, wraps: replacements.slice(1) });
+    assert.deepEqual([partial.status, await partial.json()], [409, { error: "recovery_code_revision_changed" }]);
+    await db.batch([
+      db.prepare("DELETE FROM items WHERE id = ?").bind(purged),
+      db.prepare("DELETE FROM item_key_wraps WHERE item_id = ?").bind(purged),
+    ]);
+    assert.equal((await json(mf, cookie, "POST", path, { binding, revision: before.revision, wraps: replacements })).status, 409);
+    const afterPurge = await getState();
+    assert.ok(afterPurge.revision > before.revision);
+    assert.deepEqual(afterPurge.wraps.map(({ id }) => id), [trash, topic]);
+    const oldSnapshot = await backupService.collectBackup(db, userId, bucket);
+    const request = { binding, revision: afterPurge.revision, wraps: replacements.slice(1) };
+    const { seq } = await db.prepare("SELECT MAX(seq) AS seq FROM sync_log WHERE user_id = ?").bind(userId).first();
+    const responses = await Promise.all([json(mf, cookie, "POST", path, request), json(mf, cookie, "POST", path, request)]);
+    assert.deepEqual(responses.map(({ status }) => status).sort(), [200, 409]);
+    const committed = await getState();
+    assert.deepEqual(committed.binding, binding);
+    assert.deepEqual(committed.wraps, request.wraps);
+    assert.equal(committed.revision, afterPurge.revision + 3, "绑定和两个包装块各记一次修订");
+
+    const sync = await json(mf, cookie, "GET", `/api/sync/pull?cursor=${seq}`);
+    assert.equal(sync.status, 200);
+    const page = await sync.json();
+    assert.deepEqual(page.items.map(({ id, deletedAt, rev }) => [id, deletedAt, rev]), [[trash, 2, 1]]);
+    assert.deepEqual(page.topics.map(({ id }) => id), [topic]);
+    assert.deepEqual(page.wraps[0].wraps.find(({ wrapper }) => wrapper === "password"), notePwWrap);
+    assert.deepEqual(page.topicWraps[0].wraps.find(({ wrapper }) => wrapper === "password"), spacePwWrap);
+    for (const [index, { wrap: next }] of committed.wraps.entries()) {
+      assert.deepEqual(await open(next, newCode), index === 0 ? noteKey : spaceKey);
+      await assert.rejects(open(next, oldCodes[index]));
+    }
+    const attemptedReplay = await push(
+      itemOp(item(trash, { rev: 2, deletedAt: 2 }), [notePwWrap, noteRecovery]),
+      itemOp(item("stale-conflict", { conflictOf: stale }), [notePwWrap, noteRecovery]),
+    );
+    assert.deepEqual(attemptedReplay.map(({ code }) => code), ["recovery_code_binding_required", "recovery_code_binding_required"]);
+    assert.deepEqual(await db.prepare("SELECT id, rev, content_hash FROM items WHERE id = ? OR id = 'stale-conflict'").bind(trash).all()
+      .then(({ results }) => results), [{ id: trash, rev: 1, content_hash: "body-1" }]);
+    assert.deepEqual(await getState(), committed);
+
+    const snap = await backupService.collectBackup(db, userId, bucket);
+    const { recoveryCodeBinding, itemKeyWraps, topicKeyWraps } = snap.manifest.extra;
+    assert.deepEqual(recoveryCodeBinding, binding);
+    assert.deepEqual(itemKeyWraps.map((row) => row.item_id), [trash, trash]);
+    assert.ok([...itemKeyWraps, ...topicKeyWraps].filter(({ wrapper }) => wrapper === "recovery")
+      .every((row) => row.recovery_code_id === binding.id));
+    const restore = (destination, snapshot) => {
+      const extra = snapshot.manifest.extra;
+      return backupService.importBackupEntries(destination, Object.values(snapshot.months).flat(), extra.itemKeyWraps,
+        extra.topicKeyWraps, extra.settings, Date.now(), { recoveryCodeBinding: extra.recoveryCodeBinding });
+    };
+    await assert.rejects(restore({ db, userId }, oldSnapshot));
+    assert.deepEqual(await getState(), committed);
+    await withWorker(async (destination) => {
+      const destinationCookie = await login(destination);
+      const destinationDb = await destination.getD1Database("DB");
+      const { id: destinationId } = await destinationDb.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+      await restore({ db: destinationDb, userId: destinationId }, snap);
+      const restored = await json(destination, destinationCookie, "GET", `/api/recovery-code/rotation?account=${destinationId}`);
+      assert.equal(restored.status, 200);
+      const state = await restored.json();
+      assert.deepEqual(state.binding, binding);
+      assert.deepEqual(state.wraps, committed.wraps);
+    });
   });
 });
 

@@ -34,7 +34,8 @@ export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="启用单篇加密">
         <div className="mn-dialog-head"><p className="mn-dialog-title">启用单篇加密</p></div>
         <div className="mn-dialog-body">
-          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位。标题保持明文。已有明文附件请先移除引用，再从加密笔记中重新上传。</p>
+          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位。标题保持明文。</p>
+          <p className="mn-auth-hint">已有附件会在本机加密后上传副本，并更新正文、本机历史与恢复稿。原明文文件和旧备份仍会保留。仅被本机历史或恢复稿引用的附件仍受未引用附件保留期限影响。</p>
           {hasRecovery === null && !error && <p className="mn-auth-hint">正在同步并检查账户恢复码…</p>}
           <label className="mn-auth-field"><span>单篇密码（至少 {NOTE_PASSWORD_MIN} 位）</span>
             <input type="password" value={password} autoComplete="new-password" minLength={NOTE_PASSWORD_MIN} onChange={(event) => setPassword(event.target.value)} />
@@ -67,7 +68,9 @@ export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
                 else setError("加密失败，请重试。");
               } catch (cause) {
                 const message = cause instanceof Error ? cause.message : "";
-                if (message === "attachment_encryption_unsupported") setError("含附件的笔记暂不能加密，请先移除附件引用。");
+                if (message === "attachment_migration_source_unavailable") setError("正文、本机历史或恢复稿中的附件无法读取。请确认文件仍可下载后重试。");
+                else if (message === "attachment_migration_upload_failed") setError("附件密文副本上传失败。请检查网络和附件限额后重试。");
+                else if (message === "encryption_item_changed") setError("笔记、历史或恢复稿在加密期间发生变化，请重试。");
                 else if (message === "encryption_pending_sync") setError("笔记还有未同步的修改，请先完成同步后再加密。");
                 else if (message === "recovery_code_mismatch") {
                   setHasRecovery(true);
@@ -79,9 +82,9 @@ export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
                 else setError("加密失败，请重试。");
               } finally { setBusy(false); }
             }}>
-            加密
+            {busy ? "正在加密…" : "加密笔记和附件"}
           </button>
-          <button type="button" className="mn-auth-link" onClick={onCancel}>取消</button>
+          <button type="button" className="mn-auth-link" onClick={onCancel} disabled={busy}>取消</button>
         </div>
       </div>
     </div>

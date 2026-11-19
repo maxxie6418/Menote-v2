@@ -620,7 +620,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
       <DocBar
         crumb={documentCrumb} showBack={showBack} onBack={onBack} note={!isTableDoc}
-        mode={mode} onMode={switchMode}
+        mode={mode} onMode={switchMode} inert={encrypting}
         before={(
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
@@ -690,7 +690,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </>
         )}
       />
-      <div className="mn-docbody">
+      <div className="mn-docbody" inert={encrypting}>
         <div className="mn-doc-main">
         {recoveryText && (
           <p className="mn-conflictnote">
@@ -822,7 +822,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         </>}
       </div>
       {toolbarPos === "bottom" && mode === "edit" && editorKind === "wysiwyg" && !isTableDoc && (
-        <div className="mn-formatdock" ref={setFormatDock} role="presentation" />
+        <div className="mn-formatdock" ref={setFormatDock} role="presentation" inert={encrypting} />
       )}
       <div className="mn-doc-foot">
         {/* 字数口径：正文改成「保存时取全量」后，这里显示的是**上次保存**的字符数，
@@ -857,14 +857,9 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           userId={userId}
           onCancel={() => setEncrypting(false)}
           onConfirm={async (password, code) => {
-            const current = draft ?? (item.content.scope === "plain" ? item.content.markdown : "");
-            const editorValue = getMarkdownRef.current?.();
-            const latest = editorValue === undefined || editorValue === null
-              ? current
-              : editorKind === "source"
-                ? editorValue
-                : joinFrontmatter(splitFrontmatter(current).frontText, editorValue);
-            const result = await enableItemEncryption(userId, item.id, latest, password, code);
+            const result = await enableItemEncryption(userId, item.id, latestFullMarkdown(), password, code, {
+              migrateAttachments: true, expectedItem: item,
+            });
             setSessionKey(item.id, result.key);
             setPlainDraftAfterEncryption();
             return "ok";
@@ -923,6 +918,7 @@ interface DocBarProps {
   mode: "edit" | "preview";
   onMode: (mode: "edit" | "preview") => void;
   actionsDisabled?: boolean;
+  inert?: boolean;
   /** 模式分段之前的控件（状态与视图组）。 */
   before?: React.ReactNode;
   /** 模式分段之后的控件（动作组）。 */
@@ -931,9 +927,9 @@ interface DocBarProps {
 
 /* 文档栏（2026-11-13 重排）：左面包屑，右侧三组——状态 / 视图（检查器·专注·模式）/ 动作（附件·更多）。
    分段只表达编辑与预览两种常驻形态；源码是低频形态，留在「更多」里。 */
-function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, before, after }: DocBarProps) {
+function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, inert, before, after }: DocBarProps) {
   return (
-    <div className="mn-docbar">
+    <div className="mn-docbar" inert={inert}>
       <span className="mn-docbar-left">
         {showBack && (
           <button type="button" className="mn-iconbtn" aria-label="返回清单" onClick={onBack}>

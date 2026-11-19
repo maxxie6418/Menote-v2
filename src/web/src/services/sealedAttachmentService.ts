@@ -1,5 +1,5 @@
 import { isSealedAttachment, SEALED_ATTACHMENT_IV_BYTES, SEALED_ATTACHMENT_MAGIC, SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_MIME_BYTES } from "@menote/shared";
-import { attachmentUrl, exportAttachmentZip, postSealedAttachment } from "./attachmentService";
+import { ATTACHMENT_UPLOAD_TIMEOUT_MS, attachmentUrl, exportAttachmentZip, postSealedAttachment } from "./attachmentService";
 import { readAttachmentPolicy } from "./attachmentPolicyService";
 import { notifyEditorChange, registerEditorSave } from "./editorSaveService";
 import { getContentKey } from "./keyringService";
@@ -8,6 +8,7 @@ const encoder = new TextEncoder();
 const ivOffset = SEALED_ATTACHMENT_MAGIC.length;
 const bodyOffset = ivOffset + SEALED_ATTACHMENT_IV_BYTES;
 const verifiedFiles = new WeakMap<Uint8Array, Set<string>>();
+const pendingUploads = new Map<string, number>();
 
 async function attachmentKey(raw: Uint8Array) {
   const key = await crypto.subtle.importKey("raw", raw as BufferSource, "HKDF", false, ["deriveKey"]);
@@ -56,6 +57,7 @@ function remember(key: Uint8Array, sha256: string) {
 export async function uploadSealedAttachment(userId: string, itemId: string, file: File, onProgress?: (percent: number) => void) {
   const key = getContentKey(itemId);
   if (!key) return { error: "locked" } as const;
+  pendingUploads.set(itemId, (pendingUploads.get(itemId) ?? 0) + 1);
   const unregister = registerEditorSave(userId, async () => false);
   notifyEditorChange();
   try {
@@ -73,9 +75,16 @@ export async function uploadSealedAttachment(userId: string, itemId: string, fil
   } catch {
     return { error: "attachment_encryption_failed" } as const;
   } finally {
+    const remaining = pendingUploads.get(itemId)! - 1;
+    if (remaining > 0) pendingUploads.set(itemId, remaining);
+    else pendingUploads.delete(itemId);
     unregister();
     notifyEditorChange();
   }
+}
+
+export function hasPendingSealedAttachmentUpload(itemId: string): boolean {
+  return pendingUploads.has(itemId);
 }
 
 /** Legacy clear files already associated with a note remain readable after unlock. */
@@ -103,6 +112,40 @@ export async function verifyAddedSealedAttachments(itemId: string, hashes: strin
     throw new Error("请通过加密笔记的附件入口上传文件。");
   }
   if (getContentKey(itemId) !== key) throw new Error("locked");
+}
+
+/** 逐个验证原始对象，并仅把密文副本上传；旧对象可能被其他笔记引用。 */
+export async function sealLegacyAttachments(hashes: readonly string[], key: Uint8Array, ensureCurrent: () => void) {
+  const replacements = new Map<string, string>();
+  for (const hash of hashes) {
+    ensureCurrent();
+    let raw: Blob;
+    try {
+      const response = await fetch(attachmentUrl(hash), { cache: "no-store", signal: AbortSignal.timeout(ATTACHMENT_UPLOAD_TIMEOUT_MS) });
+      if (!response.ok) throw new Error("attachment_unavailable");
+      raw = await response.blob();
+      if (!raw.size || await hashBlob(raw) !== hash) throw new Error("attachment_unavailable");
+      if (raw.type === SEALED_ATTACHMENT_MIME) await openSealedAttachment(raw, key);
+    } catch {
+      throw new Error("attachment_migration_source_unavailable");
+    }
+    ensureCurrent();
+    if (raw.type === SEALED_ATTACHMENT_MIME) continue;
+    const sealed = await sealAttachment(raw, key);
+    const expected = await hashBlob(sealed);
+    ensureCurrent();
+    const result = await postSealedAttachment(new File([sealed], "sealed", { type: SEALED_ATTACHMENT_MIME }));
+    if ("error" in result || result.sha256 !== expected) throw new Error("attachment_migration_upload_failed");
+    ensureCurrent();
+    replacements.set(hash, expected);
+    remember(key, expected);
+  }
+  return replacements;
+}
+
+async function hashBlob(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function exportUnlockedAttachmentZip(itemId: string, title: string, markdown: string) {

@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_OVERHEAD } from "@menote/shared";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
-import { ensureSchemaReady } from "../services/authService";
+import { ensureSchemaReady, pepperKeyMaterial } from "../services/authService";
 import {
-  listUserAttachments, readAttachmentPolicy, readUserAttachment, storeAttachment,
+  deleteUserAttachment, listUserAttachments, readAttachmentPolicy, readUserAttachment, storeAttachment,
 } from "../services/attachmentService";
 
 /** 附件路由（G5）：R2 内容寻址存储 + 鉴权读取（FR-SYNC-7/8）。
@@ -22,8 +22,10 @@ attachmentRoutes.use("/api/attachments/*", resolveSession);
 
 attachmentRoutes.get("/api/attachments", requireSession, async (c) => {
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
-  const attachments = await listUserAttachments(c.env.DB, c.get("authUser")!.id);
-  return c.json({ attachments }, { headers: { "Cache-Control": "no-store" } });
+  const cursor = c.req.query("cursor") ?? "";
+  if (cursor && !SHA256_PATTERN.test(cursor)) return c.json({ error: "invalid_cursor" }, 400);
+  const page = await listUserAttachments(c.env.DB, c.get("authUser")!.id, cursor);
+  return c.json(page, { headers: { "Cache-Control": "no-store" } });
 });
 
 attachmentRoutes.post("/api/attachments", sameOriginGuard, requireSession, async (c) => {
@@ -47,6 +49,7 @@ attachmentRoutes.post("/api/attachments", sameOriginGuard, requireSession, async
 });
 
 attachmentRoutes.get("/api/attachments/:sha256", requireSession, async (c) => {
+  if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
   const sha256 = c.req.param("sha256");
   if (!SHA256_PATTERN.test(sha256)) return c.json({ error: "invalid_attachment" }, 400);
   const found = await readUserAttachment(
@@ -66,6 +69,14 @@ attachmentRoutes.get("/api/attachments/:sha256", requireSession, async (c) => {
 attachmentRoutes.delete("/api/attachments/:sha256", sameOriginGuard, requireSession, async (c) => {
   const sha256 = c.req.param("sha256");
   if (!SHA256_PATTERN.test(sha256)) return c.json({ error: "invalid_attachment" }, 400);
-  // No atomic exclusion spans D1 reference updates and R2 deletion yet.
-  return c.json({ error: "attachment_cleanup_unavailable" }, 503);
+  try {
+    pepperKeyMaterial(c.env);
+    if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
+    const result = await deleteUserAttachment({ db: c.env.DB, bucket: c.env.BUCKET }, c.get("authUser")!.id, sha256);
+    if (result === "not_found") return c.json({ error: result }, 404);
+    if (result !== "deleted") return c.json({ error: result }, 409);
+    return c.body(null, 204);
+  } catch {
+    return c.json({ error: "unavailable" }, 503);
+  }
 });

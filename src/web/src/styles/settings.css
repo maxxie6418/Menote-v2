@@ -1,4 +1,10 @@
-/* 设置与账户窗口：导入来源选择、附件上传限制和附件列表。 */
+/* 设置与账户窗口 */
+.mn-recovery-rotation { display: grid; gap: var(--app-space-8); margin-block: var(--app-space-8); }
+.mn-recovery-code-field { display: grid; gap: var(--app-space-4); color: var(--app-fg); font-size: var(--app-size-chip); }
+.mn-recovery-code-field code { color: var(--app-fg); font-family: var(--app-font-mono); overflow-wrap: anywhere; user-select: all; }
+.mn-recovery-confirm { display: flex; align-items: center; gap: var(--app-space-4); color: var(--app-fg); font-size: var(--app-size-chip); }
+.mn-recovery-confirm input { accent-color: var(--app-accent); }
+
 .mn-import-overlay { z-index: 30; }
 .mn-import-dialog { width: min(var(--app-dialog-width-md), var(--app-full-size)); padding: var(--app-zero); }
 .mn-import-dialog-body { display: grid; gap: var(--app-space-sm); padding: var(--app-space-lg); }

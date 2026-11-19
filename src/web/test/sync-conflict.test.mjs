@@ -57,6 +57,56 @@ function stubServer({ pushResults, pullPage }) {
 
 const EMPTY_PULL = { items: [], topics: [], memoComments: [], tombstones: [], settings: [], wraps: [], topicWraps: [], nextCursor: "1", hasMore: false, fullResync: false };
 
+test("rotation refreshes queued writes only when their content key matches, and leaves plaintext unwrapped", async () => {
+  await reset();
+  const password = { wrapper: "password", kdfSalt: "salt", kdfIterations: 600000, iv: "iv", ciphertext: "password-key", generation: 0 };
+  const oldRecovery = { ...password, wrapper: "recovery", ciphertext: "old-code", recoveryCodeId: "old", generation: 2 };
+  const newRecovery = { ...oldRecovery, ciphertext: "new-code", recoveryCodeId: "new", generation: 3 };
+  const anotherPassword = { ...password, ciphertext: "another-key" };
+  const local = [
+    { note: { ...item({ id: "same" }), content: { scope: "self", ciphertext: "offline-body" } }, wraps: [password, oldRecovery] },
+    { note: { ...item({ id: "different" }), content: { scope: "self", ciphertext: "other-body" } }, wraps: [anotherPassword, oldRecovery] },
+    { note: { ...item({ id: "copy" }), conflictOf: "same", content: { scope: "self", ciphertext: "copy-body" } }, wraps: [password, oldRecovery] },
+    { note: item({ id: "plain", markdown: "plain-body" }), wraps: [password, oldRecovery] },
+  ];
+  for (const { note, wraps } of local) {
+    await localDb.items.put(note);
+    await localDb.wraps.put({ itemId: note.id, wraps });
+    const row = outboxUpsert(note, 1, 1, note.contentHash);
+    if (note.id === "different") row.wraps = wraps;
+    await localDb.outbox.add(row);
+  }
+  const batches = [];
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("/push")) {
+      const operations = JSON.parse(options.body).operations;
+      batches.push(operations);
+      return Response.json({ results: operations.map((row) =>
+        batches.length === 1 && row.entityId !== "plain"
+          ? { operationId: row.operationId, result: "rejected", code: "recovery_code_binding_required" }
+          : { operationId: row.operationId, result: "applied", rev: 2, metaRev: 1 }) });
+    }
+    return Response.json(batches.length === 1 ? {
+      ...EMPTY_PULL,
+      items: ["same", "different"].map((id) => ({ ...item({ id }), content: { scope: "self", ciphertext: "remote-body" } })),
+      wraps: ["same", "different"].map((itemId) => ({ itemId, wraps: [password, newRecovery] })),
+    } : EMPTY_PULL);
+  };
+
+  assert.equal(await runSyncCycle(USER), true);
+  assert.equal(batches[0].find((row) => row.entityId === "plain").wraps, undefined);
+  assert.deepEqual((await localDb.items.get("different")).content, { scope: "self", ciphertext: "other-body" });
+  assert.deepEqual((await localDb.wraps.get("different")).wraps, [anotherPassword, oldRecovery]);
+  assert.deepEqual((await localDb.wraps.get("same")).wraps, [password, newRecovery]);
+  assert.deepEqual((await localDb.wraps.get("copy")).wraps, [password, newRecovery]);
+  assert.equal(await runSyncCycle(USER), true);
+  assert.deepEqual(batches[1].map((row) => [row.entityId, row.wraps]), [["same", [password, newRecovery]], ["copy", [password, newRecovery]]]);
+  const pending = await localDb.outbox.toArray();
+  assert.deepEqual(pending.map((row) => [row.entityId, row.lastError, row.wraps]), [
+    ["different", "rejected:recovery_code_binding_required", [anotherPassword, oldRecovery]],
+  ]);
+});
+
 function manualServer({ reject, failPush = false, failPull = false, onPush } = {}) {
   const batches = [];
   globalThis.fetch = async (url, options) => {

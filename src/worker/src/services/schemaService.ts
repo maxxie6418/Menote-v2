@@ -19,6 +19,12 @@ export function ledgerReady(applied: readonly Pick<SchemaMigration, "version" | 
     row.version === index + 1 && row.version === registry[index]?.version && row.name === registry[index]?.name);
 }
 
+/** Scheduled work only runs against an initialized schema and must never create tables. */
+export async function schemaIsCurrent(db: D1Database): Promise<boolean> {
+  try { return ledgerReady(await readLedger(db)); }
+  catch { return false; }
+}
+
 export async function schemaStatus(
   db: D1Database, registry: readonly SchemaMigration[] = migrations,
 ): Promise<SchemaStatus> {

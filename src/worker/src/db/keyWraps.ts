@@ -103,7 +103,7 @@ export async function readTopicWrapGroups(db: D1Database, userId: string, topicI
 
 export async function readTopicWraps(db: D1Database, userId: string, topicId: string): Promise<KeyWrap[]> {
   const rows = await db.prepare(
-    "SELECT wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation FROM topic_key_wraps WHERE user_id = ? AND topic_id = ?",
+    "SELECT wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, recovery_code_id FROM topic_key_wraps WHERE user_id = ? AND topic_id = ?",
   ).bind(userId, topicId).all<WrapRow>();
   return rows.results.map(toKeyWrap);
 }

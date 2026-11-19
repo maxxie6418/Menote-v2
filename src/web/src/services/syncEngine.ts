@@ -1,4 +1,4 @@
-import type { Item, MemoComment, SyncOperationResult, TopicNode } from "@menote/shared";
+import type { Item, MemoComment, SyncOperationResult, SyncPage, TopicNode } from "@menote/shared";
 import { localDb, getMeta, setMeta, type OutboxRow } from "../db/localDb";
 import type { KeyWrap } from "@menote/shared";
 import { bulkPutItems } from "../db/itemsRepo";
@@ -122,7 +122,7 @@ async function saveConflictCopy(row: OutboxRow, deviceId: string): Promise<void>
     // 记下与原条目的关联：人工裁决时要能回溯这份稿子顶掉了哪一篇（G2 §5-2）。
     conflictOf: row.entityId,
   };
-  const wraps = await localDb.wraps.get(row.entityId);
+  const wraps = copy.content.scope === "plain" ? null : await localDb.wraps.get(row.entityId);
   await localDb.transaction("rw", localDb.items, localDb.outbox, localDb.wraps, async () => {
     await localDb.items.put(copy);
     if (wraps?.wraps.length) await localDb.wraps.put({ itemId: copy.id, wraps: wraps.wraps });
@@ -211,10 +211,13 @@ async function drainOutbox(userId: string, deviceId: string): Promise<void> {
     if (pending.length === 0) continue;
     // 加密条目：随操作携带本地包装块（G7）。
     for (const row of pending) {
-      if (row.entity === "topic" && row.action === "upsert") {
+      if (row.action !== "upsert" || row.wraps) continue;
+      if (row.entity === "topic") {
         const stored = await localDb.topicWraps.get(row.entityId);
         if (stored?.wraps.length) row.wraps = stored.wraps;
-      } else {
+      } else if (row.entity === "item") {
+        const item = (row.payload as { item?: Item } | null)?.item;
+        if (!item || item.content.scope === "plain") continue;
         const stored = await localDb.wraps.get(row.entityId);
         if (stored) row.wraps = stored.wraps;
       }
@@ -315,6 +318,73 @@ async function reconcileFullSnapshot(userId: string, keep: Set<string>, itemIds:
   await deleteMemoComments(allComments.filter((row) => row.userId === userId && !keep.has(row.id) && !commentIds.has(row.id)).map((row) => row.id));
 }
 
+function refreshRecoveryWrap(current: KeyWrap[], incoming: KeyWrap[]): KeyWrap[] | null {
+  const password = current.find((wrap) => wrap.wrapper === "password");
+  const remotePassword = incoming.find((wrap) => wrap.wrapper === "password");
+  const recovery = current.find((wrap) => wrap.wrapper === "recovery");
+  const remoteRecovery = incoming.find((wrap) => wrap.wrapper === "recovery");
+  // Pending content must keep its own key. An identical password envelope proves the rotation kept that key.
+  if (!password || !remotePassword || !recovery || !remoteRecovery?.recoveryCodeId ||
+      remoteRecovery.generation <= recovery.generation || password.ciphertext !== remotePassword.ciphertext ||
+      password.iv !== remotePassword.iv || password.kdfSalt !== remotePassword.kdfSalt ||
+      password.kdfIterations !== remotePassword.kdfIterations || password.generation !== remotePassword.generation) return null;
+  return current.map((wrap) => wrap.wrapper === "recovery" ? remoteRecovery : wrap);
+}
+
+async function applyPulledRecords(userId: string, page: Partial<Pick<SyncPage, "items" | "topics" | "wraps" | "topicWraps">>): Promise<void> {
+  if (!page.items?.length && !page.topics?.length && !page.wraps?.length && !page.topicWraps?.length) return;
+  await localDb.transaction("rw", [localDb.items, localDb.topics, localDb.wraps, localDb.topicWraps, localDb.outbox], async () => {
+    const rows = await localDb.outbox.where("userId").equals(userId).toArray();
+    const pending = new Map<string, OutboxRow[]>();
+    const conflictCopies = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (row.entity !== "item" && row.entity !== "topic") continue;
+      const key = `${row.entity}:${row.entityId}`;
+      const queued = pending.get(key) ?? [];
+      queued.push(row);
+      pending.set(key, queued);
+      if (row.entity !== "item" || row.action !== "upsert") continue;
+      const original = (row.payload as { item?: Item } | null)?.item?.conflictOf;
+      if (!original) continue;
+      const copies = conflictCopies.get(original) ?? new Set<string>();
+      copies.add(row.entityId);
+      conflictCopies.set(original, copies);
+    }
+
+    async function refreshPending(kind: "item" | "topic", id: string, incoming: KeyWrap[]) {
+      const queued = pending.get(`${kind}:${id}`);
+      let wraps = incoming;
+      if (queued?.length) {
+        const current = kind === "item" ? await localDb.wraps.get(id) : await localDb.topicWraps.get(id);
+        const refreshed = current && refreshRecoveryWrap(current.wraps, incoming);
+        if (!refreshed) return;
+        wraps = refreshed;
+        for (const row of queued) {
+          const replacement = row.wraps && refreshRecoveryWrap(row.wraps, incoming);
+          if (row.wraps && !replacement) continue;
+          if (row.lastError === "rejected:recovery_code_binding_required") {
+            await localDb.outbox.update(row.seq!, { ...(replacement ? { wraps: replacement } : {}), lastError: null, nextRetryAt: null });
+          } else if (replacement) {
+            await localDb.outbox.update(row.seq!, { wraps: replacement });
+          }
+        }
+      }
+      if (kind === "item") await localDb.wraps.put({ itemId: id, wraps });
+      else await localDb.topicWraps.put({ topicId: id, wraps });
+    }
+
+    for (const { itemId, wraps } of page.wraps ?? []) {
+      await refreshPending("item", itemId, wraps);
+      for (const id of conflictCopies.get(itemId) ?? []) await refreshPending("item", id, wraps);
+    }
+    for (const { topicId, wraps } of page.topicWraps ?? []) await refreshPending("topic", topicId, wraps);
+    const items = (page.items ?? []).filter((item) => !pending.has(`item:${item.id}`));
+    const topics = (page.topics ?? []).filter((topic) => !pending.has(`topic:${topic.id}`));
+    if (items.length) await bulkPutItems(items);
+    if (topics.length) await localDb.topics.bulkPut(topics);
+  });
+}
+
 async function pullUpdates(userId: string): Promise<void> {
   // 本地仍有待推操作的条目不覆盖（G2 §4 同款保护）：拉取拿服务端版本回写会把还没上传的正文
   // 与版本号一起退回去，下一轮推送就带着过期版本号去撞前置条件——冲突副本反复出现的第二条来源。
@@ -344,12 +414,6 @@ async function pullUpdates(userId: string): Promise<void> {
       count: (items?.length ?? 0) + (topics?.length ?? 0) + (memoComments?.length ?? 0) + (tombstones?.length ?? 0),
       durationMs: Date.now() - pullStartedAt,
     });
-    for (const group of (body as { wraps?: Array<{ itemId: string; wraps: KeyWrap[] }> }).wraps ?? []) {
-      await localDb.wraps.put({ itemId: group.itemId, wraps: group.wraps });
-    }
-    for (const group of (body as { topicWraps?: Array<{ topicId: string; wraps: KeyWrap[] }> }).topicWraps ?? []) {
-      await localDb.topicWraps.put({ topicId: group.topicId, wraps: group.wraps });
-    }
     if (fullResync) {
       for (const item of items ?? []) seenItems.add(item.id);
       if (seenTopics === null) {
@@ -364,10 +428,8 @@ async function pullUpdates(userId: string): Promise<void> {
         await applyTombstone({ entityId: tombstone.id, entity: tombstone.entity });
       }
     }
-    const incoming = (items ?? []).filter((item) => !keep.has(item.id));
-    if (incoming.length > 0) await bulkPutItems(incoming);
+    await applyPulledRecords(userId, body as Partial<SyncPage>);
     if (memoComments && memoComments.length > 0) await bulkPutMemoComments(memoComments);
-    for (const topic of topics ?? []) await localDb.topics.put(topic);
     // 全量重同步只在第一页带设置；后续页是空数组，不能再走「无远端记录则导入旧偏好」。
     if (!fullResync || page === 0) {
       const settings = (body as { settings?: import("@menote/shared").UserSetting[] }).settings ?? [];

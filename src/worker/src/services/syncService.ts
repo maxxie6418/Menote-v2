@@ -5,7 +5,7 @@ import {
 } from "@menote/shared";
 import type { MemoComment } from "@menote/shared";
 import type { OutboxOperation, SyncConflictDetail, SyncOperationResult, SyncPage } from "@menote/shared";
-import { ensureAttachmentRow, realignAttachmentStatements, setAttachmentRefs } from "../db/attachments";
+import { realignAttachmentStatements } from "../db/attachments";
 import {
   markMemoCommentDeletedStatement, readMemoCommentChildren, readMemoCommentParentState, readMemoCommentState,
   readMemoOwnerState, upsertMemoCommentStatement,
@@ -13,7 +13,7 @@ import {
 import { itemWrapStatements, topicWrapStatements, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, appendSyncLogStatement, commitWrites, countItemReferences, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
   readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRowStatement,
   readSettingState, writeSetting,
@@ -46,11 +46,9 @@ function conflictResult(operationId: string, state: { rev: number; metaRev: numb
 
 /** 附件引用对齐：以服务端 items 表重算涉及哈希的引用计数（正文哈希列表为基准，FR-SYNC-7）。 */
 async function realignAttachmentRefs(ctx: ApplyContext, hashes: string[]): Promise<void> {
-  for (const sha256 of new Set(hashes)) {
-    if (!/^[0-9a-f]{64}$/.test(sha256)) continue;
-    await ensureAttachmentRow(ctx.db, ctx.userId, sha256);
-    await setAttachmentRefs(ctx.db, ctx.userId, sha256, await countItemReferences(ctx.db, ctx.userId, sha256), ctx.now);
-  }
+  const statements = [...new Set(hashes)].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256))
+    .flatMap((sha256) => realignAttachmentStatements(ctx.db, ctx.userId, sha256, ctx.now));
+  if (statements.length) await commitWrites(ctx.db, statements);
 }
 
 /**
@@ -327,6 +325,8 @@ export async function applyOperations(ctx: ApplyContext, operations: OutboxOpera
         results.push({ operationId: operation.operationId, result: "rejected", code: error.code });
       } else if (error instanceof Error && error.message.includes("recovery_code_binding_required")) {
         results.push({ operationId: operation.operationId, result: "rejected", code: "recovery_code_binding_required" });
+      } else if (error instanceof Error && error.message.includes("attachment_retired")) {
+        results.push({ operationId: operation.operationId, result: "rejected", code: "attachment_retired" });
       } else if (isConstraintError(error)) {
         await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, operation.entity, operation.entityId, "rejected", 0, 0, null, ctx.now);
         results.push({ operationId: operation.operationId, result: "rejected", code: "invalid_payload" });

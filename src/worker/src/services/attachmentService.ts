@@ -1,10 +1,13 @@
 import { isSealedAttachment, SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_OVERHEAD } from "@menote/shared";
-import { getAttachment, listAttachments, upsertAttachment } from "../db/attachments";
+import {
+  acknowledgeAttachmentDeletions, claimDueAttachmentDeletions, getAttachmentObject, listAttachments, publishAttachmentStatements,
+  reserveAttachmentObjects, retireExpiredAttachments, retireUserAttachment, reuseAttachmentObject,
+} from "../db/attachments";
 import { readSettingState } from "../db/sync";
 
 /**
  * 附件服务（G5，FR-SYNC-7/8）：R2 内容寻址存储与元数据编排。
- * R2 键按用户隔离（<userId>/<sha256>）；SQL 在 db/attachments.ts。
+ * R2 对象以用户、哈希和独立世代隔离；SQL 在 db/attachments.ts。
  * 上传上限与哈希重算在本层（不信任客户端哈希）。
  */
 
@@ -27,11 +30,22 @@ export async function readAttachmentPolicy(db: D1Database, userId: string): Prom
 
 export interface AttachmentStoreContext { db: D1Database; bucket: R2Bucket }
 
-export async function listUserAttachments(db: D1Database, userId: string) {
-  return listAttachments(db, userId);
+export async function listUserAttachments(db: D1Database, userId: string, cursor: string) {
+  return listAttachments(db, userId, cursor);
 }
 
-/** 上传：大小校验 → 服务端重算 sha256 → R2 写入 → 元数据 upsert；载荷非法抛 invalid_attachment。 */
+/** A durable reservation lets scheduled cleanup recover staging objects after a failed write. */
+export async function stageAttachmentObjects<T extends { sha256: string; bytes: ArrayBuffer | Uint8Array }>(
+  ctx: AttachmentStoreContext, userId: string, files: readonly T[],
+): Promise<Array<T & { key: string }>> {
+  if (!files.length) return [];
+  const objects = files.map((file) => ({ ...file, key: `${userId}/${file.sha256}/${crypto.randomUUID()}` }));
+  await reserveAttachmentObjects(ctx.db, objects.map((object) => object.key), Date.now());
+  for (const object of objects) await ctx.bucket.put(object.key, object.bytes);
+  return objects;
+}
+
+/** 上传：大小校验、重算哈希，然后复用现有对象或发布新世代。 */
 export async function storeAttachment(ctx: AttachmentStoreContext, userId: string, body: ArrayBuffer, rawMime: string | undefined, filename: string | undefined) {
   const policy = await readAttachmentPolicy(ctx.db, userId);
   const mime = rawMime?.split(";")[0] ?? "application/octet-stream";
@@ -44,22 +58,39 @@ export async function storeAttachment(ctx: AttachmentStoreContext, userId: strin
   }
   const digest = await crypto.subtle.digest("SHA-256", body);
   const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  const key = `${userId}/${sha256}`;
-  await ctx.bucket.put(key, body);
-  try {
-    await upsertAttachment(ctx.db, userId, sha256, body.byteLength, mime);
-  } catch (error) {
-    // 并发上传可能已写入相同对象；无跨 D1/R2 互斥时保留对象，避免补偿误删。
-    throw error;
+  const current = await getAttachmentObject(ctx.db, userId, sha256);
+  if (current && await ctx.bucket.head(current.key) &&
+    await reuseAttachmentObject(ctx.db, userId, sha256, current.key, body.byteLength, mime, Date.now())) {
+    return { sha256, size: body.byteLength, mime };
   }
+  const [staged] = await stageAttachmentObjects(ctx, userId, [{ sha256, bytes: body }]);
+  await ctx.db.batch(publishAttachmentStatements(ctx.db, userId, sha256, body.byteLength, mime, staged!.key, Date.now()));
   return { sha256, size: body.byteLength, mime };
 }
 
 /** 读取：元数据与 R2 对象任一缺失视为不存在（路由映射 404）。 */
 export async function readUserAttachment(ctx: AttachmentStoreContext, userId: string, sha256: string) {
-  const meta = await getAttachment(ctx.db, userId, sha256);
+  const meta = await getAttachmentObject(ctx.db, userId, sha256);
   if (!meta) return null;
-  const object = await ctx.bucket.get(`${userId}/${sha256}`);
+  const object = await ctx.bucket.get(meta.key);
   if (!object) return null;
   return { mime: meta.mime, object };
+}
+
+async function deleteRetiredObjects(ctx: AttachmentStoreContext, keys: string[]): Promise<void> {
+  if (!keys.length) return;
+  await ctx.bucket.delete(keys);
+  await acknowledgeAttachmentDeletions(ctx.db, keys);
+}
+
+export async function deleteUserAttachment(ctx: AttachmentStoreContext, userId: string, sha256: string, now = Date.now()) {
+  const result = await retireUserAttachment(ctx.db, userId, sha256, now);
+  if (result.status !== "retired") return result.status;
+  await deleteRetiredObjects(ctx, [result.key]);
+  return "deleted" as const;
+}
+
+export async function cleanupAttachments(ctx: AttachmentStoreContext, now: number): Promise<void> {
+  await retireExpiredAttachments(ctx.db, now);
+  await deleteRetiredObjects(ctx, await claimDueAttachmentDeletions(ctx.db, now));
 }

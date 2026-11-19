@@ -1,7 +1,7 @@
 import { recordJobRun } from "../db/jobs";
 
 /** 定时任务注册表（G3 框架）。实际任务在 G9（备份推送）与 G10（清理）接入实现；
- *  接入方自行确保 schema 就绪（复用 ensureSchemaReady 模式），调度器不自动迁移。 */
+ *  Worker 定时入口只分派给已就绪的 schema，迁移由 HTTP 就绪流程触发。 */
 export interface ScheduledJob {
   name: string;
   description: string;
@@ -40,28 +40,29 @@ export const scheduledJobs: ScheduledJob[] = [
   },
   {
     name: "cleanup",
-    description: "软删/日志 90 天保留期清理（附件物理回收暂停）",
+    description: "软删与日志 90 天清理，孤儿附件 30 天后回收",
     enabled: true,
-    run: async (env) => {
+    run: async (env, _ctx, now) => {
       const {
         listUsers, listExpiredSoftDeleted, purgeItemsWithWraps,
         purgeSyncLogBefore, purgeSyncOperationsBefore, purgeJobRunsBefore,
       } = await import("../db/cleanup");
       const { failStaleAiTasks, deleteStaleAiTasks } = await import("../db/ai");
-      const now = Date.now();
+      const { cleanupAttachments } = await import("../services/attachmentService");
       const DAY = 86_400_000;
-      // D1 引用写入与 R2 删除没有跨服务事务；安全互斥方案完成前暂停物理回收。
+      const cutoff = now - 90 * DAY;
       // 软删本体 / sync_log / sync_operations：90 天保留期（G2 定稿）。
       for (const user of await listUsers(env.DB)) {
-        const expired = await listExpiredSoftDeleted(env.DB, user.id, now - 90 * DAY);
-        if (expired.length > 0) await purgeItemsWithWraps(env.DB, user.id, expired);
-        await purgeSyncLogBefore(env.DB, user.id, now - 90 * DAY);
-        await purgeSyncOperationsBefore(env.DB, user.id, now - 90 * DAY);
+        const expired = await listExpiredSoftDeleted(env.DB, user.id, cutoff);
+        if (expired.length > 0) await purgeItemsWithWraps(env.DB, user.id, expired, cutoff);
+        await purgeSyncLogBefore(env.DB, user.id, cutoff);
+        await purgeSyncOperationsBefore(env.DB, user.id, cutoff);
       }
-      await purgeJobRunsBefore(env.DB, now - 90 * DAY);
+      await purgeJobRunsBefore(env.DB, cutoff);
       // TP8：AI 任务超时兜底（1 小时）与完成留痕 30 天清理。
       await failStaleAiTasks(env.DB, now - 3_600_000, now);
       await deleteStaleAiTasks(env.DB, now - 30 * DAY);
+      await cleanupAttachments({ db: env.DB, bucket: env.BUCKET }, now);
     },
   },
 ];

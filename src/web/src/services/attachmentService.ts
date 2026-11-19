@@ -1,4 +1,4 @@
-import { SEALED_ATTACHMENT_MIME, type Attachment, type Item } from "@menote/shared";
+import { SEALED_ATTACHMENT_MIME, type AttachmentPage, type Item } from "@menote/shared";
 import { notifyEditorChange, registerEditorSave } from "./editorSaveService";
 import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
@@ -110,22 +110,31 @@ function postAttachment(file: File, extension: string | null, onProgress?: (perc
   });
 }
 
-export async function listAttachments(userId: string): Promise<Attachment[]> {
-  void userId;
-  const response = await fetch("/api/attachments", { cache: "no-store" });
-  if (!response.ok) return [];
-  const body: unknown = await response.json();
-  const attachments = (body as { attachments?: unknown } | null)?.attachments;
-  return Array.isArray(attachments) ? (attachments as Attachment[]) : [];
+export async function listAttachments(cursor = ""): Promise<AttachmentPage> {
+  const path = cursor ? `/api/attachments?cursor=${encodeURIComponent(cursor)}` : "/api/attachments";
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) throw new Error("attachment_list_unavailable");
+  const body = await response.json() as AttachmentPage | null;
+  if (!body || !Array.isArray(body.attachments)) throw new Error("attachment_list_unavailable");
+  return {
+    attachments: body.attachments,
+    ...(typeof body.nextCursor === "string" ? { nextCursor: body.nextCursor } : {}),
+  };
 }
 
-/** 删除未引用附件（FR-SYNC-8）；服务端校验引用计数。 */
-export async function deleteAttachment(sha256: string): Promise<boolean> {
+/** 手动清理时同时检查本机的未同步条目与回收站引用。 */
+export async function locallyReferencedAttachmentHashes(userId: string): Promise<Set<string>> {
+  const items = await listUserItems(userId);
+  return new Set(items.flatMap((item) => item.attachmentHashes));
+}
+
+export async function deleteAttachment(sha256: string): Promise<"deleted" | "protected" | "unavailable"> {
   try {
     const response = await fetch(`/api/attachments/${sha256}`, { method: "DELETE", cache: "no-store" });
-    return response.ok;
+    if (response.ok || response.status === 404) return "deleted";
+    return response.status === 409 ? "protected" : "unavailable";
   } catch {
-    return false;
+    return "unavailable";
   }
 }
 

@@ -1,4 +1,5 @@
 /** 清理任务数据访问（G10，FR-SYNC-8 + G2 保留期定稿）。SQL 只在 db 层。 */
+import { purgeDeletedItemStatements } from "./trash";
 
 export interface UserRow { id: string }
 
@@ -15,12 +16,9 @@ export async function listExpiredSoftDeleted(db: D1Database, userId: string, cut
   return rows.results.map((row) => row.id);
 }
 
-export async function purgeItemsWithWraps(db: D1Database, userId: string, ids: string[]): Promise<void> {
+export async function purgeItemsWithWraps(db: D1Database, userId: string, ids: string[], cutoff: number): Promise<void> {
   for (const id of ids) {
-    // item_versions has a restrictive FK; purge snapshots before deleting the owning item.
-    await db.prepare("DELETE FROM item_versions WHERE user_id = ? AND item_id = ?").bind(userId, id).run();
-    await db.prepare("DELETE FROM items WHERE id = ? AND user_id = ?").bind(id, userId).run();
-    await db.prepare("DELETE FROM item_key_wraps WHERE user_id = ? AND item_id = ?").bind(userId, id).run();
+    await db.batch(purgeDeletedItemStatements(db, userId, id, cutoff));
   }
 }
 

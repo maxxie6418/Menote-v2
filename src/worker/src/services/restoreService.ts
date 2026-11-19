@@ -33,7 +33,11 @@ export async function importBackupEntries(
   topicKeyWraps: unknown[] | null,
   settings: unknown[] | null,
   now: number,
-  options: { attachmentStatements?: D1PreparedStatement[]; recoveryCodeBinding?: RecoveryCodeBinding | null } = {},
+  options: {
+    attachmentPublications?: D1PreparedStatement[];
+    attachmentStatements?: D1PreparedStatement[];
+    recoveryCodeBinding?: RecoveryCodeBinding | null;
+  } = {},
 ): Promise<ImportResult> {
   const itemWrapRows = (itemKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
   const topicWrapRows = (topicKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
@@ -111,6 +115,7 @@ export async function importBackupEntries(
     items++;
   }
   statements.push(...guardRestoreItems(ctx.db, ctx.userId, restoredItems.map((item) => item.id), state.items));
+  if (options.attachmentPublications) statements.push(...options.attachmentPublications);
   statements.push(...restoreItemRowStatements(ctx.db, ctx.userId, restoredItems));
   statements.push(...itemWrapWrites);
   statements.push(...appendRestoredItemLogs(ctx.db, ctx.userId, restoredItems, now));

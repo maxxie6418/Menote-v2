@@ -15,13 +15,16 @@ export type {
   AiModelOption, AiSettings, AiTaskKind, AiTaskStatus, AiTaskResult, AiTaskView, AiUsageSummary,
 } from "./contracts/ai";
 export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonitorSetup, CloudflareMonitorConnection, CloudflareMonitorMetrics } from "./contracts/monitor";
-export type { Item, StoredContent, Attachment, MemoComment, MemoQuote } from "./types/item";
+export type { Item, StoredContent, Attachment, AttachmentPage, MemoComment, MemoQuote } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
   SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap, RecoveryCodeBinding, RecoveryCodeState,
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
-export { parseRecoveryCodeBinding } from "./contracts/recoveryCode";
+export {
+  parseRecoveryCodeBinding, parseRecoveryCodeRotation,
+  type RecoveryCodeRotationRequest, type RecoveryCodeRotationState, type RecoveryCodeRotationWrap,
+} from "./contracts/recoveryCode";
 export { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_MAGIC, SEALED_ATTACHMENT_MIME_BYTES,
   SEALED_ATTACHMENT_IV_BYTES, SEALED_ATTACHMENT_OVERHEAD, isSealedAttachment } from "./contracts/sealedAttachment";
 export {

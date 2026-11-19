@@ -1,6 +1,11 @@
-import { parseRecoveryCodeBinding, type KeyWrap, type RecoveryCodeState } from "@menote/shared";
+import {
+  parseRecoveryCodeBinding, type KeyWrap, type RecoveryCodeRotationRequest,
+  type RecoveryCodeRotationState, type RecoveryCodeState,
+} from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { generateContentKey, generateRecoveryCode, unwrapContentKey, wrapContentKey } from "./cryptoService";
+
+const RECOVERY_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){7}$/;
 
 /** 同一浏览器的标签页共用 IndexedDB；恢复码检查与新包装写入必须持同一账户锁。
  *  没有 Web Locks 时不能安全串行化，明确拒绝，不退化为页面内锁。 */
@@ -90,7 +95,7 @@ async function fetchRecoveryCodeState(
 export async function registerRecoveryCode(userId: string, supplied?: string): Promise<{ code: string; bindingId: string }> {
   const code = await enforceRecoveryCode(userId, supplied);
   // Never adopt a low-entropy string, even if a caller bypasses the setup dialog.
-  if (!/^[0-9A-HJKMNP-TV-Z]{4}(?:-[0-9A-HJKMNP-TV-Z]{4}){7}$/.test(code)) throw new Error("recovery_code_mismatch");
+  if (!RECOVERY_CODE_PATTERN.test(code)) throw new Error("recovery_code_mismatch");
   let state = await fetchRecoveryCodeState(userId);
   for (let attempt = 0; attempt < 3; attempt++) {
     if (state.binding) {
@@ -110,4 +115,104 @@ export async function registerRecoveryCode(userId: string, supplied?: string): P
     return { code, bindingId: state.binding.id };
   }
   throw new Error("recovery_code_unavailable");
+}
+
+export function createRecoveryCodeRotation(): { id: string; code: string } {
+  return { id: crypto.randomUUID(), code: generateRecoveryCode() };
+}
+
+async function readRotationState(url: string): Promise<RecoveryCodeRotationState> {
+  try {
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+    if (response.status === 409) {
+      const error = await response.json() as { error?: string };
+      if (error.error === "recovery_code_wrap_missing") throw new Error("recovery_code_wrap_missing");
+    }
+    if (!response.ok) throw new Error();
+    const state = await response.json() as Partial<RecoveryCodeRotationState>;
+    const binding = parseRecoveryCodeBinding(state.binding);
+    if ((!binding && state.binding !== null) || !Number.isSafeInteger(state.revision) ||
+        state.revision === undefined || !Array.isArray(state.wraps)) throw new Error();
+    return { binding, revision: state.revision, wraps: state.wraps };
+  } catch (error) {
+    if (error instanceof Error && error.message === "recovery_code_wrap_missing") throw error;
+    throw new Error("recovery_code_unavailable");
+  }
+}
+
+async function unwrapWithCodes(wrap: KeyWrap, codes: readonly string[]): Promise<Uint8Array> {
+  for (const code of codes) {
+    try {
+      return await unwrapContentKey(wrap, code);
+    } catch {
+      // A legacy account may have different codes for different recovery wraps.
+    }
+  }
+  throw new Error("recovery_code_mismatch");
+}
+
+export async function prepareRecoveryCodeRotation(
+  state: RecoveryCodeRotationState, oldCodes: readonly string[], next: { id: string; code: string },
+): Promise<RecoveryCodeRotationRequest> {
+  const codes = [...new Set(oldCodes.map((code) => code.trim().toUpperCase()).filter(Boolean))];
+  if (!state.binding && !state.wraps.length) throw new Error("recovery_rotation_empty");
+  if (!codes.length || codes.some((code) => !RECOVERY_CODE_PATTERN.test(code))) throw new Error("recovery_rotation_format");
+  if (!RECOVERY_CODE_PATTERN.test(next.code) || codes.includes(next.code)) throw new Error("recovery_rotation_format");
+  if (state.binding) {
+    const verifierKey = await unwrapWithCodes(state.binding.verifier, codes);
+    verifierKey.fill(0);
+  }
+  const wraps: RecoveryCodeRotationRequest["wraps"] = [];
+  for (const entry of state.wraps) {
+    const rawKey = await unwrapWithCodes(entry.wrap, codes);
+    try {
+      const wrap = await wrapContentKey(rawKey, next.code, "recovery", entry.wrap.generation + 1);
+      wraps.push({ kind: entry.kind, id: entry.id, wrap: { ...wrap, recoveryCodeId: next.id } });
+    } finally { rawKey.fill(0); }
+  }
+  const verifierKey = generateContentKey();
+  try {
+    const verifier = await wrapContentKey(verifierKey, next.code, "recovery");
+    return { revision: state.revision, binding: { id: next.id, verifier }, wraps };
+  } finally { verifierKey.fill(0); }
+}
+
+async function submitRotation(userId: string, url: string, request: RecoveryCodeRotationRequest): Promise<void> {
+  let conflict = false;
+  try {
+    const response = await fetch(url, {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+    });
+    conflict = response.status === 409;
+    if (response.ok) {
+      const result = await response.json() as { binding?: unknown };
+      if (parseRecoveryCodeBinding(result.binding)?.id === request.binding.id) return;
+    }
+  } catch {
+    // The transaction may have committed before the response was lost.
+  }
+  const state = await fetchRecoveryCodeState(userId).catch(() => null);
+  if (state?.binding?.id === request.binding.id) return;
+  throw new Error(conflict ? "recovery_rotation_conflict" : "recovery_rotation_unconfirmed");
+}
+
+export async function rotateRecoveryCode(
+  userId: string, oldCodes: readonly string[], next: { id: string; code: string },
+): Promise<"synced" | "pending_sync"> {
+  const url = `/api/recovery-code/rotation?account=${encodeURIComponent(userId)}`;
+  const { requestSyncNow, syncQueueStatus } = await import("./syncEngine");
+  const initial = await fetchRecoveryCodeState(userId);
+  if (initial.binding?.id !== next.id) {
+    // Drain the local queue outside the recovery lock. An editor save can need this same lock.
+    if (!await requestSyncNow(userId)) throw new Error("recovery_rotation_sync_required");
+    await withRecoveryCodeLock(userId, async () => {
+      if ((await syncQueueStatus(userId)).pending) throw new Error("recovery_rotation_sync_required");
+      const current = await readRotationState(url);
+      if (current.binding?.id === next.id) return;
+      const request = await prepareRecoveryCodeRotation(current, oldCodes, next);
+      await submitRotation(userId, url, request);
+    });
+  }
+  return await requestSyncNow(userId) ? "synced" : "pending_sync";
 }

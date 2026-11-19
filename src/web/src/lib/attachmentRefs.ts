@@ -40,3 +40,11 @@ export function attachmentHashesOf(markdown: string): string[] {
   }
   return hashes;
 }
+
+/** 只换引用哈希，保留原名称、编码及 Markdown 格式。 */
+export function replaceAttachmentHashes(markdown: string, replacements: ReadonlyMap<string, string>): string {
+  return markdown.replace(REF_PATTERN, (path, hash: string) => {
+    const replacement = replacements.get(hash);
+    return replacement ? `attachments/${replacement}${path.slice("attachments/".length + hash.length)}` : path;
+  });
+}

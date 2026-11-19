@@ -1,5 +1,5 @@
 import type { Item, McpClipRequest, McpClipResult, OutboxOperation } from "@menote/shared";
-import { getAttachment } from "../db/attachments";
+import { getAttachmentObject } from "../db/attachments";
 import { wasAttachmentUploadedByToken } from "../db/mcpAudit";
 import { applyOperation } from "./syncService";
 
@@ -43,7 +43,7 @@ export async function createClipNote(ctx: McpClipContext, input: McpClipRequest)
     throw new Error("invalid_clip_payload");
   }
   for (const hash of attachmentHashes) {
-    if (!(await getAttachment(ctx.db, ctx.userId, hash)) ||
+    if (!(await getAttachmentObject(ctx.db, ctx.userId, hash)) ||
         !(await wasAttachmentUploadedByToken(ctx.db, ctx.tokenId, ctx.userId, hash))) throw new Error("attachment_missing_or_not_uploaded");
   }
   const markdown = buildClipMarkdown({ ...input, title, markdown: body });

@@ -40,7 +40,7 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
 
 /** 收集当前状态；引用附件缺失时记录清单，推送前拒绝生成不可恢复的快照。 */
 export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }>; missingAttachments: string[] }> {
-  const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes, attachmentMimes, recoveryCodeBinding } = await collectBackupRows(db, userId);
+  const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes, attachmentObjects, recoveryCodeBinding } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
   const monthOf = (timestamp: unknown): string => {
     const date = new Date(typeof timestamp === "number" ? timestamp : Number(timestamp ?? 0));
@@ -58,9 +58,11 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   const attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }> = [];
   const missingAttachments: string[] = [];
   for (const sha256 of attachmentHashes) {
-    const object = await bucket.get(`${userId}/${sha256}`);
+    const metadata = attachmentObjects.get(sha256);
+    const key = metadata ? metadata.key : `${userId}/${sha256}`;
+    const object = key ? await bucket.get(key) : null;
     if (!object) { missingAttachments.push(sha256); continue; }
-    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer(), mime: attachmentMimes.get(sha256) ?? "application/octet-stream" });
+    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer(), mime: metadata?.mime ?? "application/octet-stream" });
   }
   const manifest = {
     format: "menote-backup",

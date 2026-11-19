@@ -13,6 +13,7 @@ const bundle = await build({
     contents: `export { localDb } from "./src/db/localDb";
       export { createNote } from "./src/services/contentService";
       export { restoreVersion } from "./src/services/versionService";
+      export { sealAttachment } from "./src/services/sealedAttachmentService";
       export { setSessionKey, lockItem } from "./src/services/keyringService";
       export { generateContentKey, encryptMarkdown, decryptMarkdown } from "./src/services/cryptoService";
       export { enqueueWrite, unpackEnvelope } from "./src/services/contentShared";`,
@@ -21,22 +22,26 @@ const bundle = await build({
   bundle: true, write: false, format: "esm", platform: "browser",
 });
 const { localDb, createNote, restoreVersion, setSessionKey, lockItem,
-  generateContentKey, encryptMarkdown, decryptMarkdown, enqueueWrite, unpackEnvelope } =
+  generateContentKey, encryptMarkdown, decryptMarkdown, enqueueWrite, unpackEnvelope, sealAttachment } =
   await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
 const userId = "version-user";
-const oldHash = "a".repeat(64);
 const currentHash = "b".repeat(64);
-const oldText = `旧正文 ![图](attachments/${oldHash}--old.png)`;
 const currentText = `当前稿 ![图](attachments/${currentHash}--current.png)`;
 const sealed = async (text, key) => {
   const result = await encryptMarkdown(text, key);
   return `${result.iv}:${result.ciphertext}`;
 };
 
-async function seed(scope = "self") {
+async function seed(scope = "self", legacyPlainAttachment = false) {
   await Promise.all(localDb.tables.map((table) => table.clear()));
   const key = generateContentKey();
+  const oldAttachment = new Blob(["历史图"], { type: "image/png" });
+  const oldBlob = legacyPlainAttachment ? oldAttachment : await sealAttachment(oldAttachment, key);
+  const oldHash = Buffer.from(await crypto.subtle.digest("SHA-256", await oldBlob.arrayBuffer())).toString("hex");
+  const oldText = `旧正文 ![图](attachments/${oldHash}--old.png)`;
+  globalThis.fetch = async (url) => url === `/api/attachments/${oldHash}`
+    ? new Response(oldBlob) : new Response(null, { status: 404 });
   const note = await createNote(userId, { title: "密文历史" });
   const current = { ...note, rev: 4, attachmentHashes: [currentHash],
     content: { scope, ciphertext: await sealed(currentText, key) } };
@@ -44,12 +49,12 @@ async function seed(scope = "self") {
   const versionId = await localDb.versions.add({ itemId: note.id, userId, title: note.title,
     content: await sealed(oldText, key), scope: "sealed", rev: 2, reason: "autosave", createdAt: Date.now() });
   setSessionKey(note.id, key);
-  return { key, current, versionId };
+  return { key, current, versionId, oldHash, oldText };
 }
 
 for (const scope of ["self", "private_space"]) {
   test(`restore ${scope} history decrypts and re-encrypts actual text and attachment references`, async () => {
-    const { key, current, versionId } = await seed(scope);
+    const { key, current, versionId, oldHash, oldText } = await seed(scope);
     const result = await restoreVersion(userId, current.id, versionId);
     assert.equal(await decryptMarkdown(unpackEnvelope(result.content.ciphertext), key), oldText);
     assert.equal(result.content.scope, scope);
@@ -76,6 +81,15 @@ test("locked or invalid history restore leaves current item, history and outbox 
   await assert.rejects(restoreVersion(userId, current.id, versionId));
   assert.deepEqual(await localDb.items.get(current.id), current);
   assert.deepEqual(await localDb.versions.toArray(), beforeVersions);
+  assert.deepEqual(await localDb.outbox.toArray(), beforeOutbox);
+  await lockItem(current.id);
+});
+
+test("restoring a legacy snapshot cannot reintroduce a plaintext attachment reference", async () => {
+  const { current, versionId } = await seed("self", true);
+  const beforeOutbox = await localDb.outbox.toArray();
+  await assert.rejects(restoreVersion(userId, current.id, versionId), /历史附件无法验证为密文/);
+  assert.deepEqual(await localDb.items.get(current.id), current);
   assert.deepEqual(await localDb.outbox.toArray(), beforeOutbox);
   await lockItem(current.id);
 });

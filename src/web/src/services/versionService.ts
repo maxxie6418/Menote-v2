@@ -6,6 +6,7 @@ import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope }
 import { getContentKey } from "./keyringService";
 import { decryptMarkdown, encryptMarkdown } from "./cryptoService";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
+import { verifyAddedSealedAttachments } from "./sealedAttachmentService";
 
 /** 版本历史与回收站（G8，FR-VER-1~7；G10 整理自 contentService）。 */
 
@@ -62,6 +63,7 @@ async function restoreVersionInner(userId: string, itemId: string, versionId: nu
   let markdown: string;
   let nextContent: Item["content"];
   let contentHash: string;
+  let sessionKey: Uint8Array | undefined;
   if (version.scope === "plain") {
     if (current.content.scope !== "plain") throw new Error("scope_mismatch");
     markdown = version.content;
@@ -71,8 +73,15 @@ async function restoreVersionInner(userId: string, itemId: string, versionId: nu
     if (current.content.scope === "plain" || current.type === "memo") throw new Error("scope_mismatch");
     const key = getContentKey(itemId);
     if (!key) throw new Error("locked");
+    sessionKey = key;
     // 先验证并解开历史信封；错误密钥或损坏数据不能改变当前稿或生成恢复记录。
     markdown = await decryptMarkdown(unpackEnvelope(version.content), key);
+    try {
+      await verifyAddedSealedAttachments(itemId, attachmentHashesOf(markdown), current.attachmentHashes);
+    } catch {
+      if (getContentKey(itemId) !== key) throw new Error("locked");
+      throw new Error("历史附件无法验证为密文。请在解锁后先加密旧附件，再恢复此版本。");
+    }
     const envelope = await encryptMarkdown(markdown, key);
     contentHash = "enc-" + envelope.ciphertext.slice(0, 16);
     nextContent = { scope: current.content.scope, ciphertext: packEnvelope(envelope.iv, envelope.ciphertext) };
@@ -97,6 +106,7 @@ async function restoreVersionInner(userId: string, itemId: string, versionId: nu
     });
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
+    if (sessionKey && getContentKey(itemId) !== sessionKey) throw new Error("locked");
   });
   notifyLocalChange();
   return next;

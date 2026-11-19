@@ -112,18 +112,22 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   topicKeyWraps: Record<string, unknown>[];
   settings: Record<string, unknown>[];
   attachmentHashes: string[];
-  attachmentMimes: Map<string, string>;
+  attachmentObjects: Map<string, { key: string | null; mime: string }>;
   recoveryCodeBinding: ReturnType<typeof recoveryBindingFromRow>;
 }> {
   // Read rows and their key wraps within one transaction so a concurrent sync can't split them.
   const [items, topics, itemKeyWraps, memoComments, topicKeyWraps, settings, attachmentRows, recoveryCode] = await db.batch<Record<string, unknown>>([
     db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId),
     db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId),
-    db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT w.* FROM item_key_wraps w JOIN items i ON i.user_id = w.user_id AND i.id = w.item_id
+      WHERE w.user_id = ? AND ((i.enc_self = 1 AND w.wrapper IN ('password', 'recovery')) OR (i.in_enc_space = 1 AND w.wrapper = 'topic'))`).bind(userId),
     db.prepare("SELECT * FROM memo_comments WHERE user_id = ?").bind(userId),
-    db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT w.* FROM topic_key_wraps w JOIN topic_nodes t ON t.user_id = w.user_id AND t.id = w.topic_id
+      WHERE w.user_id = ? AND t.is_enc_space = 1`).bind(userId),
     db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId),
-    db.prepare("SELECT sha256, mime FROM attachments WHERE user_id = ?").bind(userId),
+    db.prepare(`SELECT a.sha256, a.mime, CASE WHEN a.retired_at IS NULL THEN COALESCE(a.r2_key, a.user_id || '/' || a.sha256) END AS key
+      FROM (SELECT DISTINCT sha256 FROM attachment_item_refs WHERE user_id = ?) ref
+      JOIN attachments a ON a.user_id = ? AND a.sha256 = ref.sha256`).bind(userId, userId),
     recoveryCodeReadStatement(db, userId),
   ]);
   const hashes = new Set<string>();
@@ -136,7 +140,9 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   return {
     items: items!.results, topics: topics!.results, memoComments: memoComments!.results, itemKeyWraps: itemKeyWraps!.results,
     topicKeyWraps: topicKeyWraps!.results, settings: settings!.results, attachmentHashes: [...hashes],
-    attachmentMimes: new Map(attachmentRows!.results.map((row) => [String(row.sha256), String(row.mime)])),
+    attachmentObjects: new Map(attachmentRows!.results.map((row) => [
+      String(row.sha256), { key: typeof row.key === "string" ? row.key : null, mime: String(row.mime) },
+    ])),
     recoveryCodeBinding: recoveryBindingFromRow(recoveryCode?.results[0]),
   };
 }

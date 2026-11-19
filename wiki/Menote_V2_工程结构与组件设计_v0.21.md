@@ -159,7 +159,10 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
 - 快照只读校验由 `services/backupVerifyService.ts` 负责，检查完成标记、清单、分片和附件；校验通过不代表恢复演练通过。
 - FR-ENC-6 账户恢复码登记：Web `services/recoveryCodeService.ts` 验证本机包装及账户校验信封；Worker `routes/recoveryCode.ts` → `services/recoveryCodeService.ts` → `db/recoveryCode.ts`，使用 `account_recovery_codes` 原子登记绑定。共享契约由 `contracts/recoveryCode.ts` 校验，迁移 0039 约束同步包装和兼容重放。快照保存绑定 ID 与密文校验信封。
+- FR-ENC-6 恢复码更换与旧码合并：`features/settings/RecoveryCodeSettings.tsx` 收集旧码并确认新码已保存，Web 恢复码服务在浏览器里重新包装原有密钥。恢复码路由的轮换接口使用相同 Worker 分层，按账户修订和现有包装集合原子替换绑定、恢复包装和同步事件。
 - FR-ENC-2/5 加密附件：Web `services/sealedAttachmentService.ts` 从笔记内容密钥派生附件密钥，`features/attachments/UnlockedAttachment` 和 Milkdown 图片视图仅在解锁态渲染。共享 `contracts/sealedAttachment.ts` 定义信封格式，Worker 复用附件路由及内容寻址存储。备份按密文哈希存取，ZIP 导出在浏览器解锁后进行。
+- FR-ENC-2/5 存量附件转换：`services/encryptionCommandService.ts` 调用 `sealedAttachmentService.ts` 生成密文副本，校验笔记、本机历史及恢复稿的修改状态后，原子更新各处引用与同步队列。历史恢复沿用密文附件校验。
+- FR-SYNC-8 附件回收：迁移 0040 建立 `attachment_item_refs` 和 `attachment_object_deletions`。Worker `db/attachments.ts` 管理按账户哈希索引的引用、对象键发布和退役队列，`services/attachmentService.ts` 编排 R2 上传及物理删除。回收站保有引用。定时任务和附件管理页共用 30 天保留条件，备份及恢复按已发布对象键读写。
 - 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
 - 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。

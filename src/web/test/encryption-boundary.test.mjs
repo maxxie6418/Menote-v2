@@ -6,6 +6,39 @@ import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { installRecoveryCodeFixture } from "./recovery-code-fixture.mjs";
 
 const resetServer = installRecoveryCodeFixture();
+const recoveryFetch = globalThis.fetch;
+const attachments = new Map();
+const uploads = [];
+const downloads = [];
+const SEALED_MIME = "application/vnd.menote.sealed-attachment";
+let uploadHook;
+globalThis.fetch = async (input, init) => {
+  if (!input.startsWith("/api/attachments/")) return recoveryFetch(input, init);
+  const hash = input.split("/").at(-1);
+  downloads.push(hash);
+  assert.equal(init.cache, "no-store");
+  const blob = attachments.get(hash);
+  return blob ? new Response(blob) : new Response(null, { status: 404 });
+};
+globalThis.XMLHttpRequest = class {
+  upload = {};
+  open(method, path) { assert.deepEqual([method, path], ["POST", "/api/attachments"]); }
+  setRequestHeader(name, value) { assert.deepEqual([name, value], ["Content-Type", SEALED_MIME]); }
+  async send(file) {
+    try {
+      const hash = await hashBlob(file);
+      uploads.push({ file, hash });
+      await uploadHook?.();
+      attachments.set(hash, file);
+      this.status = 200;
+      this.responseText = JSON.stringify({ sha256: hash });
+    } catch {
+      this.status = 507;
+      this.responseText = '{"error":"quota"}';
+    }
+    this.onload();
+  }
+};
 
 globalThis.indexedDB = indexedDB;
 globalThis.IDBKeyRange = IDBKeyRange;
@@ -14,11 +47,12 @@ const srcDir = fileURLToPath(new URL("../src", import.meta.url));
 const bundle = await build({
   stdin: { contents: `
     export { localDb } from './db/localDb';
-    export { enableItemEncryption, saveEncryptedContent } from './services/encryptionCommandService';
+    export { enableItemEncryption, migrateEncryptedAttachments, saveEncryptedContent } from './services/encryptionCommandService';
     export { decryptMarkdown, encryptMarkdown, generateContentKey } from './services/cryptoService';
     export { packEnvelope, unpackEnvelope } from './services/contentShared';
     export { writeRecovery } from './services/recoveryService';
-    export { unlockNote, getContentKey, setSessionKey } from './services/keyringService';
+    export { lockItem, unlockNote, getContentKey, setSessionKey } from './services/keyringService';
+    export { openSealedAttachment, sealAttachment } from './services/sealedAttachmentService';
   `, resolveDir: srcDir, loader: "ts" },
   bundle: true, write: false, format: "esm", platform: "browser",
 });
@@ -30,7 +64,22 @@ const HASH = "a".repeat(64);
 
 async function reset() {
   resetServer();
+  attachments.clear();
+  uploads.length = 0;
+  downloads.length = 0;
+  uploadHook = undefined;
   await Promise.all(app.localDb.tables.map((table) => table.clear()));
+}
+
+async function hashBlob(blob) {
+  return Buffer.from(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer())).toString("hex");
+}
+
+async function attach(text) {
+  const blob = new Blob([text], { type: "text/plain" });
+  const hash = await hashBlob(blob);
+  attachments.set(hash, blob);
+  return hash;
 }
 
 async function note(markdown = "当前正文") {
@@ -44,14 +93,70 @@ async function note(markdown = "当前正文") {
   return item;
 }
 
-test("encryption rejects references to unencrypted attachments without altering the note", async () => {
+test("encryption requires attachment conversion confirmation, even for history-only references", async () => {
   await reset();
   const item = await note();
-  await assert.rejects(app.enableItemEncryption(USER, item.id, `![图](attachments/${HASH}--x.png)`, "secret1", CODE), /attachment_encryption_unsupported/);
+  await assert.rejects(app.enableItemEncryption(USER, item.id, `![图](attachments/${HASH}--x.png)`, "secret1", CODE), /attachment_migration_confirmation_required/);
   assert.deepEqual(await app.localDb.items.get(item.id), item);
-  await app.localDb.items.put({ ...item, attachmentHashes: [HASH] });
-  await assert.rejects(app.enableItemEncryption(USER, item.id, "引用已从编辑器删除", "secret1", CODE), /attachment_encryption_unsupported/);
+  await app.localDb.versions.add({ itemId: item.id, userId: USER, title: item.title, content: `[图](attachments/${HASH}--x.png)`, scope: "plain", rev: 0, reason: "autosave", createdAt: 1 });
+  await assert.rejects(app.enableItemEncryption(USER, item.id, "引用已从编辑器删除", "secret1", CODE), /attachment_migration_confirmation_required/);
   assert.equal(await app.localDb.wraps.count(), 0);
+  assert.deepEqual(downloads, []);
+  assert.deepEqual(uploads, []);
+});
+
+test("enabling encryption migrates shared references once while preserving aliases, snapshots and original objects", async () => {
+  await reset();
+  const hash = await attach("共享文件内容");
+  const historyOnly = await attach("仅历史附件内容");
+  const markdown = `![图](attachments/${hash}--x.png) [附件](attachments/${hash}--%E5%8E%9F.txt)`;
+  const history = `[版本](attachments/${hash}--旧.txt) [仅历史](attachments/${historyOnly}--h.txt)`;
+  const recovery = `[恢复](attachments/${hash}--draft.txt)`;
+  const item = await note(markdown);
+  await app.localDb.versions.add({ itemId: item.id, userId: USER, title: item.title, content: history, scope: "plain", rev: 0, reason: "autosave", createdAt: 1 });
+  await app.localDb.recovery.put({ itemId: item.id, userId: USER, content: recovery, scope: "plain", updatedAt: 1 });
+  const result = await app.enableItemEncryption(USER, item.id, markdown, "secret1", CODE, { migrateAttachments: true });
+  const [{ hash: migrated, file }, { hash: migratedHistory }] = uploads;
+  assert.deepEqual(downloads, [hash, historyOnly]);
+  assert.equal(file.name, "sealed");
+  assert.equal(file.type, SEALED_MIME);
+  assert.equal(await (await app.openSealedAttachment(file, result.key)).text(), "共享文件内容");
+  assert.notEqual(migrated, hash);
+  assert.deepEqual(result.item.attachmentHashes, [migrated]);
+  assert.equal(await app.decryptMarkdown(app.unpackEnvelope(result.item.content.ciphertext), result.key), markdown.replaceAll(hash, migrated));
+  const version = await app.localDb.versions.where("itemId").equals(item.id).first();
+  const savedRecovery = await app.localDb.recovery.get(item.id);
+  assert.equal(await app.decryptMarkdown(app.unpackEnvelope(version.content), result.key), history.replaceAll(hash, migrated).replaceAll(historyOnly, migratedHistory));
+  assert.equal(await app.decryptMarkdown(app.unpackEnvelope(savedRecovery.content), result.key), recovery.replaceAll(hash, migrated));
+  const outbox = await app.localDb.outbox.toArray();
+  assert.deepEqual(outbox.map((row) => row.payload.item.attachmentHashes), [[migrated]]);
+  assert.ok(attachments.has(hash) && attachments.has(historyOnly));
+});
+
+test("missing historical attachments and failed uploads leave encryption inputs unchanged and allow retry", async () => {
+  await reset();
+  const hash = await attach("当前文件");
+  const historicalHash = await attach("历史文件");
+  const historicalBlob = attachments.get(historicalHash);
+  attachments.delete(historicalHash);
+  const item = await note(`[附件](attachments/${hash}--current.txt)`);
+  const versionId = await app.localDb.versions.add({ itemId: item.id, userId: USER, title: item.title,
+    content: `[旧附件](attachments/${historicalHash}--old.txt)`, scope: "plain", rev: 0, reason: "autosave", createdAt: 1 });
+  const version = await app.localDb.versions.get(versionId);
+  const convert = () => app.enableItemEncryption(USER, item.id, item.content.markdown, "secret1", CODE, { migrateAttachments: true });
+  await assert.rejects(convert(), /attachment_migration_source_unavailable/);
+  assert.equal(uploads.length, 1);
+  assert.deepEqual(await app.localDb.items.get(item.id), item);
+  assert.deepEqual(await app.localDb.versions.get(versionId), version);
+  assert.equal(await app.localDb.outbox.count(), 0);
+  attachments.set(historicalHash, historicalBlob);
+  uploadHook = () => { throw new Error("quota"); };
+  await assert.rejects(convert(), /attachment_migration_upload_failed/);
+  assert.deepEqual(await app.localDb.items.get(item.id), item);
+  assert.deepEqual(await app.localDb.versions.get(versionId), version);
+  assert.equal(await app.localDb.wraps.count(), 0);
+  uploadHook = undefined;
+  assert.equal((await convert()).item.content.scope, "self");
 });
 
 test("encryption refuses unsynced plaintext operations without discarding them", async () => {
@@ -129,4 +234,57 @@ test("legacy encrypted notes can retain and remove existing plaintext attachment
   assert.deepEqual(preserved.attachmentHashes, [HASH]);
   const removed = await app.saveEncryptedContent(USER, item.id, "旧图已移除");
   assert.deepEqual(removed.attachmentHashes, []);
+});
+
+async function legacyEncryptedNote(markdown, hashes, key = app.generateContentKey()) {
+  const item = await note();
+  const envelope = await app.encryptMarkdown(markdown, key);
+  const encrypted = { ...item, content: { scope: "self", ciphertext: app.packEnvelope(envelope.iv, envelope.ciphertext) }, attachmentHashes: hashes };
+  await app.localDb.items.put(encrypted);
+  app.setSessionKey(item.id, key);
+  return { encrypted, key };
+}
+
+test("converting a legacy encrypted note preserves sealed attachments, updates recovery, and is idempotent", async () => {
+  await reset();
+  const key = app.generateContentKey();
+  const existing = await app.sealAttachment(new Blob(["已有密文"]), key);
+  const existingHash = await hashBlob(existing);
+  attachments.set(existingHash, existing);
+  const oldHash = await attach("旧文件");
+  const markdown = `[已有密文](attachments/${existingHash}--sealed.txt) [旧文件](attachments/${oldHash}--legacy.txt)`;
+  const { encrypted } = await legacyEncryptedNote(markdown, [existingHash, oldHash], key);
+  await app.writeRecovery(USER, encrypted.id, `draft ${markdown}`, "sealed");
+  const result = await app.migrateEncryptedAttachments(USER, encrypted);
+  assert.equal(uploads.length, 1);
+  const replacement = uploads[0].hash;
+  assert.deepEqual(result, { count: 1, markdown: markdown.replace(oldHash, replacement) });
+  const updated = await app.localDb.items.get(encrypted.id);
+  assert.deepEqual(updated.attachmentHashes, [existingHash, replacement]);
+  assert.equal(updated.rev, encrypted.rev + 1);
+  const recovery = await app.localDb.recovery.get(encrypted.id);
+  assert.equal(await app.decryptMarkdown(app.unpackEnvelope(recovery.content), key), `draft ${result.markdown}`);
+  assert.deepEqual(await app.migrateEncryptedAttachments(USER, updated), { count: 0, markdown: result.markdown });
+  assert.equal(uploads.length, 1);
+  assert.equal(await app.localDb.outbox.count(), 1);
+  assert.ok(attachments.has(oldHash));
+});
+
+test("legacy migrations refuse to replace concurrent snapshots or commit after the session locks", async () => {
+  await reset();
+  const hash = await attach("旧文件");
+  const { encrypted } = await legacyEncryptedNote(`[旧文件](attachments/${hash}--legacy.txt)`, [hash]);
+  let concurrentRecovery;
+  uploadHook = async () => {
+    await app.writeRecovery(USER, encrypted.id, "另一个会话的修改", "sealed");
+    concurrentRecovery = await app.localDb.recovery.get(encrypted.id);
+  };
+  await assert.rejects(app.migrateEncryptedAttachments(USER, encrypted), /encryption_item_changed/);
+  assert.deepEqual(await app.localDb.items.get(encrypted.id), encrypted);
+  assert.deepEqual(await app.localDb.recovery.get(encrypted.id), concurrentRecovery);
+  assert.equal(await app.localDb.outbox.count(), 0);
+  uploadHook = () => app.lockItem(encrypted.id);
+  await assert.rejects(app.migrateEncryptedAttachments(USER, encrypted), /locked/);
+  assert.deepEqual(await app.localDb.items.get(encrypted.id), encrypted);
+  assert.equal(await app.localDb.outbox.count(), 0);
 });
