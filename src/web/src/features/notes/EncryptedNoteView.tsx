@@ -17,6 +17,7 @@ import { DocSyncStatus } from "../sync";
 import { notifyEditorChange, registerEditorSave } from "../../services/editorSaveService";
 import { ConflictCompare } from "./ConflictCompare";
 import { exportUnlockedAttachmentZip, hasPendingSealedAttachmentUpload, uploadSealedAttachment } from "../../services/sealedAttachmentService";
+import { saveBeforeNoteViewChange, useNoteViewPosition } from "./useNoteViewPosition";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -41,8 +42,6 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [savedTick, setSavedTick] = useState(0);
   const dirtyTickRef = useRef(dirtyTick);
   dirtyTickRef.current = dirtyTick;
-  // 预览用的正文：切到预览时从编辑器取一次全量（编辑器在预览态会卸载）。
-  const [previewText, setPreviewText] = useState<string | null>(null);
   // 编辑器注册的全量取值器（落盘出口）：保存、预览、解除加密都从它取正文。
   const getMarkdownRef = useRef<(() => string) | null>(null);
   // plain 的最新值：自动保存的定时器里读它，避免定时器闭包拿到旧明文。
@@ -55,9 +54,13 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [attachmentAction, setAttachmentAction] = useState<string | null>(null);
   const [migratingAttachments, setMigratingAttachments] = useState(false);
   const attachmentMigrationRef = useRef(false);
+  const viewChanging = useRef(false);
   const unlocked = isNoteUnlocked(item.id);
   const conflictSource = useItem(userId, item.conflictOf ?? null);
   const inSpace = item.content.scope === "private_space";
+  const plainFlow = plain !== null && unlocked;
+  const notePosition = useNoteViewPosition(userId, item.id, mode === "preview" ? "preview" : "wysiwyg",
+    plainFlow && item.type === "note", true);
 
   useEffect(() => {
     if (!focusMode) return;
@@ -79,7 +82,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   }, [inSpace, item.id, item.topicId, unlocked]);
 
   useEffect(() => {
-    if (!unlocked) { setPlain(null); setReadError(null); setPreviewText(null); setRecoveryText(null); return; }
+    if (!unlocked) { plainRef.current = null; setPlain(null); setReadError(null); setRecoveryText(null); return; }
     if (item.content.scope !== "plain" && plain === null && readError === null) {
       void readPlain(item.id, parseEnvelope(item.content.ciphertext)).then((value) => {
         if (value === null) {
@@ -100,10 +103,14 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const flush = useCallback(async (value: string | null) => {
     if (value === null || !isNoteUnlocked(item.id) || attachmentMigrationRef.current) return false;
     const savingTick = dirtyTickRef.current;
+    const previous = plainRef.current;
     setSaveState({ kind: "saving" });
     try {
       await saveEncryptedContent(userId, item.id, value);
-      setPlain(value);
+      if (isNoteUnlocked(item.id) && plainRef.current === previous) {
+        plainRef.current = value;
+        setPlain(value);
+      }
       setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
       return true;
@@ -184,7 +191,29 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     }
   };
 
-  const plainFlow = plain !== null && unlocked;
+  const switchMode = async (next: "edit" | "preview") => {
+    if (next === mode || viewChanging.current || !plainFlow || attachmentMigrationRef.current) return;
+    if (next === "edit") {
+      notePosition.rememberPosition();
+      setMode(next);
+      return;
+    }
+    if (hasPendingSealedAttachmentUpload(item.id)) return;
+    viewChanging.current = true;
+    try {
+      const saved = await saveBeforeNoteViewChange(() => getMarkdownRef.current?.() ?? plainRef.current,
+        async (value) => value !== null && (value === plainRef.current && dirtyTickRef.current <= savedTick && saveState.kind !== "error"
+          || await flush(value)));
+      if (!saved || !isNoteUnlocked(item.id)) return;
+      notePosition.rememberPosition();
+      setMode(next);
+    } catch (cause) {
+      setSaveState({ kind: "error", message: String(cause) });
+    } finally {
+      viewChanging.current = false;
+    }
+  };
+
   const migrateAttachments = async () => {
     if (attachmentMigrationRef.current) return;
     if (hasPendingSealedAttachmentUpload(item.id)) {
@@ -213,7 +242,6 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       const result = await migrateEncryptedAttachments(userId, item);
       if (!isNoteUnlocked(item.id)) return;
       setPlain(result.markdown);
-      setPreviewText(result.markdown);
       setAttachmentAction(result.count ? `已加密 ${result.count} 个旧附件。本次操作保留原明文文件。` : "此笔记的正文、本机历史和恢复稿中没有需要转换的附件。");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
@@ -274,23 +302,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
                 </button>
               )}
               <span className="mn-vt" role="group" aria-label="编辑/预览切换">
-                <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"} disabled={migratingAttachments} onClick={() => setMode("edit")}><Pencil /></button>
+                <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" aria-pressed={mode === "edit"} disabled={migratingAttachments} onClick={() => void switchMode("edit")}><Pencil /></button>
                 <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" aria-pressed={mode === "preview"}
                   disabled={migratingAttachments}
-                  onClick={() => {
-                    // 切到预览前取一次全量正文：预览态编辑器会卸载，之后就取不到了（FR-EDT-10）。
-                    const text = getMarkdownRef.current?.() ?? plain;
-                    if (text === null) return;
-                    setPlain(text);
-                    setPreviewText(text);
-                    setMode("preview");
-                  }}><Eye /></button>
+                  onClick={() => void switchMode("preview")}><Eye /></button>
               </span>
             </>
           )}
         </span>
       </div>
-      <div className="mn-docbody" inert={migratingAttachments}>
+      <div className="mn-docbody" inert={migratingAttachments} ref={notePosition.scrollerRef}>
         <DocTitle value={item.title ?? ""} readOnly />
         {item.conflictOf && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={unlocked ? plain : null} onKeptOriginal={onBack} />
@@ -313,13 +334,13 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={previewText ?? plain ?? ""} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={plain} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}
             itemId={item.id}
             markdown={plain}
-            onChangeMarkdown={(next) => { setPlain(next); setDirtyTick((n) => n + 1); }}
+            onChangeMarkdown={(next) => { plainRef.current = next; setPlain(next); setDirtyTick((n) => n + 1); }}
             onDegrade={() => { void degradeTableToNote(userId, item.id); }}
             /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
             onSwitchToNote={() => {}}
@@ -336,6 +357,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             attachmentItemId={item.id}
             uploadFile={(file, onProgress) => uploadSealedAttachment(userId, item.id, file, onProgress)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
+            registerCursor={notePosition.registerCursor}
             registerApplyExternal={() => {}}
           />
         )}

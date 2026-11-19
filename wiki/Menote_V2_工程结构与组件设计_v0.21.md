@@ -140,6 +140,9 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 **props/**：`PropertyPanel`（可折叠）、`PropertyRow`、`PropertyValueControl`（按 8 类型分派）、`PropertyDefEditor`。
 **table/**：`TableBlock`（GFM 解析↔结构化编辑）、`TableCellEditor`（类型化单元格控件，表格文档与 Note 内弹窗双轨共用；单选/多选用胶囊并按字段定义颜色；整页表格附件列支持上传和下载）、`FieldTypeMenu`（8 种字段类型菜单）、`TableDocument`（表格主体文档整页网格：列管理、行增删与拖动排序、单元格编辑及候选颜色设置；颜色存入 YAML `fields.<字段>.optionColors`、显示样式使用主题 tokens；字段可从文档标题栏或表格工具条创建，类型菜单 portal 到视口以免被滚动容器裁切）、`TableColumnVisibility`（列显隐设置，只改当前账号视图）、`TableRowDetailsPanel`（行详情侧栏与封面预览）。隐藏列经 `tableViewSettingsService` → IndexedDB settings/outbox → Worker 同步到 D1 `user_settings` 的 `tableViews` 键；列宽继续只保存在本机偏好（FR-TBL-17）。
 **memo/**：`MemoWorkspace`、`MemoAccessGate`（前端页面门禁；设置经 `appearanceSettingsService`，口令校验经 `privateSpaceService` 且不解锁空间）、`MemoTimeline`、`MemoCard`（正文/互动栏/引述快照）、`MemoImagePreview`（复用已鉴权附件 URL 的原图预览）、`MemoGallery`、`MemoWorkbar`、`QuickComposer`、`TodoSidePanel`。评论 UI 经 `memoService` 读写，不直连 IndexedDB 或网络。`MarkdownView` 只在调用方提供 `onImageClick` 时把图片变为可键盘激活的预览入口。
+
+- Note 的 `notes/useNoteViewPosition.ts` 连接文档滚动区与编辑器选区，`lib/noteViewPosition.ts` 按账号和条目管理数字位置。普通 Note 使用标签页会话存储，加密 Note 的位置只留在当前页面内存。
+- Memo 的 `memo/useMemoCapture.tsx` 统一首页、侧栏、时间线和移动速记的提交、附件与输入法行为。未保存草稿按入口保存在已登录页面的会话状态中，已提交内容通过既有内容服务落库。
 **import/**（TP15，FR-IMP-1；TP19，FR-IMP-2）：`FlomoImportPanel`（账户菜单「导入数据」里的 Flomo 面板：选压缩包 → 摘要与预览 → 确认导入 → 进度与结果）。解析在 `lib/flomoParse.ts`（纯函数：zip → 笔记 HTML → Markdown 与图片清单），落库在 `services/flomoImportService.ts`（图片上传 + 批量写 + 去重）；面板只调服务，不直接碰 IndexedDB 或网络。`ObsidianImportPanel`（TP19：拖入/选择整库、文件夹或 .md → 摘要与勾选列表 → 目标选择 → 确认导入）；扫描收敛在 `lib/obsidianScan.ts`（目录句柄/拖拽树/webkitdirectory 三路 → 扫描清单），解析在 `lib/obsidianParse.ts`（纯函数：分类、整库识别、wiki 与标准图片引用三级解析），落库在 `services/obsidianImportService.ts`（图片上传缓存、引用重写、缺图计数、标题+正文哈希去重）。
 **encryption/**：`UnlockDialog`（主题级/单篇两形态）、`RecoveryCodeSetup`、`RecoveryCodeView`、`LockIndicator`。
 **versions/**：`HistoryPanel`、`VersionDiff`、`RestoreConfirm`、`TrashPage`。

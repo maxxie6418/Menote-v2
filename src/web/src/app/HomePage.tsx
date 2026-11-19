@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { ArrowUpRight, Download, FilePlus2, Paperclip, Search, Table2, Tag } from "../icons";
 import type { Item } from "@menote/shared";
 import type { BrowseSection } from "../services/contentHooks";
 import { useHomeSnapshot, useLocalSearch, useRecentItems } from "../services/contentHooks";
-import { createMemo } from "../services/contentService";
-import { uploadAttachment } from "../services/attachmentService";
 import { alwaysHiddenPrivateTopicIds } from "../services/privateSpaceService";
-import { insertAttachment } from "../features/editor";
+import { useMemoCapture } from "../features/memo";
 
 interface HomePageProps {
   userId: string; username: string; onCreateNote: () => void; onCreateTable: () => void; onImportMarkdown: (files: File[]) => Promise<number>;
@@ -23,21 +22,53 @@ function HomeStamp({ now }: { now: Date }) {
   return <div className="mn-home-stamp"><time>{now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time><span>{now.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>;
 }
 
+function HomeMemoCapture({ input }: { input: RefObject<HTMLTextAreaElement | null> }) {
+  const capture = useMemoCapture("home");
+  const [memoTagsOpen, setMemoTagsOpen] = useState(false);
+  const attachments = useRef<HTMLInputElement>(null);
+  const canSubmit = Boolean(capture.body.trim()) && !capture.pending;
+
+  async function submit() {
+    if (!canSubmit) return;
+    input.current?.focus({ preventScroll: true });
+    if (await capture.save()) setMemoTagsOpen(false);
+  }
+
+  return (
+    <form className="mn-home-capture" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+      <textarea ref={input} aria-label="快速记录 Memo" placeholder="随手写…" value={capture.body}
+        onChange={(event) => capture.setBody(event.target.value)} {...capture.compositionProps}
+        onKeyDown={(event) => capture.onShortcut(event, () => void submit())}
+        onPaste={(event) => capture.onPaste(event, () => input.current)} />
+      <div className="mn-home-capture-tools">
+        <button type="button" className="mn-home-capture-tool" aria-expanded={memoTagsOpen}
+          onClick={() => setMemoTagsOpen((open) => !open)}><Tag />标签</button>
+        {memoTagsOpen && <input className="mn-home-tag-input" autoFocus value={capture.tags}
+          onChange={(event) => capture.setTags(event.target.value)} {...capture.compositionProps}
+          onKeyDown={(event) => capture.onShortcut(event, () => void submit())}
+          aria-label="Memo 标签" placeholder="输入标签，用空格或逗号分隔" />}
+        <button type="button" className="mn-home-capture-tool" disabled={Boolean(capture.pending)}
+          onClick={() => attachments.current?.click()}>
+          <Paperclip />{capture.pending === "upload" ? "上传中…" : "附件"}
+        </button>
+        <input ref={attachments} type="file" accept="image/*" multiple hidden onChange={(event) => {
+          void capture.attachFiles([...(event.currentTarget.files ?? [])], () => input.current);
+          event.currentTarget.value = "";
+        }} />
+        {capture.feedback && <span className="mn-home-capture-feedback" role={capture.feedback.role}>{capture.feedback.text}</span>}
+        <button type="submit" disabled={!canSubmit}>{capture.pending === "save" ? "保存中…" : "保存"}</button>
+      </div>
+    </form>
+  );
+}
+
 export function HomePage({ userId, username, onCreateNote, onCreateTable, onImportMarkdown, onOpenItem, onNavigate }: HomePageProps) {
   const [query, setQuery] = useState("");
-  const [memoDraft, setMemoDraft] = useState("");
-  const [memoSaved, setMemoSaved] = useState(false);
-  const [memoSaveError, setMemoSaveError] = useState(false);
-  const [memoUploadError, setMemoUploadError] = useState(false);
-  const [memoUploading, setMemoUploading] = useState(false);
-  const [memoTagInput, setMemoTagInput] = useState("");
-  const [memoTagsOpen, setMemoTagsOpen] = useState(false);
   const [importFeedback, setImportFeedback] = useState("");
   const [clock, setClock] = useState(() => new Date());
   const searchRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const memoInputRef = useRef<HTMLTextAreaElement>(null);
-  const memoAttachmentRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const layout = document.querySelector<HTMLElement>(".mn-shell")?.dataset.layout;
     if (layout === "full" || layout === "compact") memoInputRef.current?.focus({ preventScroll: true });
@@ -74,30 +105,6 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
   const continueItem = recentDocuments[0];
   const hour = clock.getHours();
   const greeting = hour < 6 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
-  const saveMemo = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const text = memoDraft.trim(); if (!text) return;
-    setMemoSaveError(false);
-    const tags = [...new Set(memoTagInput.split(/[，,\s]+/).map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean))];
-    void createMemo(userId, text, tags).then(() => { setMemoDraft(""); setMemoTagInput(""); setMemoTagsOpen(false); setMemoSaved(true); memoInputRef.current?.focus({ preventScroll: true }); window.setTimeout(() => setMemoSaved(false), 2600); }).catch(() => setMemoSaveError(true));
-  };
-  const attachMemoFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
-    const textarea = memoInputRef.current;
-    let markdown = memoDraft;
-    let caret = textarea?.selectionStart ?? markdown.length;
-    setMemoUploading(true); setMemoUploadError(false);
-    try {
-      for (const file of Array.from(files)) {
-        const uploaded = await uploadAttachment(userId, file);
-        if ("error" in uploaded) { setMemoUploadError(true); continue; }
-        const placed = insertAttachment(markdown, caret, { sha256: uploaded.sha256, name: uploaded.name }, file.type.startsWith("image/"));
-        markdown = placed.markdown; caret = placed.selectionStart;
-      }
-      setMemoDraft(markdown);
-      requestAnimationFrame(() => { textarea?.focus(); textarea?.setSelectionRange(caret, caret); });
-    } catch { setMemoUploadError(true); }
-    finally { setMemoUploading(false); }
-  };
   const importFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     try {
@@ -117,10 +124,7 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
         {!searching && <>
           <HomeStamp now={clock} />
           <h1 className="mn-home-greeting">{greeting}，<b>{username}</b>。想记点什么？</h1>
-          <form className="mn-home-capture" onSubmit={saveMemo}>
-            <textarea ref={memoInputRef} aria-label="快速记录 Memo" placeholder="随手写…" value={memoDraft} disabled={memoUploading} onChange={(event) => { setMemoDraft(event.target.value); setMemoSaved(false); }} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-            <div className="mn-home-capture-tools"><button type="button" className="mn-home-capture-tool" aria-expanded={memoTagsOpen} onClick={() => setMemoTagsOpen((open) => !open)}><Tag />标签</button>{memoTagsOpen && <input className="mn-home-tag-input" autoFocus value={memoTagInput} onChange={(event) => setMemoTagInput(event.target.value)} aria-label="Memo 标签" placeholder="输入标签，用空格或逗号分隔" />}<button type="button" className="mn-home-capture-tool" disabled={memoUploading} onClick={() => memoAttachmentRef.current?.click()}><Paperclip />{memoUploading ? "上传中…" : "附件"}</button><input ref={memoAttachmentRef} type="file" accept="image/*" multiple hidden onChange={(event) => { void attachMemoFiles(event.target.files); event.currentTarget.value = ""; }} /><span className="mn-home-capture-feedback" role={memoSaveError || memoUploadError ? "alert" : undefined}>{memoSaveError ? "保存失败，请重试" : memoUploadError ? "附件上传失败，请重试" : memoSaved ? "已存入收集箱" : ""}</span><button type="submit" disabled={!memoDraft.trim() || memoUploading}>保存</button></div>
-          </form>
+          <HomeMemoCapture input={memoInputRef} />
           <nav className="mn-home-actions" aria-label="快捷入口">
             <button type="button" onClick={() => continueItem && onOpenItem(continueItem)} disabled={!continueItem}><span className="mn-home-action-icon"><FilePlus2 /></span><span><strong>继续写作</strong><small>{continueItem?.title || "还没有最近编辑的文档"}</small></span></button>
             <button type="button" onClick={() => onNavigate({ kind: "inbox" })}><span className="mn-home-action-icon"><ArrowUpRight /></span><span><strong>收件箱</strong><small>{inboxCount} 条待整理</small></span></button>

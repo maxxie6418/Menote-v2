@@ -33,9 +33,7 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   const [topicSheetOpen, setTopicSheetOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>("memo");
-  const [composeBody, setComposeBody] = useState("");
   const [composeTitle, setComposeTitle] = useState("");
-  const [composeTags, setComposeTags] = useState("");
   const [actionItem, setActionItem] = useState<Item | null>(null);
   const [actionTags, setActionTags] = useState("");
   const [undoItem, setUndoItem] = useState<Item | null>(null);
@@ -168,21 +166,9 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
     setActionItem(null);
   };
 
-  const switchComposeMode = (next: ComposeMode) => {
-    if (next === composeMode) return;
-    if (composeMode === "note" && next === "memo" && composeTitle.trim()) {
-      setComposeBody((body) => `${composeTitle.trim()}${body.trim() ? `\n\n${body}` : ""}`);
-      setComposeTitle("");
-    }
-    if (composeMode === "memo" && next === "note") setComposeTitle("");
-    setComposeMode(next);
-  };
-
   const handleSaved = (item: Item) => {
     setComposeOpen(false);
-    setComposeBody("");
     setComposeTitle("");
-    setComposeTags("");
     if (item.type !== "memo") {
       setPage("notes");
       setNoteSection({ kind: "drafts" });
@@ -215,8 +201,8 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
     <MobileTabBar page={page} onPage={(next) => { goPage(next); if (next === "notes") setSelectedNoteId(null); }} onRecord={() => setComposeOpen(true)} />
 
     {topicSheetOpen && <MobileTopicSheet userId={userId} selected={noteSection} onClose={() => setTopicSheetOpen(false)} onOpenPrivate={onOpenPrivate} onSelect={(next) => { openSection(next); setTopicSheetOpen(false); }} />}
-    {composeOpen && <MobileComposer userId={userId} mode={composeMode} body={composeBody} title={composeTitle} tags={composeTags}
-      onMode={switchComposeMode} onBody={setComposeBody} onTitle={setComposeTitle} onTags={setComposeTags}
+    {composeOpen && <MobileComposer userId={userId} mode={composeMode} title={composeTitle}
+      onMode={setComposeMode} onTitle={setComposeTitle}
       onClose={() => setComposeOpen(false)} onSaved={handleSaved} />}
     {actionItem && <div className="m-sheet-overlay" role="presentation" onClick={closeAction}><section className="m-action-sheet" role="dialog" aria-modal="true" aria-label="条目操作" onClick={(event) => event.stopPropagation()}>
       <div className="m-action-grab"><i /></div><h2>{actionItem.title || (actionItem.content.scope === "plain" ? actionItem.content.markdown.slice(0, 36) : "已加密")}</h2>

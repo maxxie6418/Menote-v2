@@ -17,6 +17,14 @@ import { applyTextColor } from "./textColor";
 
 export type EditorKind = "wysiwyg" | "source";
 
+export interface EditorCursor {
+  requestedKind: EditorKind;
+  kind: EditorKind;
+  read(): { start: number; end: number };
+  restore(start: number, end: number): void;
+  restoreBlock(index: number): void;
+}
+
 /** 上传态：只用于底部的进度条与错误提示，不进文档内容。 */
 interface UploadTask { id: string; name: string; percent: number; error?: string }
 
@@ -57,11 +65,12 @@ interface NoteEditorProps {
   /** 页面检查器负责展示大纲时，隐藏编辑器内的大纲浮钮并注册实际编辑宿主。 */
   inspectorOutline?: boolean;
   onHostElement?: (host: HTMLDivElement | null) => void;
+  registerCursor?: (cursor: EditorCursor | null) => void;
   attachmentItemId?: string;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId, registerCursor }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bindHost = useCallback((host: HTMLDivElement | null) => {
     hostRef.current = host;
@@ -124,6 +133,19 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     const host = hostRef.current;
     const initial = toVisibleMarkdown(externalMarkdown);
 
+    const exposeCursor = (adapter: EditorAdapter, editorKind: EditorKind) => {
+      registerCursor?.({
+        requestedKind: kind,
+        kind: editorKind,
+        read: () => adapter.getCursorPosition?.() ?? adapter.getSelection(),
+        restore: (start, end) => {
+          if (adapter.restoreCursorPosition) adapter.restoreCursorPosition(start, end);
+          else adapter.setSelection(start, end);
+        },
+        restoreBlock: (index) => adapter.restoreCursorAtBlock?.(index),
+      });
+    };
+
     if (kind === "source") {
       const adapter = new TextareaSourceAdapter(host, {
         initialMarkdown: initial,
@@ -135,6 +157,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         dirtyRef.current = false;
         adapter.loadMarkdown(markdown);
       }));
+      exposeCursor(adapter, "source");
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
       // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
@@ -150,6 +173,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           dirtyRef.current = false;
           adapter.loadMarkdown(toVisibleMarkdown(markdown));
         }));
+        exposeCursor(adapter, "wysiwyg");
       }).catch((cause) => {
         console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
         const fallback = new TextareaSourceAdapter(host, {
@@ -163,6 +187,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           dirtyRef.current = false;
           fallback.loadMarkdown(toVisibleMarkdown(markdown));
         });
+        exposeCursor(fallback, "source");
       });
     }
 
@@ -170,6 +195,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       cancelled = true;
       registerGetMarkdown(null);
       registerApplyExternal(null);
+      registerCursor?.(null);
       adapterRef.current?.destroy();
       adapterRef.current = null;
       dirtyRef.current = false;

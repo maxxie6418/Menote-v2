@@ -221,7 +221,8 @@
 .m-carea textarea::placeholder { color: var(--app-fg-faint); }
 .m-tag-input { display: flex; min-height: var(--app-mobile-row-height); align-items: center; gap: var(--app-space-6); padding: var(--app-zero) var(--app-mobile-content-pad); border-top: var(--app-line) solid var(--app-border-subtle); color: var(--app-fg-faint); }
 .m-tag-input input { min-width: 0; flex: 1; border: var(--app-zero); outline: none; background: transparent; color: var(--app-fg); }
-.m-compose-error { margin: var(--app-zero); padding: var(--app-space-4) var(--app-mobile-content-pad); color: var(--app-danger); font-size: var(--app-size-chip); }
+.m-compose-feedback { margin: var(--app-zero); padding: var(--app-space-4) var(--app-mobile-content-pad); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.m-compose-feedback[role="alert"] { color: var(--app-danger); }
 .m-ctools { display: flex; height: var(--app-space-2xl); flex: none; align-items: center; gap: var(--app-space-2); padding: var(--app-zero) var(--app-space-6); border-top: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); }
 .m-ctools button { display: grid; width: var(--app-touch-target); height: var(--app-touch-target); flex: none; place-items: center; border: var(--app-zero); border-radius: var(--app-radius); background: transparent; color: var(--app-fg-subtle); }
 .m-ctools button:active { background: var(--app-hover); }

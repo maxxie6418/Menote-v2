@@ -28,6 +28,7 @@ import { notifyEditorChange, registerEditorSave } from "../../services/editorSav
 import { ConflictCompare } from "./ConflictCompare";
 import { getPropsPlacement, resolveToolbar, setPropsPlacement, subscribeDocLayout } from "../../lib/docLayout";
 import { readAppearance, updateAppearance } from "../../services/appearanceSettingsService";
+import { saveBeforeNoteViewChange, useNoteViewPosition } from "./useNoteViewPosition";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -146,21 +147,23 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const conflictOf = item?.conflictOf ?? null;
   const conflictSource = useItem(userId, conflictOf);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
-  const modeReadyRef = useRef(false);
+  const [modeReady, setModeReady] = useState(false);
   useEffect(() => {
     let active = true;
-    modeReadyRef.current = false;
+    setModeReady(false);
     void readAppearance(userId).then((appearance) => {
       if (!active) return;
       setMode(appearance?.noteModes[noteId] ?? "edit");
-      modeReadyRef.current = true;
-    });
+    }).catch(() => {}).finally(() => { if (active) setModeReady(true); });
     return () => { active = false; };
   }, [userId, noteId]);
   const [tableAddColumnSignal, setTableAddColumnSignal] = useState(0);
   const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const editorKindRef = useRef(editorKind);
   editorKindRef.current = editorKind;
+  const viewChanging = useRef(false);
+  const notePosition = useNoteViewPosition(userId, noteId, mode === "preview" ? "preview" : editorKind,
+    modeReady && item?.content.scope === "plain" && item.type === "note");
   const [draft, setDraft] = useState<string | null>(null);
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   // 用计数递增触发自动保存，正文在保存时从编辑器取全量。
@@ -340,22 +343,21 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const flush = useCallback(async (overrideMarkdown?: string) => {
     if (!item || item.content.scope !== "plain") return false;
     const savingTick = dirtyTickRef.current;
-    // WYSIWYG 只处理正文，由属性区管理 YAML；源码模式直接保存完整 Markdown。
-    const currentFull = draft ?? item.content.markdown;
-    const editorValue = overrideMarkdown ?? getMarkdownRef.current?.() ?? null;
-    const { frontText } = splitFrontmatter(currentFull);
-    const value = editorValue === null
-      ? currentFull
-      : editorKind === "source"
-        ? editorValue
-        : joinFrontmatter(frontText, editorValue);
-    if (value === null || value === item.content.markdown) {
-      setSavedTick(savingTick);
-      setSaveState({ kind: "idle" });
-      return true;
-    }
-    setSaveState({ kind: "saving" });
     try {
+      // WYSIWYG 只处理正文，由属性区管理 YAML；源码模式直接保存完整 Markdown。
+      const currentFull = draft ?? item.content.markdown;
+      const editorValue = overrideMarkdown ?? getMarkdownRef.current?.();
+      const value = editorValue === undefined
+        ? currentFull
+        : editorKind === "source"
+          ? editorValue
+          : joinFrontmatter(splitFrontmatter(currentFull).frontText, editorValue);
+      if (value === item.content.markdown) {
+        setSavedTick(savingTick);
+        setSaveState({ kind: "idle" });
+        return true;
+      }
+      setSaveState({ kind: "saving" });
       const saved = await saveItemContent(userId, item.id, value);
       setDraft(saved.content.scope === "plain" ? saved.content.markdown : "");
       setSavedTick(savingTick);
@@ -480,18 +482,48 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     return () => window.removeEventListener("keydown", onKey);
   }, [flush]);
 
-  const switchMode = async (next: "edit" | "preview") => {
-    if (next === "preview") await flush();
-    setMode(next);
-    if (modeReadyRef.current) void updateAppearance(userId, { noteModes: { [noteId]: next } });
+  const changeViewAfterSave = async (changeView: () => void) => {
+    if (viewChanging.current || uploading || editorUploading) return;
+    viewChanging.current = true;
+    try {
+      if (!await saveBeforeNoteViewChange(() => getMarkdownRef.current?.(), flush)) return;
+      notePosition.rememberPosition();
+      changeView();
+    } catch (cause) {
+      setSaveState({ kind: "error", message: String(cause) });
+    } finally {
+      viewChanging.current = false;
+    }
   };
 
-  /* 源码是低频形态，留在「更多」里（2026-11-13 负责人确认），不占常驻分段。
-     换形态前先 flush，避免源码与所见即所得之间丢字。 */
-  const toggleEditorKind = async () => {
-    if (!(await flush())) return;
-    setEditorKind((current) => current === "source" ? "wysiwyg" : "source");
-    setMoreOpen(false);
+  const setDocumentMode = (next: "edit" | "preview") => {
+    setMode(next);
+    void updateAppearance(userId, { noteModes: { [noteId]: next } });
+  };
+
+  const switchMode = (next: "edit" | "preview") => {
+    if (!modeReady || next === mode) return;
+    if (next === "preview") void changeViewAfterSave(() => setDocumentMode(next));
+    else {
+      notePosition.rememberPosition();
+      setDocumentMode(next);
+    }
+  };
+
+  /* 源码是低频形态，留在「更多」里（2026-11-13 负责人确认），不占常驻分段。 */
+  const toggleEditorKind = () => {
+    if (!modeReady) return;
+    if (mode === "preview") {
+      notePosition.rememberPosition();
+      setEditorKind("source");
+      setDocumentMode("edit");
+      setMoreOpen(false);
+      return;
+    }
+    void changeViewAfterSave(() => {
+      setEditorKind((current) => current === "source" ? "wysiwyg" : "source");
+      setMoreOpen(false);
+    });
   };
 
   const addTag = async (raw: string) => {
@@ -620,7 +652,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
       <DocBar
         crumb={documentCrumb} showBack={showBack} onBack={onBack} note={!isTableDoc}
-        mode={mode} onMode={switchMode} inert={encrypting}
+        mode={mode} onMode={switchMode} inert={encrypting} actionsDisabled={!modeReady}
         before={(
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
@@ -655,8 +687,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                   </button>
                   {isTableDoc && <button type="button" role="menuitem" disabled={uploading} onClick={() => { setMoreOpen(false); fileInputRef.current?.click(); }}><Paperclip />插入附件</button>}
                   {!isTableDoc && (
-                    <button type="button" role="menuitem" onClick={() => void toggleEditorKind()}>
-                      <Code />{editorKind === "source" ? "回到所见即所得" : "源码"}
+                    <button type="button" role="menuitem" onClick={toggleEditorKind}>
+                      <Code />{mode === "edit" && editorKind === "source" ? "回到所见即所得" : "源码"}
                     </button>
                   )}
                   {isTableDoc && (
@@ -690,7 +722,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </>
         )}
       />
-      <div className="mn-docbody" inert={encrypting}>
+      <div className="mn-docbody" inert={encrypting} ref={notePosition.scrollerRef}>
         <div className="mn-doc-main">
         {recoveryText && (
           <p className="mn-conflictnote">
@@ -780,6 +812,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onUploadStateChange={setEditorUploading}
             inspectorOutline
             onHostElement={setEditorHost}
+            registerCursor={notePosition.registerCursor}
             registerApplyExternal={(apply: ((markdown: string) => void) | null) => {
               if (apply) applyExternalRef.current = (markdown: string) => apply(
                 editorKind === "source" ? markdown : splitFrontmatter(markdown).body,
