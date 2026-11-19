@@ -12,6 +12,7 @@ interface MainLayoutProps {
   title: string;
   items: Item[] | undefined;
   selectedNoteId: string | null;
+  topicOverview?: boolean;
   onSelectNote: (id: string) => void;
   onMoveNote?: (item: Item) => void | Promise<unknown>;
   onToggleStar?: (item: Item) => void | Promise<unknown>;
@@ -31,7 +32,7 @@ interface MainLayoutProps {
 }
 
 /* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
+export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, topicOverview, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -77,6 +78,17 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
   const singlePane = layout === "tablet" || layout === "mobile";
   const showList = !singlePane || mobilePane === "list";
   const showDoc = !singlePane || mobilePane === "doc";
+  const showOverview = !singlePane && topicOverview && selectedNoteId === null;
+  const resultProps = {
+    items: shown,
+    selectedId: selectedNoteId,
+    onSelect: onSelectNote,
+    emptyTitle: filtering ? "没有匹配的内容" : emptyTitle,
+    emptyDetail: filtering ? "换个词，或清空搜索。" : emptyDetail,
+    picking,
+    pickedIds: picked,
+    onTogglePicked: togglePicked,
+  };
 
   return (
     <main className="mn-main" aria-label="主区">
@@ -120,11 +132,18 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
             </div>
           )}
           {viewMode === "list"
-            ? <NoteList items={shown} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={filtering ? "没有匹配的内容" : emptyTitle} emptyDetail={filtering ? "换个词，或清空搜索。" : emptyDetail} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} picking={picking} pickedIds={picked} onTogglePicked={togglePicked} />
-            : <NoteGrid items={shown} selectedId={selectedNoteId} onSelect={onSelectNote} emptyTitle={filtering ? "没有匹配的内容" : emptyTitle} emptyDetail={filtering ? "换个词，或清空搜索。" : emptyDetail} picking={picking} pickedIds={picked} onTogglePicked={togglePicked} />}
+            ? <NoteList {...resultProps} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
+            : <NoteGrid {...resultProps} />}
         </section>
       )}
-      {showDoc && document}
+      {showOverview ? (
+        <section className="mn-doc mn-topic-overview" aria-label="文章总览">
+          <div className="mn-docbar">
+            <h2 className="mn-topic-overview-title" title={title}>{title}</h2>
+          </div>
+          <NoteGrid {...resultProps} />
+        </section>
+      ) : showDoc && document}
     </main>
   );
 }

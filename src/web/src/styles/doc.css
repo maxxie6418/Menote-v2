@@ -14,6 +14,24 @@
 .mn-doc-path { display: flex; align-items: center; gap: var(--app-space-6); margin: var(--app-zero) auto; color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-doc-path .mn-textbtn { padding: var(--app-zero) var(--app-space-4); font-size: var(--app-size-chip); }
 
+.mn-topic-overview .mn-docbar { padding-inline: var(--app-space-lg); }
+.mn-topic-overview-title {
+  margin: var(--app-zero);
+  font-size: var(--app-size-list-title);
+  font-weight: var(--app-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mn-topic-overview .mn-notegrid {
+  flex: 1;
+  min-height: var(--app-zero);
+  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--app-full-size), var(--app-note-grid-min)), 1fr));
+}
+.mn-topic-overview .mn-note-card { padding: var(--app-space-14); gap: var(--app-space-8); }
+.mn-topic-overview .mn-note-card:hover { border-color: var(--app-accent); }
+
 /* ---------- 空状态（DESIGN §8.3：一句说明 + 快捷键提示，不放插画） ---------- */
 .mn-empty { display: grid; place-items: center; flex: 1; padding: var(--app-space-lg); text-align: center; min-height: 0; }
 .mn-empty-title { font-size: var(--app-font-small); color: var(--app-fg-muted); margin: var(--app-zero) var(--app-zero) var(--app-space-4); }
