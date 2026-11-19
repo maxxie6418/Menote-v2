@@ -37,6 +37,7 @@ interface TableDocumentProps {
   addColumnSignal?: number;
   /** 加密文档没有获批的附件密文上传协议时，禁止走明文附件接口。 */
   allowAttachments?: boolean;
+  sealedAttachments?: boolean;
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
@@ -52,7 +53,7 @@ function removeFirstTable(body: string): string {
 /** 多维表格整页网格（TP2）：列管理 + 行管理 + 类型化单元格编辑；载体永远是标准 GFM（FR-TBL-1）。
  *  字段定义写 YAML `fields:`（FR-TBL-3）；与属性区共用同一套类型与序列化（FR-PROP-4）。
  *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
-export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true }: TableDocumentProps) {
+export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true, sealedAttachments = false }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
   const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
@@ -863,6 +864,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                     <TableCellEditor
                       userId={userId}
                       allowAttachments={allowAttachments}
+                      attachmentItemId={sealedAttachments ? itemId : undefined}
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
                       onChange={(value) => setCell(row, col, value)}
                     />
@@ -889,6 +891,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
             rowNumber={detailRow + 1}
             columns={table.header}
             cells={table.rows[detailRow]}
+            attachmentItemId={sealedAttachments ? itemId : undefined}
             onClose={() => setDetailRow(null)}
             onDelete={readOnly ? undefined : () => { removeRow(detailRow); setDetailRow(null); }}
           />

@@ -22,6 +22,8 @@ export type {
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
 export { parseRecoveryCodeBinding } from "./contracts/recoveryCode";
+export { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_MAGIC, SEALED_ATTACHMENT_MIME_BYTES,
+  SEALED_ATTACHMENT_IV_BYTES, SEALED_ATTACHMENT_OVERHEAD, isSealedAttachment } from "./contracts/sealedAttachment";
 export {
   MCP_PERMISSION_KEYS,
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,

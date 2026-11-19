@@ -14,6 +14,7 @@ import { locateTable, runTableCommand as runTableCommandOn, type TableCommandId,
 import type { EditorAdapter } from "./EditorAdapter";
 import { textColorMark, textColorRemark, isAllowedTextColor } from "./textColorPlugin";
 import type { BlockAction, InlineAction } from "./markdownEdit";
+import { unlockedImageView } from "./unlockedImageView";
 
 /**
  * markdown 前缀长度（UTF-16 字符数）。
@@ -66,7 +67,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
 
   static async create(
     host: HTMLElement,
-    options: { initialMarkdown: string; onInput: () => void },
+    options: { initialMarkdown: string; onInput: () => void; attachmentItemId?: string },
   ): Promise<MilkdownWysiwygAdapter> {
     const adapter = new MilkdownWysiwygAdapter();
     // 键入延迟基线（FR-EDT-10 / W0）：按一次键 → 变更被感知（updated 触发）。诊断关闭时不打点。
@@ -82,6 +83,9 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ctx.update(editorViewOptionsCtx, (previous) => ({
           ...previous,
           attributes: { class: "md-body mn-editor-prose" },
+          ...(options.attachmentItemId ? {
+            nodeViews: { ...previous.nodeViews, image: (node: Node) => unlockedImageView(node, options.attachmentItemId!) },
+          } : {}),
         }));
         // 只订阅 `updated`：文档级事件，不触发序列化器。
         // listener 的 `updated` 条件是 `prevDoc && !prevDoc.eq(doc)`——本版本里

@@ -1,4 +1,4 @@
-import type { Attachment, Item } from "@menote/shared";
+import { SEALED_ATTACHMENT_MIME, type Attachment, type Item } from "@menote/shared";
 import { notifyEditorChange, registerEditorSave } from "./editorSaveService";
 import { zipSync, strToU8 } from "fflate";
 import { listUserItems } from "../db/itemsRepo";
@@ -71,12 +71,22 @@ async function uploadAttachmentInner(
   const extension = file.name.split(/[\\/]/).pop()?.match(/\.([^.]+)$/)?.[1]?.toLowerCase() ?? "";
   if (file.size > policy.maxBytes) return { error: "size_exceeded" };
   if (!extension || !policy.allowedExtensions.includes(extension)) return { error: "format_not_allowed" };
+  return postAttachment(file, extension, onProgress);
+}
+
+/** Encrypted uploads do not send the original filename, extension or MIME. */
+export function postSealedAttachment(file: File, onProgress?: (percent: number) => void) {
+  return postAttachment(file, null, onProgress);
+}
+
+function postAttachment(file: File, extension: string | null, onProgress?: (percent: number) => void):
+  Promise<{ sha256: string; name: string } | { error: string }> {
   return new Promise((resolve) => {
     const request = new XMLHttpRequest();
     request.open("POST", "/api/attachments");
     request.timeout = ATTACHMENT_UPLOAD_TIMEOUT_MS;
     request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    request.setRequestHeader("X-File-Extension", `.${extension}`);
+    if (extension) request.setRequestHeader("X-File-Extension", `.${extension}`);
     request.upload.onprogress = (event) => {
       if (!onProgress || !event.lengthComputable || event.total === 0) return;
       onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
@@ -150,15 +160,30 @@ function itemMarkdown(item: Item): string {
 /** 单篇导出 zip（FR-SYNC-9）：.md + attachments/ 仅含被引用附件，解压即完整可读。 */
 export async function exportNoteZip(userId: string, item: Item): Promise<{ ok: true } | { ok: false; error: string }> {
   void userId;
+  if (item.content.scope !== "plain") return { ok: false, error: "locked" };
+  return exportAttachmentZip(item.title ?? "memo", itemMarkdown(item), fetchAttachmentBlob);
+}
+
+/** An export either includes every attachment or fails without producing an incomplete ZIP. */
+export async function exportAttachmentZip(title: string, markdown: string,
+  readAttachment: (sha256: string) => Promise<Blob | null>, canDownload = () => true,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const markdown = itemMarkdown(item);
-    const name = safeFilename(item.title ?? "memo");
-    const files: Record<string, Uint8Array> = { [`${name}.md`]: strToU8(markdown) };
+    const name = safeFilename(title);
+    const files: Record<string, Uint8Array> = Object.assign(Object.create(null), { [`${name}.md`]: strToU8(markdown) });
+    const bytesByHash = new Map<string, Uint8Array>();
     for (const ref of extractAttachmentRefs(markdown)) {
-      const response = await fetch(attachmentUrl(ref.sha256), { cache: "no-store" });
-      if (!response.ok) continue;
-      files[`attachments/${ref.sha256}--${ref.name}`] = new Uint8Array(await response.arrayBuffer());
+      if (!canDownload() || /[\/\\\u0000-\u001f]/.test(ref.name)) throw new Error("attachment_export_unavailable");
+      let bytes = bytesByHash.get(ref.sha256);
+      if (!bytes) {
+        const blob = await readAttachment(ref.sha256);
+        if (!blob || blob.type === SEALED_ATTACHMENT_MIME) throw new Error("attachment_export_unavailable");
+        bytes = new Uint8Array(await blob.arrayBuffer());
+        bytesByHash.set(ref.sha256, bytes);
+      }
+      files[`attachments/${ref.sha256}--${ref.name}`] = bytes;
     }
+    if (!canDownload()) throw new Error("locked");
     const zipped = zipSync(files);
     downloadBlob(new Blob([zipped as BlobPart], { type: "application/zip" }), `${name}.zip`);
     return { ok: true };
@@ -169,6 +194,7 @@ export async function exportNoteZip(userId: string, item: Item): Promise<{ ok: t
 
 /** 纯 .md 导出（可选；正文附件引用将断链，调用方提示）。 */
 export function exportNoteMarkdown(item: Item): void {
+  if (item.content.scope !== "plain") return;
   const name = safeFilename(item.title ?? "memo");
   downloadBlob(new Blob([itemMarkdown(item)], { type: "text/markdown" }), `${name}.md`);
 }

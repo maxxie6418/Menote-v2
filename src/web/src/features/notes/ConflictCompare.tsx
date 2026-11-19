@@ -35,7 +35,7 @@ export function ConflictCompare({ userId, copy, original, copyText, onKeptOrigin
         </div>
         <div>
           <h3>这份副本</h3>
-          {copyText === null ? <p>这份还没解锁，不能对照正文。</p> : <MarkdownView markdown={copyText} className="md-body markdown-content" />}
+          {copyText === null ? <p>这份还没解锁，不能对照正文。</p> : <MarkdownView markdown={copyText} attachmentItemId={copy.content.scope === "plain" ? undefined : copy.id} className="md-body markdown-content" />}
         </div>
       </div>
       <p className="mn-conflict-actions">

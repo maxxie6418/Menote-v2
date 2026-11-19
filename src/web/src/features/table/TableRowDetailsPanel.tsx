@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Trash2, X } from "../../icons";
 import { safeWebUrl } from "../../lib/safeUrl";
+import { extractAttachmentRefs } from "../../lib/attachmentRefs";
+import { UnlockedAttachment } from "../attachments";
 
 interface TableRowDetailsPanelProps {
   rowNumber: number;
@@ -9,6 +11,7 @@ interface TableRowDetailsPanelProps {
   onClose: () => void;
   /** 删行入口：行号槽只留编号与拖动，删除收进详情（预览态不传）。 */
   onDelete?: () => void;
+  attachmentItemId?: string;
 }
 
 function CoverPreview({ src, alt }: { src: string; alt: string }) {
@@ -18,7 +21,7 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 }
 
 /** Row detail side panel, with a large preview for Raindrop cover URLs. */
-export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose, onDelete }: TableRowDetailsPanelProps) {
+export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose, onDelete, attachmentItemId }: TableRowDetailsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   // onClose 走 ref：父组件传内联闭包时，表格数据刷新重渲染会让陷阱 effect 反复重跑、
@@ -64,10 +67,13 @@ export function TableRowDetailsPanel({ rowNumber, columns, cells, onClose, onDel
           {columns.map((column, index) => {
             const value = cells[index] ?? "";
             const url = safeWebUrl(value);
+            const attachments = attachmentItemId ? extractAttachmentRefs(value) : [];
             return (
               <div key={`${column}-${index}`}>
                 <dt>{column || `字段 ${index + 1}`}</dt>
-                <dd>{url ? <a href={url} target="_blank" rel="noreferrer">{value}</a> : value || <span>—</span>}</dd>
+                <dd>{attachmentItemId && attachments.length ? attachments.map((ref, i) =>
+                  <UnlockedAttachment key={`${ref.sha256}-${i}`} itemId={attachmentItemId} {...ref} />)
+                  : url ? <a href={url} target="_blank" rel="noreferrer">{value}</a> : value || <span>—</span>}</dd>
               </div>
             );
           })}

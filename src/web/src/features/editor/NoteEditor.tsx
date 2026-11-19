@@ -27,6 +27,8 @@ const UPLOAD_ERRORS: Record<string, string> = {
   unauthorized: "登录状态已失效，请重新登录后重试",
   network: "网络中断",
   aborted: "已取消",
+  locked: "笔记已锁定，解锁后重试",
+  attachment_encryption_failed: "附件加密或上传失败，请重试",
 };
 
 /** 行内格式按下态比较：内容没变就不换数组引用，避免每次 keyup 都白白触发一次重渲染。 */
@@ -55,10 +57,11 @@ interface NoteEditorProps {
   /** 页面检查器负责展示大纲时，隐藏编辑器内的大纲浮钮并注册实际编辑宿主。 */
   inspectorOutline?: boolean;
   onHostElement?: (host: HTMLDivElement | null) => void;
+  attachmentItemId?: string;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement }: NoteEditorProps) {
+export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bindHost = useCallback((host: HTMLDivElement | null) => {
     hostRef.current = host;
@@ -82,11 +85,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   onInputRef.current = onInput;
 
   /** 源码模式只做原样读写；WYSIWYG 才映射附件引用到可显示 URL。 */
-  const toVisibleMarkdown = (markdown: string) => kind === "source"
+  const toVisibleMarkdown = (markdown: string) => kind === "source" || attachmentItemId
     ? markdown
     : toEditorMarkdown(markdown, namesRef.current);
 
-  const readMarkdown = (markdown: string) => kind === "source"
+  const readMarkdown = (markdown: string) => kind === "source" || attachmentItemId
     ? markdown
     : fromEditorMarkdown(markdown, namesRef.current);
 
@@ -101,7 +104,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const persistedMarkdown = (adapter: EditorAdapter): string => {
     if (kind === "source") return adapter.getMarkdown();
     const raw = adapter.getPreservedMarkdown?.() ?? adapter.getMarkdown();
-    return fromEditorMarkdown(raw, namesRef.current);
+    return readMarkdown(raw);
   };
 
   /** 外部写回（属性区增删、他端变更）会整篇 replaceAll，选区落到文末会把页面滚到底；
@@ -138,6 +141,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       void MilkdownWysiwygAdapter.create(host, {
         initialMarkdown: initial,
         onInput: emit,
+        attachmentItemId,
       }).then((adapter) => {
         if (cancelled) { void adapter.destroy(); return; }
         adapterRef.current = adapter;
@@ -154,7 +158,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
         });
         if (cancelled) { fallback.destroy(); return; }
         adapterRef.current = fallback;
-        registerGetMarkdown(() => fromEditorMarkdown(fallback.getMarkdown(), namesRef.current));
+        registerGetMarkdown(() => readMarkdown(fallback.getMarkdown()));
         registerApplyExternal((markdown) => {
           dirtyRef.current = false;
           fallback.loadMarkdown(toVisibleMarkdown(markdown));
@@ -172,7 +176,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     };
     // 仅按挂载/形态切换重建；内容流转走 loadMarkdown。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, kind]);
+  }, [mode, kind, attachmentItemId]);
 
   const commit = (markdown: string, start: number, end: number) => {
     const adapter = adapterRef.current;
@@ -232,20 +236,23 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       const patch = (next: Partial<UploadTask>) => setUploads((previous) =>
         previous.map((item) => (item.id === task.id ? { ...item, ...next } : item)));
       const uploaded = await uploadFile(file, (percent) => patch({ percent }));
+      if (adapterRef.current !== adapter) return;
       if ("error" in uploaded) {
         patch({ error: uploaded.error });
-        onInputRef.current();
-        return;
+        continue;
       }
+      const latest = readMarkdown(adapter.getMarkdown());
+      if (latest !== markdown) caret = adapter.getSelection().start;
+      markdown = latest;
       // 名字净化后再入库：往返映射与正文引用必须用同一个名字
       const name = safeAttachmentName(uploaded.name);
       namesRef.current.set(uploaded.sha256, name);
       const placed = insertAttachment(markdown, caret, { sha256: uploaded.sha256, name }, file.type.startsWith("image/"));
       markdown = placed.markdown;
       caret = placed.selectionStart;
+      commit(markdown, caret, caret);
       setUploads((previous) => previous.filter((item) => item.id !== task.id));
     }
-    commit(markdown, caret, caret);
   };
 
   const refreshSlash = () => {

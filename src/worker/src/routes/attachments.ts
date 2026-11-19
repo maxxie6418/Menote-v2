@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_OVERHEAD } from "@menote/shared";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import { ensureSchemaReady } from "../services/authService";
@@ -31,7 +32,8 @@ attachmentRoutes.post("/api/attachments", sameOriginGuard, requireSession, async
     const userId = c.get("authUser")!.id;
     const contentLength = Number(c.req.header("Content-Length"));
     const policy = await readAttachmentPolicy(c.env.DB, userId);
-    if (Number.isFinite(contentLength) && contentLength > policy.maxBytes) return c.json({ error: "invalid_attachment" }, 400);
+    const overhead = c.req.header("Content-Type")?.split(";")[0] === SEALED_ATTACHMENT_MIME ? SEALED_ATTACHMENT_OVERHEAD : 0;
+    if (Number.isFinite(contentLength) && contentLength > policy.maxBytes + overhead) return c.json({ error: "invalid_attachment" }, 400);
     const body = await c.req.arrayBuffer();
     const filename = c.req.header("X-File-Extension") ?? "";
     const result = await storeAttachment(

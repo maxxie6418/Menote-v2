@@ -34,7 +34,7 @@ export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
       <div className="mn-dialog" role="dialog" aria-modal="true" aria-label="启用单篇加密">
         <div className="mn-dialog-head"><p className="mn-dialog-title">启用单篇加密</p></div>
         <div className="mn-dialog-body">
-          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位。正文加密，标题保持明文；目前不支持含附件的笔记加密，请先移除附件引用。</p>
+          <p className="mn-auth-hint">单篇密码与登录密码、空间密码相互独立，至少 {NOTE_PASSWORD_MIN} 位。标题保持明文。已有明文附件请先移除引用，再从加密笔记中重新上传。</p>
           {hasRecovery === null && !error && <p className="mn-auth-hint">正在同步并检查账户恢复码…</p>}
           <label className="mn-auth-field"><span>单篇密码（至少 {NOTE_PASSWORD_MIN} 位）</span>
             <input type="password" value={password} autoComplete="new-password" minLength={NOTE_PASSWORD_MIN} onChange={(event) => setPassword(event.target.value)} />

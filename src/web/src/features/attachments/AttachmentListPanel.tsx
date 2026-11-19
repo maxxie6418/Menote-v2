@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Attachment } from "@menote/shared";
+import { SEALED_ATTACHMENT_MIME, type Attachment } from "@menote/shared";
 import { attachmentUrl, listAttachmentReferences, listAttachments, type AttachmentDetails } from "../../services/attachmentService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 
@@ -61,17 +61,20 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
       {view === "list" && attachments !== null && attachments.length > 0 && (
         <ul className="mn-attachlist" aria-label="附件列表">
           {attachments.map((attachment) => {
-            const detail = references[attachment.sha256];
-            const name = detail?.name ?? `${attachment.sha256.slice(0, 12)}…`;
+            const sealed = attachment.mime === SEALED_ATTACHMENT_MIME;
+            const detail = sealed ? undefined : references[attachment.sha256];
+            const name = detail?.name ?? (sealed ? `加密附件 · ${attachment.sha256.slice(0, 12)}…` : `${attachment.sha256.slice(0, 12)}…`);
             return (
               <li key={attachment.sha256} className="mn-attachrow">
                 {attachment.mime.startsWith("image/")
                   ? <a className="mn-attachthumb" href={attachmentUrl(attachment.sha256)} target="_blank" rel="noreferrer" aria-label={`查看附件 ${name}`}><img src={attachmentUrl(attachment.sha256)} alt={name} loading="lazy" /></a>
                   : <span className="mn-attachthumb mn-attachthumb-file" aria-hidden="true">文件</span>}
                 <div className="mn-attachcontent">
-                  <a className="mn-attachname" href={attachmentUrl(attachment.sha256)} target="_blank" rel="noreferrer">{name}</a>
-                  <span className="mn-attachmeta">{attachment.mime} · {formatSize(attachment.size)} · 引用 {attachment.refCount}</span>
-                  {detail?.references.length ? <div className="mn-attachrefs">引用文章：{detail.references.map((ref, index) => <span key={ref.id}>{index > 0 && "、"}<a href={ref.href}>{ref.title}</a></span>)}</div> : <span className="mn-attachmeta">暂无引用文章</span>}
+                  {sealed ? <span className="mn-attachname">{name}</span>
+                    : <a className="mn-attachname" href={attachmentUrl(attachment.sha256)} target="_blank" rel="noreferrer">{name}</a>}
+                  <span className="mn-attachmeta">{sealed ? "密文" : attachment.mime} · {formatSize(attachment.size)} · 引用 {attachment.refCount}</span>
+                  {sealed ? <span className="mn-attachmeta">在所属笔记解锁后打开</span>
+                    : detail?.references.length ? <div className="mn-attachrefs">引用文章：{detail.references.map((ref, index) => <span key={ref.id}>{index > 0 && "、"}<a href={ref.href}>{ref.title}</a></span>)}</div> : <span className="mn-attachmeta">暂无引用文章</span>}
                 </div>
               </li>
             );

@@ -18,7 +18,8 @@ const backupBundle = await build({
     export * from "./src/services/backupService";
     export { restoreRemoteSnapshot } from "./src/services/remoteRestoreService";
     export { generateRecoveryCode, generateContentKey, wrapContentKey, unwrapContentKey, encryptMarkdown, decryptMarkdown }
-      from "../web/src/services/cryptoService";` },
+      from "../web/src/services/cryptoService";
+    export { sealAttachment, openSealedAttachment } from "../web/src/services/sealedAttachmentService";` },
   bundle: true, write: false, format: "esm", platform: "node",
 });
 const backupService = await import(`data:text/javascript;base64,${Buffer.from(backupBundle.outputFiles[0].text).toString("base64")}`);
@@ -125,15 +126,23 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
     const recovery = backupService.generateRecoveryCode();
     const key = backupService.generateContentKey();
     const oldKey = backupService.generateContentKey();
+    const fixture = "随加密笔记备份的附件";
+    const sealedFile = await backupService.sealAttachment(new Blob([fixture], { type: "text/plain" }), key);
+    const opaqueUpload = await req(source, "/api/attachments", { method: "POST", headers: {
+      origin: "http://localhost", cookie: sourceCookie, "Content-Type": sealedFile.type,
+    }, body: sealedFile });
+    assert.equal(opaqueUpload.status, 201, "密文上传不提供原文件扩展名");
+    const { sha256: sealedHash } = await opaqueUpload.json();
+    const encryptedMarkdown = `原始加密正文\n\n[附件](attachments/${sealedHash}--confidential.txt)`;
     const password = "test-note-password";
     const [body, wrap, oldWrap, passwordWrap] = await Promise.all([
-      backupService.encryptMarkdown("原始加密正文", key),
+      backupService.encryptMarkdown(encryptedMarkdown, key),
       backupService.wrapContentKey(key, recovery, "recovery"),
       backupService.wrapContentKey(oldKey, recovery, "recovery"),
       backupService.wrapContentKey(key, password, "password"),
     ]);
     const backupItem = (rev, envelope) => ({ id: "sealed", type: "note", title: "加密笔记", content_ciphertext: `${envelope.iv}:${envelope.ciphertext}`, tags_json: "[]",
-      attachment_hashes_json: "[]", source: "manual", rev, meta_rev: 1, content_hash: `encrypted-${rev}`, enc_self: 1, created_at: 1, updated_at: 1 });
+      attachment_hashes_json: JSON.stringify([sealedHash]), source: "manual", rev, meta_rev: 1, content_hash: `encrypted-${rev}`, enc_self: 1, created_at: 1, updated_at: 1 });
     const wrapRow = (value) => ({ item_id: "sealed", wrapper: value.wrapper, kdf_salt: value.kdfSalt,
       kdf_iterations: value.kdfIterations, iv: value.iv, ciphertext: value.ciphertext, generation: value.generation });
     const created = await json(source, sourceCookie, "POST", "/api/restore", {
@@ -164,7 +173,8 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
       assert.equal(pushed.ok, true, pushed.error);
       assert.ok([...objects.values()].every((bytes) => {
         const buffer = Buffer.from(bytes);
-        return !buffer.includes(recovery) && !buffer.includes(password) && !buffer.includes("原始加密正文");
+        return !buffer.includes(recovery) && !buffer.includes(password) && !buffer.includes("原始加密正文")
+          && !buffer.includes(fixture) && !buffer.includes("confidential.txt");
       }), "快照不含恢复码、密码或加密笔记正文的明文");
       await withWorker(async (destination) => {
         const cookie = await login(destination);
@@ -174,7 +184,7 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
         assert.notEqual(cleanUser.id, user.id);
         const restored = await backupService.restoreRemoteSnapshot({ db: cleanDb, userId: cleanUser.id, bucket: cleanBucket }, target, pushed.backupId);
         assert.equal(restored.items, 5001);
-        assert.equal(restored.attachments, 1);
+        assert.equal(restored.attachments, 2);
         assert.equal((await cleanDb.prepare("SELECT COUNT(*) AS n FROM items").first()).n, 5001);
         const accountState = await req(destination, `/api/recovery-code?account=${cleanUser.id}`, { headers: { cookie } });
         assert.deepEqual(await accountState.json(), { binding }, "快照保留同一账户恢复码绑定");
@@ -185,11 +195,18 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
         const wraps = (await cleanDb.prepare("SELECT wrapper, kdf_salt, kdf_iterations, iv, ciphertext FROM item_key_wraps WHERE item_id = 'sealed'").all()).results;
         assert.equal(wraps.length, 2);
         const [iv, ciphertext] = sealed.content_ciphertext.split(":");
+        const encryptedResponse = await req(destination, `/api/attachments/${sealedHash}`, { headers: { cookie } });
+        assert.equal(encryptedResponse.headers.get("Content-Type"), sealedFile.type);
+        const encryptedFile = await encryptedResponse.blob();
+        await assert.rejects(backupService.openSealedAttachment(encryptedFile, oldKey));
         for (const raw of wraps) {
           const unwrapped = await backupService.unwrapContentKey({ wrapper: raw.wrapper, kdfSalt: Buffer.from(raw.kdf_salt).toString("base64"),
             kdfIterations: raw.kdf_iterations, iv: Buffer.from(raw.iv).toString("base64"), ciphertext: Buffer.from(raw.ciphertext).toString("base64") },
           raw.wrapper === "recovery" ? recovery : password);
-          assert.equal(await backupService.decryptMarkdown({ iv, ciphertext }, unwrapped), "原始加密正文");
+          assert.equal(await backupService.decryptMarkdown({ iv, ciphertext }, unwrapped), encryptedMarkdown);
+          const opened = await backupService.openSealedAttachment(encryptedFile, unwrapped);
+          assert.equal(opened.type, "text/plain");
+          assert.equal(await opened.text(), fixture);
         }
         const attachment = await req(destination, `/api/attachments/${sha256}`, { headers: { cookie } });
         assert.equal(attachment.headers.get("Content-Type"), "image/png");

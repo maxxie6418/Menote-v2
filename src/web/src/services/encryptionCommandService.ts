@@ -9,6 +9,7 @@ import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 import { cancelScheduledRecovery, discardRecovery } from "./recoveryService";
 import { registerRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
+import { verifyAddedSealedAttachments } from "./sealedAttachmentService";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
 /** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
@@ -89,10 +90,7 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
       throw new Error("not_encrypted");
     }
     const attachmentHashes = attachmentHashesOf(markdown);
-    // 禁止通过粘贴 Markdown 引用把明文附件引入加密内容；旧版遗留引用允许保留或移除。
-    if (attachmentHashes.some((hash) => !current.attachmentHashes.includes(hash))) {
-      throw new Error("加密笔记暂不支持新增附件引用");
-    }
+    await verifyAddedSealedAttachments(id, attachmentHashes, current.attachmentHashes);
     const envelope = await encryptMarkdown(markdown, key);
     const sealed = packEnvelope(envelope.iv, envelope.ciphertext);
     if (sealed !== current.content.ciphertext) {
@@ -104,6 +102,11 @@ export function saveEncryptedContent(userId: string, id: string, markdown: strin
       updatedAt: Date.now(), content: { scope: current.content.scope, ciphertext: sealed },
     };
     await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
+      const latest = await localDb.items.get(id);
+      if (getContentKey(id) !== key || !latest || latest.rev !== current.rev || latest.metaRev !== current.metaRev ||
+          latest.contentHash !== current.contentHash || latest.content.scope !== current.content.scope) {
+        throw new Error("笔记已锁定或有其他修改，请重新打开后重试。");
+      }
       await localDb.items.put(next);
       // 重加密后正文哈希变了：按正文操作上报，正文版本号随之推进。
       await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, next.contentHash));
@@ -125,6 +128,9 @@ export function decryptToPlain(userId: string, id: string, markdown: string): Pr
 
 async function decryptToPlainInner(userId: string, id: string, markdown: string): Promise<Item> {
   const current = await requireItem(userId, id);
+  if (!getContentKey(id)) throw new Error("locked");
+  // Moving sealed references to a clear note would remove the key and break its attachments.
+  if (attachmentHashesOf(markdown).length) throw new Error("请先导出笔记与附件，再移除附件引用并解除加密。");
   if (current.content.scope === "self" && markdown.trim() === "") {
     const sealed = current.content.ciphertext;
     if (sealed.length > 0) {

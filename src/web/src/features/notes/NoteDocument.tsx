@@ -179,6 +179,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [moreOpen, setMoreOpen] = useState(false);
   const [tableSourceOpen, setTableSourceOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [encrypting, setEncrypting] = useState(false);
   const [history, setHistory] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -880,15 +882,23 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
               {item.content.scope !== "plain" && (
                 <p className="mn-auth-hint">已加密内容导出须先解锁（C-1：锁定态只能取得密文）。</p>
               )}
+              {exportError && <p className="mn-auth-error" role="alert">有附件无法读取，ZIP 未导出。请检查附件后重试。</p>}
             </div>
             <div className="mn-dialog-actions">
-              <button type="button" className="mn-auth-submit" onClick={() => { void exportNoteZip(userId, item); setExporting(false); }}>
-                导出 zip（含附件）
+              <button type="button" className="mn-auth-submit" disabled={exportBusy} onClick={async () => {
+                setExportBusy(true);
+                setExportError(false);
+                const result = await exportNoteZip(userId, item);
+                setExportBusy(false);
+                if (result.ok) setExporting(false);
+                else setExportError(true);
+              }}>
+                {exportBusy ? "正在导出…" : "导出 zip（含附件）"}
               </button>
               <button type="button" className="mn-auth-link" onClick={() => { exportNoteMarkdown(item); setExporting(false); }}>
                 纯 Markdown
               </button>
-              <button type="button" className="mn-auth-link" onClick={() => setExporting(false)}>取消</button>
+              <button type="button" className="mn-auth-link" disabled={exportBusy} onClick={() => { setExportError(false); setExporting(false); }}>取消</button>
             </div>
           </div>
         </div>

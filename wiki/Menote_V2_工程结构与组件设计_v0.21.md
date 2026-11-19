@@ -159,6 +159,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 - 备份 Provider 协议操作（WebDAV/S3 写入、测试、列表、删除）集中在 `services/backupRemote.ts`；快照组装与完整性清单由 `services/backupService.ts` 负责。
 - 快照只读校验由 `services/backupVerifyService.ts` 负责，检查完成标记、清单、分片和附件；校验通过不代表恢复演练通过。
 - FR-ENC-6 账户恢复码登记：Web `services/recoveryCodeService.ts` 验证本机包装及账户校验信封；Worker `routes/recoveryCode.ts` → `services/recoveryCodeService.ts` → `db/recoveryCode.ts`，使用 `account_recovery_codes` 原子登记绑定。共享契约由 `contracts/recoveryCode.ts` 校验，迁移 0039 约束同步包装和兼容重放。快照保存绑定 ID 与密文校验信封。
+- FR-ENC-2/5 加密附件：Web `services/sealedAttachmentService.ts` 从笔记内容密钥派生附件密钥，`features/attachments/UnlockedAttachment` 和 Milkdown 图片视图仅在解锁态渲染。共享 `contracts/sealedAttachment.ts` 定义信封格式，Worker 复用附件路由及内容寻址存储。备份按密文哈希存取，ZIP 导出在浏览器解锁后进行。
 - 备份目标管理（输入归一、凭据密封/解封、推送编排、恢复导入）拆为 `services/backupTargetService.ts` 与 `services/restoreService.ts`；定时 backup_push 与手动推送共用 `runTargetPushById`（负责人 2026-11-01 确认 routes→db 直连回归三层）。
 - 附件编排（上限、服务端哈希重算、R2 写删、引用检查）在 Worker `services/attachmentService.ts`；路由只做鉴权与 HTTP 映射。
 - 迁移框架：`db/migrations/0001_*.sql` 起的顺序迁移 + 版本表；可重入（幂等）执行（FR-DEP-4）。

@@ -4,7 +4,9 @@ import remarkGfm from "remark-gfm";
 import { findMemoTagRanges } from "@menote/shared";
 import { attachmentUrl } from "../../services/attachmentService";
 import { perfProbe } from "../../lib/perfProbe";
+import { parseAttachmentDestination } from "../../lib/attachmentRefs";
 import { remarkTextColorForRender } from "../editor";
+import { UnlockedAttachment } from "../attachments";
 import {
   batchCount,
   FIRST_BATCH_CHARS,
@@ -24,6 +26,7 @@ interface MarkdownViewProps {
   /** 随记展示态将正文里的 #标签渲染为轻量强调样式，不修改源文本。 */
   highlightMemoTags?: boolean;
   className?: string;
+  attachmentItemId?: string;
 }
 
 interface HastNode {
@@ -91,7 +94,7 @@ function cancelIdle(handle: { kind: "idle" | "timer"; id: number }): void {
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
-export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className }: MarkdownViewProps) {
+export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className, attachmentItemId }: MarkdownViewProps) {
   // 渲染耗时基线（FR-EDT-10 / W0）：渲染开始 → 布局提交完成。诊断关闭时不打点。
   const renderStart = perfProbe.isEnabled ? performance.now() : 0;
   const renderStartRef = useRef(renderStart);
@@ -141,11 +144,20 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
         />
       );
     },
+    a({ node, href, children, ...rest }) {
+      void node;
+      const link = typeof href === "string" ? href : undefined;
+      const attachment = link && parseAttachmentDestination(link);
+      if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} {...attachment}>{children as ReactNode}</UnlockedAttachment>;
+      return <a {...rest} href={resolveSrc(link)}>{children as ReactNode}</a>;
+    },
     img(props) {
       const { node, ...rest } = props as { node?: unknown; src?: unknown; alt?: unknown; [key: string]: unknown };
       void node;
       const src = typeof rest.src === "string" ? rest.src : undefined;
       const alt = typeof rest.alt === "string" ? rest.alt : "";
+      const attachment = src && parseAttachmentDestination(src);
+      if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} sha256={attachment.sha256} name={alt || attachment.name} image />;
       const imgProps: Record<string, unknown> = { ...rest };
       delete imgProps.src;
       delete imgProps.alt;

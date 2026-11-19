@@ -1,3 +1,4 @@
+import { isSealedAttachment, SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_OVERHEAD } from "@menote/shared";
 import { getAttachment, listAttachments, upsertAttachment } from "../db/attachments";
 import { readSettingState } from "../db/sync";
 
@@ -33,11 +34,16 @@ export async function listUserAttachments(db: D1Database, userId: string) {
 /** 上传：大小校验 → 服务端重算 sha256 → R2 写入 → 元数据 upsert；载荷非法抛 invalid_attachment。 */
 export async function storeAttachment(ctx: AttachmentStoreContext, userId: string, body: ArrayBuffer, rawMime: string | undefined, filename: string | undefined) {
   const policy = await readAttachmentPolicy(ctx.db, userId);
+  const mime = rawMime?.split(";")[0] ?? "application/octet-stream";
+  const sealed = mime === SEALED_ATTACHMENT_MIME;
+  const payloadSize = body.byteLength - (sealed ? SEALED_ATTACHMENT_OVERHEAD : 0);
   const extension = filename?.split(/[\\/]/).pop()?.match(/\.([^.]+)$/)?.[1]?.toLowerCase() ?? "";
-  if (body.byteLength === 0 || body.byteLength > Math.min(MAX_ATTACHMENT_BYTES, policy.maxBytes) || !extension || !policy.allowedExtensions.includes(extension)) throw new Error("invalid_attachment");
+  if (payloadSize <= 0 || payloadSize > Math.min(MAX_ATTACHMENT_BYTES, policy.maxBytes) ||
+    (sealed ? !isSealedAttachment(new Uint8Array(body)) : !extension || !policy.allowedExtensions.includes(extension))) {
+    throw new Error("invalid_attachment");
+  }
   const digest = await crypto.subtle.digest("SHA-256", body);
   const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  const mime = rawMime?.split(";")[0] ?? "application/octet-stream";
   const key = `${userId}/${sha256}`;
   await ctx.bucket.put(key, body);
   try {

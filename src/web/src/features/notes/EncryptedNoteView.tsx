@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Eye, Lock, Pencil, ShieldOff, Focus } from "../../icons";
+import { ChevronLeft, Download, Eye, Lock, Pencil, ShieldOff, Focus } from "../../icons";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import type { Item } from "@menote/shared";
 import { NoteEditor } from "../editor";
@@ -16,6 +16,7 @@ import { discardRecovery, openRecoveryMarkdown, readRecovery, scheduleRecovery, 
 import { DocSyncStatus } from "../sync";
 import { notifyEditorChange, registerEditorSave } from "../../services/editorSaveService";
 import { ConflictCompare } from "./ConflictCompare";
+import { exportUnlockedAttachmentZip, uploadSealedAttachment } from "../../services/sealedAttachmentService";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -51,6 +52,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [focusMode, setFocusMode] = useState(false);
+  const [attachmentAction, setAttachmentAction] = useState<string | null>(null);
   const unlocked = isNoteUnlocked(item.id);
   const conflictSource = useItem(userId, item.conflictOf ?? null);
   const inSpace = item.content.scope === "private_space";
@@ -75,7 +77,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   }, [inSpace, item.id, item.topicId, unlocked]);
 
   useEffect(() => {
-    if (!unlocked) { setPlain(null); setReadError(null); return; }
+    if (!unlocked) { setPlain(null); setReadError(null); setPreviewText(null); setRecoveryText(null); return; }
     if (item.content.scope !== "plain" && plain === null && readError === null) {
       void readPlain(item.id, parseEnvelope(item.content.ciphertext)).then((value) => {
         if (value === null) {
@@ -181,6 +183,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   };
 
   const plainFlow = plain !== null && unlocked;
+  const exportZip = async () => {
+    const text = getMarkdownRef.current?.() ?? plain;
+    if (text === null) return;
+    const confirmed = await confirmDialog({ title: "导出解锁后的笔记",
+      message: "ZIP 内的正文和附件将以明文下载，请妥善保管。", confirmLabel: "导出 ZIP" });
+    if (!confirmed) return;
+    setAttachmentAction(null);
+    const result = await exportUnlockedAttachmentZip(item.id, item.title ?? "", text);
+    if (!result.ok) setAttachmentAction("导出失败，请确认笔记处于解锁状态且附件可以读取。");
+  };
 
   return (
     <article className="mn-doc" aria-label="文档区" data-focus={focusMode || undefined}>
@@ -198,6 +210,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { const next = getMarkdownRef.current?.() ?? plain; if (next !== null) void flush(next); }} />
           {unlocked && (
             <>
+              <button type="button" className="mn-iconbtn" aria-label="导出 ZIP（含附件）" title="导出 ZIP（含附件）"
+                disabled={!plainFlow} onClick={() => void exportZip()}><Download /></button>
               <button type="button" className="mn-iconbtn" aria-label="立即锁定" title="锁定（快捷）" onClick={() => { if (inSpace) void lockPrivateSpace(userId); else lockItem(item.id); }}>
                 <Lock />
               </button>
@@ -207,7 +221,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
                     const markdown = getMarkdownRef.current?.() ?? plain;
                     if (markdown === null) return;
                     void confirmDialog({ title: "解除本篇加密", message: "解除本篇加密并转为明文？", danger: true })
-                      .then((confirmed) => { if (confirmed) return decryptToPlain(userId, item.id, markdown).then(onBack); });
+                      .then((confirmed) => { if (confirmed) return decryptToPlain(userId, item.id, markdown).then(onBack); })
+                      .catch((cause) => setAttachmentAction(cause instanceof Error ? cause.message : "无法解除加密，请重试。"));
                   }}>
                   <ShieldOff />
                 </button>
@@ -231,11 +246,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
       <div className="mn-docbody">
         <DocTitle value={item.title ?? ""} readOnly />
         {item.conflictOf && (
-          <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={plain} onKeptOriginal={onBack} />
+          <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={unlocked ? plain : null} onKeptOriginal={onBack} />
         )}
-        {item.attachmentHashes.length > 0 && (
-          <p className="mn-conflictnote" role="status">这篇笔记含旧版附件：附件本身未加密，不应视为保密内容。可继续阅读或移除引用。</p>
-        )}
+        {attachmentAction && <p className="mn-conflictnote" role="alert">{attachmentAction}</p>}
         {readError && <p className="mn-conflictnote">{readError}</p>}
         {recoveryText && (
           <p className="mn-conflictnote">
@@ -253,7 +266,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={previewText ?? plain ?? ""} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={previewText ?? plain ?? ""} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview" />}
         {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}
@@ -264,7 +277,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             /* 加密条目不可能是空白草稿，脚手架的切换入口不可达（守卫同 setItemForm）。 */
             onSwitchToNote={() => {}}
             readOnly={mode === "preview"}
-            allowAttachments={false}
+            sealedAttachments
           />
         )}
         {plainFlow && mode === "edit" && item.type !== "table" && (
@@ -273,7 +286,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             kind="wysiwyg"
             externalMarkdown={plain}
             onInput={() => setDirtyTick((n) => n + 1)}
-            uploadFile={async () => ({ error: "加密笔记的附件不能明文上传。附件密文方案尚未定稿，请先解除加密再添加附件。" })}
+            attachmentItemId={item.id}
+            uploadFile={(file, onProgress) => uploadSealedAttachment(userId, item.id, file, onProgress)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             registerApplyExternal={() => {}}
           />

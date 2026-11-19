@@ -115,7 +115,7 @@ test("encrypted note cannot acquire an unencrypted attachment through pasted Mar
   const item = await note();
   const encrypted = await app.enableItemEncryption(USER, item.id, "正文", "secret1", CODE);
   app.setSessionKey(item.id, encrypted.key);
-  await assert.rejects(app.saveEncryptedContent(USER, item.id, `![图](attachments/${HASH}--x.png)`), /暂不支持新增附件引用/);
+  await assert.rejects(app.saveEncryptedContent(USER, item.id, `![图](attachments/${HASH}--x.png)`), /请通过加密笔记的附件入口上传/);
   assert.deepEqual(await app.localDb.items.get(item.id), encrypted.item);
 });
 

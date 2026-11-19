@@ -1,4 +1,4 @@
-import type { Attachment } from "@menote/shared";
+import { SEALED_ATTACHMENT_MIME, type Attachment } from "@menote/shared";
 
 /** 附件元数据（G5）：R2 对象键 `<userId>/<sha256>`；引用计数随正文哈希列表对齐（G6 推送时更新）。 */
 
@@ -7,8 +7,9 @@ export async function upsertAttachment(
 ): Promise<void> {
   await db.prepare(
     `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, ?, ?, 0)
-     ON CONFLICT (user_id, sha256) DO UPDATE SET size = excluded.size, mime = excluded.mime`,
-  ).bind(userId, sha256, size, mime).run();
+     ON CONFLICT (user_id, sha256) DO UPDATE SET size = excluded.size,
+       mime = CASE WHEN attachments.mime = ? THEN attachments.mime ELSE excluded.mime END`,
+  ).bind(userId, sha256, size, mime, SEALED_ATTACHMENT_MIME).run();
 }
 
 /** Restore keeps a known MIME type when an older snapshot has no attachment metadata. */
@@ -18,8 +19,8 @@ export function restoreAttachmentStatement(
   return db.prepare(
     `INSERT INTO attachments (user_id, sha256, size, mime, ref_count) VALUES (?, ?, ?, ?, 0)
      ON CONFLICT (user_id, sha256) DO UPDATE SET size = excluded.size,
-       mime = CASE WHEN excluded.mime = 'application/octet-stream' THEN attachments.mime ELSE excluded.mime END`,
-  ).bind(userId, sha256, size, mime);
+       mime = CASE WHEN attachments.mime = ? OR excluded.mime = 'application/octet-stream' THEN attachments.mime ELSE excluded.mime END`,
+  ).bind(userId, sha256, size, mime, SEALED_ATTACHMENT_MIME);
 }
 
 export async function getAttachment(db: D1Database, userId: string, sha256: string): Promise<Attachment | null> {
