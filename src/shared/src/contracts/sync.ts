@@ -13,7 +13,18 @@ export interface KeyWrap {
   iv: string;
   ciphertext: string;
   generation: number;
+  /** 账户恢复码绑定标识，仅用于 recovery 包装。 */
+  recoveryCodeId?: string;
 }
+
+export interface RecoveryCodeBinding {
+  id: string;
+  verifier: KeyWrap;
+}
+
+export type RecoveryCodeState =
+  | { binding: RecoveryCodeBinding }
+  | { binding: null; revision: number; legacyWraps: KeyWrap[] };
 
 export interface SyncTombstone {
   id: string;

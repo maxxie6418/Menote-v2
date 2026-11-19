@@ -16,7 +16,8 @@ export async function restoreRemoteSnapshot(
     ...realignAttachmentStatements(ctx.db, ctx.userId, sha256, now),
   ]);
   const imported = await importBackupEntries(
-    { db: ctx.db, userId: ctx.userId }, snapshot.entries, snapshot.itemKeyWraps, snapshot.topicKeyWraps, snapshot.settings, now, metadata,
+    { db: ctx.db, userId: ctx.userId }, snapshot.entries, snapshot.itemKeyWraps, snapshot.topicKeyWraps, snapshot.settings, now,
+    { attachmentStatements: metadata, recoveryCodeBinding: snapshot.recoveryCodeBinding },
   );
   return { ...imported, attachments: snapshot.attachmentFiles.length };
 }

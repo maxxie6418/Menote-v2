@@ -10,6 +10,7 @@ import { syncRoutes } from "./routes/sync";
 import { trashRoutes } from "./routes/trash";
 import { backupRoutes } from "./routes/backup";
 import { restoreRoutes } from "./routes/restore";
+import { recoveryCodeRoutes } from "./routes/recoveryCode";
 import { mcpTokenRoutes } from "./routes/mcpTokens";
 import { mcpRoutes } from "./routes/mcp";
 import { clipTemplateRoutes } from "./routes/clipTemplates";
@@ -26,6 +27,7 @@ const app = new Hono<AppEnv>()
   .route("/", trashRoutes)
   .route("/", backupRoutes)
   .route("/", restoreRoutes)
+  .route("/", recoveryCodeRoutes)
   .route("/", monitorRoutes)
   .route("/", mcpTokenRoutes)
   .route("/", mcpRoutes)

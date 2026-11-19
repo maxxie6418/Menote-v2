@@ -18,9 +18,10 @@ export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonito
 export type { Item, StoredContent, Attachment, MemoComment, MemoQuote } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,
-  SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap,
+  SyncConflictDetail, SyncOperationResult, SyncPushResponse, KeyWrap, RecoveryCodeBinding, RecoveryCodeState,
 } from "./contracts/sync";
 export type { ItemVersion, VersionSnapshot } from "./types/version";
+export { parseRecoveryCodeBinding } from "./contracts/recoveryCode";
 export {
   MCP_PERMISSION_KEYS,
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,

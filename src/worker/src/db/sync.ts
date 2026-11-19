@@ -251,7 +251,7 @@ export async function deleteSyncOperation(db: D1Database, userId: string, operat
   ).bind(userId, operationId).run();
 }
 
-function itemUpsertSql(source: string, restore = false): string {
+function itemUpsertSql(source: string): string {
   return `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
@@ -263,7 +263,7 @@ function itemUpsertSql(source: string, restore = false): string {
        tags_json = excluded.tags_json, attachment_hashes_json = excluded.attachment_hashes_json, status = excluded.status,
        source = excluded.source, rev = MAX(rev, excluded.rev), meta_rev = MAX(meta_rev, excluded.meta_rev),
        content_hash = excluded.content_hash, pinned = excluded.pinned, starred = excluded.starred,
-       ${restore ? "enc_self = excluded.enc_self, in_enc_space = excluded.in_enc_space," : ""}
+       enc_self = excluded.enc_self, in_enc_space = excluded.in_enc_space,
        updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, last_device = excluded.last_device,
        conflict_of = excluded.conflict_of,
        memo_quote_source_id = excluded.memo_quote_source_id,
@@ -295,8 +295,8 @@ export function upsertItemRowStatement(
 /** Restoring thousands of individual statements would exceed the D1 batch time budget. */
 export function restoreItemRowStatements(db: D1Database, userId: string, items: Item[]): D1PreparedStatement[] {
   const projection = Array.from({ length: 27 }, (_, index) => `json_extract(value, '$[${index}]')`).join(", ");
-  const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`, true);
-  const single = itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", true);
+  const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`);
+  const single = itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
   const result: D1PreparedStatement[] = [];
   let rows: string[] = [];
   let chars = 0;
@@ -350,13 +350,15 @@ export function updateItemContentStatement(
 ): D1PreparedStatement {
   return db.prepare(
     `UPDATE items SET content_markdown = ?, content_ciphertext = ?, content_hash = ?,
-       attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?
+       attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?,
+       enc_self = ?, in_enc_space = ?
      WHERE id = ? AND user_id = ?`,
   ).bind(
     item.content.scope === "plain" ? item.content.markdown : null,
     item.content.scope === "plain" ? null : item.content.ciphertext,
     item.contentHash, JSON.stringify(item.attachmentHashes), rev,
     item.updatedAt, item.deletedAt, deviceId,
+    item.content.scope === "self" ? 1 : 0, item.content.scope === "private_space" ? 1 : 0,
     item.id, userId,
   );
 }

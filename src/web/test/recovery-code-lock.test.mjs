@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
+import { installRecoveryCodeFixture } from "./recovery-code-fixture.mjs";
+
+const resetServer = installRecoveryCodeFixture();
 
 globalThis.indexedDB = indexedDB;
 globalThis.IDBKeyRange = IDBKeyRange;
@@ -13,7 +16,7 @@ const bundle = await build({
     contents: `export { localDb } from './src/db/localDb';
       export { enableItemEncryption } from './src/services/encryptionCommandService';
       export { setupPrivateSpace } from './src/services/privateSpaceService';
-      export { recoveryCodeExists } from './src/services/recoveryCodeService';`,
+      export { recoveryCodeExists, registerRecoveryCode } from './src/services/recoveryCodeService';`,
     resolveDir: fileURLToPath(new URL("..", import.meta.url)),
   },
   bundle: true, write: false, format: "esm", platform: "browser",
@@ -36,6 +39,7 @@ const userId = "recovery-lock-user";
 const codeA = "AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA";
 const codeB = "BBBB-BBBB-BBBB-BBBB-BBBB-BBBB-BBBB-BBBB";
 async function reset() {
+  resetServer();
   await Promise.all(firstTab.localDb.tables.map((table) => table.clear()));
 }
 async function note(id) {
@@ -89,6 +93,20 @@ test("concurrent setup with the same recovery code proceeds after the first oper
   assert.equal(space.isEncSpace, true);
   assert.equal(await firstTab.localDb.wraps.count(), 1);
   assert.equal(await firstTab.localDb.topicWraps.count(), 1);
+});
+
+test("independent clients verify the same server binding after racing registration", async () => {
+  await reset();
+  const [first, second] = await Promise.allSettled([
+    firstTab.registerRecoveryCode(userId, codeA),
+    secondTab.registerRecoveryCode(userId, codeB),
+  ]);
+  const [winner, loser] = first.status === "fulfilled" ? [first, second] : [second, first];
+  assert.equal(winner.status, "fulfilled");
+  assert.equal(loser.status, "rejected");
+  assert.match(loser.reason.message, /recovery_code_mismatch/);
+  assert.equal(await secondTab.recoveryCodeExists(userId), true, "binding is known before any local wrap exists");
+  assert.deepEqual(await secondTab.registerRecoveryCode(userId, winner.value.code), winner.value);
 });
 
 test("without Web Locks, encryption and private space setup both fail before changing data", async () => {

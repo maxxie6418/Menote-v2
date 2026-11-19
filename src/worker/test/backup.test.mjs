@@ -140,6 +140,16 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
       entries: [{ kind: "item", data: backupItem(5, body) }], itemKeyWraps: [wrapRow(wrap), wrapRow(passwordWrap)],
     });
     assert.equal(created.status, 200);
+    const codePath = `/api/recovery-code?account=${user.id}`;
+    const { revision, legacyWraps } = await (await req(source, codePath, { headers: { cookie: sourceCookie } })).json();
+    assert.equal(revision, 1);
+    assert.equal(legacyWraps.length, 1);
+    assert.deepEqual(await backupService.unwrapContentKey(legacyWraps[0], recovery), key);
+    const binding = { id: crypto.randomUUID(), verifier: await backupService.wrapContentKey(backupService.generateContentKey(), recovery, "recovery") };
+    const staleClaim = await json(source, sourceCookie, "POST", codePath, { revision: 0, binding });
+    assert.equal(staleClaim.status, 409, "待登记时已有包装写入，旧修订号不能登记");
+    const claimed = await json(source, sourceCookie, "POST", codePath, { revision, binding });
+    assert.deepEqual(await claimed.json(), { binding });
     const target = { kind: "webdav", endpoint: "https://example.invalid/dav", bucket: null, username: "u", secret: "s", remotePath: "menote", retentionCount: 0 };
     const originalFetch = globalThis.fetch;
     const objects = new Map();
@@ -166,6 +176,8 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
         assert.equal(restored.items, 5001);
         assert.equal(restored.attachments, 1);
         assert.equal((await cleanDb.prepare("SELECT COUNT(*) AS n FROM items").first()).n, 5001);
+        const accountState = await req(destination, `/api/recovery-code?account=${cleanUser.id}`, { headers: { cookie } });
+        assert.deepEqual(await accountState.json(), { binding }, "快照保留同一账户恢复码绑定");
         const stale = await json(destination, cookie, "POST", "/api/restore", { entries: [{ kind: "item", data: backupItem(2, body) }], itemKeyWraps: [wrapRow(oldWrap)] });
         assert.equal(stale.status, 200);
         assert.equal((await stale.json()).skipped, 1);
@@ -184,6 +196,59 @@ test("演练从 WebDAV 快照完整恢复 5001 条笔记及附件，并凭恢复
         assert.equal(createHash("sha256").update(Buffer.from(await attachment.arrayBuffer())).digest("hex"), sha256);
       });
     } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("两台设备只能登记同一恢复码，旧客户端不能另写一套包装", async () => {
+  await withWorker(async (mf) => {
+    const firstCookie = await login(mf);
+    const loginAgain = await json(mf, "", "POST", "/api/auth/login", { username: "owner", password: "owner-password-1" });
+    assert.equal(loginAgain.status, 200);
+    const secondCookie = loginAgain.headers.get("set-cookie").split(";")[0];
+    const db = await mf.getD1Database("DB");
+    const { id: userId } = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+    const path = `/api/recovery-code?account=${userId}`;
+    const codes = [backupService.generateRecoveryCode(), backupService.generateRecoveryCode()];
+    const bindings = await Promise.all(codes.map(async (code) => ({
+      id: crypto.randomUUID(), verifier: await backupService.wrapContentKey(backupService.generateContentKey(), code, "recovery"),
+    })));
+    const empty = await (await req(mf, path, { headers: { cookie: firstCookie } })).json();
+    assert.deepEqual(empty, { binding: null, revision: 0, legacyWraps: [] });
+    const attempts = await Promise.all(bindings.map((binding, index) =>
+      json(mf, index ? secondCookie : firstCookie, "POST", path, { revision: 0, binding })));
+    assert.deepEqual(attempts.map((response) => response.status), [200, 200]);
+    const [winner, observed] = await Promise.all(attempts.map((response) => response.json()));
+    assert.deepEqual(winner, observed);
+    const winningIndex = bindings.findIndex((binding) => binding.id === winner.binding.id);
+    assert.notEqual(winningIndex, -1);
+    await assert.rejects(backupService.unwrapContentKey(winner.binding.verifier, codes[1 - winningIndex]));
+    const key = backupService.generateContentKey();
+    const recovery = await backupService.wrapContentKey(key, codes[winningIndex], "recovery");
+    const password = await backupService.wrapContentKey(key, "single-note-test-only", "password");
+    const body = await backupService.encryptMarkdown("双端同步测试", key);
+    const itemId = "scoped-note";
+    const stored = { id: itemId, user_id: userId, type: "note", title: "note", content_markdown: "before", tags_json: "[]",
+      source: "manual", attachment_hashes_json: "[]", rev: 1, meta_rev: 1, content_hash: "old", created_at: 1, updated_at: 1 };
+    assert.equal((await json(mf, firstCookie, "POST", "/api/restore", { entries: [{ kind: "item", data: stored }] })).status, 200);
+    const item = { id: itemId, userId, type: "note", title: "note", topicId: null, groupId: null,
+      tags: [], attachmentHashes: [], status: null, source: "manual", rev: 2, metaRev: 1, contentHash: "new",
+      pinned: false, starred: false, createdAt: 1, updatedAt: 2, deletedAt: null,
+      content: { scope: "self", ciphertext: `${body.iv}:${body.ciphertext}` } };
+    const push = async (incoming, wraps, baseRev) => (await (await json(mf, secondCookie, "POST", "/api/sync/push", {
+      deviceId: "second-device", operations: [{ operationId: crypto.randomUUID(), entityId: incoming.id, entity: "item",
+        action: "upsert", baseRev, baseMetaRev: 1, contentHash: incoming.contentHash, payload: { item: incoming }, wraps }],
+    })).json()).results[0];
+    const old = await push(item, [password, recovery], 1);
+    assert.equal(old.code, "recovery_code_binding_required");
+    assert.equal((await db.prepare("SELECT enc_self FROM items WHERE id = ?").bind(itemId).first()).enc_self, 0);
+    const updated = await push(item, [password, { ...recovery, recoveryCodeId: winner.binding.id }], 1);
+    assert.equal(updated.result, "applied");
+    // A legacy client editing an existing note can resend exactly the same recovery wrap.
+    const edited = await push({ ...item, rev: 3, contentHash: "new-edit" }, [password, recovery], 2);
+    assert.equal(edited.result, "applied");
+    assert.equal((await db.prepare("SELECT recovery_code_id FROM item_key_wraps WHERE item_id = ? AND wrapper = 'recovery'").bind(itemId).first()).recovery_code_id, winner.binding.id);
+    const wrongAccount = await req(mf, "/api/recovery-code?account=unrelated", { headers: { cookie: firstCookie } });
+    assert.equal(wrongAccount.status, 409);
   });
 });
 

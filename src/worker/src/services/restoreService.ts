@@ -1,10 +1,11 @@
-import type { Item, MemoComment, TopicNode } from "@menote/shared";
+import type { Item, KeyWrap, MemoComment, RecoveryCodeBinding, TopicNode } from "@menote/shared";
 import { decodeBackupRow, wrapFieldToBase64 } from "@menote/shared";
 import { restoreSettingStatement } from "../db/backup";
 import { deleteItemWrapsStatement, itemWrapStatements, topicWrapStatements } from "../db/keyWraps";
 import { appendRestoredItemLogs, appendSyncLogStatement, restoreItemRowStatements, rowToItem, upsertTopicRowStatement } from "../db/sync";
 import { rowToMemoComment, upsertMemoCommentStatement } from "../db/memoComments";
 import { guardRestoreItems, guardRestoreTopicWrap, readRestoreState } from "../db/restore";
+import { restoreRecoveryCodeStatements } from "../db/recoveryCode";
 
 /**
  * 恢复导入服务（FR-BAK-9 工具侧）：接受备份分片条目与包装块，按 id 合并（rev 高者胜）。
@@ -32,7 +33,7 @@ export async function importBackupEntries(
   topicKeyWraps: unknown[] | null,
   settings: unknown[] | null,
   now: number,
-  attachmentStatements: D1PreparedStatement[] = [],
+  options: { attachmentStatements?: D1PreparedStatement[]; recoveryCodeBinding?: RecoveryCodeBinding | null } = {},
 ): Promise<ImportResult> {
   const itemWrapRows = (itemKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
   const topicWrapRows = (topicKeyWraps ?? []).map((row) => decodeBackupRow(row as Record<string, unknown>));
@@ -45,6 +46,8 @@ export async function importBackupEntries(
   // Parse/validate the entire import before the first write. All resulting SQL statements
   // are submitted in one D1 batch, whose transaction guarantees rollback on any failure.
   const statements: D1PreparedStatement[] = [];
+  const binding = options.recoveryCodeBinding;
+  if (binding) statements.push(...restoreRecoveryCodeStatements(ctx.db, ctx.userId, binding));
   let items = 0;
   let topics = 0;
   let memoComments = 0;
@@ -80,7 +83,7 @@ export async function importBackupEntries(
     if (comment.parentId) commentIds.add(comment.parentId);
   }
   const state = await readRestoreState(ctx.db, ctx.userId, itemIds, commentIds, new Set(settingRows.map((row) => String(row.key))));
-  const wrapsByItem = groupWraps(itemWrapRows, "item_id");
+  const wrapsByItem = groupWraps(itemWrapRows, "item_id", binding?.id);
   const restoredItems: Item[] = [];
   const itemWrapWrites: D1PreparedStatement[] = [];
 
@@ -148,7 +151,7 @@ export async function importBackupEntries(
     writtenComments.set(comment.id, { memoId: comment.memoId, isRoot: comment.parentId === null });
   }
 
-  const wrapsByTopic = groupWraps(topicWrapRows, "topic_id");
+  const wrapsByTopic = groupWraps(topicWrapRows, "topic_id", binding?.id);
   for (const [topicId, wraps] of wrapsByTopic) {
     for (const wrap of wraps) statements.push(guardRestoreTopicWrap(ctx.db, ctx.userId, topicId, wrap));
     statements.push(...topicWrapStatements(ctx.db, ctx.userId, topicId, wraps, now));
@@ -166,20 +169,17 @@ export async function importBackupEntries(
     restoredSettings += 1;
   }
 
-  statements.push(...attachmentStatements);
+  if (options.attachmentStatements) statements.push(...options.attachmentStatements);
   if (statements.length > 0) await ctx.db.batch(statements);
   return { items, topics, memoComments, topicWraps: wrapsByTopic.size, settings: restoredSettings, skipped };
 }
 
-function groupWraps(rows: Array<Record<string, unknown>>, idKey: "item_id" | "topic_id") {
-  const groups = new Map<string, Array<{
-    wrapper: "password" | "recovery" | "topic";
-    kdfSalt: string; kdfIterations: number; iv: string; ciphertext: string; generation: number;
-  }>>();
+function groupWraps(rows: Array<Record<string, unknown>>, idKey: "item_id" | "topic_id", fallbackCodeId?: string) {
+  const groups = new Map<string, KeyWrap[]>();
   for (const raw of rows) {
     const id = String(raw[idKey] ?? "");
     if (!id) continue;
-    const wrap = {
+    const wrap: KeyWrap = {
       wrapper: String(raw.wrapper) as "password" | "recovery" | "topic",
       kdfSalt: wrapFieldToBase64(raw.kdf_salt),
       kdfIterations: Number(raw.kdf_iterations),
@@ -187,6 +187,10 @@ function groupWraps(rows: Array<Record<string, unknown>>, idKey: "item_id" | "to
       ciphertext: wrapFieldToBase64(raw.ciphertext),
       generation: Number(raw.generation ?? 0),
     };
+    if (wrap.wrapper === "recovery") {
+      const id = typeof raw.recovery_code_id === "string" ? raw.recovery_code_id : fallbackCodeId;
+      if (id) wrap.recoveryCodeId = id;
+    }
     const list = groups.get(id) ?? [];
     list.push(wrap);
     groups.set(id, list);

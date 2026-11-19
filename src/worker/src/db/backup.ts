@@ -1,4 +1,4 @@
-
+import { recoveryBindingFromRow, recoveryCodeReadStatement } from "./recoveryCode";
 
 /** 备份目标与凭据（G9）。secret 仅存可逆加密密文（C-7：默认不明文展示、支持事后查看与复制分发）。 */
 
@@ -113,9 +113,10 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
   settings: Record<string, unknown>[];
   attachmentHashes: string[];
   attachmentMimes: Map<string, string>;
+  recoveryCodeBinding: ReturnType<typeof recoveryBindingFromRow>;
 }> {
   // Read rows and their key wraps within one transaction so a concurrent sync can't split them.
-  const [items, topics, itemKeyWraps, memoComments, topicKeyWraps, settings, attachmentRows] = await db.batch<Record<string, unknown>>([
+  const [items, topics, itemKeyWraps, memoComments, topicKeyWraps, settings, attachmentRows, recoveryCode] = await db.batch<Record<string, unknown>>([
     db.prepare("SELECT * FROM items WHERE user_id = ?").bind(userId),
     db.prepare("SELECT * FROM topic_nodes WHERE user_id = ?").bind(userId),
     db.prepare("SELECT * FROM item_key_wraps WHERE user_id = ?").bind(userId),
@@ -123,6 +124,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
     db.prepare("SELECT * FROM topic_key_wraps WHERE user_id = ?").bind(userId),
     db.prepare("SELECT * FROM user_settings WHERE user_id = ?").bind(userId),
     db.prepare("SELECT sha256, mime FROM attachments WHERE user_id = ?").bind(userId),
+    recoveryCodeReadStatement(db, userId),
   ]);
   const hashes = new Set<string>();
   for (const item of items!.results) {
@@ -135,6 +137,7 @@ export async function collectBackupRows(db: D1Database, userId: string): Promise
     items: items!.results, topics: topics!.results, memoComments: memoComments!.results, itemKeyWraps: itemKeyWraps!.results,
     topicKeyWraps: topicKeyWraps!.results, settings: settings!.results, attachmentHashes: [...hashes],
     attachmentMimes: new Map(attachmentRows!.results.map((row) => [String(row.sha256), String(row.mime)])),
+    recoveryCodeBinding: recoveryBindingFromRow(recoveryCode?.results[0]),
   };
 }
 

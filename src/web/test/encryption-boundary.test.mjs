@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
+import { installRecoveryCodeFixture } from "./recovery-code-fixture.mjs";
+
+const resetServer = installRecoveryCodeFixture();
 
 globalThis.indexedDB = indexedDB;
 globalThis.IDBKeyRange = IDBKeyRange;
@@ -26,6 +29,7 @@ const CODE = "ABCD-EFGH-JKMP-QRST-VWXY-2345-6789-ABCD";
 const HASH = "a".repeat(64);
 
 async function reset() {
+  resetServer();
   await Promise.all(app.localDb.tables.map((table) => table.clear()));
 }
 

@@ -7,7 +7,7 @@ import { encryptMarkdown, generateContentKey, unwrapContentKey, wrapContentKey, 
 import { createNote } from "./contentService";
 import { outboxTopic, outboxUpsert } from "./contentShared";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
-import { enforceRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
+import { registerRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
 import {
   getTopicKey, isTopicUnlocked, lockTopic, rememberSpaceNote, setSessionKey, setTopicKey, unlockTopic,
 } from "./keyringService";
@@ -45,14 +45,14 @@ async function setupPrivateSpaceInner(userId: string, password: string, recovery
   if (password.length < PRIVATE_SPACE_PASSWORD_MIN) throw new Error(`密码至少 ${PRIVATE_SPACE_PASSWORD_MIN} 位`);
   const existing = await findPrivateSpace(userId);
   if (existing && await privateSpaceReady(existing.id)) throw new Error("私人空间已设置");
-  const code = await enforceRecoveryCode(userId, recoveryCode);
+  const { code, bindingId } = await registerRecoveryCode(userId, recoveryCode);
   const topic: TopicNode = existing ?? {
     id: newId(), userId, parentId: null, name: PRIVATE_SPACE_NAME, depth: 0, isEncSpace: true, deletedAt: null,
   };
   const key = generateContentKey();
   const wraps = [
     await wrapContentKey(key, password, "password"),
-    await wrapContentKey(key, code, "recovery"),
+    { ...await wrapContentKey(key, code, "recovery"), recoveryCodeId: bindingId },
   ];
   await localDb.transaction("rw", localDb.topics, localDb.topicWraps, localDb.outbox, async () => {
     await localDb.topics.put(topic);

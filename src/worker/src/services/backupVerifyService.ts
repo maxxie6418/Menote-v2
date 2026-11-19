@@ -1,8 +1,10 @@
+import { parseRecoveryCodeBinding, type RecoveryCodeBinding } from "@menote/shared";
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
 
 export interface VerifiedSnapshot {
   files: number; shards: number; attachments: number;
   entries: unknown[]; itemKeyWraps: unknown[]; topicKeyWraps: unknown[]; settings: unknown[];
+  recoveryCodeBinding: RecoveryCodeBinding | null;
   attachmentFiles: Array<{ sha256: string; bytes: Uint8Array; mime: string }>;
 }
 
@@ -19,7 +21,7 @@ export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: strin
     files?: Array<{ path?: unknown; size?: unknown; sha256?: unknown; mime?: unknown }>;
     shards?: Array<{ month?: unknown }>;
     counts?: { attachments?: unknown };
-    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown };
+    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown; recoveryCodeBinding?: unknown };
   };
   if (manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id || !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
   const names = new Set<string>();
@@ -55,11 +57,14 @@ export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: strin
   if ([...references].some((h) => !names.has(`attachment-${h}`))) throw new Error("快照缺少笔记引用的附件");
   const allEntries: unknown[] = [];
   for (const name of shardNames) for (const entry of shards.get(name)!) allEntries.push(entry);
-  const extra = manifest.extra as { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown } | undefined;
+  const extra = manifest.extra;
   if (!Array.isArray(extra?.itemKeyWraps) || !Array.isArray(extra?.topicKeyWraps) || !Array.isArray(extra?.settings)) throw new Error("备份缺少密钥或设置数据");
+  const recoveryCodeBinding = parseRecoveryCodeBinding(extra.recoveryCodeBinding);
+  if (extra.recoveryCodeBinding !== undefined && !recoveryCodeBinding) throw new Error("备份恢复码绑定无效");
   return {
     files: names.size, shards: shardNames.length, attachments: manifest.counts.attachments as number,
     entries: allEntries, itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings,
+    recoveryCodeBinding,
     attachmentFiles: [...references].map((sha256) => attachments.get(sha256)!),
   };
 }

@@ -69,7 +69,11 @@ export function EncryptSetupDialog({ userId, onConfirm, onCancel }: {
                 const message = cause instanceof Error ? cause.message : "";
                 if (message === "attachment_encryption_unsupported") setError("含附件的笔记暂不能加密，请先移除附件引用。");
                 else if (message === "encryption_pending_sync") setError("笔记还有未同步的修改，请先完成同步后再加密。");
-                else if (message === "recovery_code_mismatch") setError("恢复码与现有加密内容不匹配。若曾生成多枚恢复码，请保留每一枚；暂不能新增加密。");
+                else if (message === "recovery_code_mismatch") {
+                  setHasRecovery(true);
+                  setError("请输入账号已有的恢复码。如果旧版本曾生成多枚恢复码，请保留每一枚。");
+                }
+                else if (message === "recovery_code_unavailable") setError("暂时无法确认账户恢复码，请检查连接后重试。");
                 else if (message === "recovery_wrap_missing") setError("现有加密内容的密钥包装尚未就绪，请先完成同步。");
                 else if (message === "recovery_lock_unavailable") setError("当前浏览器无法安全协调加密设置，请使用支持 Web Locks 的浏览器重试。");
                 else setError("加密失败，请重试。");

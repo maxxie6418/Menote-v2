@@ -10,12 +10,12 @@ import {
   markMemoCommentDeletedStatement, readMemoCommentChildren, readMemoCommentParentState, readMemoCommentState,
   readMemoOwnerState, upsertMemoCommentStatement,
 } from "../db/memoComments";
-import { itemWrapStatements, putTopicWraps, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
+import { itemWrapStatements, topicWrapStatements, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
   appendSyncLog, appendSyncLogStatement, commitWrites, countItemReferences, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
-  readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRow,
+  readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRowStatement,
   readSettingState, writeSetting,
 } from "../db/sync";
 
@@ -169,13 +169,15 @@ async function applyTopic(ctx: ApplyContext, operation: OutboxOperation): Promis
   const topic = (operation.payload as { topic?: TopicNode } | null)?.topic;
   if (!topic || topic.id !== operation.entityId) throw new SyncRejected("invalid_payload");
   const deletedAt = operation.action === "delete" ? topic.deletedAt ?? ctx.now : topic.deletedAt;
-  await upsertTopicRow(ctx.db, ctx.userId, topic, operation.action === "delete" ? deletedAt : topic.deletedAt);
+  const statements = [upsertTopicRowStatement(ctx.db, ctx.userId, topic, deletedAt)];
   if (operation.wraps && operation.wraps.length > 0 && operation.action === "upsert") {
-    await putTopicWraps(ctx.db, ctx.userId, topic.id, operation.wraps, ctx.now);
+    statements.push(...topicWrapStatements(ctx.db, ctx.userId, topic.id, operation.wraps, ctx.now));
   }
-  await appendSyncLog(ctx.db, ctx.userId, "topic", topic.id, operation.action, 0, 0, ctx.now);
-  await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "topic", topic.id, "applied", 0, 0, null, ctx.now);
-  void deletedAt;
+  statements.push(
+    appendSyncLogStatement(ctx.db, ctx.userId, "topic", topic.id, operation.action, 0, 0, ctx.now),
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "topic", topic.id, "applied", 0, 0, null, ctx.now),
+  );
+  await commitWrites(ctx.db, statements);
   return { operationId: operation.operationId, result: "applied", rev: 0, metaRev: 0 };
 }
 
@@ -323,6 +325,8 @@ export async function applyOperations(ctx: ApplyContext, operations: OutboxOpera
     } catch (error) {
       if (error instanceof SyncRejected) {
         results.push({ operationId: operation.operationId, result: "rejected", code: error.code });
+      } else if (error instanceof Error && error.message.includes("recovery_code_binding_required")) {
+        results.push({ operationId: operation.operationId, result: "rejected", code: "recovery_code_binding_required" });
       } else if (isConstraintError(error)) {
         await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, operation.entity, operation.entityId, "rejected", 0, 0, null, ctx.now);
         results.push({ operationId: operation.operationId, result: "rejected", code: "invalid_payload" });

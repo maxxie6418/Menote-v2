@@ -8,7 +8,7 @@ import { enqueueWrite, outboxUpsert, packEnvelope, requireItem, unpackEnvelope }
 import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { recordSyncDiagnostic } from "./syncDiagnosticsService";
 import { cancelScheduledRecovery, discardRecovery } from "./recoveryService";
-import { enforceRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
+import { registerRecoveryCode, withRecoveryCodeLock } from "./recoveryCodeService";
 
 /** 单篇加密命令（G7，G4 设计；G10 整理自 contentService）。三凭据分离：登录密码不参与任何 KEK。 */
 /** 单篇密码最少 6 位，不另加复杂度（负责人 2026-11-03）。与空间密码 4 位、登录口令 8 位都不同。 */
@@ -34,10 +34,10 @@ async function enableItemEncryptionInner(
     throw new Error("attachment_encryption_unsupported");
   }
   const key = generateContentKey();
-  const code = await enforceRecoveryCode(userId, recoveryCode);
+  const { code, bindingId } = await registerRecoveryCode(userId, recoveryCode);
   const wraps = [
     await wrapContentKey(key, password, "password"),
-    await wrapContentKey(key, code, "recovery"),
+    { ...await wrapContentKey(key, code, "recovery"), recoveryCodeId: bindingId },
   ];
   const envelope = await encryptMarkdown(markdown, key);
   // 在事务外完成 WebCrypto（IndexedDB 事务不能跨任意异步操作），事务内再次核对

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
+import { installRecoveryCodeFixture } from "./recovery-code-fixture.mjs";
+
+installRecoveryCodeFixture();
 
 globalThis.indexedDB = indexedDB;
 globalThis.IDBKeyRange = IDBKeyRange;
