@@ -556,7 +556,8 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     );
   }
 
-  const title = section.kind === "topic"
+  const isTopic = section.kind === "topic";
+  const title = isTopic
     ? topics.find((row) => row.id === section.id)?.name ?? "主题"
     : section.kind === "tag" ? `#${section.tag}` : SECTION_TITLES[section.kind];
   const [emptyTitle, emptyDetail] = section.kind === "topic" || section.kind === "tag"
@@ -568,6 +569,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
       {sidebar}
       <MainLayout
+        key={isTopic ? section.id : undefined}
         layout={layout}
         viewMode={viewMode}
         onViewMode={setViewMode}
@@ -575,6 +577,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         headerExtra={section.kind === "inbox" ? <InboxRefresh userId={userId} /> : undefined}
         items={items}
         selectedNoteId={noteId}
+        topicOverview={isTopic}
         onSelectNote={(id) => {
           const selected = items?.find((item) => item.id === id);
           if (selected?.type === "memo") {
@@ -606,7 +609,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
             noteId={noteId}
             topics={topics}
             onBack={() => { setMobilePane("list"); setNoteId(null); navigate(sectionRoute(section), true); }}
-            showBack={layout === "tablet"}
+            showBack={layout === "tablet" || isTopic}
             crumb={title}
             openSummaryToken={summaryRequest?.id === noteId ? summaryRequest.token : undefined}
             onSummaryRequestConsumed={(token) => setSummaryRequest((current) => current?.token === token && current.id === noteId ? null : current)}

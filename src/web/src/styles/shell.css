@@ -342,12 +342,13 @@
 .mn-note-row.on .mn-note-row-desc { color: var(--app-fg-muted); }
 .mn-note-row-meta { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); line-height: var(--app-leading-meta); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mn-note-row-tags { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mn-notegrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--app-space-14); padding: var(--app-space-18) var(--app-space-lg); }
 .mn-notegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--app-space-14); padding: var(--app-space-18) var(--app-space-lg); align-content: start; }
-.mn-note-card { display: flex; flex-direction: column; gap: var(--app-space-4); padding: var(--app-space-10); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); color: var(--app-fg); text-align: left; font-family: var(--app-font); cursor: pointer; min-height: var(--app-space-2xl); }
+.mn-note-card { display: flex; flex: 1; min-width: var(--app-zero); flex-direction: column; gap: var(--app-space-4); padding: var(--app-space-10); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); color: var(--app-fg); text-align: left; font-family: var(--app-font); cursor: pointer; min-height: var(--app-space-2xl); }
 .mn-note-card:hover { box-shadow: var(--app-shadow-card); }
 .mn-note-card.on { border-color: var(--app-accent); box-shadow: var(--app-hairline-inset), var(--app-shadow-card); }
-.mn-note-card-snippet { -webkit-line-clamp: 3; }
+.mn-note-card:focus-visible { outline: var(--app-focus-outline); outline-offset: var(--app-space-2); }
+.mn-note-card .mn-note-row-title > span { overflow: hidden; text-overflow: ellipsis; }
+.mn-note-card .mn-note-row-meta { margin-block-start: auto; }
 .mn-note-card-snippet { font-size: var(--app-size-chip); color: var(--app-fg-subtle); line-height: var(--app-leading-summary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ---------- E2 对话框 ----------
