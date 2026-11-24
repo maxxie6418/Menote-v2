@@ -13,6 +13,8 @@ import {
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { InfoHint } from "../../components/ui/InfoHint";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
+import { Button } from "../../components/ui/button";
+import { copyMcpConnectionPrompt } from "./mcpConnectionPrompt";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -56,6 +58,7 @@ export function McpTokenManager() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<Record<string, string>>({});
+  const [copyingPromptId, setCopyingPromptId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const refresh = useCallback(async (fresh = false) => {
@@ -78,6 +81,19 @@ export function McpTokenManager() {
   const copyEndpoint = async () => {
     try { await copyText(endpoint); setMessage("MCP 服务地址已复制。"); }
     catch { setMessage("复制失败，请检查浏览器剪贴板权限。"); }
+  };
+
+  const copyPrompt = async (token: McpTokenView) => {
+    setCopyingPromptId(token.id);
+    setMessage("");
+    try {
+      await copyMcpConnectionPrompt(endpoint, token);
+      setMessage("已复制接入提示词、MCP 服务地址和此 Token，可直接粘贴给 AI。");
+    } catch (error) {
+      setMessage(error instanceof DOMException ? "复制失败，请检查浏览器剪贴板权限。" : errorMessage(error));
+    } finally {
+      setCopyingPromptId(null);
+    }
   };
 
   const create = async (name: string, config: McpTokenConfig): Promise<void> => {
@@ -131,7 +147,7 @@ export function McpTokenManager() {
 
       <div className="mn-mcp-heading">
         <div>
-          <p className="mn-setlabel">访问 Token<InfoHint>每个 Token 可单独授权。内容读取关闭时仍可执行已授权的写入。</InfoHint></p>
+          <p className="mn-setlabel">访问 Token<InfoHint>每个 Token 可单独授权。内容读取关闭时仍可执行已授权的写入。复制 AI 接入提示词时会同时复制服务地址和所选 Token。</InfoHint></p>
         </div>
         <button type="button" className="app-button" onClick={() => { setCreating((value) => !value); setEditingId(null); setMessage(""); }}>
           {creating ? "取消创建" : "创建 Token"}
@@ -150,6 +166,9 @@ export function McpTokenManager() {
                 <p className="mn-sethint"><code>{token.tokenPrefix}</code> · 创建于 {formatDate(token.createdAt)} · 最后调用：{formatDate(token.lastUsedAt)}</p>
               </div>
               <div className="mn-mcp-actions">
+                {token.revokedAt === null && <Button type="button" variant="outline" size="sm" disabled={copyingPromptId !== null} onClick={() => void copyPrompt(token)}>
+                  {copyingPromptId === token.id ? "正在复制…" : "复制 AI 接入提示词"}
+                </Button>}
                 {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void reveal(token)}>查看并复制 Token</button>}
                 {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => { setEditingId(editingId === token.id ? null : token.id); setCreating(false); }}>修改设置</button>}
                 {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void revoke(token)}>撤销</button>}

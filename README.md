@@ -41,7 +41,7 @@ Menote V2 是一款通过浏览器使用的本地优先笔记应用，将随手�
 
 ### 接入 AI Agent
 
-在「设置 → MCP 接入」新建 Agent 专用令牌，复制服务地址 `https://<实例域名>/api/mcp`。Agent 使用 Streamable HTTP，配置请求头 `Authorization: Bearer <令牌>`。连接后用 `tools/list` 确认工具，调用 `connection_status` 可验证连通性。
+在「设置 → MCP 接入」新建 Agent 专用令牌，点击该令牌的「复制 AI 接入提示词」，即可把服务地址、令牌和能力说明一起粘贴给 AI。手动配置时使用 Streamable HTTP 和 `Authorization: Bearer <令牌>`，服务地址为 `https://<实例域名>/api/mcp`。连接后用 `tools/list` 确认工具，调用 `connection_status` 可验证连通性。
 
 - 开启「读取内容」后，可用 `search`、`list_items`、`list_folders` 和 `read_item` 检索、列举及读取授权范围内的内容。传入返回的 `next_cursor` 翻页。私人空间不可见，单篇加密笔记只显示标题和加密状态。
 - 开启「创建条目」后，可用 `create_item` 创建明文 Note、Markdown 表格或 Memo。前两类进入收件箱，Memo 还需开启「包含 Memo」。同一次操作重试时复用原 UUID `operation_id`。
