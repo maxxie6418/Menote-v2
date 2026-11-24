@@ -39,6 +39,14 @@ Menote V2 是一款通过浏览器使用的本地优先笔记应用，将随手�
 
 部分功能仍需真实环境验收，尤其是备份恢复、一键部署、AI 推理、Raindrop 和浏览器扩展的端到端流程；移动端和部分交互也有待实机走查。具体范围与遗留事项详见[项目总规划](todo/20261031-M0-总体开发规划与进度总表.md)。
 
+### 接入 AI Agent
+
+在「设置 → MCP 接入」新建 Agent 专用令牌，复制服务地址 `https://<实例域名>/api/mcp`。Agent 使用 Streamable HTTP，配置请求头 `Authorization: Bearer <令牌>`。连接后用 `tools/list` 确认工具，调用 `connection_status` 可验证连通性。
+
+- 开启「读取内容」后，可用 `search`、`list_items`、`list_folders` 和 `read_item` 检索、列举及读取授权范围内的内容。传入返回的 `next_cursor` 翻页。私人空间不可见，单篇加密笔记只显示标题和加密状态。
+- 开启「创建条目」后，可用 `create_item` 创建明文 Note、Markdown 表格或 Memo。前两类进入收件箱，Memo 还需开启「包含 Memo」。同一次操作重试时复用原 UUID `operation_id`。
+- `list_versions` 和 `read_item(version_id)` 只读取 D1 中已有的明文历史快照。浏览器本地保存的版本历史尚无法由远程 Agent 读取。通用编辑、归属调整、表格行修改、软删除和令牌审计分页仍列在 M4。
+
 ## 本地开发
 
 需要 Node.js 22 和 pnpm 11；项目声明的包管理器版本为 `pnpm@11.9.0`。

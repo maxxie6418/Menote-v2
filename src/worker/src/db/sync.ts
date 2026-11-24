@@ -196,10 +196,11 @@ export async function readTopicDeletedAt(db: D1Database, userId: string, id: str
 
 export function appendSyncLogStatement(
   db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
-  op: "upsert" | "delete", rev: number, metaRev: number, now: number,
+  op: "upsert" | "delete", rev: number, metaRev: number, now: number, afterChange = false,
 ): D1PreparedStatement {
   return db.prepare(
-    "INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    `INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at)
+     ${afterChange ? "SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?)"}`,
   ).bind(userId, entity, entityId, op, rev, metaRev, now);
 }
 
@@ -224,11 +225,12 @@ export async function readSyncOperation(db: D1Database, userId: string, operatio
 export function recordSyncOperationStatement(
   db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
   result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
+  mode: "default" | "after_change" | "strict_insert" = "default",
 ): D1PreparedStatement {
   return db.prepare(
     `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (user_id, operation_id) DO NOTHING`,
+     ${mode === "after_change" ? "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"}
+     ${mode === "default" ? "ON CONFLICT (user_id, operation_id) DO NOTHING" : ""}`,
   ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now);
 }
 
@@ -251,12 +253,16 @@ export async function deleteSyncOperation(db: D1Database, userId: string, operat
   ).bind(userId, operationId).run();
 }
 
-function itemUpsertSql(source: string): string {
+function itemInsertSql(source: string): string {
   return `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
        memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
-     ${source}
+     ${source}`;
+}
+
+function itemUpsertSql(source: string): string {
+  return `${itemInsertSql(source)}
      ON CONFLICT (user_id, id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
@@ -285,18 +291,25 @@ function itemBindings(userId: string, deviceId: string, item: Item, rev: number,
   ];
 }
 
+const itemValues = `VALUES (${Array<string>(27).fill("?").join(", ")})`;
+
 export function upsertItemRowStatement(
   db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
 ): D1PreparedStatement {
-  return db.prepare(itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+  return db.prepare(itemUpsertSql(itemValues))
     .bind(...itemBindings(userId, deviceId, item, rev, metaRev));
+}
+
+export function insertItemRowStatement(db: D1Database, userId: string, deviceId: string, item: Item): D1PreparedStatement {
+  return db.prepare(itemInsertSql(itemValues))
+    .bind(...itemBindings(userId, deviceId, item, item.rev, item.metaRev));
 }
 
 /** Restoring thousands of individual statements would exceed the D1 batch time budget. */
 export function restoreItemRowStatements(db: D1Database, userId: string, items: Item[]): D1PreparedStatement[] {
   const projection = Array.from({ length: 27 }, (_, index) => `json_extract(value, '$[${index}]')`).join(", ");
   const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`);
-  const single = itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  const single = itemUpsertSql(itemValues);
   const result: D1PreparedStatement[] = [];
   let rows: string[] = [];
   let chars = 0;

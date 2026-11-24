@@ -1,6 +1,6 @@
-import type { Item, McpMemoRequest, McpMemoResult, OutboxOperation } from "@menote/shared";
+import type { Item, McpMemoRequest, McpMemoResult } from "@menote/shared";
 import { appendTags, extractTags } from "@menote/shared";
-import { applyOperation } from "./syncService";
+import { insertServerItem } from "./syncService";
 
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_SOURCE_TITLE_LENGTH = 500;
@@ -46,13 +46,5 @@ export async function createMcpMemo(ctx: McpMemoContext, input: McpMemoRequest):
     contentHash, pinned: false, starred: false, createdAt: ctx.now, updatedAt: ctx.now, deletedAt: null,
     content: { scope: "plain", markdown },
   };
-  const operation: OutboxOperation = {
-    operationId: input.operationId, userId: ctx.userId, entityId: item.id, entity: "item", action: "upsert",
-    baseRev: 0, baseMetaRev: 0, contentHash, payload: { item },
-  };
-  const applied = await applyOperation({ db: ctx.db, userId: ctx.userId, deviceId: `mcp:${ctx.tokenId}`.slice(0, 64), now: ctx.now }, operation);
-  if (applied.result !== "applied" && applied.result !== "duplicate") {
-    throw new Error(applied.result === "conflict" ? "operation_conflict" : applied.result === "rejected" ? applied.code : "memo_failed");
-  }
-  return { itemId: item.id, rev: applied.rev, result: applied.result };
+  return insertServerItem({ db: ctx.db, userId: ctx.userId, deviceId: `mcp:${ctx.tokenId}`, now: ctx.now }, item, input.operationId);
 }

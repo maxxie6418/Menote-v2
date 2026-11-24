@@ -13,7 +13,7 @@ import {
 import { itemWrapStatements, topicWrapStatements, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, insertItemRowStatement, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
   readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
   readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRowStatement,
   readSettingState, writeSetting,
@@ -31,6 +31,33 @@ export interface ApplyContext {
   userId: string;
   deviceId: string;
   now: number;
+}
+
+/** Server-created items always insert. A retry can confirm its previous write without updating an existing item. */
+export async function insertServerItem(ctx: ApplyContext, item: Item, operationId: string) {
+  const duplicate = async () => {
+    const previous = await readSyncOperation(ctx.db, ctx.userId, operationId);
+    if (!previous) return null;
+    if (previous.entity !== "item" || previous.entityId !== item.id || previous.result !== "applied") {
+      throw new Error("operation_conflict");
+    }
+    return { itemId: item.id, rev: previous.rev, result: "duplicate" as const };
+  };
+  const previous = await duplicate();
+  if (previous) return previous;
+  try {
+    await commitWrites(ctx.db, [
+      insertItemRowStatement(ctx.db, ctx.userId, ctx.deviceId, item),
+      appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", item.rev, item.metaRev, ctx.now),
+      recordSyncOperationStatement(ctx.db, ctx.userId, operationId, "item", item.id, "applied", item.rev, item.metaRev, item.contentHash, ctx.now, "strict_insert"),
+      ...item.attachmentHashes.flatMap((hash) => realignAttachmentStatements(ctx.db, ctx.userId, hash, ctx.now)),
+    ]);
+  } catch (error) {
+    const raced = await duplicate();
+    if (raced) return raced;
+    throw error;
+  }
+  return { itemId: item.id, rev: item.rev, result: "applied" as const };
 }
 
 class SyncRejected extends Error {

@@ -1,7 +1,6 @@
-import type { Item, McpBookmarkRequest, McpBookmarkResult, McpTokenScope, OutboxOperation } from "@menote/shared";
-import { readMcpBookmarkTarget } from "../db/mcpBookmarks";
-import { readItemState, readSyncOperation } from "../db/sync";
-import { applyOperation } from "./syncService";
+import type { McpBookmarkRequest, McpBookmarkResult, McpTokenScope } from "@menote/shared";
+import { readMcpBookmarkTarget, writeMcpBookmark } from "../db/mcpBookmarks";
+import { readSyncOperation } from "../db/sync";
 import { appendBookmarkToNote, appendBookmarkToTable } from "./mcpBookmarkFormat";
 
 export interface McpBookmarkContext {
@@ -32,6 +31,8 @@ function validate(input: McpBookmarkRequest): void {
 
 export async function appendMcpBookmark(ctx: McpBookmarkContext, input: McpBookmarkRequest): Promise<McpBookmarkResult> {
   validate(input);
+  const item = await readMcpBookmarkTarget(ctx.db, ctx.userId, input.targetItemId, ctx.scope);
+  if (!item || item.content.scope !== "plain") throw new Error("bookmark_target_unavailable");
   const prior = await readSyncOperation(ctx.db, ctx.userId, input.operationId);
   if (prior) {
     if (prior.entity !== "item" || prior.entityId !== input.targetItemId) throw new Error("bookmark_operation_rejected");
@@ -41,30 +42,17 @@ export async function appendMcpBookmark(ctx: McpBookmarkContext, input: McpBookm
     throw new Error(prior.result === "conflict" ? "bookmark_conflict" : "bookmark_operation_rejected");
   }
 
-  const item = await readMcpBookmarkTarget(ctx.db, ctx.userId, input.targetItemId, ctx.scope);
-  if (!item || item.content.scope !== "plain") throw new Error("bookmark_target_unavailable");
-  const state = await readItemState(ctx.db, ctx.userId, item.id);
-  if (!state || state.deletedAt !== null) throw new Error("bookmark_target_unavailable");
   const markdown = item.type === "table"
     ? appendBookmarkToTable(item.content.markdown, input)
     : appendBookmarkToNote(item.content.markdown, input);
   const contentHash = digestHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown)));
-  const updated: Item = {
-    ...item, content: { scope: "plain", markdown }, rev: state.rev, metaRev: state.metaRev,
-    contentHash, updatedAt: ctx.now,
-  };
-  const operation: OutboxOperation = {
-    operationId: input.operationId, userId: ctx.userId, entityId: item.id, entity: "item", action: "upsert",
-    baseRev: state.rev, baseMetaRev: state.metaRev, contentHash, payload: { item: updated },
-  };
-  const applied = await applyOperation({ db: ctx.db, userId: ctx.userId, deviceId: `mcp:${ctx.tokenId}`.slice(0, 64), now: ctx.now }, operation);
-  if (applied.result === "conflict") {
-    const raced = await readSyncOperation(ctx.db, ctx.userId, input.operationId);
-    if (raced?.entity === "item" && raced.entityId === item.id && (raced.result === "applied" || raced.result === "duplicate")) {
-      return { targetItemId: item.id, rev: raced.rev, result: "duplicate" };
-    }
-    throw new Error("bookmark_conflict");
+  if (await writeMcpBookmark(ctx.db, item, ctx.scope, ctx.tokenId, input.operationId, markdown, contentHash, ctx.now)) {
+    return { targetItemId: item.id, rev: item.rev + 1, result: "applied" };
   }
-  if (applied.result !== "applied" && applied.result !== "duplicate") throw new Error("bookmark_write_failed");
-  return { targetItemId: item.id, rev: applied.rev, result: applied.result };
+  if (!(await readMcpBookmarkTarget(ctx.db, ctx.userId, item.id, ctx.scope))) throw new Error("bookmark_target_unavailable");
+  const raced = await readSyncOperation(ctx.db, ctx.userId, input.operationId);
+  if (raced?.entity === "item" && raced.entityId === item.id && (raced.result === "applied" || raced.result === "duplicate")) {
+    return { targetItemId: item.id, rev: raced.rev, result: "duplicate" };
+  }
+  throw new Error("bookmark_conflict");
 }
