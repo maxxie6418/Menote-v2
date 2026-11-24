@@ -1,8 +1,9 @@
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 import type { McpBookmarkRequest, McpClipRequest, McpMemoRequest } from "@menote/shared";
-import { SEALED_ATTACHMENT_MIME } from "@menote/shared";
+import { MCP_CLIP_MAX_ATTACHMENTS, SEALED_ATTACHMENT_MIME } from "@menote/shared";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { AppEnv } from "../middleware/session";
 import { appendMcpAudit, incrementMcpRateLimit } from "../db/mcpAudit";
 import { findVisibleAttachmentOwner } from "../db/mcpPermissions";
@@ -13,6 +14,7 @@ import { appendMcpBookmark } from "../services/mcpBookmarkService";
 import { readUserAttachment, storeAttachment } from "../services/attachmentService";
 import { ensureSchemaReady } from "../services/authService";
 import { listClipTemplates, persistClipTemplate, registerCaptureAdapters } from "../services/clipTemplateService";
+import { registerAgentTools } from "./mcpAgentTools";
 
 export const mcpRoutes = new Hono<AppEnv>();
 
@@ -23,7 +25,9 @@ const clipInput = z.object({
   markdown: z.string().min(1).max(900_000),
   sourceUrl: z.string().url().max(4_096),
   capturedAt: z.string().datetime({ offset: true }),
-  attachmentHashes: z.array(z.string().regex(/^[0-9a-f]{64}$/)).max(50).optional(),
+  attachmentHashes: z.array(z.string().regex(/^[0-9a-f]{64}$/)).max(MCP_CLIP_MAX_ATTACHMENTS).optional(),
+  tags: z.array(z.string().max(200)).max(20).optional(),
+  note: z.string().max(500).optional(),
   metadata: z.object({
     author: z.string().max(500).optional(), publishedAt: z.string().max(100).optional(),
     siteName: z.string().max(500).optional(), description: z.string().max(4_000).optional(),
@@ -89,19 +93,10 @@ function withCors(response: Response, origin: string | null): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-async function isToolCall(request: Request): Promise<boolean> {
-  const headerMethod = request.headers.get("Mcp-Method");
-  if (headerMethod) return headerMethod === "tools/call";
-  const message: unknown = await request.clone().json().catch(() => null);
-  const messages = Array.isArray(message) ? message : [message];
-  return messages.some((entry) => Boolean(entry && typeof entry === "object" &&
-    "method" in entry && entry.method === "tools/call"));
-}
-
 mcpRoutes.options("/api/mcp", (c) => new Response(null, { status: 204, headers: corsHeaders(c.req.header("Origin") ?? null) }));
 mcpRoutes.on(["GET", "PUT", "DELETE"], "/api/mcp", (c) => c.json({ error: "method_not_allowed" }, 405, { Allow: "POST, OPTIONS" }));
 
-mcpRoutes.post("/api/mcp", async (c) => {
+mcpRoutes.post("/api/mcp", bodyLimit({ maxSize: 8_000_000 }), async (c) => {
   const origin = c.req.header("Origin") ?? null;
   if (origin && !extensionOrigin(origin)) return c.json({ error: "origin_not_allowed" }, 403);
   if (!(await ensureSchemaReady(c.env.DB))) return withCors(c.json({ error: "unavailable" }, 503), origin);
@@ -112,7 +107,11 @@ mcpRoutes.post("/api/mcp", async (c) => {
   const now = Date.now();
   const token = await authenticateMcpToken(c.env.DB, match[1]!, pepper, now);
   if (!token) return withCors(c.json({ error: "unauthorized" }, 401), origin);
-  if (await isToolCall(c.req.raw)) {
+  const rpc: unknown = await c.req.raw.clone().json().catch(() => null);
+  if (Array.isArray(rpc)) {
+    return withCors(c.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Send one MCP request per POST" } }, 400), origin);
+  }
+  if (rpc && typeof rpc === "object" && "method" in rpc && rpc.method === "tools/call") {
     const count = await incrementMcpRateLimit(c.env.DB, token.id, now);
     if (count > token.ratePerMinute) return withCors(c.json({ error: "rate_limited" }, 429,
       { "Retry-After": String(60 - Math.floor((now % 60_000) / 1_000)) }), origin);
@@ -122,6 +121,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
     const server = new McpServer({ name: "Menote", version: "1.0.0" });
     server.registerTool("connection_status", {
       description: "Confirm that the authenticated Menote MCP endpoint is available. Does not inspect project content.",
+      annotations: { readOnlyHint: true, openWorldHint: false },
     }, async () => ({ content: [{ type: "text", text: "Menote MCP is available." }] }));
     if (token.permissions.includes("item:create")) {
       server.registerTool("clip_page", {
@@ -139,12 +139,15 @@ mcpRoutes.post("/api/mcp", async (c) => {
             result: result.result, operationId: result.itemId, at: now });
           return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
         } catch (error) {
+          const errors = ["invalid_clip_payload", "attachment_permission_required", "attachment_missing_or_not_uploaded",
+            "clip_too_large", "operation_conflict"];
+          const code = error instanceof Error && errors.includes(error.message) ? error.message : "clip_failed";
           if (operationId) {
             await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
               tool: "clip_page", itemId: operationId, revBefore: null, revAfter: null,
-              result: error instanceof Error ? error.message.slice(0, 100) : "clip_failed", operationId, at: now });
+              result: code, operationId, at: now });
           }
-          return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "clip_failed" }] };
+          return { isError: true, content: [{ type: "text", text: code }] };
         }
       });
     }
@@ -162,12 +165,14 @@ mcpRoutes.post("/api/mcp", async (c) => {
             result: result.result, operationId: request.operationId, at: now });
           return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
         } catch (error) {
+          const code = error instanceof Error && ["invalid_memo_payload", "operation_conflict"].includes(error.message)
+            ? error.message : "memo_failed";
           if (operationId) {
             await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
               tool: "create_memo", itemId: operationId, revBefore: null, revAfter: null,
-              result: error instanceof Error ? error.message.slice(0, 100) : "memo_failed", operationId, at: now });
+              result: code, operationId, at: now });
           }
-          return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "memo_failed" }] };
+          return { isError: true, content: [{ type: "text", text: code }] };
         }
       });
     }
@@ -180,7 +185,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
         try {
           const result = await appendMcpBookmark({ db: c.env.DB, userId: token.userId, tokenId: token.id, scope: token.scope, now }, request);
           await appendMcpAudit(c.env.DB, { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id,
-            tool: "append_bookmark", itemId: result.targetItemId, revBefore: null, revAfter: result.rev,
+            tool: "append_bookmark", itemId: result.targetItemId, revBefore: result.result === "applied" ? result.rev - 1 : null, revAfter: result.rev,
             result: result.result, operationId: request.operationId, at: now });
           return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
         } catch (error) {
@@ -288,6 +293,7 @@ mcpRoutes.post("/api/mcp", async (c) => {
         return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
       });
     }
+    registerAgentTools(server, c.env.DB, token, now);
     return server;
   }, { responseMode: "json" });
   const response = await handler.fetch(c.req.raw);

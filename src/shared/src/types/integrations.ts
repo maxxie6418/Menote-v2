@@ -55,6 +55,8 @@ export interface McpAudit {
   at: number;
 }
 
+export const MCP_CLIP_MAX_ATTACHMENTS = 150;
+
 /** Versioned browser clip payload shared by Menote and Menote-clients. */
 export interface McpClipRequest {
   schemaVersion: 1;
@@ -64,6 +66,8 @@ export interface McpClipRequest {
   sourceUrl: string;
   capturedAt: string;
   attachmentHashes?: string[];
+  tags?: string[];
+  note?: string;
   metadata: {
     author?: string;
     publishedAt?: string;

@@ -1,7 +1,11 @@
 import { bytesToBase64, encodeBackupRow } from "@menote/shared";
 import { collectBackupRows } from "../db/backup";
-import { deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath, remotePut, type RemoteTarget } from "./backupRemote";
-import { verifyRemoteSnapshot } from "./backupVerifyService";
+import { MAX_STORED_ATTACHMENT_BYTES } from "./attachmentService";
+import {
+  deleteRemoteBackup, ensureDavSnapshotDirectories, listRemoteBackups, newSnapshotId, normalizeRemotePath,
+  remoteGet, remotePut, removeCompleteMarker, type RemoteTarget,
+} from "./backupRemote";
+import { backupDigest, verifyRemoteSnapshot } from "./backupVerifyService";
 
 /**
  * 备份服务（G9，FR-BAK-1~8；备份专项设计=管理线计划 G9 定稿）：
@@ -38,8 +42,8 @@ export async function openSecret(pepper: string, sealed: string): Promise<string
   return new TextDecoder().decode(plain);
 }
 
-/** 收集当前状态；引用附件缺失时记录清单，推送前拒绝生成不可恢复的快照。 */
-export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket): Promise<{ months: Record<string, unknown[]>; manifest: Record<string, unknown>; attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }>; missingAttachments: string[] }> {
+/** Collect the current state and check referenced objects without loading their bodies. */
+export async function collectBackup(db: D1Database, userId: string, bucket: R2Bucket) {
   const { items, topics, memoComments, itemKeyWraps, topicKeyWraps, settings, attachmentHashes, attachmentObjects, recoveryCodeBinding } = await collectBackupRows(db, userId);
   const months: Record<string, unknown[]> = {};
   const monthOf = (timestamp: unknown): string => {
@@ -55,14 +59,16 @@ export async function collectBackup(db: D1Database, userId: string, bucket: R2Bu
   for (const topic of topics.map(encodeBackupRow)) {
     (months[monthOf(topic.created_at ?? 0)] ??= []).push({ kind: "topic", data: topic });
   }
-  const attachments: Array<{ key: string; bytes: ArrayBuffer; mime: string }> = [];
+  const attachments: Array<{ key: string; sha256: string; mime: string }> = [];
   const missingAttachments: string[] = [];
   for (const sha256 of attachmentHashes) {
     const metadata = attachmentObjects.get(sha256);
     const key = metadata ? metadata.key : `${userId}/${sha256}`;
-    const object = key ? await bucket.get(key) : null;
+    if (!key) { missingAttachments.push(sha256); continue; }
+    const object = await bucket.head(key);
     if (!object) { missingAttachments.push(sha256); continue; }
-    attachments.push({ key: `attachments/${sha256}`, bytes: await object.arrayBuffer(), mime: metadata?.mime ?? "application/octet-stream" });
+    if (object.size > MAX_STORED_ATTACHMENT_BYTES) throw new Error(`附件超出大小限制：${sha256}`);
+    attachments.push({ key, sha256, mime: metadata?.mime ?? "application/octet-stream" });
   }
   const manifest = {
     format: "menote-backup",
@@ -104,35 +110,52 @@ export async function pushBackup(
       // Create namespace and snapshot collection before PUT; DAV servers do not create parents implicitly.
       await ensureDavSnapshotDirectories(target, root, directory);
     }
-    const files: Array<{ path: string; bytes: Uint8Array; contentType: string }> = [];
-    for (const attachment of attachments) files.push({ path: `attachment-${attachment.key.split("/").pop()}`, bytes: new Uint8Array(attachment.bytes), contentType: attachment.mime });
-    for (const month of Object.keys(months).sort()) files.push({ path: `${month}.json`, bytes: new TextEncoder().encode(JSON.stringify(months[month])), contentType: "application/json" });
-    const fileMetadata = await Promise.all(files.map(async (file) => ({
-      path: file.path, size: file.bytes.byteLength, sha256: await hashHex(file.bytes),
-      ...(file.path.startsWith("attachment-") ? { mime: file.contentType } : {}),
-    })));
+    const fileMetadata: Array<{ path: string; size: number; sha256: string; mime?: string }> = [];
+    for (const { key, sha256, mime } of attachments) {
+      const object = await ctx.bucket.get(key);
+      if (!object) throw new Error(`引用附件缺失：${sha256}`);
+      if (object.size > MAX_STORED_ATTACHMENT_BYTES) {
+        await object.body.cancel().catch(() => {});
+        throw new Error(`附件超出大小限制：${sha256}`);
+      }
+      const bytes = new Uint8Array(await object.arrayBuffer());
+      const path = `attachment-${sha256}`;
+      if (await backupDigest(bytes) !== sha256) throw new Error(`附件内容哈希不符：${path}`);
+      await remotePut(target, `${directory}/${path}`, bytes, mime);
+      fileMetadata.push({ path, size: bytes.byteLength, sha256, mime });
+    }
+    const encode = new TextEncoder();
+    for (const { month } of manifest.shards) {
+      const path = `${month}.json`;
+      const bytes = encode.encode(JSON.stringify(months[month]));
+      await remotePut(target, `${directory}/${path}`, bytes, "application/json");
+      fileMetadata.push({ path, size: bytes.byteLength, sha256: await backupDigest(bytes) });
+      delete months[month];
+    }
     const completeManifest = { ...manifest, snapshotId: id, files: fileMetadata };
-    const manifestBytes = new TextEncoder().encode(JSON.stringify(completeManifest));
-    const manifestHash = await hashHex(manifestBytes);
-    for (const file of files) await remotePut(target, `${directory}/${file.path}`, file.bytes, file.contentType);
+    const manifestBytes = encode.encode(JSON.stringify(completeManifest));
+    const manifestHash = await backupDigest(manifestBytes);
     await remotePut(target, `${directory}/manifest.json`, manifestBytes, "application/json");
-    await remotePut(target, `${directory}/COMPLETE`, new TextEncoder().encode(manifestHash), "text/plain");
-    // 远端实际读回并校验通过之前，绝不清理已有快照。
-    await verifyRemoteSnapshot(target, id);
+    // Publish COMPLETE only after validating the actual remote payload.
+    await verifyRemoteSnapshot(target, id, manifestHash);
+    const markerPath = `${directory}/COMPLETE`;
+    try {
+      await remotePut(target, markerPath, encode.encode(manifestHash), "text/plain");
+      const marker = await remoteGet(target, markerPath, manifestHash.length);
+      if (new TextDecoder().decode(marker) !== manifestHash) throw new Error("备份完成标记校验失败");
+    } catch (error) {
+      await removeCompleteMarker(target, id).catch(() => {});
+      throw error;
+    }
     if (target.retentionCount > 0) {
       // 只清理严格更早的快照，避免两个并发推送互相删除刚验证的快照。
       const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete && backup.id < id);
       for (const old of backups.slice(target.retentionCount - 1)) await deleteRemoteBackup(target, old.id);
     }
-    return { ok: true, shards: Object.keys(months).length, backupId: id, missingAttachments };
+    return { ok: true, shards: manifest.shards.length, backupId: id, missingAttachments };
   } catch (error) {
     return { ok: false, error: String(error).slice(0, 300) };
   }
-}
-
-function hashHex(bytes: Uint8Array): Promise<string> {
-  return crypto.subtle.digest("SHA-256", bytes as BufferSource).then((digest) =>
-    [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""));
 }
 
 export { deleteRemoteBackup, listRemoteBackups, testRemoteTarget } from "./backupRemote";

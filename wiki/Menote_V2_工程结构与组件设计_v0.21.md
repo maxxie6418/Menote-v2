@@ -220,3 +220,9 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
   4. UI 直连数据层检查（必须经 services）；
   5. 样式硬编码检查（必须走 tokens）。
 - 检查由 AGENTS.md 约束人工/Agent 自查，M4 起考虑脚本化（lint 规则 `[实施定]`）。
+
+### MCP Agent 工具模块（TP3 前置接入）
+
+- `src/shared/src/contracts/mcpAgent.ts` 定义查询、新建及敏感元数据裁剪的契约。扩展继续使用独立的剪藏、收藏与摘录工具。
+- `src/worker/src/routes/mcpAgentTools.ts` 注册工具与校验输入，经 `mcpAgentService.ts` 处理分页、新建和审计。数据库访问集中在 `db/mcpAgent.ts`，查询、附件和收藏共用 `db/mcpPermissions.ts` 的可见性条件。
+- Agent 与扩展的新建操作通过 `syncService.ts` 的纯插入路径，同一次批处理写入条目、同步日志和操作记录。收藏写入在更新语句中复核正文与元数据版本及目标可见性。

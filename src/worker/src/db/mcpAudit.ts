@@ -36,10 +36,18 @@ export async function incrementMcpRateLimit(db: D1Database, tokenId: string, now
 }
 
 /** Only hashes uploaded through this token may be attached by its clip tool. */
-export async function wasAttachmentUploadedByToken(db: D1Database, tokenId: string, userId: string, sha256: string): Promise<boolean> {
+export async function verifyMcpClipAttachments(
+  db: D1Database, tokenId: string, userId: string, hashes: string[], sealedMime: string,
+): Promise<boolean> {
+  if (!hashes.length) return true;
   const row = await db.prepare(
-    `SELECT 1 AS ok FROM mcp_audit WHERE token_id = ? AND user_id = ? AND tool = 'upload_attachment'
-       AND resource_id = ? AND result = 'uploaded' LIMIT 1`,
-  ).bind(tokenId, userId, sha256).first<{ ok: number }>();
-  return row !== null;
+    `SELECT 1 AS missing FROM json_each(?) AS requested
+     WHERE NOT EXISTS (SELECT 1 FROM attachments AS a
+       WHERE a.user_id = ? AND a.sha256 = requested.value AND a.retired_at IS NULL
+         AND a.size > 0 AND a.mime != ?)
+        OR NOT EXISTS (SELECT 1 FROM mcp_audit AS audit WHERE audit.token_id = ? AND audit.user_id = ?
+          AND audit.tool = 'upload_attachment' AND audit.resource_id = requested.value AND audit.result = 'uploaded')
+     LIMIT 1`,
+  ).bind(JSON.stringify(hashes), userId, sealedMime, tokenId, userId).first<{ missing: number }>();
+  return row === null;
 }

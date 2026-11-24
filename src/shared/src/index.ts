@@ -28,7 +28,7 @@ export {
 export { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_MAGIC, SEALED_ATTACHMENT_MIME_BYTES,
   SEALED_ATTACHMENT_IV_BYTES, SEALED_ATTACHMENT_OVERHEAD, isSealedAttachment } from "./contracts/sealedAttachment";
 export {
-  MCP_PERMISSION_KEYS,
+  MCP_PERMISSION_KEYS, MCP_CLIP_MAX_ATTACHMENTS,
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
   type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
   type McpClipRequest, type McpClipResult, type McpBookmarkRequest, type McpBookmarkResult,
@@ -38,6 +38,7 @@ export type { UserSetting, MonitorSample } from "./types/settings";
 export { isClipTemplateV1 } from "./types/clipTemplate";
 export type { ClipTemplateV1, ClipTemplateField, StoredClipTemplate } from "./types/clipTemplate";
 export { resolveItemId } from "./itemId";
+export type { McpItemSummary, McpItemQuery, McpCreateItemRequest } from "./contracts/mcpAgent";
 export { extractTags, findMemoTagRanges, appendTags, toggleTagInText, removeTagFromText, renameTagInText, setTagsInText } from "./memoTags";
 export { bytesToBase64, base64ToBytes, asBytes, encodeBackupRow, decodeBackupRow, wrapFieldToBase64 } from "./bytes";
 export { PROPERTY_TEMPLATES_SETTING_KEY } from "./contracts/propertyTemplates";

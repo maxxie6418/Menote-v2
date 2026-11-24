@@ -13,8 +13,9 @@ import {
 import { itemWrapStatements, topicWrapStatements, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
 import {
-  appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, markItemDeleted, purgeSyncOperations, readAllItemsPage, readAllTopics,
-  readItemAttachmentHashes, readItems, readItemState, readLogPage, readSettings, readSyncOperation,
+  appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, guardItemSyncWrite, insertItemRowStatement,
+  isItemSyncGuardFailure, markItemDeletedStatement, purgeSyncOperations, readAllItemsPage, readAllTopics,
+  readItems, readItemState, readLogPage, readSettings, readSyncOperation, type ItemState,
   readTopics, readMemoComments, readAllMemoComments, recordSyncOperation, recordSyncOperationStatement, toTombstone, updateItemContentStatement, updateItemMetaStatement, upsertItemRowStatement, upsertTopicRowStatement,
   readSettingState, writeSetting,
 } from "../db/sync";
@@ -31,6 +32,34 @@ export interface ApplyContext {
   userId: string;
   deviceId: string;
   now: number;
+  requireLivePlainItem?: boolean;
+}
+
+/** Server-created items always insert. A retry can confirm its previous write without updating an existing item. */
+export async function insertServerItem(ctx: ApplyContext, item: Item, operationId: string) {
+  const duplicate = async () => {
+    const previous = await readSyncOperation(ctx.db, ctx.userId, operationId);
+    if (!previous) return null;
+    if (previous.entity !== "item" || previous.entityId !== item.id || previous.result !== "applied") {
+      throw new Error("operation_conflict");
+    }
+    return { itemId: item.id, rev: previous.rev, result: "duplicate" as const };
+  };
+  const previous = await duplicate();
+  if (previous) return previous;
+  try {
+    await commitWrites(ctx.db, [
+      insertItemRowStatement(ctx.db, ctx.userId, ctx.deviceId, item),
+      appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", item.rev, item.metaRev, ctx.now),
+      recordSyncOperationStatement(ctx.db, ctx.userId, operationId, "item", item.id, "applied", item.rev, item.metaRev, item.contentHash, ctx.now, "strict_insert"),
+      ...item.attachmentHashes.flatMap((hash) => realignAttachmentStatements(ctx.db, ctx.userId, hash, ctx.now)),
+    ]);
+  } catch (error) {
+    const raced = await duplicate();
+    if (raced) return raced;
+    throw error;
+  }
+  return { itemId: item.id, rev: item.rev, result: "applied" as const };
 }
 
 class SyncRejected extends Error {
@@ -44,11 +73,22 @@ function conflictResult(operationId: string, state: { rev: number; metaRev: numb
   return { operationId, result: "conflict", detail };
 }
 
-/** 附件引用对齐：以服务端 items 表重算涉及哈希的引用计数（正文哈希列表为基准，FR-SYNC-7）。 */
-async function realignAttachmentRefs(ctx: ApplyContext, hashes: string[]): Promise<void> {
-  const statements = [...new Set(hashes)].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256))
+function attachmentWrites(ctx: ApplyContext, hashes: string[]): D1PreparedStatement[] {
+  return [...new Set(hashes)].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256))
     .flatMap((sha256) => realignAttachmentStatements(ctx.db, ctx.userId, sha256, ctx.now));
-  if (statements.length) await commitWrites(ctx.db, statements);
+}
+
+function itemAttachmentHashes(current: ItemState | null): string[] {
+  try { return JSON.parse(current?.attachmentHashesJson ?? "[]") as string[]; } catch { return []; }
+}
+
+function commitItemWrites(
+  ctx: ApplyContext, operation: OutboxOperation, current: ItemState | null, statements: D1PreparedStatement[],
+): Promise<void> {
+  return commitWrites(ctx.db, [
+    guardItemSyncWrite(ctx.db, ctx.userId, operation.entityId, operation.operationId, current),
+    ...statements,
+  ]);
 }
 
 /**
@@ -63,19 +103,25 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   // 载荷中的 userId 一律忽略：归属以会话用户为准（FR-USR-3，服务端不信任客户端标识）。
   if (!item || item.id !== operation.entityId) throw new SyncRejected("invalid_payload");
   const current = await readItemState(ctx.db, ctx.userId, item.id);
+  if (ctx.requireLivePlainItem && (!current || current.deletedAt !== null || current.encrypted || current.type !== item.type)) {
+    return { operationId: operation.operationId, result: "rejected", code: "entity_missing" };
+  }
   // 正文操作必带 contentHash（G2 §3 推送协议）；缺省即元数据操作。
   const contentOp = operation.contentHash !== undefined;
   if (current && contentOp) {
     // §5-1 正文一致收敛：版本落后也不算冲突，不生成冲突副本。
-    if (item.contentHash === current.contentHash) {
-      return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: current.metaRev, contentHash: current.contentHash };
-    }
+    const sameContent = item.contentHash === current.contentHash;
     // §5-4 Memo 字段级 LWW：以服务端接收时序为准，不产生冲突副本。
-    if (item.type === "memo" && item.updatedAt <= current.updatedAt) {
+    const memoContent = current.type === "memo" && item.type === "memo";
+    if (sameContent || (memoContent && item.updatedAt <= current.updatedAt)) {
+      await commitItemWrites(ctx, operation, current, [
+        recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, "duplicate",
+          current.rev, current.metaRev, current.contentHash, ctx.now, "strict_insert"),
+      ]);
       return { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: current.metaRev, contentHash: current.contentHash };
     }
     // §5-2 Note 正文真冲突：正文哈希不同且正文版本前置不成立。
-    if (item.type !== "memo" && current.rev !== operation.baseRev) {
+    if (!memoContent && current.rev !== operation.baseRev) {
       await recordConflict(ctx, operation, current);
       return conflictResult(operation.operationId, current);
     }
@@ -92,9 +138,6 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   const metaRev = current
     ? (contentOp ? Math.max(item.metaRev, current.metaRev) : Math.max(item.metaRev, current.metaRev + 1))
     : Math.max(item.metaRev, 1);
-  const previousRefs = current ? (() => {
-    try { return JSON.parse(current.attachmentHashesJson) as string[]; } catch { return []; }
-  })() : [];
   // 客户端的元数据版本落后（他端改过元数据）时，正文照落、元数据保持服务端值（G2 §5-3 服务端胜出）。
   const metadataStale = current ? operation.baseMetaRev !== current.metaRev : false;
   const statements: D1PreparedStatement[] = [];
@@ -112,11 +155,11 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   }
   statements.push(
     appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", rev, metaRev, ctx.now),
-    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, "applied", rev, metaRev, item.contentHash, ctx.now),
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, "applied", rev, metaRev,
+      current && !contentOp ? current.contentHash : item.contentHash, ctx.now, "strict_insert"),
+    ...attachmentWrites(ctx, [...itemAttachmentHashes(current), ...item.attachmentHashes]),
   );
-  const hashes = [...new Set([...previousRefs, ...item.attachmentHashes])].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256));
-  for (const sha256 of hashes) statements.push(...realignAttachmentStatements(ctx.db, ctx.userId, sha256, ctx.now));
-  await commitWrites(ctx.db, statements);
+  await commitItemWrites(ctx, operation, current, statements);
   return { operationId: operation.operationId, result: "applied", rev, metaRev };
 }
 
@@ -126,10 +169,13 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
  * 否则冲突后客户端停留在旧版本号上，下次保存又撞同一条前置条件，冲突副本会反复出现。
  */
 async function recordConflict(
-  ctx: ApplyContext, operation: OutboxOperation, current: { rev: number; metaRev: number; contentHash: string },
+  ctx: ApplyContext, operation: OutboxOperation, current: ItemState,
 ): Promise<void> {
-  await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId, "conflict", current.rev, current.metaRev, current.contentHash, ctx.now);
-  await appendSyncLog(ctx.db, ctx.userId, "item", operation.entityId, "upsert", current.rev, current.metaRev, ctx.now);
+  await commitItemWrites(ctx, operation, current, [
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId, "conflict",
+      current.rev, current.metaRev, current.contentHash, ctx.now, "strict_insert"),
+    appendSyncLogStatement(ctx.db, ctx.userId, "item", operation.entityId, "upsert", current.rev, current.metaRev, ctx.now),
+  ]);
 }
 
 /** 软删：删除不推 rev（与客户端语义一致）；并发编辑胜由后续 upsert 复活（G2 §5-5）。 */
@@ -138,10 +184,10 @@ async function applyItemDelete(ctx: ApplyContext, operation: OutboxOperation): P
   if (!current) {
     // 删除是幂等操作：条目已物理删除或从未上传时，目标状态已经满足。
     // 记下操作结果以清除客户端 outbox；不追加墓碑，因为当前没有可变更的服务端实体。
-    await recordSyncOperation(
-      ctx.db, ctx.userId, operation.operationId, "item", operation.entityId,
-      "applied", operation.baseRev, operation.baseMetaRev, null, ctx.now,
-    );
+    await commitItemWrites(ctx, operation, null, [
+      recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId,
+        "applied", operation.baseRev, operation.baseMetaRev, null, ctx.now, "strict_insert"),
+    ]);
     return {
       operationId: operation.operationId,
       result: "applied",
@@ -151,15 +197,17 @@ async function applyItemDelete(ctx: ApplyContext, operation: OutboxOperation): P
   }
   // 前置条件只看正文版本 rev：元数据版本与删除无关，不该让一次改名把删除挡成冲突。
   if (current.rev !== operation.baseRev) {
-    await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId, "conflict", current.rev, current.metaRev, current.contentHash, ctx.now);
-    await appendSyncLog(ctx.db, ctx.userId, "item", operation.entityId, "upsert", current.rev, current.metaRev, ctx.now);
+    await recordConflict(ctx, operation, current);
     return conflictResult(operation.operationId, current);
   }
   const deletedAt = (operation.payload as { deletedAt?: number } | null)?.deletedAt ?? ctx.now;
-  await markItemDeleted(ctx.db, ctx.userId, ctx.deviceId, operation.entityId, deletedAt);
-  await appendSyncLog(ctx.db, ctx.userId, "item", operation.entityId, "delete", current.rev, current.metaRev, ctx.now);
-  await recordSyncOperation(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId, "applied", current.rev, current.metaRev, current.contentHash, ctx.now);
-  await realignAttachmentRefs(ctx, await readItemAttachmentHashes(ctx.db, ctx.userId, operation.entityId));
+  await commitItemWrites(ctx, operation, current, [
+    markItemDeletedStatement(ctx.db, ctx.userId, ctx.deviceId, operation.entityId, deletedAt),
+    appendSyncLogStatement(ctx.db, ctx.userId, "item", operation.entityId, "delete", current.rev, current.metaRev, ctx.now),
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", operation.entityId,
+      "applied", current.rev, current.metaRev, current.contentHash, ctx.now, "strict_insert"),
+    ...attachmentWrites(ctx, itemAttachmentHashes(current)),
+  ]);
   return { operationId: operation.operationId, result: "applied", rev: current.rev, metaRev: current.metaRev };
 }
 
@@ -272,6 +320,18 @@ async function applySetting(ctx: ApplyContext, operation: OutboxOperation): Prom
 
 /** 逐操作应用入口；单操作任何确定失败不影响其余操作（G2 §3）。 */
 export async function applyOperation(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
+  // 并发写落库后重新读取，并继续使用请求原有的版本前置条件判定。
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await applyOperationOnce(ctx, operation);
+    } catch (error) {
+      if (!isItemSyncGuardFailure(error)) throw error;
+    }
+  }
+  throw new Error("item_sync_busy");
+}
+
+async function applyOperationOnce(ctx: ApplyContext, operation: OutboxOperation): Promise<SyncOperationResult> {
   const previous = await readSyncOperation(ctx.db, ctx.userId, operation.operationId);
   if (previous) {
     if (previous.result === "rejected") {

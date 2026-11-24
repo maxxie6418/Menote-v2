@@ -62,6 +62,7 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
     const files = new Map();
     const calls = [];
     let corruptRead = false;
+    let corruptMarker = false;
     const oldDirectory = "/dav/menote/20000101T000000000Z-00000001";
     const newerDirectory = "/dav/menote/20990101T000000000Z-00000002";
     globalThis.fetch = async (url, init = {}) => {
@@ -69,7 +70,11 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
       const method = init.method ?? "GET";
       calls.push({ method, path });
       if (method === "MKCOL") return new Response(null, { status: 201 });
-      if (method === "PUT") { files.set(path, new Uint8Array(init.body)); return new Response(null, { status: 201 }); }
+      if (method === "PUT") {
+        const body = corruptMarker && path.endsWith("/COMPLETE") ? new Uint8Array(64).fill(48) : new Uint8Array(init.body);
+        files.set(path, body);
+        return new Response(null, { status: 201 });
+      }
       if (method === "GET") {
         if (corruptRead && path.endsWith(".json") && !path.endsWith("manifest.json")) return new Response("corrupt");
         return files.has(path) ? new Response(files.get(path)) : new Response(null, { status: 404 });
@@ -79,7 +84,7 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
         return new Response(`<d:multistatus xmlns:d="DAV:">${hrefs.map((href) =>
           `<d:response><d:href>${href}</d:href><d:collection/></d:response>`).join("")}</d:multistatus>`, { status: 207 });
       }
-      if (method === "DELETE") return new Response(null, { status: 204 });
+      if (method === "DELETE") { files.delete(path); return new Response(null, { status: 204 }); }
       throw new Error(`unexpected ${method} ${path}`);
     };
     try {
@@ -91,20 +96,131 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
       await bucket.put(`${user.id}/${hash}`, content);
       const snapshot = await backupService.collectBackup(db, user.id, bucket);
       assert.equal(snapshot.attachments.length, 1, "包含仅由回收站条目引用的附件");
+      files.set(`${oldDirectory}/COMPLETE`, new Uint8Array([1]));
+      files.set(`${newerDirectory}/COMPLETE`, new Uint8Array([1]));
       corruptRead = true;
       const damaged = await backupService.pushBackup(ctx, target);
       assert.equal(damaged.ok, false);
       assert.match(damaged.error, /文件校验失败/);
       assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "读回校验失败不得清理旧快照");
+      assert.equal(calls.some((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")), false, "读回校验失败不得发布标记");
 
       corruptRead = false;
-      files.set(`${oldDirectory}/COMPLETE`, new Uint8Array([1]));
-      files.set(`${newerDirectory}/COMPLETE`, new Uint8Array([1]));
+      corruptMarker = true;
+      const badMarker = await backupService.pushBackup(ctx, target);
+      assert.equal(badMarker.ok, false);
+      assert.match(badMarker.error, /完成标记校验失败/);
+      const invalidMarker = calls.findLast((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")).path;
+      assert.deepEqual(calls.filter((call) => call.method === "DELETE").map((call) => call.path), [invalidMarker]);
+      assert.equal(files.has(invalidMarker), false, "只撤回损坏快照的完成标记");
+      assert.equal(calls.some((call) => call.method === "PROPFIND"), false, "损坏标记不得触发保留策略");
+      assert.equal(files.has(`${oldDirectory}/COMPLETE`), true);
+
+      corruptMarker = false;
+      calls.length = 0;
       const complete = await backupService.pushBackup(ctx, target);
       assert.equal(complete.ok, true, "含回收站附件的快照可通过真实恢复校验器");
       assert.deepEqual(calls.filter((call) => call.method === "DELETE").map((call) => call.path),
         [`${oldDirectory}/manifest.json`, oldDirectory], "只在旧快照目录内删除，保留并发产生的更新快照");
 
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("144 MiB 附件快照逐件上传和暂存，末件损坏时不会发布恢复数据", async () => {
+  await withWorker(async (source) => {
+    await login(source);
+    const db = await source.getD1Database("DB");
+    const { id: userId } = await db.prepare("SELECT id FROM users").first();
+    const size = 16 * 1024 * 1024;
+    const files = Array.from({ length: 9 }, (_, index) => {
+      const byte = index + 1;
+      const sha256 = createHash("sha256").update(Buffer.alloc(size, byte)).digest("hex");
+      return { byte, sha256 };
+    });
+    const byHash = new Map(files.map((file) => [file.sha256, file]));
+    await db.prepare(`INSERT INTO items (id,user_id,type,title,content_markdown,tags_json,attachment_hashes_json,
+      source,rev,meta_rev,content_hash,created_at,updated_at)
+      VALUES ('large-backup',?,'note','large backup','body','[]',?,'manual',1,1,'h',1,1)`)
+      .bind(userId, JSON.stringify([...byHash.keys()])).run();
+
+    let inFlight = null;
+    const sourceBucket = {
+      head: async (key) => byHash.has(key.split("/").at(-1)) ? { size } : null,
+      get: async (key) => {
+        const file = byHash.get(key.split("/").at(-1));
+        assert.ok(file);
+        assert.equal(inFlight, null, "读取下一份 R2 附件前应已上传当前附件");
+        inFlight = file.sha256;
+        return { size, arrayBuffer: async () => new Uint8Array(size).fill(file.byte).buffer };
+      },
+    };
+
+    const target = { kind: "webdav", endpoint: "https://example.invalid/dav", bucket: null, username: "u", secret: "s", remotePath: "menote", retentionCount: 0 };
+    const uploaded = new Set();
+    const remoteMetadata = new Map();
+    const originalFetch = globalThis.fetch;
+    let corruptLast = false;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      const name = path.split("/").at(-1);
+      const file = name.startsWith("attachment-") ? byHash.get(name.slice(11)) : undefined;
+      if (init.method === "MKCOL") return new Response(null, { status: 201 });
+      if (init.method === "PUT") {
+        if (file) {
+          assert.equal(inFlight, file.sha256);
+          assert.equal(init.body.byteLength, size);
+          assert.equal(init.body[0], file.byte);
+          uploaded.add(file.sha256);
+          inFlight = null;
+        } else remoteMetadata.set(path, init.body);
+        return new Response(null, { status: 201 });
+      }
+      if (!file) return remoteMetadata.has(path) ? new Response(remoteMetadata.get(path)) : new Response(null, { status: 404 });
+      assert.ok(uploaded.has(file.sha256));
+      const chunk = new Uint8Array(1024 * 1024).fill((corruptLast && file === files.at(-1)) ? 255 : file.byte);
+      let remaining = size;
+      return new Response(new ReadableStream({
+        pull(controller) {
+          if (!remaining) { controller.close(); return; }
+          controller.enqueue(chunk);
+          remaining -= chunk.length;
+        },
+      }));
+    };
+    try {
+      const pushed = await backupService.pushBackup({ db, userId, bucket: sourceBucket }, target);
+      assert.equal(pushed.ok, true, pushed.error);
+      assert.equal(uploaded.size, files.length);
+      await withWorker(async (destination) => {
+        await login(destination);
+        const cleanDb = await destination.getD1Database("DB");
+        const { id: cleanUser } = await cleanDb.prepare("SELECT id FROM users").first();
+        const staged = [];
+        const bucket = {
+          put: async (key, bytes) => {
+            const file = byHash.get(key.split("/")[1]);
+            assert.equal(bytes.byteLength, size);
+            assert.equal(bytes[0], file.byte);
+            staged.push(key);
+          },
+        };
+        const restore = () => backupService.restoreRemoteSnapshot({ db: cleanDb, userId: cleanUser, bucket }, target, pushed.backupId);
+        const count = async (table) => (await cleanDb.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n;
+        corruptLast = true;
+        await assert.rejects(restore(), /文件校验失败/);
+        assert.equal(staged.length, files.length - 1);
+        assert.equal(await count("attachment_object_deletions"), files.length, "失败后的临时世代仍可回收");
+        assert.equal(await count("attachments"), 0);
+        assert.equal(await count("items"), 0);
+
+        corruptLast = false;
+        const result = await restore();
+        assert.equal(result.attachments, files.length);
+        assert.equal(result.items, 1);
+        assert.equal(await count("attachments"), files.length);
+        assert.equal(await count("attachment_object_deletions"), files.length, "只保留首次失败的预约");
+      });
     } finally { globalThis.fetch = originalFetch; }
   });
 });

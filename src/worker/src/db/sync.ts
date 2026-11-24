@@ -175,17 +175,45 @@ export async function writeSetting(db: D1Database, setting: UserSetting, baseRev
 
 export interface ItemState {
   rev: number; metaRev: number; contentHash: string;
-  updatedAt: number; deletedAt: number | null; type: string; attachmentHashesJson: string;
+  updatedAt: number; deletedAt: number | null; type: string; encrypted: boolean; attachmentHashesJson: string;
 }
 
 export async function readItemState(db: D1Database, userId: string, id: string): Promise<ItemState | null> {
   const row = await db.prepare(
-    "SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type, attachment_hashes_json FROM items WHERE id = ? AND user_id = ?",
-  ).bind(id, userId).first<{ rev: number; meta_rev: number; content_hash: string; updated_at: number; deleted_at: number | null; type: string; attachment_hashes_json: string }>();
+    `SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type,
+       (enc_self OR in_enc_space OR content_ciphertext IS NOT NULL) AS encrypted, attachment_hashes_json
+     FROM items WHERE id = ? AND user_id = ?`,
+  ).bind(id, userId).first<{ rev: number; meta_rev: number; content_hash: string; updated_at: number; deleted_at: number | null; type: string; encrypted: number; attachment_hashes_json: string }>();
   return row ? {
     rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash, updatedAt: row.updated_at,
-    deletedAt: row.deleted_at, type: row.type, attachmentHashesJson: row.attachment_hashes_json,
+    deletedAt: row.deleted_at, type: row.type, encrypted: row.encrypted === 1, attachmentHashesJson: row.attachment_hashes_json,
   } : null;
+}
+
+const itemSyncStateChanged = "menote_item_sync_state_changed";
+
+/** Verify the read snapshot and operation ID inside the batch that publishes the write. */
+export function guardItemSyncWrite(
+  db: D1Database, userId: string, itemId: string, operationId: string, expected: ItemState | null,
+): D1PreparedStatement {
+  return db.prepare(
+    `SELECT CASE WHEN NOT EXISTS (
+       SELECT 1 FROM sync_operations WHERE user_id = ? AND operation_id = ?
+     ) AND (
+       SELECT CASE WHEN rev = ? AND meta_rev = ? AND content_hash = ? AND updated_at = ?
+         AND deleted_at IS ? AND type = ? AND (enc_self OR in_enc_space OR content_ciphertext IS NOT NULL) = ?
+         AND attachment_hashes_json = ? THEN 1 ELSE 0 END
+       FROM items WHERE user_id = ? AND id = ?
+     ) IS ? THEN 1 ELSE json_extract('[]', ?) END`,
+  ).bind(userId, operationId, expected?.rev ?? null, expected?.metaRev ?? null,
+    expected?.contentHash ?? null, expected?.updatedAt ?? null, expected?.deletedAt ?? null,
+    expected?.type ?? null, expected?.encrypted ? 1 : 0, expected?.attachmentHashesJson ?? null,
+    userId, itemId, expected ? 1 : null, itemSyncStateChanged);
+}
+
+/** An invalid JSON path deliberately aborts the D1 batch before any mutation runs. */
+export function isItemSyncGuardFailure(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(itemSyncStateChanged);
 }
 
 export async function readTopicDeletedAt(db: D1Database, userId: string, id: string): Promise<number | null | undefined> {
@@ -196,10 +224,11 @@ export async function readTopicDeletedAt(db: D1Database, userId: string, id: str
 
 export function appendSyncLogStatement(
   db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
-  op: "upsert" | "delete", rev: number, metaRev: number, now: number,
+  op: "upsert" | "delete", rev: number, metaRev: number, now: number, afterChange = false,
 ): D1PreparedStatement {
   return db.prepare(
-    "INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    `INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at)
+     ${afterChange ? "SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?)"}`,
   ).bind(userId, entity, entityId, op, rev, metaRev, now);
 }
 
@@ -224,11 +253,12 @@ export async function readSyncOperation(db: D1Database, userId: string, operatio
 export function recordSyncOperationStatement(
   db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
   result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
+  mode: "default" | "after_change" | "strict_insert" = "default",
 ): D1PreparedStatement {
   return db.prepare(
     `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (user_id, operation_id) DO NOTHING`,
+     ${mode === "after_change" ? "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"}
+     ${mode === "default" ? "ON CONFLICT (user_id, operation_id) DO NOTHING" : ""}`,
   ).bind(userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now);
 }
 
@@ -247,16 +277,20 @@ export async function commitWrites(db: D1Database, statements: D1PreparedStateme
 /** 撤销一条已知操作记录（G2 §6 幂等只覆盖已应用；rejected 记录重推前删除以重新判定）。 */
 export async function deleteSyncOperation(db: D1Database, userId: string, operationId: string): Promise<void> {
   await db.prepare(
-    "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ?",
+    "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ? AND result = 'rejected'",
   ).bind(userId, operationId).run();
 }
 
-function itemUpsertSql(source: string): string {
+function itemInsertSql(source: string): string {
   return `INSERT INTO items (id, user_id, type, topic_id, group_id, title, content_markdown, content_ciphertext,
        tags_json, attachment_hashes_json, status, source, rev, meta_rev, content_hash, pinned, starred,
        enc_self, in_enc_space, created_at, updated_at, deleted_at, last_device, conflict_of,
        memo_quote_source_id, memo_quote_source_created_at, memo_quote_snapshot)
-     ${source}
+     ${source}`;
+}
+
+function itemUpsertSql(source: string): string {
+  return `${itemInsertSql(source)}
      ON CONFLICT (user_id, id) DO UPDATE SET
        type = excluded.type, topic_id = excluded.topic_id, group_id = excluded.group_id, title = excluded.title,
        content_markdown = excluded.content_markdown, content_ciphertext = excluded.content_ciphertext,
@@ -285,18 +319,25 @@ function itemBindings(userId: string, deviceId: string, item: Item, rev: number,
   ];
 }
 
+const itemValues = `VALUES (${Array<string>(27).fill("?").join(", ")})`;
+
 export function upsertItemRowStatement(
   db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
 ): D1PreparedStatement {
-  return db.prepare(itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+  return db.prepare(itemUpsertSql(itemValues))
     .bind(...itemBindings(userId, deviceId, item, rev, metaRev));
+}
+
+export function insertItemRowStatement(db: D1Database, userId: string, deviceId: string, item: Item): D1PreparedStatement {
+  return db.prepare(itemInsertSql(itemValues))
+    .bind(...itemBindings(userId, deviceId, item, item.rev, item.metaRev));
 }
 
 /** Restoring thousands of individual statements would exceed the D1 batch time budget. */
 export function restoreItemRowStatements(db: D1Database, userId: string, items: Item[]): D1PreparedStatement[] {
   const projection = Array.from({ length: 27 }, (_, index) => `json_extract(value, '$[${index}]')`).join(", ");
   const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`);
-  const single = itemUpsertSql("VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  const single = itemUpsertSql(itemValues);
   const result: D1PreparedStatement[] = [];
   let rows: string[] = [];
   let chars = 0;
@@ -399,11 +440,11 @@ export async function updateItemMeta(
   await updateItemMetaStatement(db, userId, deviceId, item, metaRev).run();
 }
 
-export async function markItemDeleted(
+export function markItemDeletedStatement(
   db: D1Database, userId: string, deviceId: string, id: string, deletedAt: number,
-): Promise<void> {
-  await db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
-    .bind(deletedAt, deviceId, id, userId).run();
+): D1PreparedStatement {
+  return db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
+    .bind(deletedAt, deviceId, id, userId);
 }
 
 export function upsertTopicRowStatement(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): D1PreparedStatement {
@@ -426,16 +467,6 @@ export async function countItemReferences(db: D1Database, userId: string, sha256
      AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`,
   ).bind(userId, sha256).first<{ n: number }>();
   return row?.n ?? 0;
-}
-
-export async function readItemAttachmentHashes(db: D1Database, userId: string, id: string): Promise<string[]> {
-  const row = await db.prepare("SELECT attachment_hashes_json FROM items WHERE id = ? AND user_id = ?")
-    .bind(id, userId).first<{ attachment_hashes_json: string }>();
-  try {
-    return JSON.parse(row?.attachment_hashes_json ?? "[]") as string[];
-  } catch {
-    return [];
-  }
 }
 
 export async function purgeSyncOperations(db: D1Database, userId: string, before: number): Promise<void> {
