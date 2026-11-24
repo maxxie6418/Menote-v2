@@ -71,3 +71,55 @@
 .mn-obsidian-row-main small { overflow: hidden; color: var(--app-fg-faint); font-size: var(--app-size-chip); text-overflow: ellipsis; white-space: nowrap; }
 .mn-obsidian-row-missing { padding: var(--app-space-2) var(--app-space-6); border-radius: var(--app-radius-pill); background: var(--app-danger); color: var(--app-fg); font-size: var(--app-size-chip); }
 .mn-obsidian-row-head { position: sticky; top: 0; z-index: 1; background: var(--app-surface); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+
+/* MCP 接入 */
+.mn-mcp-manager { display: grid; gap: var(--app-space-md); }
+.mn-mcp-connection { display: grid; gap: var(--app-space-xs); margin-block-end: var(--app-space-xs); }
+.mn-mcp-title { margin: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-body); font-weight: var(--app-weight-medium); }
+.mn-mcp-endpoint {
+  display: grid; grid-template-columns: minmax(var(--app-zero), 1fr) auto; align-items: center; gap: var(--app-space-sm);
+  padding: var(--app-space-xs) var(--app-space-sm); border-radius: var(--app-radius);
+  background: var(--app-surface-sunken); border: var(--app-line) solid var(--app-border-subtle);
+}
+.mn-mcp-address, .mn-mcp-secret code { overflow-wrap: anywhere; color: var(--app-fg); font-family: var(--app-font-mono); font-size: var(--app-size-button); }
+.mn-mcp-endpoint .mn-textbtn { border: var(--app-line) solid var(--app-border); background: var(--app-surface); white-space: nowrap; }
+.mn-mcp-endpoint .mn-textbtn:hover { background: var(--app-hover); }
+.mn-mcp-heading, .mn-mcp-token-head, .mn-mcp-actions { display: flex; align-items: center; gap: var(--app-space-xs); flex-wrap: wrap; }
+.mn-mcp-heading { justify-content: space-between; }
+.mn-mcp-heading .app-button {
+  min-height: var(--app-btn-height); padding: var(--app-zero) var(--app-space-sm);
+  font-size: var(--app-size-button);
+}
+.mn-mcp-heading .app-button:hover { background: var(--app-accent-hover); }
+.mn-mcp-copy { color: var(--app-accent-fg); background: var(--app-accent-subtle); }
+.mn-mcp-copy:hover:not(:disabled) { color: var(--app-accent-text); background: var(--app-accent); }
+.mn-mcp-revoke, .mn-mcp-revoke:hover { color: var(--app-danger); }
+.mn-mcp-token-list, .mn-mcp-editor { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius); background: var(--app-surface); }
+.mn-mcp-token-card { padding: var(--app-space-sm) var(--app-space-md); }
+.mn-mcp-token-card + .mn-mcp-token-card { border-block-start: var(--app-line) solid var(--app-border-subtle); }
+.mn-mcp-token-identity { flex: 1 1 var(--app-field-width); min-width: var(--app-zero); overflow-wrap: anywhere; }
+.mn-mcp-last-used { margin: var(--app-space-4) var(--app-zero) var(--app-zero); color: var(--app-fg-muted); font-size: var(--app-size-button); }
+.mn-mcp-detail:not([hidden]) {
+  display: grid; gap: var(--app-space-sm); margin-block-start: var(--app-space-sm); padding-block-start: var(--app-space-sm);
+  border-block-start: var(--app-line) solid var(--app-border-subtle);
+}
+.mn-mcp-meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--app-full-size), var(--app-field-width)), 1fr));
+  gap: var(--app-space-sm); margin: var(--app-zero); font-size: var(--app-size-button); overflow-wrap: anywhere;
+}
+.mn-mcp-meta dt { color: var(--app-fg-muted); }
+.mn-mcp-meta dd { margin: var(--app-space-4) var(--app-zero) var(--app-zero); color: var(--app-fg); }
+.mn-mcp-meta-wide { grid-column: 1 / -1; }
+.mn-mcp-secret { padding: var(--app-space-xs); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
+.mn-mcp-editor { display: grid; gap: var(--app-space-sm); padding: var(--app-space-md); }
+.mn-mcp-detail .mn-mcp-editor { padding: var(--app-zero); border: var(--app-zero); }
+.mn-mcp-fieldset { display: grid; gap: var(--app-space-xs); min-width: var(--app-zero); margin: var(--app-zero); padding: var(--app-space-sm); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); }
+.mn-mcp-fieldset legend { padding-inline: var(--app-space-4); }
+.mn-mcp-check-grid, .mn-mcp-options { display: flex; align-items: center; gap: var(--app-space-sm); flex-wrap: wrap; }
+.mn-mcp-check { display: inline-flex; align-items: center; gap: var(--app-space-4); color: var(--app-fg); font-size: var(--app-size-chip); }
+.mn-mcp-check input { accent-color: var(--app-accent); }
+.mn-mcp-scope-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--app-field-width), 1fr)); gap: var(--app-space-xs); padding-block: var(--app-space-xs); }
+.mn-mcp-scope-list .child { padding-inline-start: var(--app-space-sm); }
+.mn-mcp-number { display: grid; gap: var(--app-space-4); color: var(--app-fg-muted); font-size: var(--app-size-chip); }
+.mn-mcp-number .mn-propinput { min-width: var(--app-field-width); }
+.mn-mcp-empty, .mn-mcp-message { margin: var(--app-zero); color: var(--app-fg-muted); font-size: var(--app-size-button); }

@@ -279,9 +279,9 @@
 [data-layout="mobile"] .mn-dialog-settings .mn-backupform { align-items: stretch; }
 [data-layout="mobile"] .mn-dialog-settings .mn-backupform > * { width: var(--app-full-size); min-width: var(--app-zero); }
 [data-layout="mobile"] .mn-dialog-settings .mn-backupform .mn-propinput { flex: 1 1 var(--app-full-size); }
-[data-layout="mobile"] .mn-dialog-settings .mn-mcp-endpoint { grid-template-columns: minmax(var(--app-zero), 1fr); }
 [data-layout="mobile"] .mn-dialog-settings .mn-mcp-scope-list { grid-template-columns: minmax(var(--app-zero), 1fr); }
 [data-layout="mobile"] .mn-dialog-settings .mn-mcp-number .mn-propinput { width: var(--app-full-size); min-width: var(--app-zero); }
+[data-layout="mobile"] .mn-mcp-manager button { min-height: var(--app-touch-target); }
 
 /* 多维表格移动端：行操作不能依赖 hover，工具区允许换行，重排走触控手柄。 */
 [data-layout="mobile"] .mn-tabledoc-bar { align-items: flex-start; }
