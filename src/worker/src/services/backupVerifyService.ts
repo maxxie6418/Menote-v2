@@ -1,80 +1,126 @@
 import { parseRecoveryCodeBinding, type RecoveryCodeBinding } from "@menote/shared";
+import { MAX_STORED_ATTACHMENT_BYTES } from "./attachmentService";
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
 
-export interface VerifiedSnapshot {
-  files: number; shards: number; attachments: number;
-  entries: unknown[]; itemKeyWraps: unknown[]; topicKeyWraps: unknown[]; settings: unknown[];
-  recoveryCodeBinding: RecoveryCodeBinding | null;
-  attachmentFiles: Array<{ sha256: string; bytes: Uint8Array; mime: string }>;
+interface BackupFile { path: string; size: number; sha256: string; mime?: unknown }
+
+export interface SnapshotAttachment {
+  sha256: string;
+  size: number;
+  mime: string;
+  referenced: boolean;
 }
 
-/** Verify every file in a snapshot without modifying either storage. */
-export async function readVerifiedRemoteSnapshot(target: RemoteTarget, id: string): Promise<VerifiedSnapshot> {
+interface SnapshotMetadata {
+  directory: string;
+  files: number;
+  shards: number;
+  entries: unknown[];
+  itemKeyWraps: unknown[];
+  topicKeyWraps: unknown[];
+  settings: unknown[];
+  recoveryCodeBinding: RecoveryCodeBinding | null;
+  attachments: SnapshotAttachment[];
+}
+
+const sha256Pattern = /^[a-f0-9]{64}$/;
+
+function mapBackupFiles(files: unknown[]): Map<string, BackupFile> {
+  const result = new Map<string, BackupFile>();
+  for (const value of files) {
+    const file = value as Partial<BackupFile> | null;
+    if (!file || typeof file.path !== "string" || !/^(?:\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(file.path) ||
+      result.has(file.path) || typeof file.size !== "number" || !Number.isSafeInteger(file.size) || file.size < 0 ||
+      typeof file.sha256 !== "string" || !sha256Pattern.test(file.sha256)) throw new Error("备份文件清单无效");
+    if (file.path.startsWith("attachment-")) {
+      if (file.path.slice(11) !== file.sha256) throw new Error(`附件内容哈希不符：${file.path}`);
+      if (file.size > MAX_STORED_ATTACHMENT_BYTES) throw new Error(`附件超出大小限制：${file.path}`);
+    }
+    result.set(file.path, { path: file.path, size: file.size, sha256: file.sha256, mime: file.mime });
+  }
+  return result;
+}
+
+/** Verify manifest and JSON shards. Attachment bodies are read separately, one at a time. */
+export async function readRemoteSnapshotMetadata(
+  target: RemoteTarget, id: string, options: { expectedManifestHash?: string; discardEntries?: boolean } = {},
+): Promise<SnapshotMetadata> {
   if (!/^\d{8}T\d{9}Z-[0-9a-f]{8}$/i.test(id)) throw new Error("无效的备份目录名");
-  const root = `${normalizeRemotePath(target.remotePath)}/${id}`;
+  const directory = `${normalizeRemotePath(target.remotePath)}/${id}`;
   const decode = new TextDecoder("utf-8", { fatal: true });
-  const marker = decode.decode(await remoteGet(target, `${root}/COMPLETE`)).trim();
-  const manifestBytes = await remoteGet(target, `${root}/manifest.json`);
-  if (!/^[a-f0-9]{64}$/i.test(marker) || await hash(manifestBytes) !== marker.toLowerCase()) throw new Error("备份清单校验失败");
+  const marker = options.expectedManifestHash ?? decode.decode(await remoteGet(target, `${directory}/COMPLETE`)).trim();
+  const manifestBytes = await remoteGet(target, `${directory}/manifest.json`);
+  if (!/^[a-f0-9]{64}$/i.test(marker) || await backupDigest(manifestBytes) !== marker.toLowerCase()) throw new Error("备份清单校验失败");
   const manifest = JSON.parse(decode.decode(manifestBytes)) as {
     format?: unknown; version?: unknown; snapshotId?: unknown;
-    files?: Array<{ path?: unknown; size?: unknown; sha256?: unknown; mime?: unknown }>;
+    files?: unknown[];
     shards?: Array<{ month?: unknown }>;
     counts?: { attachments?: unknown };
     extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown; recoveryCodeBinding?: unknown };
-  };
-  if (manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id || !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
-  const names = new Set<string>();
-  const references = new Set<string>();
-  const shards = new Map<string, unknown[]>();
-  const attachments = new Map<string, VerifiedSnapshot["attachmentFiles"][number]>();
-  for (const file of manifest.files) {
-    if (!file || typeof file.path !== "string" || !/^(?:\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(file.path) || names.has(file.path) || !Number.isSafeInteger(file.size) || (file.size as number) < 0 || typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error("备份文件清单无效");
-    names.add(file.path);
-    const bytes = await remoteGet(target, `${root}/${file.path}`);
-    if (bytes.length !== file.size || await hash(bytes) !== file.sha256) throw new Error(`文件校验失败：${file.path}`);
-    if (file.path.endsWith(".json")) {
-      const entries: unknown = JSON.parse(decode.decode(bytes));
-      if (!Array.isArray(entries)) throw new Error(`分片格式错误：${file.path}`);
-      shards.set(file.path, entries);
-      for (const entry of entries) {
-        if (entry?.kind !== "item") continue;
-        const raw: unknown = entry.data?.attachment_hashes_json;
-        const hashes: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
-        if (!Array.isArray(hashes) || hashes.some((h) => typeof h !== "string" || !/^[a-f0-9]{64}$/.test(h))) throw new Error("附件引用格式错误");
-        for (const h of hashes) references.add(h);
-      }
-    }
-    if (file.path.startsWith("attachment-")) {
-      if (file.path.slice(11) !== file.sha256) throw new Error(`附件内容哈希不符：${file.path}`);
-      const mime = typeof file.mime === "string" && /^[a-z0-9][a-z0-9.+-]{0,62}\/[a-z0-9][a-z0-9.+-]{0,126}$/i.test(file.mime)
-        ? file.mime : "application/octet-stream";
-      attachments.set(file.sha256, { sha256: file.sha256, bytes, mime });
-    }
-  }
-  const shardNames = manifest.shards.map((shard) => `${String(shard.month)}.json`);
-  if (new Set(shardNames).size !== shardNames.length || shardNames.some((name) => !names.has(name)) || [...names].filter((name) => name.endsWith(".json")).length !== shardNames.length || [...names].filter((name) => name.startsWith("attachment-")).length !== manifest.counts?.attachments) throw new Error("备份清单文件不完整");
-  if ([...references].some((h) => !names.has(`attachment-${h}`))) throw new Error("快照缺少笔记引用的附件");
-  const allEntries: unknown[] = [];
-  for (const name of shardNames) for (const entry of shards.get(name)!) allEntries.push(entry);
+  } | null;
+  if (!manifest || manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id ||
+    !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
+
+  const files = mapBackupFiles(manifest.files);
+  const shardPaths = manifest.shards.map((shard) => `${String(shard?.month)}.json`);
+  const attachmentFiles = [...files.values()].filter((file) => file.path.startsWith("attachment-"));
+  if (new Set(shardPaths).size !== shardPaths.length || shardPaths.some((path) => !files.has(path)) ||
+    files.size !== shardPaths.length + attachmentFiles.length ||
+    attachmentFiles.length !== manifest.counts?.attachments) throw new Error("备份清单文件不完整");
   const extra = manifest.extra;
   if (!Array.isArray(extra?.itemKeyWraps) || !Array.isArray(extra?.topicKeyWraps) || !Array.isArray(extra?.settings)) throw new Error("备份缺少密钥或设置数据");
   const recoveryCodeBinding = parseRecoveryCodeBinding(extra.recoveryCodeBinding);
   if (extra.recoveryCodeBinding !== undefined && !recoveryCodeBinding) throw new Error("备份恢复码绑定无效");
+
+  const entries: unknown[] = [];
+  const references = new Set<string>();
+  for (const path of shardPaths) {
+    const bytes = await readVerifiedFile(target, directory, files.get(path)!);
+    const shard: unknown = JSON.parse(decode.decode(bytes));
+    if (!Array.isArray(shard)) throw new Error(`分片格式错误：${path}`);
+    for (const entry of shard) {
+      if (!options.discardEntries) entries.push(entry);
+      if (entry?.kind !== "item") continue;
+      const raw: unknown = entry.data?.attachment_hashes_json;
+      const hashes: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (!Array.isArray(hashes) || hashes.some((hash) => typeof hash !== "string" || !sha256Pattern.test(hash))) {
+        throw new Error("附件引用格式错误");
+      }
+      for (const hash of hashes) references.add(hash);
+    }
+  }
+  for (const hash of references) if (!files.has(`attachment-${hash}`)) throw new Error("快照缺少笔记引用的附件");
   return {
-    files: names.size, shards: shardNames.length, attachments: manifest.counts.attachments as number,
-    entries: allEntries, itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings,
-    recoveryCodeBinding,
-    attachmentFiles: [...references].map((sha256) => attachments.get(sha256)!),
+    directory, files: files.size, shards: shardPaths.length, entries,
+    itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings, recoveryCodeBinding,
+    attachments: attachmentFiles.map(({ mime, sha256, size }) => ({
+      mime: typeof mime === "string" && /^[a-z0-9][a-z0-9.+-]{0,62}\/[a-z0-9][a-z0-9.+-]{0,126}$/i.test(mime)
+        ? mime : "application/octet-stream",
+      sha256, size, referenced: references.has(sha256),
+    })),
   };
 }
 
-export async function verifyRemoteSnapshot(target: RemoteTarget, id: string) {
-  const snapshot = await readVerifiedRemoteSnapshot(target, id);
-  return { files: snapshot.files, shards: snapshot.shards, attachments: snapshot.attachments };
+async function readVerifiedFile(
+  target: RemoteTarget, directory: string, file: BackupFile, exactSize?: number,
+): Promise<Uint8Array> {
+  const bytes = await remoteGet(target, `${directory}/${file.path}`, exactSize);
+  if (bytes.length !== file.size || await backupDigest(bytes) !== file.sha256) throw new Error(`文件校验失败：${file.path}`);
+  return bytes;
 }
 
-async function hash(bytes: Uint8Array): Promise<string> {
+export async function readVerifiedAttachment(target: RemoteTarget, directory: string, file: SnapshotAttachment): Promise<Uint8Array> {
+  return readVerifiedFile(target, directory, { ...file, path: `attachment-${file.sha256}` }, file.size);
+}
+
+/** Verify every file. A just-uploaded snapshot is checked against the marker to be published. */
+export async function verifyRemoteSnapshot(target: RemoteTarget, id: string, expectedManifestHash?: string) {
+  const snapshot = await readRemoteSnapshotMetadata(target, id, { expectedManifestHash, discardEntries: true });
+  for (const file of snapshot.attachments) await readVerifiedAttachment(target, snapshot.directory, file);
+  return { files: snapshot.files, shards: snapshot.shards, attachments: snapshot.attachments.length };
+}
+
+export async function backupDigest(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

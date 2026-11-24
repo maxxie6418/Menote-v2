@@ -12,6 +12,7 @@ import { readSettingState } from "../db/sync";
  */
 
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+export const MAX_STORED_ATTACHMENT_BYTES = MAX_ATTACHMENT_BYTES + SEALED_ATTACHMENT_OVERHEAD;
 const DEFAULT_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "pdf", "txt", "md"];
 
 export interface AttachmentPolicy { maxBytes: number; allowedExtensions: string[] }
@@ -35,14 +36,10 @@ export async function listUserAttachments(db: D1Database, userId: string, cursor
 }
 
 /** A durable reservation lets scheduled cleanup recover staging objects after a failed write. */
-export async function stageAttachmentObjects<T extends { sha256: string; bytes: ArrayBuffer | Uint8Array }>(
-  ctx: AttachmentStoreContext, userId: string, files: readonly T[],
-): Promise<Array<T & { key: string }>> {
-  if (!files.length) return [];
-  const objects = files.map((file) => ({ ...file, key: `${userId}/${file.sha256}/${crypto.randomUUID()}` }));
-  await reserveAttachmentObjects(ctx.db, objects.map((object) => object.key), Date.now());
-  for (const object of objects) await ctx.bucket.put(object.key, object.bytes);
-  return objects;
+export async function reserveAttachmentStage(db: D1Database, userId: string, hashes: string[]): Promise<Map<string, string>> {
+  const keys = new Map(hashes.map((sha256) => [sha256, `${userId}/${sha256}/${crypto.randomUUID()}`]));
+  if (keys.size) await reserveAttachmentObjects(db, [...keys.values()], Date.now());
+  return keys;
 }
 
 /** 上传：大小校验、重算哈希，然后复用现有对象或发布新世代。 */
@@ -63,8 +60,9 @@ export async function storeAttachment(ctx: AttachmentStoreContext, userId: strin
     await reuseAttachmentObject(ctx.db, userId, sha256, current.key, body.byteLength, mime, Date.now())) {
     return { sha256, size: body.byteLength, mime };
   }
-  const [staged] = await stageAttachmentObjects(ctx, userId, [{ sha256, bytes: body }]);
-  await ctx.db.batch(publishAttachmentStatements(ctx.db, userId, sha256, body.byteLength, mime, staged!.key, Date.now()));
+  const key = (await reserveAttachmentStage(ctx.db, userId, [sha256])).get(sha256)!;
+  await ctx.bucket.put(key, body);
+  await ctx.db.batch(publishAttachmentStatements(ctx.db, userId, sha256, body.byteLength, mime, key, Date.now()));
   return { sha256, size: body.byteLength, mime };
 }
 

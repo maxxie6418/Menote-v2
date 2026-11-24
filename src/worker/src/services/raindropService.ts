@@ -4,7 +4,7 @@ import {
   type RaindropPushOutcome, type RaindropPushPreview, type RaindropSettings, type RaindropStatusView,
 } from "@menote/shared";
 import { openMcpToken, sealMcpToken } from "./mcpTokenCrypto";
-import { readItemState, readSettingState } from "../db/sync";
+import { readSettingState } from "../db/sync";
 import { applyOperation } from "./syncService";
 import {
   deleteAccountToken, deleteBinding, insertSyncRun, listBindings, listSyncRows, listSyncRuns, markPullDone,
@@ -133,17 +133,15 @@ export async function bindTable(env: Env, userId: string, input: RaindropBindInp
   const item = await readRaindropTarget(env.DB, userId, input.tableItemId);
   if (!item || item.type !== "table") throw new RaindropServiceError("raindrop_target_unavailable", 404);
   if (item.content.scope !== "plain") throw new RaindropServiceError("raindrop_target_unavailable", 404);
-  const state = await readItemState(env.DB, userId, item.id);
-  if (!state || state.deletedAt !== null) throw new RaindropServiceError("raindrop_target_unavailable", 404);
   const { markdown } = backfillRowIds(item.content.markdown);
   const contentHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown)))]
     .map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  const updated = { ...item, content: { scope: "plain" as const, markdown }, rev: state.rev, metaRev: state.metaRev, contentHash, updatedAt: now };
+  const updated = { ...item, content: { scope: "plain" as const, markdown }, contentHash, updatedAt: now };
   const applied = await applyOperation(
-    { db: env.DB, userId, deviceId: CONNECTOR_DEVICE, now },
+    { db: env.DB, userId, deviceId: CONNECTOR_DEVICE, now, requireLivePlainItem: true },
     {
       operationId: crypto.randomUUID(), userId, entityId: item.id, entity: "item", action: "upsert",
-      baseRev: state.rev, baseMetaRev: state.metaRev, contentHash, payload: { item: updated },
+      baseRev: item.rev, baseMetaRev: item.metaRev, contentHash, payload: { item: updated },
     },
   );
   if (applied.result !== "applied" && applied.result !== "duplicate") {
@@ -314,7 +312,6 @@ async function writeSnapshot(
 interface SyncContext {
   binding: RaindropBindingRow;
   item: Item & { content: { scope: "plain"; markdown: string } };
-  state: NonNullable<Awaited<ReturnType<typeof readItemState>>>;
   rows: PullPlanRow[];
   ledgerRows: PullPlanLedger[];
 }
@@ -324,8 +321,6 @@ async function loadSyncContext(env: Env, userId: string): Promise<SyncContext> {
   if (!binding) throw new RaindropServiceError("raindrop_not_bound", 409);
   const item = await readRaindropTarget(env.DB, userId, binding.table_item_id);
   if (!item || item.content.scope !== "plain") throw new RaindropServiceError("raindrop_target_unavailable", 409);
-  const state = await readItemState(env.DB, userId, item.id);
-  if (!state || state.deletedAt !== null) throw new RaindropServiceError("raindrop_target_unavailable", 409);
   // SQL 已限定 type='table' 且 content_ciphertext IS NULL；守卫后再收窄给下游使用。
   const plainItem = item as Item & { content: { scope: "plain"; markdown: string } };
   const rows = readRows(plainItem.content.markdown)
@@ -335,7 +330,7 @@ async function loadSyncContext(env: Env, userId: string): Promise<SyncContext> {
     menoteRowId: row.menote_row_id, raindropId: row.raindrop_id, baselineHash: row.baseline_hash,
     baselineJson: row.baseline_json, status: row.status,
   }));
-  return { binding, item: plainItem, state, rows, ledgerRows };
+  return { binding, item: plainItem, rows, ledgerRows };
 }
 
 /** 执行一轮拉取：拉远端 → 快照 → 计划 → 单次表格写入（冲突即失败不落盘）→ 账本对齐 → 运行记录。 */
@@ -355,7 +350,7 @@ export async function runPull(env: Env, userId: string, source: "scheduled" | "m
     const remote = rawItems.map(mapRemoteItem);
     const snapshot = await writeSnapshot(env, userId, binding, binding.collection_id, rawItems, startedAt);
 
-    const { item, state, rows, ledgerRows } = await loadSyncContext(env, userId);
+    const { item, rows, ledgerRows } = await loadSyncContext(env, userId);
     const plan = await planPull(rows, ledgerRows, remote);
     Object.assign(counts, plan.counts);
 
@@ -363,12 +358,12 @@ export async function runPull(env: Env, userId: string, source: "scheduled" | "m
       const markdown = upsertRows(item.content.markdown, plan.updates, plan.appends);
       const contentHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown)))]
         .map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      const updated = { ...item, content: { scope: "plain" as const, markdown }, rev: state.rev, metaRev: state.metaRev, contentHash, updatedAt: startedAt };
+      const updated = { ...item, content: { scope: "plain" as const, markdown }, contentHash, updatedAt: startedAt };
       const applied = await applyOperation(
-        { db: env.DB, userId, deviceId: CONNECTOR_DEVICE, now: startedAt },
+        { db: env.DB, userId, deviceId: CONNECTOR_DEVICE, now: startedAt, requireLivePlainItem: true },
         {
           operationId: crypto.randomUUID(), userId, entityId: item.id, entity: "item", action: "upsert",
-          baseRev: state.rev, baseMetaRev: state.metaRev, contentHash, payload: { item: updated },
+          baseRev: item.rev, baseMetaRev: item.metaRev, contentHash, payload: { item: updated },
         },
       );
       if (applied.result !== "applied" && applied.result !== "duplicate") {

@@ -175,17 +175,45 @@ export async function writeSetting(db: D1Database, setting: UserSetting, baseRev
 
 export interface ItemState {
   rev: number; metaRev: number; contentHash: string;
-  updatedAt: number; deletedAt: number | null; type: string; attachmentHashesJson: string;
+  updatedAt: number; deletedAt: number | null; type: string; encrypted: boolean; attachmentHashesJson: string;
 }
 
 export async function readItemState(db: D1Database, userId: string, id: string): Promise<ItemState | null> {
   const row = await db.prepare(
-    "SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type, attachment_hashes_json FROM items WHERE id = ? AND user_id = ?",
-  ).bind(id, userId).first<{ rev: number; meta_rev: number; content_hash: string; updated_at: number; deleted_at: number | null; type: string; attachment_hashes_json: string }>();
+    `SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type,
+       (enc_self OR in_enc_space OR content_ciphertext IS NOT NULL) AS encrypted, attachment_hashes_json
+     FROM items WHERE id = ? AND user_id = ?`,
+  ).bind(id, userId).first<{ rev: number; meta_rev: number; content_hash: string; updated_at: number; deleted_at: number | null; type: string; encrypted: number; attachment_hashes_json: string }>();
   return row ? {
     rev: row.rev, metaRev: row.meta_rev, contentHash: row.content_hash, updatedAt: row.updated_at,
-    deletedAt: row.deleted_at, type: row.type, attachmentHashesJson: row.attachment_hashes_json,
+    deletedAt: row.deleted_at, type: row.type, encrypted: row.encrypted === 1, attachmentHashesJson: row.attachment_hashes_json,
   } : null;
+}
+
+const itemSyncStateChanged = "menote_item_sync_state_changed";
+
+/** Verify the read snapshot and operation ID inside the batch that publishes the write. */
+export function guardItemSyncWrite(
+  db: D1Database, userId: string, itemId: string, operationId: string, expected: ItemState | null,
+): D1PreparedStatement {
+  return db.prepare(
+    `SELECT CASE WHEN NOT EXISTS (
+       SELECT 1 FROM sync_operations WHERE user_id = ? AND operation_id = ?
+     ) AND (
+       SELECT CASE WHEN rev = ? AND meta_rev = ? AND content_hash = ? AND updated_at = ?
+         AND deleted_at IS ? AND type = ? AND (enc_self OR in_enc_space OR content_ciphertext IS NOT NULL) = ?
+         AND attachment_hashes_json = ? THEN 1 ELSE 0 END
+       FROM items WHERE user_id = ? AND id = ?
+     ) IS ? THEN 1 ELSE json_extract('[]', ?) END`,
+  ).bind(userId, operationId, expected?.rev ?? null, expected?.metaRev ?? null,
+    expected?.contentHash ?? null, expected?.updatedAt ?? null, expected?.deletedAt ?? null,
+    expected?.type ?? null, expected?.encrypted ? 1 : 0, expected?.attachmentHashesJson ?? null,
+    userId, itemId, expected ? 1 : null, itemSyncStateChanged);
+}
+
+/** An invalid JSON path deliberately aborts the D1 batch before any mutation runs. */
+export function isItemSyncGuardFailure(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(itemSyncStateChanged);
 }
 
 export async function readTopicDeletedAt(db: D1Database, userId: string, id: string): Promise<number | null | undefined> {
@@ -249,7 +277,7 @@ export async function commitWrites(db: D1Database, statements: D1PreparedStateme
 /** 撤销一条已知操作记录（G2 §6 幂等只覆盖已应用；rejected 记录重推前删除以重新判定）。 */
 export async function deleteSyncOperation(db: D1Database, userId: string, operationId: string): Promise<void> {
   await db.prepare(
-    "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ?",
+    "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ? AND result = 'rejected'",
   ).bind(userId, operationId).run();
 }
 
@@ -412,11 +440,11 @@ export async function updateItemMeta(
   await updateItemMetaStatement(db, userId, deviceId, item, metaRev).run();
 }
 
-export async function markItemDeleted(
+export function markItemDeletedStatement(
   db: D1Database, userId: string, deviceId: string, id: string, deletedAt: number,
-): Promise<void> {
-  await db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
-    .bind(deletedAt, deviceId, id, userId).run();
+): D1PreparedStatement {
+  return db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
+    .bind(deletedAt, deviceId, id, userId);
 }
 
 export function upsertTopicRowStatement(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): D1PreparedStatement {
@@ -439,16 +467,6 @@ export async function countItemReferences(db: D1Database, userId: string, sha256
      AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`,
   ).bind(userId, sha256).first<{ n: number }>();
   return row?.n ?? 0;
-}
-
-export async function readItemAttachmentHashes(db: D1Database, userId: string, id: string): Promise<string[]> {
-  const row = await db.prepare("SELECT attachment_hashes_json FROM items WHERE id = ? AND user_id = ?")
-    .bind(id, userId).first<{ attachment_hashes_json: string }>();
-  try {
-    return JSON.parse(row?.attachment_hashes_json ?? "[]") as string[];
-  } catch {
-    return [];
-  }
 }
 
 export async function purgeSyncOperations(db: D1Database, userId: string, before: number): Promise<void> {

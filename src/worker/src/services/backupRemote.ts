@@ -62,14 +62,34 @@ export async function remotePut(target: RemoteTarget, path: string, body: Uint8A
   if (!response.ok) throw new Error(`${target.kind === "webdav" ? "WebDAV" : "S3"} 写入失败：HTTP ${status}`);
 }
 
-export async function remoteGet(target: RemoteTarget, path: string): Promise<Uint8Array> {
+/** When the manifest supplies a bounded attachment size, enforce it while consuming the response. */
+export async function remoteGet(target: RemoteTarget, path: string, expectedBytes?: number): Promise<Uint8Array> {
   const safe = safePath(path);
   if (safe !== path) throw new Error("无效的备份路径");
   const response = target.kind === "webdav"
     ? await fetch(davUrl(target, safe), { headers: { Authorization: auth(target) } })
     : await s3(target, s3Url(target, safe), { method: "GET" });
-  if (!response.ok) throw new Error(`读取备份文件失败：HTTP ${response.status}`);
-  return new Uint8Array(await response.arrayBuffer());
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {});
+    throw new Error(`读取备份文件失败：HTTP ${response.status}`);
+  }
+  if (expectedBytes === undefined) return new Uint8Array(await response.arrayBuffer());
+  const result = new Uint8Array(expectedBytes);
+  const reader = response.body?.getReader();
+  let offset = 0;
+  try {
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.byteLength > expectedBytes - offset) throw new Error(`文件校验失败：${path.slice(path.lastIndexOf("/") + 1)}`);
+      result.set(value, offset);
+      offset += value.byteLength;
+    }
+    if (offset === expectedBytes) return result;
+    throw new Error(`文件校验失败：${path.slice(path.lastIndexOf("/") + 1)}`);
+  } finally {
+    await reader?.cancel().catch(() => {});
+  }
 }
 
 async function ensureDavDirectories(target: RemoteTarget, paths: string[]): Promise<void> {
@@ -158,6 +178,17 @@ async function hasCompleteMarker(target: RemoteTarget, directory: string): Promi
     : await s3(target, s3Url(target, `${directory}/COMPLETE`), { method: "HEAD" });
   await response.body?.cancel().catch(() => {});
   return response.ok;
+}
+
+/** Withdraw a marker that was not confirmed, leaving its incomplete snapshot for diagnosis. */
+export async function removeCompleteMarker(target: RemoteTarget, id: string): Promise<void> {
+  if (!/^\d{8}T\d{9}Z-[0-9a-f]{8}$/i.test(id)) throw new Error("无效的备份目录名");
+  const path = `${normalizeRemotePath(target.remotePath)}/${id}/COMPLETE`;
+  const response = target.kind === "webdav"
+    ? await fetch(davUrl(target, path), { method: "DELETE", headers: { Authorization: auth(target) } })
+    : await s3(target, s3Url(target, path), { method: "DELETE" });
+  await response.body?.cancel().catch(() => {});
+  if (!response.ok && response.status !== 404) throw new Error(`删除备份完成标记失败：HTTP ${response.status}`);
 }
 
 export async function deleteRemoteBackup(target: RemoteTarget, id: string): Promise<void> {

@@ -12,6 +12,14 @@ const bundle = await build({
   conditions: ["worker", "browser"], loader: { ".sql": "text" },
 });
 
+const syncBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/services/syncService.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "neutral",
+});
+const { applyOperation } = await import(
+  `data:text/javascript;base64,${Buffer.from(syncBundle.outputFiles[0].text).toString("base64")}`
+);
+
 async function withWorker(run) {
   const mf = new Miniflare({ workers: [{ config: {
     name: "sync-test", compatibilityDate: "2026-10-30",
@@ -65,6 +73,155 @@ function memoCommentDeleteOp(id, memoId, parentId) {
   return { operationId: crypto.randomUUID(), userId: "ignored", entityId: id, entity: "memo_comment", action: "delete", baseRev: 1, baseMetaRev: 0,
     payload: { comment: { id, userId: "ignored", memoId, parentId, content: "", rev: 2, createdAt: 1_700_000_000_000, updatedAt: now, deletedAt: now } } };
 }
+
+/** Use real D1 for both writers, pausing one after it has read the old item state. */
+async function interleaveItemWrite(db, operation, otherWrite, options) {
+  const user = await db.prepare("SELECT id FROM users WHERE username = 'owner'").first();
+  const ready = Promise.withResolvers();
+  const proceed = Promise.withResolvers();
+  let first = true;
+  const pausedDb = {
+    prepare: (sql) => db.prepare(sql),
+    async batch(statements) {
+      if (first) {
+        first = false;
+        ready.resolve(true);
+        await proceed.promise;
+      }
+      return db.batch(statements);
+    },
+  };
+  const pending = applyOperation({ db: pausedDb, userId: user.id, deviceId: "device-paused", now: Date.now(), ...options }, operation);
+  try {
+    assert.equal(await Promise.race([ready.promise, pending]), true);
+    await otherWrite();
+  } finally {
+    proceed.resolve();
+    await pending;
+  }
+  return pending;
+}
+
+test("concurrent Note writes preserve the winner and reject stale ciphertext, wraps and references atomically", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    await post(mf, cookie, [itemOp("concurrent", { rev: 1 })]);
+    const lostHash = "a".repeat(64);
+    const keptHash = "b".repeat(64);
+    const stale = itemOp("concurrent", { rev: 2, metaRev: 1, baseMetaRev: 1, hashes: [lostHash] });
+    stale.payload.item.content = { scope: "self", ciphertext: "aXYxMjpzZWFsZWQ=" };
+    stale.contentHash = stale.payload.item.contentHash = "sealed-hash";
+    stale.wraps = [{ wrapper: "password", kdfSalt: "c2FsdA==", kdfIterations: 600000, iv: "aXYxMg==", ciphertext: "d3JhcA==", generation: 0 }];
+    const winner = itemOp("concurrent", { rev: 2, metaRev: 1, baseMetaRev: 1, markdown: "其他设备的新正文", hashes: [keptHash] });
+    const result = await interleaveItemWrite(db, stale, async () => {
+      assert.equal((await (await post(mf, cookie, [winner])).json()).results[0].result, "applied");
+    });
+    assert.deepEqual(result, { operationId: stale.operationId, result: "conflict",
+      detail: { rev: 2, metaRev: 1, contentHash: winner.contentHash } });
+    const row = await db.prepare("SELECT rev, enc_self, content_markdown, content_ciphertext FROM items WHERE id = ?").bind(stale.entityId).first();
+    assert.deepEqual(row, { rev: 2, enc_self: 0, content_markdown: "其他设备的新正文", content_ciphertext: null });
+    assert.equal(await db.prepare("SELECT wrapper FROM item_key_wraps WHERE item_id = ?").bind(stale.entityId).first(), null);
+    assert.deepEqual((await db.prepare("SELECT sha256, ref_count FROM attachments").all()).results, [{ sha256: keptHash, ref_count: 1 }]);
+  });
+});
+
+test("a concurrent replay keeps one applied ledger row, version increment and sync log", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    await post(mf, cookie, [itemOp("same-op", { rev: 1 })]);
+    const operation = itemOp("same-op", { rev: 2, metaRev: 1, baseMetaRev: 1, markdown: "正文只提交一次" });
+    const result = await interleaveItemWrite(db, operation, async () => {
+      assert.equal((await (await post(mf, cookie, [operation])).json()).results[0].result, "applied");
+    });
+    assert.equal(result.result, "duplicate");
+    assert.equal(result.rev, 2);
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM sync_log WHERE entity_id = 'same-op' AND rev = 2").first()).n, 1);
+    assert.equal((await db.prepare("SELECT rev FROM items WHERE id = 'same-op'").first()).rev, 2);
+  });
+});
+
+test("concurrent duplicate acknowledgments retain the original result after later edits", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    await post(mf, cookie, [itemOp("acknowledged", { rev: 1 })]);
+    const duplicate = itemOp("acknowledged", { rev: 2, metaRev: 1, baseMetaRev: 1 });
+    const result = await interleaveItemWrite(db, duplicate, async () => {
+      assert.equal((await (await post(mf, cookie, [duplicate])).json()).results[0].result, "duplicate");
+      const edit = itemOp("acknowledged", { rev: 2, metaRev: 1, baseMetaRev: 1, markdown: "更新的正文" });
+      assert.equal((await (await post(mf, cookie, [edit])).json()).results[0].result, "applied");
+    });
+    assert.deepEqual(result, { operationId: duplicate.operationId, result: "duplicate", rev: 1, metaRev: 1, contentHash: "hash-正文" });
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM sync_log WHERE entity_id = 'acknowledged'").first()).n, 2);
+  });
+});
+
+test("a paused body write preserves a concurrent rename and wins over a same-version soft delete", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    await post(mf, cookie, [itemOp("rename-delete", { rev: 1 })]);
+    const body = itemOp("rename-delete", { rev: 2, metaRev: 1, baseMetaRev: 1, markdown: "同时编辑的正文" });
+    const rename = itemOp("rename-delete", { rev: 1, baseRev: 1, metaRev: 2, baseMetaRev: 1, title: "其他设备的新标题" });
+    delete rename.contentHash;
+    const tombstone = { ...itemOp("rename-delete", { rev: 1, baseRev: 1 }), action: "delete", payload: { deletedAt: Date.now() } };
+    const result = await interleaveItemWrite(db, body, async () => {
+      const changes = await (await post(mf, cookie, [rename, tombstone])).json();
+      assert.deepEqual(changes.results.map((entry) => entry.result), ["applied", "applied"]);
+    });
+    assert.equal(result.result, "applied");
+    assert.deepEqual(await db.prepare("SELECT rev, meta_rev, title, content_markdown, deleted_at FROM items WHERE id = 'rename-delete'").first(), {
+      rev: 2, meta_rev: 2, title: "其他设备的新标题", content_markdown: "同时编辑的正文", deleted_at: null,
+    });
+  });
+});
+
+test("a stale Memo body loses to a newer concurrent edit without generating a conflict", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    const memo = (rev, markdown, updatedAt) => {
+      const op = itemOp("memo-race", { rev, metaRev: 1, baseMetaRev: 1, markdown });
+      Object.assign(op.payload.item, { type: "memo", title: null, updatedAt });
+      return op;
+    };
+    await post(mf, cookie, [memo(1, "旧随记", 100)]);
+    const stale = memo(2, "稍早的编辑", 200);
+    const newest = memo(2, "较新的编辑", 300);
+    const result = await interleaveItemWrite(db, stale, async () => {
+      assert.equal((await (await post(mf, cookie, [newest])).json()).results[0].result, "applied");
+    });
+    assert.equal(result.result, "duplicate");
+    assert.equal(result.contentHash, newest.contentHash);
+    assert.deepEqual(await db.prepare("SELECT rev, content_markdown FROM items WHERE id = 'memo-race'").first(), { rev: 2, content_markdown: "较新的编辑" });
+  });
+});
+
+test("connector writes cannot resurrect deleted tables or replace a Note or sealed table", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const db = await mf.getD1Database("DB");
+    for (const [id, update] of [
+      ["deleted-table", "deleted_at = 2"],
+      ["downgraded-table", "type = 'note'"],
+      ["sealed-table", "enc_self = 1, content_ciphertext = 'sealed', content_markdown = NULL"],
+    ]) {
+      const seed = itemOp(id, { rev: 1 });
+      seed.payload.item.type = "table";
+      assert.equal((await (await post(mf, cookie, [seed])).json()).results[0].result, "applied");
+      const stale = itemOp(id, { rev: 2, metaRev: 1, baseMetaRev: 1, markdown: "连接器的旧快照" });
+      stale.payload.item.type = "table";
+      const result = await interleaveItemWrite(db, stale, async () => {
+        await db.prepare(`UPDATE items SET ${update} WHERE id = ?`).bind(id).run();
+      }, { requireLivePlainItem: true });
+      assert.equal(result.result, "rejected");
+      const row = await db.prepare("SELECT rev FROM items WHERE id = ?").bind(id).first();
+      assert.equal(row.rev, 1);
+    }
+  });
+});
 
 test("Memo comments sync one reply level and keep the parent reference", async () => {
   await withWorker(async (mf) => {
