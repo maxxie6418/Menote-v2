@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ChevronDown, ChevronUp, Copy } from "../../icons";
 import {
   MCP_PERMISSION_KEYS,
   type McpPermission,
@@ -11,8 +12,8 @@ import {
   createMcpToken, listMcpScopeTopics, listMcpTokens, revealMcpToken, revokeMcpToken, updateMcpToken,
 } from "../../services/mcpTokenService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
-import { InfoHint } from "../../components/ui/InfoHint";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
+import { copyMcpConnectionPrompt } from "./mcpConnectionPrompt";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -39,10 +40,7 @@ function errorMessage(error: unknown): string {
   return "请求失败，请稍后重试。";
 }
 
-function formatDate(value: number | null): string {
-  if (value === null) return "从未调用";
-  return new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
+const dateTime = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" });
 
 async function copyText(value: string): Promise<void> {
   await navigator.clipboard.writeText(value);
@@ -54,8 +52,10 @@ export function McpTokenManager() {
   const [topics, setTopics] = useState<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(() => peek<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(SETTINGS_CACHE.topics) ?? []);
   const [loading, setLoading] = useState(() => peek(SETTINGS_CACHE.tokens) === undefined || peek(SETTINGS_CACHE.topics) === undefined);
   const [creating, setCreating] = useState(false);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<Record<string, string>>({});
+  const [copyingPromptId, setCopyingPromptId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const refresh = useCallback(async (fresh = false) => {
@@ -80,13 +80,24 @@ export function McpTokenManager() {
     catch { setMessage("复制失败，请检查浏览器剪贴板权限。"); }
   };
 
+  const copyPrompt = async (token: McpTokenView) => {
+    setCopyingPromptId(token.id);
+    setMessage("");
+    try {
+      await copyMcpConnectionPrompt(endpoint, token);
+      setMessage("已复制接入提示词、MCP 服务地址和此 Token，可直接粘贴给 AI。");
+    } catch (error) {
+      setMessage(error instanceof DOMException ? "复制失败，请检查浏览器剪贴板权限。" : errorMessage(error));
+    } finally {
+      setCopyingPromptId(null);
+    }
+  };
+
   const create = async (name: string, config: McpTokenConfig): Promise<void> => {
     try {
-      const created = await createMcpToken(name, config);
-      const secret = await revealMcpToken(created.id);
-      setVisibleTokens((current) => ({ ...current, [created.id]: secret }));
+      await createMcpToken(name, config);
       setCreating(false);
-      setMessage("Token 已创建。可复制地址和 Token 配置客户端；Token 可随时在此重新查看。");
+      setMessage("Token 已创建，可复制 AI 接入提示词。");
       await refresh(true);
     } catch (error) { setMessage(errorMessage(error)); }
   };
@@ -114,6 +125,7 @@ export function McpTokenManager() {
     try {
       await revokeMcpToken(token.id);
       setVisibleTokens((current) => { const next = { ...current }; delete next[token.id]; return next; });
+      setDetailsId((current) => current === token.id ? null : current);
       setMessage("Token 已撤销，后续请求立即失效。");
       await refresh(true);
     } catch (error) { setMessage(errorMessage(error)); }
@@ -121,48 +133,82 @@ export function McpTokenManager() {
 
   return (
     <section className="mn-mcp-manager" aria-label="MCP 接入管理">
-      <div className="mn-setrow mn-mcp-endpoint">
-        <div>
-          <p className="mn-setlabel">MCP 服务地址<InfoHint>配置丢失时可在此复制地址，并重新查看已有 Token；无需重建。</InfoHint></p>
+      <div className="mn-mcp-connection">
+        <h4 className="mn-mcp-title">MCP 服务地址</h4>
+        <div className="mn-mcp-endpoint">
+          <code className="mn-mcp-address">{endpoint}</code>
+          <button type="button" className="mn-textbtn" onClick={() => void copyEndpoint()}>复制地址</button>
         </div>
-        <code className="mn-mcp-address">{endpoint}</code>
-        <button type="button" className="mn-statuslink" onClick={() => void copyEndpoint()}>复制地址</button>
       </div>
 
       <div className="mn-mcp-heading">
-        <div>
-          <p className="mn-setlabel">访问 Token<InfoHint>每个 Token 可单独授权。内容读取关闭时仍可执行已授权的写入。</InfoHint></p>
-        </div>
-        <button type="button" className="app-button" onClick={() => { setCreating((value) => !value); setEditingId(null); setMessage(""); }}>
-          {creating ? "取消创建" : "创建 Token"}
-        </button>
+        <h4 className="mn-mcp-title">访问 Token</h4>
+        {!creating && <button type="button" className="app-button" onClick={() => {
+          setCreating(true);
+          setDetailsId(null);
+          setEditingId(null);
+          setMessage("");
+        }}>创建 Token</button>}
       </div>
 
       {message && <p className="mn-mcp-message" role="status">{message}</p>}
       {creating && <TokenEditor topics={topics} onCancel={() => setCreating(false)} onSave={create} />}
-      {loading ? <p className="mn-sethint">正在读取 Token…</p> : tokens.length === 0 && !creating
-        ? <p className="mn-mcp-empty">目前没有可用的 MCP Token。已撤销的 Token 不显示。</p>
-        : <div className="mn-mcp-token-list">{tokens.map((token) => (
-          <article className="mn-mcp-token-card" key={token.id}>
-            <div className="mn-mcp-token-head">
-              <div>
-                <p className="mn-setlabel">{token.name}{token.revokedAt !== null && <span className="mn-mcp-revoked">已撤销</span>}</p>
-                <p className="mn-sethint"><code>{token.tokenPrefix}</code> · 创建于 {formatDate(token.createdAt)} · 最后调用：{formatDate(token.lastUsedAt)}</p>
+      {loading && <p className="mn-mcp-empty">正在读取 Token…</p>}
+      {!loading && tokens.length === 0 && !creating && <p className="mn-mcp-empty">还没有访问 Token。</p>}
+      {!loading && tokens.length > 0 && <div className="mn-mcp-token-list">
+        {tokens.map((token) => {
+          const expanded = detailsId === token.id;
+          const panelId = `mn-mcp-detail-${token.id}`;
+          return (
+            <article className="mn-mcp-token-card" key={token.id} aria-label={token.name}>
+              <div className="mn-mcp-token-head">
+                <div className="mn-mcp-token-identity">
+                  <h5 className="mn-mcp-title">{token.name}</h5>
+                  <p className="mn-mcp-last-used">
+                    {token.lastUsedAt === null ? "从未调用" : <>最近调用 <time dateTime={new Date(token.lastUsedAt).toISOString()}>{dateTime.format(token.lastUsedAt)}</time></>}
+                  </p>
+                </div>
+                <div className="mn-mcp-actions">
+                  <button type="button" className="mn-textbtn mn-mcp-copy" disabled={copyingPromptId !== null}
+                    title="复制提示词、服务地址和此 Token" onClick={() => void copyPrompt(token)}>
+                    <Copy aria-hidden="true" />
+                    {copyingPromptId === token.id ? "正在复制…" : "复制 AI 接入提示词"}
+                  </button>
+                  <button type="button" className="mn-textbtn" aria-expanded={expanded} aria-controls={panelId} onClick={() => {
+                    setDetailsId(expanded ? null : token.id);
+                    setEditingId(null);
+                    setCreating(false);
+                  }}>
+                    {expanded ? "收起" : "详情"}
+                    {expanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
-              <div className="mn-mcp-actions">
-                {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void reveal(token)}>查看并复制 Token</button>}
-                {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => { setEditingId(editingId === token.id ? null : token.id); setCreating(false); }}>修改设置</button>}
-                {token.revokedAt === null && <button type="button" className="mn-statuslink" onClick={() => void revoke(token)}>撤销</button>}
+              <div id={panelId} className="mn-mcp-detail" hidden={!expanded}>
+                {expanded && (editingId === token.id
+                  ? <TokenEditor initial={token} topics={topics} onCancel={() => setEditingId(null)}
+                      onSave={(name, config) => save(token.id, name, config)} />
+                  : <>
+                    <dl className="mn-mcp-meta">
+                      <div><dt>Token</dt><dd><code>{token.tokenPrefix}</code></dd></div>
+                      <div><dt>创建时间</dt><dd>{dateTime.format(token.createdAt)}</dd></div>
+                      <div><dt>有效期</dt><dd>{token.expiresAt === null ? "永不过期" : dateTime.format(token.expiresAt)}</dd></div>
+                      <div><dt>限速</dt><dd>{token.ratePerMinute} 次/分钟</dd></div>
+                      <div className="mn-mcp-meta-wide"><dt>访问范围</dt><dd>{token.scope.mode === "all" ? "所有非加密主题" : `指定范围（${token.scope.topicIds.length + token.scope.groupIds.length} 项）`}</dd></div>
+                      <div className="mn-mcp-meta-wide"><dt>权限</dt><dd>{token.permissions.length ? token.permissions.map((permission) => PERMISSION_LABELS[permission]).join("、") : "无（默认拒绝）"}</dd></div>
+                    </dl>
+                    {visibleTokens[token.id] && <div className="mn-mcp-secret"><code>{visibleTokens[token.id]}</code></div>}
+                    <div className="mn-mcp-actions">
+                      <button type="button" className="mn-textbtn" onClick={() => void reveal(token)}>查看并复制 Token</button>
+                      <button type="button" className="mn-textbtn" onClick={() => setEditingId(token.id)}>修改设置</button>
+                      <button type="button" className="mn-textbtn mn-mcp-revoke" onClick={() => void revoke(token)}>撤销 Token</button>
+                    </div>
+                  </>)}
               </div>
-            </div>
-            {visibleTokens[token.id] && <div className="mn-mcp-secret"><code>{visibleTokens[token.id]}</code></div>}
-            <p className="mn-sethint">权限：{token.permissions.length ? token.permissions.map((permission) => PERMISSION_LABELS[permission]).join("、") : "无（默认拒绝）"}</p>
-            <p className="mn-sethint">范围：{token.scope.mode === "all" ? "所有非加密主题" : `指定范围（${token.scope.topicIds.length + token.scope.groupIds.length} 项）`} · 限速 {token.ratePerMinute}/分钟 · {token.expiresAt === null ? "永不过期" : `过期于 ${formatDate(token.expiresAt)}`}</p>
-            {editingId === token.id && <TokenEditor
-              initial={token} topics={topics} onCancel={() => setEditingId(null)} onSave={(name, config) => save(token.id, name, config)}
-            />}
-          </article>
-        ))}</div>}
+            </article>
+          );
+        })}
+      </div>}
     </section>
   );
 }

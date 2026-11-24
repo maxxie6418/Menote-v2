@@ -26,6 +26,7 @@ export { default as CheckSquare } from "lucide-react/icons/check-square";
 export { default as ChevronDown } from "lucide-react/icons/chevron-down";
 export { default as ChevronLeft } from "lucide-react/icons/chevron-left";
 export { default as ChevronRight } from "lucide-react/icons/chevron-right";
+export { default as ChevronUp } from "lucide-react/icons/chevron-up";
 export { default as CircleCheck } from "lucide-react/icons/circle-check";
 export { default as CircleHelp } from "lucide-react/icons/circle-help";
 export { default as CircleX } from "lucide-react/icons/circle-x";
