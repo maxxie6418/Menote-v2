@@ -12,6 +12,8 @@ import { listTopics } from "../db/topicsRepo";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId, sha256Hex } from "../lib/hash";
 import { safeAttachmentName } from "../lib/attachmentNames";
+import { readNoteYamlTags } from "../lib/noteProperties";
+import { replaceMarkdownBody, splitFrontmatter } from "../lib/frontmatter";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
 import {
   countMissingImages, finalizeObsidianDraft, makeObsidianResolver,
@@ -117,14 +119,17 @@ async function flushItems(items: Item[]): Promise<void> {
 
 /** 正文重写：解析到的引用换附件引用（保留 alt），解析不到的原文保留。 */
 function rewriteBody(markdown: string, draft: ObsidianNoteDraft, uploaded: Map<string, { sha256: string; name: string } | null>): string {
-  let body = markdown;
-  for (const ref of draft.images) {
+  let { body } = splitFrontmatter(markdown);
+  for (const ref of [...draft.images].reverse()) {
     if (ref.resolvedPath === null) continue;
     const image = uploaded.get(ref.resolvedPath);
     if (!image) continue;
-    body = body.replace(ref.raw, `![${ref.alt}](attachments/${image.sha256}--${image.name})`);
+    if (body.slice(ref.start, ref.end) !== ref.raw) continue;
+    const alt = (ref.size ?? ref.alt).replace(/[\\\[\]]/g, "\\$&");
+    const title = ref.size && ref.alt ? ` "${ref.alt.replace(/[\\"]/g, "\\$&")}"` : "";
+    body = `${body.slice(0, ref.start)}![${alt}](attachments/${image.sha256}--${image.name}${title})${body.slice(ref.end)}`;
   }
-  return body;
+  return replaceMarkdownBody(markdown, body);
 }
 
 /** 导入勾选的 Obsidian 笔记。整个过程只在本机与本账号内进行。 */
@@ -176,7 +181,7 @@ export async function importObsidianNotes(
       const item: Item = {
         id: newId(), userId, type: "note",
         topicId: target.topicId, groupId: target.groupId,
-        title: draft.title, tags: [], status: null,
+        title: draft.title, tags: readNoteYamlTags(body) ?? [], status: null,
         attachmentHashes: attachmentHashesOf(body), source: "external",
         rev: 1, metaRev: 1, contentHash,
         pinned: false, starred: false, createdAt: draft.mtime, updatedAt: draft.mtime, deletedAt: null,

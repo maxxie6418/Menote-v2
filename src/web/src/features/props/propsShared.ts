@@ -7,6 +7,8 @@ export const TYPE_LABELS: Record<PropertyType, string> = {
   multiline: "多行文本",
   number: "数字",
   date: "日期",
+  datetime: "日期时间",
+  list: "列表",
   select: "单选",
   multiselect: "多选",
   checkbox: "复选框",
@@ -22,9 +24,10 @@ export function isHttpUrl(value: string): boolean {
 /** FR-PROP-6 安全推断：仅当控件可无损写回原值时启用对应控件，否则文本。 */
 export function inferType(row: PropRow): PropertyType {
   if (row.isBoolean) return "checkbox";
-  if (row.isArray) return "multiselect";
+  if (row.listValues || /^(?:tags?|aliases|alias|cssclasses|cssclass)$/.test(row.key) && !row.isStructured) return "list";
   if (/^\d{4}-\d{2}-\d{2}$/.test(row.raw)) return "date";
-  if (/^[+-]?\d+(\.\d+)?$/.test(row.raw)) return "number";
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(row.raw)) return "datetime";
+  if (row.isNumber) return "number";
   if (isHttpUrl(row.raw)) return "link";
   return "text";
 }
@@ -42,7 +45,7 @@ export const PROPS_TWO_COLUMN_MIN = 560;
 export const STRIP_LEFT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["select", "checkbox"]);
 
 /** 带·右组：归属类。回答「谁·哪·何时·多少」，与左组两端分布。 */
-export const STRIP_RIGHT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["text", "link", "date", "number"]);
+export const STRIP_RIGHT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["text", "link", "date", "datetime", "number"]);
 
 /**
  * 类型的默认去向（2026-11-12 负责人要求「第一排只有指定属性可以放」之后）：
@@ -50,7 +53,7 @@ export const STRIP_RIGHT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType
  * 要进第一排必须在属性设置里指定（写入 props 定义），或由预设标 strip。
  * 不再按「值有多长」猜——标题和概述都短，按长度判会把它们塞进第一排。
  */
-export const STRIP_DEFAULT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["select", "checkbox", "date", "number"]);
+export const STRIP_DEFAULT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["select", "checkbox", "date", "datetime", "number"]);
 
 /** 多选在网格里并排的最大项数；超过就跨满（chips 会换行，行高就不稳）。 */
 export const GRID_MULTI_PAIR_MAX = 2;
@@ -65,7 +68,7 @@ const WIDE_KEYS = new Set(["summary", "description", "abstract", "excerpt", "概
 /** 空值：布尔只为真作证，多选看项数，其余看去空后的字符串。带内过滤、网格保留行。 */
 export function isBlankValue(row: PropRow): boolean {
   if (row.isBoolean) return row.raw !== "true";
-  if (row.isArray) return row.arrayValues.length === 0;
+  if (row.listValues) return row.listValues.length === 0;
   return row.raw.trim() === "";
 }
 
@@ -90,7 +93,7 @@ export function isWideRow(row: PropRow, type: PropertyType, preset?: boolean): b
   if (typeof row.def?.wide === "boolean") return row.def.wide;
   if (typeof preset === "boolean") return preset;
   if (WIDE_KEYS.has(row.key)) return true;
-  return type === "multiline" || type === "attachment";
+  return type === "multiline" || type === "attachment" || type === "list" || Boolean(row.isStructured);
 }
 
 /** 显示位置：第一排 / 并列配对 / 独享整排（属性设置里的三选项）。 */

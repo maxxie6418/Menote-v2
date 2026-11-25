@@ -6,7 +6,8 @@ import { build } from "esbuild";
 // 解析器依赖 @menote/shared 的运行时导出（node_modules 内不做类型擦除），测试里用 esbuild 打包后导入。
 const entry = fileURLToPath(new URL("../src/lib/obsidianParse.ts", import.meta.url));
 const resolveDir = fileURLToPath(new URL("../../../node_modules/.pnpm/node_modules/", import.meta.url));
-const bundle = await build({ entryPoints: [entry], bundle: true, write: false, format: "esm", platform: "node", nodePaths: [resolveDir] });
+const bundle = await build({ entryPoints: [entry], bundle: true, write: false, format: "esm", platform: "node", nodePaths: [resolveDir],
+  alias: { yaml: fileURLToPath(new URL("../node_modules/yaml/browser/index.js", import.meta.url)) } });
 const {
   parseObsidianFiles, makeObsidianResolver, finalizeObsidianDraft, countMissingImages,
 } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
@@ -34,16 +35,17 @@ test("分类：md 记为笔记、图片进附件候选、隐藏目录与其它�
   assert.equal(data.drafts.map((draft) => draft.title).join(","), "2026-11-01,2026-11-02");
 });
 
-test("图片引用解析：wiki 嵌入全库按名命中，标准链接按相对路径命中，尺寸参数忽略", async () => {
+test("图片引用解析保留尺寸，正文中的笔记嵌入沿用原语法", async () => {
   const data = parseObsidianFiles(buildFiles(), { rootLabel: "MyVault" });
   const resolve = makeObsidianResolver(data);
   const draft = data.drafts[0];
-  draft.file = new File(["正文开头\n![[照片.png|300]]\n![alt 文本](../attachments/图表.webp)\n![[不存在的图.png]]"], draft.file.name);
+  draft.file = new File(["---\nfake: '![[属性.png]]'\n---\n正文开头\n![[照片.png|300]]\n![alt 文本](../attachments/图表.webp)\n![[不存在的图.png]]\n![[另一则笔记#^段落]]\n`![[代码.png]]`\n\n%% ![[注释.png]] %%"], draft.file.name);
   const finalized = await finalizeObsidianDraft(draft, resolve);
   assert.equal(finalized.images.length, 3);
   const byTarget = new Map(finalized.images.map((ref) => [ref.target, ref]));
   assert.equal(byTarget.get("照片.png").resolvedPath, "MyVault/attachments/照片.png");
   assert.equal(byTarget.get("照片.png").alt, "照片");
+  assert.equal(byTarget.get("照片.png").size, "300");
   assert.equal(byTarget.get("../attachments/图表.webp").resolvedPath, "MyVault/attachments/图表.webp");
   assert.equal(byTarget.get("../attachments/图表.webp").alt, "alt 文本");
   assert.equal(byTarget.get("不存在的图.png").resolvedPath, null, "解析不到的引用标记缺失而不是丢弃");

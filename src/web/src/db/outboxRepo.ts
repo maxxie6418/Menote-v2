@@ -14,6 +14,7 @@ export function toOutboxRow(operation: OutboxOperation, now: number): OutboxRow 
     baseRev: operation.baseRev,
     baseMetaRev: operation.baseMetaRev,
     contentHash: operation.contentHash,
+    noteTagsFromContent: operation.noteTagsFromContent,
     attachmentRefs: operation.attachmentRefs,
     payload: operation.payload,
     queuedAt: now,

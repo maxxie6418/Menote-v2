@@ -6,6 +6,11 @@ import { confirmDialog } from "../components/ui/ConfirmDialog";
 import { useHomeSnapshot } from "../services/contentHooks";
 import { hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
+import { noteTagKey } from "../lib/noteProperties";
+
+function matchesTag(item: Item, value: string, tag: string): boolean {
+  return item.type === "note" && item.content.scope === "plain" ? noteTagKey(value) === noteTagKey(tag) : value === tag;
+}
 
 export function TagManagerDialog({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { items, topics } = useHomeSnapshot(userId);
@@ -23,6 +28,7 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
   const hidden = hiddenPrivateTopicIds(topics);
   const visibleItems = items.filter((item) => item.topicId === null || !hidden.has(item.topicId));
   const tags = useMemo(() => [...new Set(visibleItems.flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b)), [visibleItems]);
+  const withTag = (tag: string) => visibleItems.filter((item) => item.tags.some((value) => matchesTag(item, value, tag)));
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -46,18 +52,17 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
     if (nextTag === oldTag) { setEditing(null); setError(""); return; }
     setBusy(true); setError("");
     try {
-      const affected = visibleItems.filter((item) => item.tags.includes(oldTag));
-      await Promise.all(affected.map((item) => renameItemTag(item, oldTag, nextTag)));
+      await Promise.all(withTag(oldTag).map((item) => renameItemTag(item, oldTag, nextTag)));
       setEditing(null);
     } catch { setError("部分条目改名未完成，请重试。"); }
     finally { setBusy(false); }
   };
 
   const remove = async (tag: string) => {
-    if (!await confirmDialog({ title: "移除标签", message: `从 ${visibleItems.filter((item) => item.tags.includes(tag)).length} 条内容中移除 #${tag}？` })) return;
+    const affected = withTag(tag);
+    if (!await confirmDialog({ title: "移除标签", message: `从 ${affected.length} 条内容中移除 #${tag}？` })) return;
     setBusy(true); setError("");
     try {
-      const affected = visibleItems.filter((item) => item.tags.includes(tag));
       await Promise.all(affected.map((item) => removeItemTag(item, tag)));
     } catch { setError("部分条目移除未完成，请重试。"); }
     finally { setBusy(false); }
@@ -69,7 +74,7 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
       await saveItemContent(userId, item.id, renameTagInText(item.content.markdown, oldTag, nextTag));
       return;
     }
-    await saveItemMeta(userId, item.id, { tags: [...new Set(item.tags.map((tag) => tag === oldTag ? nextTag : tag))] });
+    await saveItemMeta(userId, item.id, { tags: [...new Set(item.tags.map((tag) => matchesTag(item, tag, oldTag) ? nextTag : tag))] });
   };
 
   const removeItemTag = async (item: Item, tag: string) => {
@@ -77,7 +82,7 @@ export function TagManagerDialog({ userId, onClose }: { userId: string; onClose:
       await saveItemContent(userId, item.id, removeTagFromText(item.content.markdown, tag));
       return;
     }
-    await saveItemMeta(userId, item.id, { tags: item.tags.filter((value) => value !== tag) });
+    await saveItemMeta(userId, item.id, { tags: item.tags.filter((value) => !matchesTag(item, value, tag)) });
   };
 
   return <div className="mn-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>

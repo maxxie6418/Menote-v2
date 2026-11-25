@@ -1,12 +1,14 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import type { TopicNode } from "@menote/shared";
+import type { Item, TopicNode } from "@menote/shared";
 import { getItem, listActiveItems } from "../db/itemsRepo";
 import { listTopics } from "../db/topicsRepo";
 import { normalizeObsidianName } from "../lib/obsidianMarkdown";
+import { readNoteAliases } from "../lib/noteProperties";
 import { alwaysHiddenPrivateTopicIds } from "./privateSpaceService";
 import { useLocalRefresh } from "./contentHooks";
 
-const EMPTY_TARGETS: ReadonlyMap<string, string | null> = new Map();
+interface ObsidianLinkChoice { id: string; label: string; path: string }
+const EMPTY_REFERENCES = { targets: new Map<string, string | null>(), choices: [] as ObsidianLinkChoice[] };
 
 function topicPath(id: string | null, topics: Map<string, TopicNode>): string {
   const seen = new Set<string>();
@@ -28,27 +30,48 @@ export function obsidianNoteTarget(targets: ReadonlyMap<string, string | null>, 
 }
 
 export function useObsidianTargets(userId: string | undefined, enabled: boolean): ReadonlyMap<string, string | null> {
+  return useObsidianReferences(userId, enabled).targets;
+}
+
+export function useObsidianReferences(userId: string | undefined, enabled: boolean) {
   const refresh = useLocalRefresh(!!userId && enabled);
-  return useLiveQuery(async () => {
-    if (!userId || !enabled) return EMPTY_TARGETS;
+  const result = useLiveQuery(async () => {
+    if (!userId || !enabled) return undefined;
     const [items, topics] = await Promise.all([listActiveItems(userId), listTopics(userId)]);
-    const hidden = alwaysHiddenPrivateTopicIds(topics);
-    const topicsById = new Map(topics.map((topic) => [topic.id, topic]));
-    const targets = new Map<string, string | null>();
-    const add = (key: string, id: string) => {
-      const normalized = normalizeObsidianName(key);
-      if (targets.has(normalized) && targets.get(normalized) !== id) targets.set(normalized, null);
-      else targets.set(normalized, id);
-    };
-    for (const item of items) {
-      if (item.type !== "note" || !item.title || item.content.scope !== "plain"
-        || (item.topicId && hidden.has(item.topicId)) || (item.groupId && hidden.has(item.groupId))) continue;
-      add(item.title, item.id);
-      const path = topicPath(item.groupId ?? item.topicId, topicsById);
-      if (path) add(`${path}/${item.title}`, item.id);
-    }
-    return targets;
-  }, [userId, enabled, refresh], EMPTY_TARGETS);
+    return { userId, ...buildObsidianReferences(items, topics) };
+  }, [userId, enabled, refresh]);
+  return enabled && result?.userId === userId ? result ?? EMPTY_REFERENCES : EMPTY_REFERENCES;
+}
+
+export function buildObsidianReferences(items: Item[], topics: TopicNode[]) {
+  const hidden = alwaysHiddenPrivateTopicIds(topics);
+  const topicsById = new Map(topics.map((topic) => [topic.id, topic]));
+  const targets = new Map<string, string | null>();
+  const aliases = new Map<string, string | null>();
+  const notes: { id: string; title: string; path: string; aliases: string[] }[] = [];
+  const add = (map: Map<string, string | null>, key: string, id: string) => {
+    const normalized = normalizeObsidianName(key);
+    map.set(normalized, map.has(normalized) && map.get(normalized) !== id ? null : id);
+  };
+  for (const item of items) {
+    if (item.type !== "note" || !item.title || item.deletedAt !== null || item.content.scope !== "plain"
+      || (item.topicId && hidden.has(item.topicId)) || (item.groupId && hidden.has(item.groupId))) continue;
+    const folder = topicPath(item.groupId ?? item.topicId, topicsById);
+    const path = folder ? `${folder}/${item.title}` : item.title;
+    add(targets, item.title, item.id);
+    add(targets, path, item.id);
+    const names = readNoteAliases(item.content.markdown);
+    names.forEach((name) => add(aliases, name, item.id));
+    notes.push({ id: item.id, title: item.title, path, aliases: names });
+  }
+  const choices = notes.flatMap((note) => {
+    const path = targets.get(normalizeObsidianName(note.title)) === note.id ? note.title : note.path;
+    if (targets.get(normalizeObsidianName(path)) !== note.id || /[|\[\]#\r\n]/.test(path)) return [];
+    return [note.title, ...note.aliases.filter((alias) => alias !== note.title && !/[|\[\]\r\n]/.test(alias))]
+      .map((label) => ({ id: `${note.id}:${label}`, label, path }));
+  });
+  for (const [alias, id] of aliases) if (!targets.has(alias)) targets.set(alias, id);
+  return { targets, choices };
 }
 
 export function useObsidianEmbed(userId: string, itemId: string | null): string | undefined {

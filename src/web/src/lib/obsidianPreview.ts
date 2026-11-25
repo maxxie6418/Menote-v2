@@ -46,6 +46,15 @@ export function remarkObsidianPreview() {
         case "obsidianComment":
         case "obsidianBlockComment":
           return null;
+        case "obsidianTag":
+          return element("span", [{ type: "text", value: node.raw ?? `#${node.tag}` }], { dataObsidianTag: node.tag });
+        case "link":
+        case "linkReference": {
+          const plainTags = (child: ObsidianAstNode): ObsidianAstNode => child.type === "obsidianTag"
+            ? { type: "text", value: child.raw ?? `#${child.tag}` }
+            : child.children ? { ...child, children: child.children.map(plainTags) } : child;
+          return { ...node, children: previewChildren((node.children ?? []).map(plainTags)) };
+        }
         case "obsidianHighlight": {
           const { color, content } = obsidianHighlight(node);
           return element("mark", previewChildren(content), { className: ["mn-obsidian-highlight"], dataHighlightColor: color });
@@ -60,6 +69,7 @@ export function remarkObsidianPreview() {
             dataObsidianBlock: target?.blockId,
             dataObsidianWidth: node.embedSize?.width,
             dataObsidianHeight: node.embedSize?.height,
+            dataObsidianPage: target?.params?.page,
           });
         }
         case "obsidianInlineFootnote": {

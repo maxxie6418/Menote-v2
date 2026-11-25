@@ -7,7 +7,7 @@ import type { EditorView } from "@milkdown/kit/prose/view";
 import type { Processor } from "unified";
 import { obsidianHighlight, obsidianText, parseObsidianInline, remarkObsidianSyntax, type ObsidianAstNode } from "../../lib/obsidianMarkdown";
 
-const INLINE_TYPES = new Set(["obsidianWikilink", "obsidianWikiEmbed", "obsidianBlockId", "obsidianComment", "obsidianInlineFootnote", "inlineMath"]);
+const INLINE_TYPES = new Set(["obsidianWikilink", "obsidianWikiEmbed", "obsidianBlockId", "obsidianComment", "obsidianInlineFootnote", "obsidianTag", "inlineMath"]);
 const BLOCK_TYPES = new Set(["math", "obsidianBlockComment"]);
 
 function obsidianEditorMarkdown(this: Processor) {

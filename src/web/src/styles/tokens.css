@@ -162,6 +162,7 @@
   --app-mobile-record-size: 2.75rem;
   --app-mobile-record-color: var(--app-accent-text);
   --app-mobile-title-size: 1.5rem;
+  --app-mobile-doc-title-size: 1.375rem;
   --app-mobile-body-size: 0.9375rem;
   --app-mobile-content-pad: 1rem;
   --app-mobile-composer-half-top: 9.375rem;
@@ -270,7 +271,7 @@
   --app-doc-measure-narrow: 42rem;
   --app-doc-measure-wide: 56rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
-  --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
+  --app-doc-title-size: 1.875rem;  /* 30px 文档标题（DESIGN §3） */
   --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
   --app-icon-xxs: 0.625rem;        /* 10px 树箭头/拖柄：这是字形槽不是按钮图标，尺寸被树连接线
                                       几何锁死（--app-tree-guide-x = 行内边距 + 槽中心），不可上抬 */
@@ -804,7 +805,7 @@
   --app-radius-xl: .75rem;
   --app-font-serif: var(--app-font);
   --app-weight-serif: 600;
-  --app-doc-title-size: 2.125rem;
+  --app-doc-title-size: 1.75rem;
   /* 编辑器默认文字色板 */
   --app-text-color-red: #c2412d;
   --app-text-color-orange: #b45309;

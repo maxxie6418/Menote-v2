@@ -6,7 +6,9 @@ import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
 import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
 import { EDITOR_FONT_DEFAULT, FormatBar, type TextColorId } from "./FormatBar";
-import { SlashMenu } from "./SlashMenu";
+import { EditorChoiceMenu, SlashMenu } from "./SlashMenu";
+import { useObsidianReferences } from "../../services/obsidianReferenceService";
+import { normalizeObsidianName } from "../../lib/obsidianMarkdown";
 import { TableBlockToolbar } from "./TableBlockToolbar";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 import { SelectionFormatBar } from "./SelectionFormatBar";
@@ -47,6 +49,7 @@ function sameActions<T extends string>(previous: T[], next: T[]): boolean {
 
 interface NoteEditorProps {
   mode: "edit" | "preview";
+  userId?: string;
   /** 编辑形态：所见即所得（默认，FR-EDT-1）或源码（更多操作高级入口，FR-EDT-3）。 */
   kind: EditorKind;
   /** 本地库回声（保存回声/他端变更）：与编辑器当前值一致时静默；有未保存输入时不覆盖。 */
@@ -71,7 +74,7 @@ interface NoteEditorProps {
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId, registerCursor }: NoteEditorProps) {
+export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId, registerCursor }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bindHost = useCallback((host: HTMLDivElement | null) => {
     hostRef.current = host;
@@ -90,6 +93,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   // from：触发「/」菜单的那个斜杠在正文中的位置。所见即所得走原生选区用不到它，
   // 源码态按文本算上下文时要用（applySlash 靠它剥掉「/过滤词」）。
   const [slash, setSlash] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
+  const [wiki, setWiki] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
+  const { choices: linkChoices } = useObsidianReferences(userId, wiki !== null);
+  const wikiQuery = normalizeObsidianName(wiki?.query ?? "");
+  const wikiChoices = wiki ? linkChoices.filter((choice) => normalizeObsidianName(choice.label).includes(wikiQuery)
+    || normalizeObsidianName(choice.path).includes(wikiQuery)).slice(0, 12) : [];
   const [dragging, setDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadTask[]>([]);
   const uploadPending = uploads.length > 0;
@@ -288,7 +296,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
 
   const refreshSlash = () => {
     const adapter = adapterRef.current;
-    if (!adapter) { setSlash(null); return; }
+    if (!adapter) { setSlash(null); setWiki(null); return; }
     if (kind === "source") {
       // 源码态：textarea 读 value 是 O(1)，不算整篇序列化，上下文仍按文本算。
       // 源码态不弹「/」菜单（方向键/回车必须留给 textarea 本身），保持既有行为不变。
@@ -297,6 +305,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       const next = activeInline(markdown, start, end);
       setActive((previous) => (sameActions(previous, next) ? previous : next));
       setSlash(null);
+      setWiki(null);
       return;
     }
     // 所见即所得：用编辑器原生选区算「/」过滤词与行内格式按下态，**不整篇序列化**（FR-EDT-10）。
@@ -304,6 +313,20 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     const marks = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : [];
     setActive((previous) => (sameActions(previous, marks) ? previous : marks));
     refreshTextStyles(adapter);
+    const wikiContext = userId && adapter instanceof MilkdownWysiwygAdapter ? adapter.getWikiLinkContext() : null;
+    if (wikiContext) {
+      const host = hostRef.current;
+      const caret = adapter.caretRect();
+      const bounds = host?.getBoundingClientRect();
+      if (host && caret && bounds) {
+        setSlash(null);
+        setWiki((current) => current?.query === wikiContext.query && current.from === wikiContext.from ? current : {
+          ...wikiContext, index: 0, top: caret.bottom - bounds.top + host.scrollTop, left: caret.left - bounds.left,
+        });
+        return;
+      }
+    }
+    setWiki(null);
     const { start, end } = adapter.getSelection();
     if (start !== end) { setSlash(null); return; }
     // 拿不到原生上下文就退化为「不显示菜单」，绝不用整篇序列化兜底。
@@ -316,6 +339,12 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     const top = caret && host ? caret.bottom - host.top + hostRef.current!.scrollTop : 0;
     const left = caret && host ? caret.left - host.left : 0;
     setSlash({ query: context.query, from: start, index: 0, top, left });
+  };
+
+  const pickWiki = (index: number) => {
+    const choice = wikiChoices[index];
+    const adapter = adapterRef.current;
+    if (choice && adapter instanceof MilkdownWysiwygAdapter && adapter.insertWikiLink(choice.path, choice.label)) setWiki(null);
   };
 
   const refreshSelectionBar = () => {
@@ -418,13 +447,15 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       <div
         ref={bindHost} className="mn-editor-host" data-mode={mode} data-kind={kind}
         data-font-size={fontSize}
+        onInput={(event) => { if (userId && kind === "wysiwyg" && !(event.nativeEvent as InputEvent).isComposing) refreshSlash(); }}
         onKeyUp={(event) => {
-          refreshSlash();
+          if (event.key !== "Escape" && !event.nativeEvent.isComposing) refreshSlash();
           const extendsSelection = event.shiftKey && /^(Arrow|Home|End|Page)/.test(event.key);
           const selectsAll = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a";
           if (extendsSelection || selectsAll) refreshSelectionBar();
         }}
         onMouseUp={(event) => { refreshSlash(); if (event.button === 0) refreshSelectionBar(); }}
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) { setWiki(null); setSlash(null); } }}
         onContextMenu={(event) => {
           if (kind !== "wysiwyg" || mode !== "edit") return;
           const selection = window.getSelection();
@@ -440,6 +471,16 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           if (event.button !== 0) return;
           dismissSelectionBar();
           setSelectionMenu(null);
+        }}
+        onKeyDownCapture={(event) => {
+          if (!wiki || event.nativeEvent.isComposing) return;
+          const length = wikiChoices.length;
+          if (event.key !== "Escape" && (!length || !["ArrowDown", "ArrowUp", "Enter"].includes(event.key))) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.key === "Escape") setWiki(null);
+          else if (event.key === "Enter") pickWiki(wiki.index < length ? wiki.index : 0);
+          else setWiki({ ...wiki, index: (wiki.index + (event.key === "ArrowDown" ? 1 : -1) + length) % length });
         }}
         onKeyDown={(event) => {
           if (!slash) return;
@@ -496,6 +537,9 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           onPick={(action) => runAction(action, true)}
         />
       )}
+      {wiki && <EditorChoiceMenu label="链接笔记" options={wikiChoices.map((choice) => ({ ...choice, detail: choice.label === choice.path ? undefined : choice.path }))}
+        activeIndex={wiki.index < wikiChoices.length ? wiki.index : 0} position={wiki}
+        onHover={(index) => setWiki({ ...wiki, index })} onPick={pickWiki} />}
       {selectionMenu && (
         <ContextMenu x={selectionMenu.x} y={selectionMenu.y} label="文字格式"
           actions={selectionMenuActions} onClose={() => setSelectionMenu(null)} returnFocus={hostRef.current} />

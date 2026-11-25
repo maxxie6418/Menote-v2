@@ -60,6 +60,8 @@ export interface OutboxOperation {
   baseRev: number;
   baseMetaRev: number;
   contentHash?: string;
+  /** 此次明文 Note 正文写同时改动了 YAML 标签索引。 */
+  noteTagsFromContent?: true;
   attachmentRefs?: string[];
   payload: unknown;
   /** 加密条目：随载荷携带密码/恢复码/主题包装块（G7）。 */

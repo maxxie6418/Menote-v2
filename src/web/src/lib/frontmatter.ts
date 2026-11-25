@@ -1,4 +1,4 @@
-import { Document, parse as parseYaml, parseDocument, YAMLMap } from "yaml";
+import { Document, isNode, isScalar, parse as parseYaml, parseDocument, stringify, YAMLMap } from "yaml";
 
 /**
  * Frontmatter 往返（开放项 #5 定稿 + FR-PROP-5/7）：
@@ -12,10 +12,13 @@ export const PROPS_KEY = "props";
 export const FIELDS_KEY = "fields";
 
 export type PropertyType =
-  | "text" | "multiline" | "number" | "date" | "select" | "multiselect" | "checkbox" | "link" | "attachment";
+  | "text" | "multiline" | "number" | "date" | "datetime" | "list" | "select" | "multiselect" | "checkbox" | "link" | "attachment";
+
+export type PropertyScalar = string | boolean | number | null;
+export type PropertyValue = PropertyScalar | PropertyScalar[];
 
 export const PROPERTY_TYPES: readonly PropertyType[] =
-  ["text", "multiline", "number", "date", "select", "multiselect", "checkbox", "link"];
+  ["text", "multiline", "number", "date", "datetime", "list", "select", "multiselect", "checkbox", "link"];
 
 /** 表格侧不提供多行文本（FR-PROP-4）。 */
 export const TABLE_FIELD_TYPES: readonly PropertyType[] =
@@ -88,29 +91,61 @@ export function parseOptionList(text: string): string[] {
 }
 
 export function splitFrontmatter(markdown: string): { frontText: string | null; body: string } {
-  if (!markdown.startsWith("---")) return { frontText: null, body: markdown };
-  const end = markdown.indexOf("\n---", 3);
-  if (end === -1) return { frontText: null, body: markdown };
-  const frontText = markdown.slice(0, end) + "\n---";
+  const opening = /^(?:\uFEFF)?---[ \t]*\r?\n/.exec(markdown);
+  if (!opening) return { frontText: null, body: markdown };
+  const fence = /^---[ \t]*(?=\r?$)/gm;
+  fence.lastIndex = opening[0].length;
+  const closing = fence.exec(markdown);
+  if (!closing) return { frontText: null, body: markdown };
+  const end = closing.index + closing[0].length;
+  const frontText = markdown.slice(0, end);
   // 闭合围栏后的分隔空行在这里剥净：join 侧恒补一个空行，两侧互逆，
   // 往返（页边注/属性写入 → 保存）不再逐次给正文累积空行。
-  return { frontText, body: markdown.slice(end + 4).replace(/^\n+/, "") };
+  return { frontText, body: markdown.slice(end).replace(/^(?:\r?\n)+/, "") };
 }
 
 /** 把编辑器里的纯正文拼回属性区管理的 frontmatter（FR-PROP-1）。无属性时原样返回正文。 */
 export function joinFrontmatter(frontText: string | null, body: string): string {
-  return frontText ? `${frontText}\n\n${body}` : body;
+  if (!frontText) return body;
+  const newline = frontText.includes("\r\n") ? "\r\n" : "\n";
+  return `${frontText}${newline}${newline}${body}`;
+}
+
+export function replaceMarkdownBody(markdown: string, body: string): string {
+  const { frontText, body: previous } = splitFrontmatter(markdown);
+  if (previous === body) return markdown;
+  if (!frontText) return body;
+  const separator = /^(?:\r?\n)+/.exec(markdown.slice(frontText.length))?.[0];
+  return separator ? frontText + separator + body : joinFrontmatter(frontText, body);
+}
+
+function frontmatterYaml(frontText: string): string {
+  return frontText.slice(frontText.indexOf("\n") + 1, frontText.lastIndexOf("\n") + 1);
+}
+
+function updateFrontmatter(markdown: string, frontText: string, doc: Document): string {
+  const serialized = String(doc).trimEnd();
+  const newline = frontText.includes("\r\n") ? "\r\n" : "\n";
+  const closing = frontText.slice(frontText.lastIndexOf("\n") + 1);
+  const suffix = markdown.slice(frontText.length);
+  if (!serialized || serialized === "{}") return suffix.replace(/^(?:\r?\n)+/, "");
+  return `${frontText.slice(0, frontText.indexOf("\n") + 1)}${serialized.replace(/\n/g, newline)}${newline}${closing}${suffix}`;
 }
 
 /** 解析 frontmatter 数据面；空/损坏 frontmatter 视为无属性（不抛出，C-1 不阻断）。 */
 export function parseFrontmatterData(markdown: string): Record<string, unknown> {
+  return tryParseFrontmatterData(markdown) ?? {};
+}
+
+export function tryParseFrontmatterData(markdown: string): Record<string, unknown> | null {
   const { frontText } = splitFrontmatter(markdown);
   if (!frontText) return {};
   try {
-    const data = parseYaml(frontText.slice(4).replace(/\n---\s*$/, ""));
-    return typeof data === "object" && data !== null && !Array.isArray(data) ? data as Record<string, unknown> : {};
+    const data = parseYaml(frontmatterYaml(frontText));
+    if (data === null || data === undefined) return {};
+    return typeof data === "object" && !Array.isArray(data) ? data as Record<string, unknown> : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -131,7 +166,7 @@ export function readNoteMarginalia(markdown: string): NoteMarginalia[] {
 export function writeNoteMarginalia(markdown: string, annotations: NoteMarginalia[]): string {
   const { frontText, body } = splitFrontmatter(markdown);
   const document = frontText
-    ? parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""))
+    ? parseDocument(frontmatterYaml(frontText))
     : new Document({});
   if (document.errors.length > 0) throw new Error("invalid_frontmatter");
   // 标量/数组形式的 frontmatter 无法在保留原文的前提下扩展映射键：
@@ -187,7 +222,7 @@ export function createFrontmatter(markdown: string, namespace: string, def: Prop
 
 function emptyPropertyValue(def: PropertyDef): string | boolean | string[] {
   if (def.type === "checkbox") return false;
-  if (def.type === "multiselect") return [];
+  if (def.type === "list" || def.type === "multiselect") return [];
   if (def.type === "select") return def.options?.[0] ?? "";
   return "";
 }
@@ -212,9 +247,9 @@ function readOptionColors(raw: unknown): Record<string, OptionColor> | undefined
 /** 在既有 frontmatter 中写入命名空间定义；无 frontmatter 时新建。 */
 export function writeDef(markdown: string, namespace: string, name: string, def: PropertyDef): string {
   if (name === namespace || RESERVED_KEYS.has(name)) return markdown;
-  const { frontText, body } = splitFrontmatter(markdown);
+  const { frontText } = splitFrontmatter(markdown);
   if (!frontText) return createFrontmatter(markdown, namespace, def, name);
-  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const doc = parseDocument(frontmatterYaml(frontText));
   const container = doc.get(namespace) as YAMLMap | undefined;
   if (container && typeof container.set === "function") {
     container.set(name, doc.createNode(defNode(def)));
@@ -222,29 +257,29 @@ export function writeDef(markdown: string, namespace: string, name: string, def:
     doc.set(namespace, doc.createNode({ [name]: defNode(def) }));
   }
   if (namespace === PROPS_KEY && doc.get(name, true) === undefined) doc.set(name, doc.createNode(emptyPropertyValue(def)));
-  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+  return updateFrontmatter(markdown, frontText, doc);
 }
 
 /** 重命名命名空间内一个定义键（表格列重命名）；目标名已存在时不操作（调用方先行校验）。 */
 export function renameDef(markdown: string, namespace: string, from: string, to: string): string {
   if (from === to) return markdown;
-  const { frontText, body } = splitFrontmatter(markdown);
+  const { frontText } = splitFrontmatter(markdown);
   if (!frontText) return markdown;
-  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const doc = parseDocument(frontmatterYaml(frontText));
   const container = doc.get(namespace) as YAMLMap | undefined;
   if (!container || typeof container.get !== "function") return markdown;
   const def = container.get(from);
   if (def === undefined) return markdown;
   container.delete(from);
   container.set(to, def);
-  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+  return updateFrontmatter(markdown, frontText, doc);
 }
 
 /** 重排命名空间内定义键；未列入 order 的定义保留在末尾且相对顺序不变。 */
 export function reorderDefs(markdown: string, namespace: string, order: string[]): string {
-  const { frontText, body } = splitFrontmatter(markdown);
+  const { frontText } = splitFrontmatter(markdown);
   if (!frontText) return markdown;
-  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const doc = parseDocument(frontmatterYaml(frontText));
   const container = doc.get(namespace) as YAMLMap | undefined;
   if (!container || !Array.isArray(container.items)) return markdown;
   const rank = new Map(order.map((name, index) => [name, index]));
@@ -258,42 +293,46 @@ export function reorderDefs(markdown: string, namespace: string, order: string[]
     const rightKey = keyName(right);
     return (rank.get(leftKey) ?? Number.MAX_SAFE_INTEGER) - (rank.get(rightKey) ?? Number.MAX_SAFE_INTEGER);
   });
-  return `---\n${String(doc).replace(/\n$/, "")}\n---\n\n${body}`;
+  return updateFrontmatter(markdown, frontText, doc);
 }
 
 /** 删除命名空间内一个定义键（表格删列）；不存在时原样返回。 */
 export function removeDef(markdown: string, namespace: string, name: string): string {
-  const { frontText, body } = splitFrontmatter(markdown);
+  const { frontText } = splitFrontmatter(markdown);
   if (!frontText) return markdown;
-  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
+  const doc = parseDocument(frontmatterYaml(frontText));
   const container = doc.get(namespace) as YAMLMap | undefined;
   if (!container || typeof container.delete !== "function") return markdown;
   if (container.get(name) === undefined) return markdown;
   container.delete(name);
-  const serialized = String(doc).trimEnd();
-  if (serialized.length === 0 || serialized === "{}") return body;
-  return `---\n${serialized}\n---\n\n${body}`;
+  return updateFrontmatter(markdown, frontText, doc);
 }
 
 /** 写入/更新一个数据键：有 YAML 节点则原位替换值，未触碰键保持原样。无 frontmatter 时新建。 */
-export function writeValue(markdown: string, key: string, value: string | boolean | string[] | number | null): string {
-  const { frontText, body } = splitFrontmatter(markdown);
+export function writeValue(markdown: string, key: string, value: PropertyValue): string {
+  const { frontText } = splitFrontmatter(markdown);
   if (!frontText) {
+    if (value === null || value === "") return markdown;
     const doc = new Document({ [key]: value });
     return `---\n${doc.toString().replace(/\n$/, "")}\n---\n\n${markdown}`;
   }
-  const doc = parseDocument(frontText.slice(4).replace(/\n---\s*$/, ""));
-  const existing = doc.get(key, true) as { value?: unknown } | undefined;
+  const doc = parseDocument(frontmatterYaml(frontText));
+  if (doc.errors.length > 0 || (doc.contents !== null && !(doc.contents instanceof YAMLMap))) throw new Error("invalid_frontmatter");
+  const existing = doc.get(key, true);
   if (value === null || value === "") {
-    if (existing !== undefined) doc.delete(key);
-  } else if (existing === undefined || existing.value === undefined) {
-    doc.set(key, doc.createNode(value));
-  } else {
+    if (!doc.delete(key)) return markdown;
+  } else if (isScalar(existing) && !Array.isArray(value)) {
     existing.value = value;
+  } else {
+    const node = doc.createNode(value);
+    if (isNode(existing)) {
+      node.comment = existing.comment;
+      node.commentBefore = existing.commentBefore;
+      node.spaceBefore = existing.spaceBefore;
+    }
+    doc.set(key, node);
   }
-  const serialized = String(doc).trimEnd();
-  if (serialized.length === 0 || serialized === "{}") return body;
-  return `---\n${serialized}\n---\n\n${body}`;
+  return updateFrontmatter(markdown, frontText, doc);
 }
 
 /** 展示用键值对（含类型推断信息）；解析失败或非标量键在 UI 降级为文本。 */
@@ -301,30 +340,49 @@ export interface PropRow {
   key: string;
   raw: string;
   isBoolean: boolean;
+  isNumber?: boolean;
+  isStructured?: boolean;
   isArray: boolean;
   arrayValues: string[];
+  listValues?: PropertyScalar[];
   def?: PropertyDef;
 }
 
 export function readPropRows(markdown: string, namespace: string): PropRow[] {
   const data = parseFrontmatterData(markdown);
   const defs = readDefs(markdown, namespace);
-  const rows = Object.entries(data)
+  const rows: PropRow[] = Object.entries(data)
     .filter(([key]) => key !== PROPS_KEY && key !== FIELDS_KEY && key !== MARGINALIA_KEY)
     .map(([key, value]) => ({
       key,
-      raw: typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : "",
+      raw: typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value)
+        : value == null ? "" : stringify(value).trimEnd(),
       isBoolean: typeof value === "boolean",
+      isNumber: typeof value === "number",
+      isStructured: value !== null && typeof value === "object" && !(Array.isArray(value) && value.every(isPropertyScalar)),
       isArray: Array.isArray(value) && value.every((entry) => typeof entry === "string"),
       arrayValues: Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [],
+      listValues: Array.isArray(value) && value.every(isPropertyScalar) ? value as PropertyScalar[] : undefined,
       def: defs[key],
     }));
   // 只有定义没有值的属性（如从默认属性预设加进来的空属性）也要列出来，否则加了却看不见。
   for (const [key, def] of Object.entries(defs)) {
     if (rows.some((row) => row.key === key)) continue;
-    rows.push({ key, raw: "", isBoolean: false, isArray: false, arrayValues: [], def });
+    rows.push({ key, raw: "", isBoolean: false, isArray: false, arrayValues: [], listValues: undefined, def });
   }
   return rows;
+}
+
+function isPropertyScalar(value: unknown): value is PropertyScalar {
+  return value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+export function parsePropertyList(text: string): PropertyScalar[] | null {
+  if (!text.trim()) return [];
+  try {
+    const value: unknown = parseYaml(text);
+    return Array.isArray(value) && value.every(isPropertyScalar) ? value : null;
+  } catch { return null; }
 }
 
 /** 删除一个数据键（用户明确操作）。 */
@@ -339,39 +397,33 @@ export function removePropDef(markdown: string, namespace: string, key: string):
 
 /** Undo property deletion by merging only its prior value/definition into the latest document. */
 export function restoreProp(markdown: string, previousMarkdown: string, namespace: string, key: string): string {
-  const currentData = parseFrontmatterData(markdown);
-  const currentDefs = readDefs(markdown, namespace);
-  if (Object.hasOwn(currentData, key) || Object.hasOwn(currentDefs, key)) return markdown;
-  const previousData = parseFrontmatterData(previousMarkdown);
-  const previousDefs = readDefs(previousMarkdown, namespace);
-  let next = markdown;
-  if (Object.hasOwn(previousData, key)) {
-    const value = previousData[key];
-    if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-      || (Array.isArray(value) && value.every((entry) => typeof entry === "string"))) {
-      next = writeValue(next, key, value as string | number | boolean | string[] | null);
-    }
-  }
-  const def = previousDefs[key];
-  if (def) next = writeDef(next, namespace, key, def);
-  return next;
+  const { frontText } = splitFrontmatter(markdown);
+  const previous = splitFrontmatter(previousMarkdown).frontText;
+  if (!previous || Object.hasOwn(readDefs(markdown, namespace), key)) return markdown;
+  const doc = frontText ? parseDocument(frontmatterYaml(frontText)) : new Document({});
+  if (doc.errors.length || doc.has(key)) return markdown;
+  const old = parseDocument(frontmatterYaml(previous));
+  const pair = old.contents instanceof YAMLMap ? old.contents.items.find((item) => isScalar(item.key) && item.key.value === key) : undefined;
+  if (pair && doc.contents instanceof YAMLMap) doc.contents.items.push(pair);
+  const next = frontText ? updateFrontmatter(markdown, frontText, doc)
+    : pair ? joinFrontmatter(`---\n${String(doc).trimEnd()}\n---`, markdown) : markdown;
+  const def = readDefs(previousMarkdown, namespace)[key];
+  return def ? writeDef(next, namespace, key, def) : next;
 }
 
 /**
  * 重命名属性键（FR-PROP-2 属性设置浮层）：**定义与值一起迁移**。
- * 分开做会留下「有值没定义」或「有定义没值」的半截状态，所以这里按
- * 写新值 → 删旧值 → 迁定义三步走；目标键已存在或源键不存在时原样返回（调用方先行校验并提示）。
+ * 重命名键节点，保留原值及注释；目标已存在时原样返回。
  */
 export function renameProp(markdown: string, namespace: string, from: string, to: string): string {
   if (from === to || RESERVED_KEYS.has(to)) return markdown;
-  const row = readPropRows(markdown, namespace).find((entry) => entry.key === from);
-  if (!row) return markdown;
-  if (readPropRows(markdown, namespace).some((entry) => entry.key === to)) return markdown;
-  const value = row.isBoolean ? row.raw === "true"
-    : row.isArray ? row.arrayValues
-      : row.raw;
-  const withValue = value === "" ? markdown : writeValue(markdown, to, value);
-  return renameDef(removeProp(withValue, from), namespace, from, to);
+  const { frontText } = splitFrontmatter(markdown);
+  if (!frontText || Object.hasOwn(readDefs(markdown, namespace), to)) return markdown;
+  const doc = parseDocument(frontmatterYaml(frontText));
+  if (doc.errors.length || doc.has(to) || !(doc.contents instanceof YAMLMap)) return markdown;
+  const pair = doc.contents.items.find((item) => isScalar(item.key) && item.key.value === from);
+  if (pair && isScalar(pair.key)) pair.key.value = to;
+  return renameDef(pair ? updateFrontmatter(markdown, frontText, doc) : markdown, namespace, from, to);
 }
 
 /** 确认保存的 AI 概述（FR-AI-1）：数据键 `summary`，属性区显示名「概述」。先写值再补定义，避免定义写入把已有值清成空串。 */

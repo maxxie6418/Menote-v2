@@ -1,24 +1,12 @@
 import Dexie, { type Table } from "dexie";
 import type { Item, KeyWrap, MemoComment, TopicNode, UserSetting } from "@menote/shared";
-import type { SyncEntity } from "@menote/shared";
+import type { OutboxOperation } from "@menote/shared";
 
 /** 本地运行时权威副本（主文档 6.1：IndexedDB 权威 + D1 同步权威）。
  *  字段与 shared 契约单源对齐；加密条目本地同样只存密文（FR-ENC-5）。 */
 
-export interface OutboxRow {
+export interface OutboxRow extends OutboxOperation {
   seq?: number;
-  userId: string;
-  operationId: string;
-  entityId: string;
-  entity: SyncEntity;
-  action: "upsert" | "delete";
-  baseRev: number;
-  baseMetaRev: number;
-  contentHash?: string;
-  attachmentRefs?: string[];
-  payload: unknown;
-  /** 加密条目：随操作推送的包装块（G7）。 */
-  wraps?: KeyWrap[];
   queuedAt: number;
   retries: number;
   nextRetryAt: number | null;

@@ -6,6 +6,9 @@
  *    先按笔记所在目录的相对路径解析，失败再按全库文件名索引解析（Obsidian「最短路径」语义）；
  *  - 解析不到的引用不静默丢弃：保留原文，标记缺失，由预览与结果明示。 */
 
+import { splitFrontmatter } from "./frontmatter";
+import { parseObsidianMarkdown, type ObsidianAstNode } from "./obsidianMarkdown";
+
 export interface ObsidianScannedFile {
   /** 以扫描根为基准的相对路径，统一用 `/` 分隔。 */
   path: string;
@@ -28,10 +31,13 @@ export interface ObsidianNoteDraft {
 export interface ObsidianImageRef {
   /** 正文里的原始写法（用于缺图时原样保留）。 */
   raw: string;
+  start: number;
+  end: number;
   /** 引用的目标（wiki 名或相对路径，URL 已解码）。 */
   target: string;
   /** 重写时的替换 alt 文本：wiki 取目标名（去扩展名），标准链接取原 alt。 */
   alt: string;
+  size?: string;
   resolvedPath: string | null;
 }
 
@@ -59,11 +65,6 @@ export interface ObsidianScanData {
 
 /** 附件策略默认允许的图片类型（attachmentPolicyService 口径）；svg 默认不允许，按其它文件跳过。 */
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
-
-/** Wiki 嵌入：`![[name.png]]` / `![[path/name.png|200]]`（`|` 后为尺寸参数，解析时忽略）。 */
-const WIKI_EMBED_PATTERN = /!\[\[([^\]|\n]+)(?:\|[^\]]*)?\]\]/g;
-/** 标准 Markdown 图片：`![alt](path)`；外链 http(s)/data: 不解析。 */
-const MD_IMAGE_PATTERN = /!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)/g;
 
 const MD_EXTENSIONS = /\.(md|markdown)$/i;
 
@@ -99,21 +100,24 @@ function decodeTarget(target: string): string {
 
 /** 统计图片引用：wiki 与标准两种写法，逐个按解析器给定的查找函数定位。 */
 function extractImageRefs(markdown: string, resolve: (target: string) => string | null): ObsidianImageRef[] {
+  if (!markdown.includes("![")) return [];
   const refs: ObsidianImageRef[] = [];
-  const seen = new Set<string>();
-  for (const [pattern, wiki] of [[WIKI_EMBED_PATTERN, true], [MD_IMAGE_PATTERN, false]] as const) {
-    for (const match of markdown.matchAll(pattern)) {
-      const raw = match[0]!;
-      const target = decodeTarget((wiki ? match[1] : match[2])!.trim());
-      if (!target || /^(https?:|data:)/i.test(target)) continue;
-      if (seen.has(raw)) continue;
-      seen.add(raw);
-      const alt = wiki
-        ? basenameOf(target).replace(/\.[a-z0-9]+$/i, "")
-        : match[1] ?? "";
-      refs.push({ raw, target, alt, resolvedPath: resolve(target) });
+  const visit = (node: ObsidianAstNode): void => {
+    const wiki = node.type === "obsidianWikiEmbed";
+    if (!wiki && node.type !== "image") {
+      node.children?.forEach(visit);
+      return;
     }
-  }
+    const target = decodeTarget((wiki ? node.linkTarget?.path : node.url)?.trim() ?? "");
+    if (!target || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(target) || wiki && !IMAGE_EXTENSIONS.has(extensionOf(target))) return;
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    if (start === undefined || end === undefined) return;
+    const alt = wiki ? basenameOf(target).replace(/\.[a-z0-9]+$/i, "") : node.alt ?? "";
+    const size = node.embedSize && `${node.embedSize.width}${node.embedSize.height ? `x${node.embedSize.height}` : ""}`;
+    refs.push({ raw: markdown.slice(start, end), start, end, target, alt, size, resolvedPath: resolve(target) });
+  };
+  visit(parseObsidianMarkdown(markdown));
   return refs;
 }
 
@@ -191,7 +195,7 @@ export function makeObsidianResolver(data: Pick<ObsidianScanData, "imageFiles">)
 export async function finalizeObsidianDraft(draft: ObsidianNoteDraft, resolve: ObsidianRefResolver): Promise<ObsidianNoteDraft> {
   const markdown = await draft.file.text();
   const noteDir = parentDirOf(draft.path);
-  const images = extractImageRefs(markdown, (target) => resolve(noteDir, target));
+  const images = extractImageRefs(splitFrontmatter(markdown).body, (target) => resolve(noteDir, target));
   return {
     ...draft,
     characters: markdown.replace(/\s/g, "").length,

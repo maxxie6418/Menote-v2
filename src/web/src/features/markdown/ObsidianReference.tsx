@@ -60,7 +60,8 @@ export function ObsidianReference({ data, label, source, view, attachments, encr
       width={positiveSize(data["data-obsidian-width"])} height={positiveSize(data["data-obsidian-height"])} />;
     if (block && /\.(?:mp3|wav|m4a|aac|ogg|flac)$/i.test(file.name)) return <audio controls src={url} preload="none" />;
     if (block && /\.(?:mp4|webm|mov|ogv)$/i.test(file.name)) return <video controls src={url} preload="none" />;
-    return <a href={url}>{label}</a>;
+    const page = Number(data["data-obsidian-page"]);
+    return <a href={/\.pdf$/i.test(file.name) && positiveSize(page) ? `${url}#page=${page}` : url}>{label}</a>;
   }
   if (embed && block && embedded !== null && id && key) {
     return <aside className="mn-obsidian-embed">

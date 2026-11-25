@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, MoreHorizontal, Plus, X } from "../../icons";
-import type { PropRow, PropertyDef, PropertyTemplate, PropertyType } from "../../lib/frontmatter";
+import type { PropRow, PropertyDef, PropertyTemplate, PropertyType, PropertyValue as YamlValue } from "../../lib/frontmatter";
 import {
-  PROPS_KEY, readPropRows, removePropDef, renameProp, restoreProp, writeDef, writeValue,
+  PROPS_KEY, parsePropertyList, readPropRows, removePropDef, renameProp, restoreProp, tryParseFrontmatterData, writeDef, writeValue,
 } from "../../lib/frontmatter";
+import { itemRoutePath } from "../../app/appRoutes";
+import { obsidianAnchor, obsidianText, parseObsidianInline } from "../../lib/obsidianMarkdown";
+import { obsidianNoteTarget, useObsidianTargets } from "../../services/obsidianReferenceService";
 import { readPropertyTemplates, DEFAULT_PROPERTY_TEMPLATES } from "../../services/propertyTemplateService";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { AddPropertyPopover } from "./AddPropertyPopover";
@@ -16,6 +19,7 @@ import {
 interface PropertyPanelProps {
   markdown: string;
   userId: string;
+  itemId?: string;
   /** 写回经统一文档更新链路（FR-PROP-3）：产出新 markdown，由上层走 saveItemContent 保存。 */
   onSave: (next: string) => Promise<boolean> | boolean | void;
 }
@@ -33,8 +37,21 @@ interface PropertyPanelProps {
  * 网格是清单，定义过就留一行淡破折。纯带内类型（单选 / 复选框）没有值时不渲染，
  * 因为它们在网格里没有可读的「空」形态。
  */
-export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) {
+export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPanelProps) {
   const rows = useMemo(() => readPropRows(markdown, PROPS_KEY), [markdown]);
+  const invalid = useMemo(() => tryParseFrontmatterData(markdown) === null, [markdown]);
+  const targets = useObsidianTargets(userId, rows.some((row) => row.raw.includes("[[")));
+  const linkFor = (value: string) => {
+    if (isHttpUrl(value)) return { href: value, label: value, external: true };
+    if (!value.startsWith("[[") || !value.endsWith("]]")) return undefined;
+    const ast = parseObsidianInline(value);
+    if (ast?.type !== "obsidianWikilink" || !ast.linkTarget) return undefined;
+    const target = ast.linkTarget;
+    const id = target.path ? obsidianNoteTarget(targets, target.path) : itemId;
+    if (!id) return undefined;
+    const anchor = obsidianAnchor(target);
+    return { href: `${itemRoutePath(id)}${anchor ? `#${encodeURIComponent(anchor)}` : ""}`, label: obsidianText(ast), external: false };
+  };
   const [templates, setTemplates] = useState<PropertyTemplate[]>([]);
   const [adding, setAdding] = useState<HTMLElement | null>(null);
   const [settings, setSettings] = useState<{ key: string; anchor: HTMLElement } | null>(null);
@@ -223,7 +240,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
   const shownRight = Math.min(visibleRight, groups.right.length);
   const hiddenRight = groups.right.slice(shownRight);
 
-  const writeCell = (row: PropRow, value: string | boolean | string[]) => {
+  const writeCell = (row: PropRow, value: YamlValue) => {
     const next = writeValue(markdown, row.key, value);
     if (next !== markdown) onSave(next);
   };
@@ -300,6 +317,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         <div className="mn-props-value">
           <PropertyValue
             row={row} type={type} label={label} editing={editing === row.key}
+            linkFor={linkFor}
             onStartEdit={() => { setEditing(row.key); setSettings(null); }}
             onCommit={(value) => { setEditing(null); writeCell(row, value); }}
             onCancel={() => setEditing(null)}
@@ -329,12 +347,13 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         <span className="mn-props-count">{rows.length}</span>
         <button
           type="button" className="mn-props-add" data-panel-trigger
-          aria-expanded={adding !== null} title="添加属性"
+          aria-expanded={adding !== null} title="添加属性" disabled={invalid}
           onClick={(event) => setAdding(adding ? null : event.currentTarget)}
         >
           <Plus aria-hidden />属性
         </button>
       </div>
+      {invalid && <p className="mn-sethint" role="status">YAML 属性格式有误，可在源码模式修正。</p>}
 
       {/* 区一：带。左右都空就不渲染，连底线一起（否则只剩一条空线） */}
       {(groups.left.length > 0 || groups.right.length > 0) && (
@@ -395,7 +414,7 @@ export function PropertyPanel({ markdown, userId, onSave }: PropertyPanelProps) 
         </div>
       )}
 
-      {!hasAnyCell && (
+      {!invalid && !hasAnyCell && (
         <button type="button" className="mn-props-empty" data-panel-trigger onClick={(event) => setAdding(event.currentTarget)}>
           <Plus aria-hidden />{rows.length === 0 ? "添加属性" : "属性都还没有值，点这里补一个"}
         </button>
@@ -527,17 +546,19 @@ function StripSlot({ row, type, label, onEdit, onToggle }: {
 }
 
 /** 值单元格：默认以文本呈现，点一下就地换控件；复选框与多选直接在原地操作。 */
-function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCancel, onPickOptions }: {
+function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCancel, onPickOptions, linkFor }: {
   row: PropRow;
   type: PropertyType;
   /** 展示用显示名（含预设回落），只作无障碍标签。 */
   label: string;
   editing: boolean;
   onStartEdit: () => void;
-  onCommit: (value: string | boolean | string[]) => void;
+  onCommit: (value: YamlValue) => void;
   onCancel: () => void;
   onPickOptions: (anchor: HTMLElement) => void;
+  linkFor: (text: string) => { href: string; label: string; external: boolean } | undefined;
 }) {
+  if (row.isStructured) return <span className="mn-props-open" title="在源码模式编辑">{row.raw}</span>;
   if (editing) return <ValueEditor row={row} type={type} label={label} onCommit={onCommit} onCancel={onCancel} />;
 
   if (type === "checkbox") {
@@ -550,7 +571,21 @@ function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCan
     );
   }
 
-  if (type === "multiselect" || row.isArray) {
+  if (type === "list" || (row.listValues && type !== "multiselect")) {
+    const values = row.listValues ?? (row.raw ? [row.raw] : []);
+    return <span className="mn-props-chips">
+      {values.map((value, index) => {
+        const text = value === null ? "null" : String(value);
+        const link = linkFor(text.trim());
+        return <span key={index} className="mn-props-chip">
+          {link ? <a href={link.href} target={link.external ? "_blank" : undefined} rel="noreferrer">{link.label}</a> : text}
+        </span>;
+      })}
+      <button type="button" className="mn-props-relink" onClick={onStartEdit} aria-label={`编辑 ${label}`}>编辑</button>
+    </span>;
+  }
+
+  if (type === "multiselect") {
     const values = row.arrayValues;
     return (
       <span className="mn-props-chips">
@@ -576,20 +611,12 @@ function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCan
   }
 
   const text = row.raw.trim();
-  if (type === "link" && text) {
+  const link = linkFor(text);
+  if (link) {
     return (
       <span className="mn-props-link">
-        <a href={text} target="_blank" rel="noreferrer">{text}</a>
+        <a href={link.href} target={link.external ? "_blank" : undefined} rel="noreferrer">{link.label}</a>
         <button type="button" className="mn-props-relink" onClick={onStartEdit} title="修改链接">改</button>
-      </span>
-    );
-  }
-
-  if (text && isHttpUrl(text)) {
-    return (
-      <span className="mn-props-link">
-        <a href={text} target="_blank" rel="noreferrer">{text}</a>
-        <button type="button" className="mn-props-relink" onClick={onStartEdit} title="修改值">改</button>
       </span>
     );
   }
@@ -606,10 +633,27 @@ function ValueEditor({ row, type, label, onCommit, onCancel }: {
   row: PropRow;
   type: PropertyType;
   label: string;
-  onCommit: (value: string | boolean | string[]) => void;
+  onCommit: (value: YamlValue) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(row.raw);
+  const list = type === "list" || Boolean(row.listValues && type !== "multiselect");
+  const initial = list && !row.listValues ? JSON.stringify(row.raw ? [row.raw] : []) : row.raw;
+  const [text, setText] = useState(initial);
+  const [invalid, setInvalid] = useState(false);
+  const commit = (input: string) => {
+    if (input === initial) { onCancel(); return; }
+    if (list) {
+      const values = parsePropertyList(input);
+      if (!values) { setInvalid(true); return; }
+      onCommit(values);
+      return;
+    }
+    const value = type === "number" && input.trim() ? Number(input)
+      : type === "datetime" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input) ? `${input}:00` : input;
+    if (typeof value === "number" && !Number.isFinite(value)) { setInvalid(true); return; }
+    if (value === initial) { onCancel(); return; }
+    onCommit(value);
+  };
 
   if (type === "select") {
     const options = row.def?.options ?? [];
@@ -626,29 +670,37 @@ function ValueEditor({ row, type, label, onCommit, onCancel }: {
     );
   }
 
-  if (type === "multiline") {
+  if (type === "multiline" || list) {
     return (
-      <textarea
-        className="mn-props-ctrl mn-props-ctrl-area" rows={3} value={text} autoFocus
-        aria-label={label}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={() => onCommit(text)}
-        onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }}
-      />
+      <>
+        <textarea
+          className="mn-props-ctrl mn-props-ctrl-area" rows={3} value={text} autoFocus
+          aria-label={label} aria-invalid={invalid || undefined}
+          onChange={(event) => { setInvalid(false); setText(event.target.value); }}
+          onBlur={(event) => commit(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") { event.preventDefault(); onCancel(); }
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); commit(event.currentTarget.value); }
+          }}
+        />
+        {invalid && <span role="alert" className="mn-sethint">请输入 YAML 列表，例如 [-1, true, 文本]。</span>}
+      </>
     );
   }
 
-  const dateTyped = type === "date" && /^\d{4}-\d{2}-\d{2}$/.test(row.raw);
-  const numberTyped = type === "number" && /^[+-]?\d+(\.\d+)?$/.test(row.raw);
-  const inputType = type === "date" && dateTyped ? "date"
-    : type === "number" && numberTyped ? "number"
-      : type === "link" ? "url" : "text";
+  const dateTyped = type === "date" && (!row.raw || /^\d{4}-\d{2}-\d{2}$/.test(row.raw));
+  const dateTimeTyped = type === "datetime" && (!row.raw || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(row.raw));
+  const inputType = dateTyped ? "date" : dateTimeTyped ? "datetime-local" : type === "number" ? "number" : "text";
   return (
     <input
-      type={inputType} className="mn-props-ctrl" value={text} autoFocus
-      aria-label={label}
-      onChange={(event) => setText(event.target.value)}
-      onBlur={() => onCommit(text)}
+      type={inputType} className="mn-props-ctrl" defaultValue={initial} autoFocus
+      aria-label={label} aria-invalid={invalid || undefined}
+      step={dateTimeTyped ? 1 : type === "number" ? "any" : undefined}
+      onInput={() => setInvalid(false)}
+      onBlur={(event) => {
+        if (event.currentTarget.validity.badInput) { setInvalid(true); return; }
+        commit(event.currentTarget.value);
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
         if (event.key === "Escape") { event.preventDefault(); onCancel(); }

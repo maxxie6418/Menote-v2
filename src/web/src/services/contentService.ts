@@ -6,6 +6,7 @@ import { newId, sha256Hex } from "../lib/hash";
 import { enqueueWrite, outboxTopic, outboxUpsert, requireItem } from "./contentShared";
 import { archiveVersionBeforeSave } from "./versionService";
 import { FIELDS_KEY, splitFrontmatter, writeDef } from "../lib/frontmatter";
+import { normalizeNoteTags, noteTagsAfterContentEdit, sameNoteTags, writeNoteYamlTags } from "../lib/noteProperties";
 import { findTables, renderTable } from "../lib/gfmTable";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
@@ -288,22 +289,27 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
   const current = await requireItem(userId, id);
   if (current.content.scope !== "plain") throw new Error("加密条目正文经加密门面保存（G7）");
   // FR-VER-2：autosave 空闲封存（写入前留一份当前稿，10 分钟节流）。
-  if (markdown !== current.content.markdown) await archiveVersionBeforeSave(userId, current, "autosave");
-  const contentHash = await sha256Hex(markdown);
-  if (contentHash === current.contentHash && current.content.markdown === markdown) return current;
+  const contentChanged = markdown !== current.content.markdown;
+  const tags = current.type === "memo" ? extractTags(markdown) : noteTagsAfterContentEdit(current, markdown);
+  const noteTagsChanged = current.type === "note" && !sameNoteTags(current.tags, tags);
+  if (!contentChanged && !noteTagsChanged) return current;
+  if (contentChanged) await archiveVersionBeforeSave(userId, current, "autosave");
+  const contentHash = contentChanged ? await sha256Hex(markdown) : current.contentHash;
   const next: Item = {
-    ...current, rev: current.rev + 1, contentHash, updatedAt: Date.now(),
+    ...current, rev: current.rev + Number(contentChanged), metaRev: current.metaRev + Number(noteTagsChanged),
+    contentHash, updatedAt: Date.now(),
     // 附件引用随正文重算：服务端引用计数与备份收录都以这份列表为准（FR-SYNC-7）。
     attachmentHashes: attachmentHashesOf(markdown),
     // FR-MEMO-9：随记标签以正文为准，保存即回写解析结果（正文删掉标签即同步去掉）。
-    ...(current.type === "memo" ? { tags: extractTags(markdown) } : {}),
+    tags,
     content: { scope: "plain", markdown },
   };
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash));
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentChanged ? contentHash : undefined,
+      contentChanged && noteTagsChanged ? true : undefined));
   });
-  await discardRecovery(id);
+  if (contentChanged) await discardRecovery(id);
   recordSyncDiagnostic(userId, {
     category: "local", event: "note_content_saved_locally", entity: "item", entityId: id,
     action: "upsert", baseRev: current.rev, baseMetaRev: current.metaRev,
@@ -332,12 +338,21 @@ async function saveItemMetaInner(userId: string, id: string, patch: ItemMetaPatc
   if (patch.topicId && await isPrivatePlace(userId, patch.topicId) && current.content.scope !== "private_space") {
     throw new Error("不能把明文笔记移入私人空间");
   }
-  const next: Item = {
-    ...current, ...patch, metaRev: current.metaRev + 1, updatedAt: Date.now(),
-  };
+  let next: Item = { ...current, ...patch, metaRev: current.metaRev + 1, updatedAt: Date.now() };
+  let contentHash: string | undefined;
+  if (patch.tags && current.type === "note" && current.content.scope === "plain") {
+    const tags = normalizeNoteTags(patch.tags);
+    const markdown = writeNoteYamlTags(current.content.markdown, tags);
+    next = { ...next, tags };
+    if (markdown !== current.content.markdown) {
+      await archiveVersionBeforeSave(userId, current, "autosave");
+      contentHash = await sha256Hex(markdown);
+      next = { ...next, rev: current.rev + 1, contentHash, content: { scope: "plain", markdown } };
+    }
+  }
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
-    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev));
+    await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentHash, contentHash ? true : undefined));
   });
   recordSyncDiagnostic(userId, {
     category: "local", event: "note_metadata_saved_locally", entity: "item", entityId: id,

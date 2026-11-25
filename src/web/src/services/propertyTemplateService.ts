@@ -3,7 +3,7 @@ import { BOOKMARK_COLUMNS, PROPERTY_TEMPLATES_SETTING_KEY } from "@menote/shared
 import { localDb } from "../db/localDb";
 import { enqueueOutbox } from "../db/outboxRepo";
 import { newId } from "../lib/hash";
-import type { PropertyTemplate, PropertyType } from "../lib/frontmatter";
+import { PROPERTY_TYPES, type PropertyTemplate, type PropertyType } from "../lib/frontmatter";
 
 /**
  * 默认属性模板库（FR-PROP-9）：设置里可配、随账号同步。
@@ -44,6 +44,9 @@ export const DEFAULT_PROPERTY_TEMPLATES: PropertyTemplate[] = [
   { id: "obs-status", name: "status", type: "select", label: "状态", options: ["未开始", "进行中", "已完成", "已搁置"], value: "未开始", group: "通用" },
   { id: "obs-author", name: "author", type: "text", label: "作者", group: "通用", strip: true },
   { id: "obs-created", name: "created", type: "date", label: "创建时间", group: "通用", strip: true },
+  { id: "obs-tags", name: "tags", type: "list", label: "标签", group: "通用" },
+  { id: "obs-aliases", name: "aliases", type: "list", label: "别名", group: "通用" },
+  { id: "obs-cssclasses", name: "cssclasses", type: "list", label: "CSS 类", group: "通用" },
   { id: "obs-project", name: "project", type: "text", label: "项目", group: "通用" },
   { id: "obs-priority", name: "priority", type: "select", label: "优先级", options: ["高", "中", "低"], value: "中", group: "通用" },
 ];
@@ -57,8 +60,7 @@ export function normalizePropertyTemplates(value: unknown): PropertyTemplate[] {
     const item = entry as Partial<PropertyTemplate>;
     if (typeof item.name !== "string" || !item.name.trim()) continue;
     const type = item.type;
-    if (type !== "text" && type !== "multiline" && type !== "number" && type !== "date"
-      && type !== "select" && type !== "multiselect" && type !== "checkbox" && type !== "link") continue;
+    if (!type || !PROPERTY_TYPES.includes(type)) continue;
     const options = Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === "string") : undefined;
     const value0 = typeof item.value === "boolean" || typeof item.value === "string"
       || (Array.isArray(item.value) && item.value.every((entry2) => typeof entry2 === "string"))

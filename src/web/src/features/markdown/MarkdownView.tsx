@@ -5,12 +5,13 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { findMemoTagRanges } from "@menote/shared";
 import { attachmentUrl } from "../../services/attachmentService";
+import { appRoutePath, itemRoutePath } from "../../app/appRoutes";
 import { perfProbe } from "../../lib/perfProbe";
 import { extractAttachmentRefs, parseAttachmentDestination, type AttachmentRef } from "../../lib/attachmentRefs";
 import { remarkNoteUnderline } from "../../lib/noteUnderline";
-import { normalizeObsidianName, remarkObsidianSyntax } from "../../lib/obsidianMarkdown";
+import { normalizeObsidianName, obsidianAnchor, remarkObsidianSyntax } from "../../lib/obsidianMarkdown";
 import { remarkObsidianPreview } from "../../lib/obsidianPreview";
-import { useObsidianTargets } from "../../services/obsidianReferenceService";
+import { obsidianNoteTarget, useObsidianTargets } from "../../services/obsidianReferenceService";
 import { remarkTextColorForRender } from "../editor";
 import { UnlockedAttachment } from "../attachments";
 import { ObsidianReference, type ObsidianView } from "./ObsidianReference";
@@ -125,11 +126,12 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
   const chunks = useMemo(() => splitTopLevelBlocks(markdown), [markdown]);
   const lightweight = needsLightweightMode(markdown);
   const hasWiki = Boolean(obsidian && markdown.includes("[["));
+  const hasNoteLinks = hasWiki || Boolean(obsidian && /\.m(?:d|arkdown)(?:[#?)\s>])/i.test(markdown));
   const hasHeadingTarget = typeof window !== "undefined" && !obsidian?.trail && window.location.hash.startsWith("#obsidian-heading-");
   const needsWholeTree = Boolean(obsidian && (hasHeadingTarget || /\[\^|\^\[|%%/.test(markdown)));
   const progressive = !needsWholeTree && needsProgressiveRender(markdown, chunks.length);
   const [visibleCount, setVisibleCount] = useState(() => batchCount(chunks, 0, FIRST_BATCH_CHARS));
-  const fetchedTargets = useObsidianTargets(obsidian?.userId, hasWiki && !lightweight && !obsidian?.targets);
+  const fetchedTargets = useObsidianTargets(obsidian?.userId, hasNoteLinks && !lightweight && !obsidian?.targets);
   const targets = obsidian?.targets ?? fetchedTargets;
   const attachments = useMemo(() => {
     const refs = new Map<string, AttachmentRef | null>();
@@ -189,6 +191,10 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
         attachments={attachments} targets={targets} encryptedAttachmentItemId={attachmentItemId}
         renderEmbedded={(body, next) => <MarkdownView markdown={body} obsidian={next} className="markdown-content md-body" />} />;
     }
+    const tag = attributes["data-obsidian-tag"];
+    if (obsidian && typeof tag === "string" && !attachmentItemId) {
+      return <a className="mn-memo-tag" href={appRoutePath({ kind: "notes", section: { kind: "tag", tag } })}>{label}</a>;
+    }
     return block ? <div {...attributes}>{label}</div> : <span {...attributes}>{label}</span>;
   };
   const components: Record<string, (props: { node?: unknown; [key: string]: unknown }) => ReactNode> = {
@@ -213,13 +219,30 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
       const link = typeof href === "string" ? href : undefined;
       const attachment = link && parseAttachmentDestination(link);
       if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} {...attachment}>{children as ReactNode}</UnlockedAttachment>;
-      return <a {...rest} href={resolveSrc(link)}>{children as ReactNode}</a>;
+      let resolved = resolveSrc(link);
+      if (obsidian && link && !attachment && !rest["data-footnote-ref"] && !rest["data-footnote-backref"]) {
+        const noteLink = /^(?![a-z][a-z\d+.-]*:|\/)([^#?]*\.m(?:d|arkdown))?(?:#([^?]+))?$/i.exec(link);
+        if (noteLink) {
+          try {
+            const path = noteLink[1] ? decodeURIComponent(noteLink[1]).replace(/\.markdown$/i, ".md") : "";
+            const heading = noteLink[2] ? decodeURIComponent(noteLink[2]) : "";
+            const id = path ? obsidianNoteTarget(targets, path) : obsidian.itemId;
+            const anchor = heading.startsWith("^") ? obsidianAnchor({ blockId: heading.slice(1) }) : obsidianAnchor({ heading });
+            if (id && (path || (anchor && !heading.startsWith("obsidian-")))) {
+              resolved = `${path ? itemRoutePath(id) : ""}${anchor ? `#${encodeURIComponent(anchor)}` : ""}`;
+            }
+          } catch { /* Keep links with malformed escapes in their original form. */ }
+        }
+      }
+      return <a {...rest} href={resolved}>{children as ReactNode}</a>;
     },
     img(props) {
       const { node, ...rest } = props as { node?: unknown; src?: unknown; alt?: unknown; [key: string]: unknown };
       void node;
       const src = typeof rest.src === "string" ? rest.src : undefined;
-      const alt = typeof rest.alt === "string" ? rest.alt : "";
+      let alt = typeof rest.alt === "string" ? rest.alt : "";
+      const size = obsidian ? /^(?:(.*?)\|)?([1-9]\d{0,4})(?:x([1-9]\d{0,4}))?$/.exec(alt) : null;
+      if (size) alt = size[1] ?? (typeof rest.title === "string" ? rest.title : "");
       const attachment = src && parseAttachmentDestination(src);
       if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} sha256={attachment.sha256} name={alt || attachment.name} image />;
       const imgProps: Record<string, unknown> = { ...rest };
@@ -233,6 +256,8 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
           {...imgProps}
           src={resolved}
           alt={alt}
+          width={size ? Number(size[2]) : undefined}
+          height={size?.[3] ? Number(size[3]) : undefined}
           loading="lazy"
           className={imageClass || undefined}
           {...(onImageClick && resolved ? {

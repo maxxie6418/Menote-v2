@@ -217,6 +217,34 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     });
   }
 
+  getWikiLinkContext(): { query: string; from: number; embed: boolean } | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => {
+      const { selection } = ctx.get(editorViewCtx).state;
+      const head = selection.$head;
+      if (!selection.empty || !head.parent.isTextblock || head.parent.type.spec.code || head.marks().some((mark) => mark.type.spec.code)) return null;
+      const before = head.parent.textBetween(0, head.parentOffset, "", "\uFFFC");
+      const match = /(?<![\\\[])!?\[\[([^\[\]|#\n\uFFFC]*)$/.exec(before);
+      return match ? { query: match[1] ?? "", from: head.pos - match[0].length, embed: match[0].startsWith("!") } : null;
+    });
+  }
+
+  insertWikiLink(path: string, label: string): boolean {
+    const range = this.getWikiLinkContext();
+    if (!range || !this.editor) return false;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const type = view.state.schema.nodes.obsidianInline;
+      if (!type) return false;
+      const raw = `${range.embed ? "!" : ""}[[${path}${label === path || range.embed ? "" : `|${label}`}]]`;
+      const node = type.create({ syntax: range.embed ? "obsidianWikiEmbed" : "obsidianWikilink", raw, label });
+      const transaction = view.state.tr.replaceWith(range.from, view.state.selection.head, node);
+      view.dispatch(transaction.setSelection(TextSelection.create(transaction.doc, range.from + node.nodeSize)).scrollIntoView());
+      view.focus();
+      return true;
+    });
+  }
+
   /**
    * 表格单元格 DOM 元素 → 文档位置。
    * 用 `view.nodeDOM` 反查而不是 `posAtDOM`：后者依赖 DOM 与文档视图的内部对应关系，

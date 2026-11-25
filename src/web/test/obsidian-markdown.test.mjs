@@ -14,7 +14,8 @@ const bundle = await build({
       import { remarkNoteUnderline } from "./src/lib/noteUnderline";
       import { remarkObsidianSyntax } from "./src/lib/obsidianMarkdown";
       import { remarkObsidianPreview } from "./src/lib/obsidianPreview";
-      export { obsidianExcerpt } from "./src/lib/obsidianMarkdown";
+      export { obsidianExcerpt, readObsidianInlineTags } from "./src/lib/obsidianMarkdown";
+      export { buildObsidianReferences, obsidianNoteTarget } from "./src/services/obsidianReferenceService";
       export { parseText } from "./src/features/editor/roundtrip";
       export function preview(markdown) {
         const parser = unified().use(remarkParse).use(remarkGfm).use(remarkMath)
@@ -27,8 +28,9 @@ const bundle = await build({
   write: false,
   format: "esm",
   platform: "node",
+  banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(process.cwd() + "/package.json");' },
 });
-const { preview, obsidianExcerpt, parseText } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
+const { preview, obsidianExcerpt, parseText, readObsidianInlineTags, buildObsidianReferences, obsidianNoteTarget } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
 test("Obsidian 预览处理高亮、调用块、公式、脚注与内部引用，隐藏注释", () => {
   const tree = preview([
@@ -81,4 +83,25 @@ test("保存保真比较能区分别名相同的引用与相同文字的不同�
   assert.notEqual(parseText('<u style="text-decoration-style:wavy">文字</u>').units[0].key,
     parseText('<u style="text-decoration-style:double">文字</u>').units[0].key);
   assert.equal(parseText("==🟢**高亮**==").units[0].key, parseText("**==🟢高亮==**").units[0].key);
+});
+
+test("正文标签可筛选且跳过代码、注释和纯数字标签", () => {
+  const source = "# 标题\n\n#项目/子项。 #Another #1984 `#code` \\#escaped %% #comment %%\n\n```\n#fenced\n```";
+  assert.deepEqual(readObsidianInlineTags(source), ["项目/子项", "Another"]);
+  assert.match(JSON.stringify(preview(source)), /"dataObsidianTag":"项目\/子项"/);
+});
+
+test("别名候选生成标题链接，优先真实标题并隔离私有、加密和重名条目", () => {
+  const note = (id, title, aliases, patch = {}) => ({ id, title, type: "note", deletedAt: null, topicId: null, groupId: null,
+    content: { scope: "plain", markdown: `---\naliases: ${JSON.stringify(aliases)}\n---` }, ...patch });
+  const { targets, choices } = buildObsidianReferences([
+    note("a", "甲", ["旧名", "乙", "共享"]), note("b", "乙", ["共享"]),
+    note("c", "私人", ["私密"], { topicId: "vault" }), note("d", "加密", [], { content: { scope: "self", ciphertext: "sealed" } }),
+  ], [{ id: "vault", isEncSpace: true, deletedAt: null, parentId: null, name: "Vault" }]);
+  assert.equal(obsidianNoteTarget(targets, "旧名"), "a");
+  assert.equal(obsidianNoteTarget(targets, "乙"), "b");
+  assert.equal(obsidianNoteTarget(targets, "共享"), null);
+  assert.equal(obsidianNoteTarget(targets, "私密"), null);
+  assert.deepEqual(choices.find((choice) => choice.label === "旧名"), { id: "a:旧名", path: "甲", label: "旧名" });
+  assert.equal(choices.some((choice) => choice.label === "加密"), false);
 });

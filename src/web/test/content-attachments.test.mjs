@@ -10,13 +10,15 @@ globalThis.IDBKeyRange = IDBKeyRange;
 const bundle = await build({
   stdin: {
     contents: `export { localDb } from "./src/db/localDb";
-               export { createNote, saveItemContent } from "./src/services/contentService";`,
+               export { createNote, saveItemContent, saveItemMeta } from "./src/services/contentService";
+               export { obsidianExportMarkdown, effectiveNoteTags } from "./src/lib/noteProperties";
+               export { parseFrontmatterData } from "./src/lib/frontmatter";`,
     resolveDir: fileURLToPath(new URL("..", import.meta.url)),
   },
   bundle: true, write: false, format: "esm", platform: "browser",
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
-const { localDb, createNote, saveItemContent } = mod;
+const { localDb, createNote, saveItemContent, saveItemMeta, obsidianExportMarkdown, effectiveNoteTags, parseFrontmatterData } = mod;
 const attachmentBundle = await build({
   stdin: {
     contents: `export { uploadAttachment, ATTACHMENT_UPLOAD_TIMEOUT_MS } from "./src/services/attachmentService";
@@ -88,6 +90,32 @@ test("saving content backfills the attachment hash list (FR-SYNC-7)", async () =
   // 同步载荷带同一份列表
   const row = await localDb.outbox.orderBy("seq").last();
   assert.deepEqual(row.payload.item.attachmentHashes, [SHA]);
+});
+
+test("Obsidian YAML 标签与旧标签合并，源码清空和标题栏新增共用保存链路", async () => {
+  await reset();
+  const note = await createNote(USER, { title: "YAML 属性" });
+  const original = "\uFEFF---\r\ntags: [Vault/Topic]\r\naliases: ['别名'] # 保留\r\ncustom: { count: 3 }\r\n---\r\n\r\n正文\r\n";
+  await localDb.items.put({ ...note, tags: ["Legacy", "vault/topic"], content: { scope: "plain", markdown: original } });
+  const row = await localDb.items.get(note.id);
+  assert.deepEqual(effectiveNoteTags(row), ["Vault/Topic", "Legacy"]);
+  const exported = obsidianExportMarkdown(row);
+  assert.deepEqual(parseFrontmatterData(exported).tags, ["Vault/Topic", "Legacy"]);
+  assert.match(exported, /# 保留\r\n/);
+  assert.ok(exported.endsWith("---\r\n\r\n正文\r\n"));
+
+  const changed = await saveItemMeta(USER, note.id, { tags: ["New", "#new"] });
+  assert.deepEqual(changed.tags, ["New"]);
+  assert.deepEqual(parseFrontmatterData(changed.content.markdown).tags, changed.tags);
+  assert.deepEqual(parseFrontmatterData(changed.content.markdown).custom, { count: 3 });
+  const operation = await localDb.outbox.orderBy("seq").last();
+  assert.equal(operation.noteTagsFromContent, true);
+  assert.equal(operation.contentHash, changed.contentHash);
+
+  const invalid = await saveItemContent(USER, note.id, "---\ntags: [\n---\n正文");
+  assert.deepEqual(invalid.tags, ["New"]);
+  const cleared = await saveItemContent(USER, note.id, "---\ntags: []\n---\n正文");
+  assert.deepEqual(cleared.tags, []);
 });
 
 test("removing the image from the content clears the hash list", async () => {

@@ -15,6 +15,9 @@ export interface ObsidianAstNode {
   fold?: string;
   depth?: number;
   target?: string;
+  url?: string;
+  alt?: string | null;
+  tag?: string;
   linkTarget?: ObsidianLinkTarget;
   embedSize?: { width: number; height?: number };
   identifier?: string;
@@ -38,7 +41,7 @@ export function obsidianHighlight(node: ObsidianAstNode): { color?: string; mark
 }
 
 export function remarkObsidianSyntax(this: Processor) {
-  remarkObsidian.call(this, { inlineTags: false });
+  remarkObsidian.call(this, { inlineTags: true });
   const data = this.data();
   const extensions = data.toMarkdownExtensions ?? (data.toMarkdownExtensions = []);
   const extension = {
@@ -78,7 +81,25 @@ export function remarkObsidianSyntax(this: Processor) {
       output.push(block);
     }
     root.children = output;
+    normalizeInlineTags(root);
   };
+}
+
+function normalizeInlineTags(node: ObsidianAstNode): void {
+  if (!node.children) return;
+  node.children = node.children.flatMap((child) => {
+    if (child.type !== "obsidianTag") { normalizeInlineTags(child); return [child]; }
+    const raw = child.raw ?? "";
+    const source = /^#[\p{L}\p{M}\p{N}\p{S}_/\u200d-]+/u.exec(raw)?.[0]?.replace(/\/+$/, "") ?? "";
+    const tag = source.slice(1);
+    if (!tag || tag.startsWith("/") || tag.includes("//") || !/[^\p{N}/]/u.test(tag)) return [{ ...child, type: "text", value: raw, children: undefined }];
+    const position = child.position;
+    const end = position && position.start.offset !== undefined
+      ? { ...position.end, offset: position.start.offset + source.length } : position?.end;
+    const normalized = { ...child, raw: source, tag: tag.normalize("NFC"), children: [{ type: "text", value: source }],
+      position: position && end ? { start: position.start, end } : position };
+    return source.length === raw.length ? [normalized] : [normalized, { type: "text", value: raw.slice(source.length) }];
+  });
 }
 
 export function obsidianText(node: ObsidianAstNode): string {
@@ -102,16 +123,33 @@ function blockIdOf(node: ObsidianAstNode): string | undefined {
 
 const referenceParser = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkObsidianSyntax);
 
+export function parseObsidianMarkdown(source: string): ObsidianAstNode {
+  return referenceParser.runSync(referenceParser.parse(source), source) as ObsidianAstNode;
+}
+
 export function parseObsidianInline(source: string): ObsidianAstNode | undefined {
-  const root = referenceParser.runSync(referenceParser.parse(source), source) as ObsidianAstNode;
+  const root = parseObsidianMarkdown(source);
   const first = root.children?.[0];
-  return first?.type === "paragraph" && first.children?.length === 1 ? first.children[0] : undefined;
+  return root.children?.length === 1 && first?.type === "paragraph" && first.children?.length === 1 ? first.children[0] : undefined;
+}
+
+export function readObsidianInlineTags(body: string): string[] {
+  if (!/#[\p{L}\p{M}\p{N}\p{S}_-]/u.test(body)) return [];
+  const root = parseObsidianMarkdown(body);
+  const tags = new Set<string>();
+  const visit = (node: ObsidianAstNode) => {
+    if (node.type === "obsidianTag" && node.tag) tags.add(node.tag);
+    if (node.type === "obsidianWikilink" || node.type === "obsidianWikiEmbed" || node.type === "link") return;
+    node.children?.forEach(visit);
+  };
+  visit(root);
+  return [...tags];
 }
 
 /** Select exactly the first matching block or the matching heading and its descendants. */
 export function obsidianExcerpt(markdown: string, target: Pick<ObsidianLinkTarget, "heading" | "blockId">): string | null {
   if (!target.heading && !target.blockId) return markdown;
-  const tree = referenceParser.runSync(referenceParser.parse(markdown), markdown) as ObsidianAstNode;
+  const tree = parseObsidianMarkdown(markdown);
   const blocks = tree.children ?? [];
   const ancestors: string[] = [];
   const headingPath = target.heading?.split("#").map(normalizeObsidianName) ?? [];

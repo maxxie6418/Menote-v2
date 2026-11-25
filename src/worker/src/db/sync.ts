@@ -382,17 +382,18 @@ export async function upsertItemRow(
 
 /**
  * 正文写（窄写）：只动正文列与正文版本 rev，
- * 元数据列（标题/标签/归属/状态/形态）与 meta_rev 一律保持服务端原值。
+ * 保留服务端元数据；明文 Note 的 YAML 标签索引可随正文一并写入。
  * 用于「客户端元数据版本落后」的正文写——元数据冲突服务端胜出（G2 §5-3），
  * 正文照常落地，不连带覆盖服务端更新的元数据。
  */
 export function updateItemContentStatement(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number,
+  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, noteTagsMetaRev?: number,
 ): D1PreparedStatement {
   return db.prepare(
     `UPDATE items SET content_markdown = ?, content_ciphertext = ?, content_hash = ?,
        attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?,
-       enc_self = ?, in_enc_space = ?
+       enc_self = ?, in_enc_space = ?,
+       tags_json = COALESCE(?, tags_json), meta_rev = COALESCE(?, meta_rev)
      WHERE id = ? AND user_id = ?`,
   ).bind(
     item.content.scope === "plain" ? item.content.markdown : null,
@@ -400,6 +401,7 @@ export function updateItemContentStatement(
     item.contentHash, JSON.stringify(item.attachmentHashes), rev,
     item.updatedAt, item.deletedAt, deviceId,
     item.content.scope === "self" ? 1 : 0, item.content.scope === "private_space" ? 1 : 0,
+    noteTagsMetaRev !== undefined ? JSON.stringify(item.tags) : null, noteTagsMetaRev ?? null,
     item.id, userId,
   );
 }
