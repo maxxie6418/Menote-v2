@@ -72,6 +72,8 @@ pnpm build      # 构建前端并检查 Worker 部署包
 
 ## 部署
 
+[Docker 部署与 Kiri 本地验证](src/worker/docker/README.md)。
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmaxxie6418%2FMenote-v2)
 
 该入口使用仓库默认分支 `dev`，目前仅用于隔离测试，一键导入尚未完成验收。正式部署应单独跟踪 `main`；测试和预览资源不得连接生产 D1/R2。

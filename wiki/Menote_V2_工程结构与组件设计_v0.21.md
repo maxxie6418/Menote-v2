@@ -228,3 +228,7 @@ FR-EDT-16/17 使用 `lib/obsidianMarkdown.ts` 统一解析语法和提取引用�
 - `src/shared/src/contracts/mcpAgent.ts` 定义查询、新建及敏感元数据裁剪的契约。扩展继续使用独立的剪藏、收藏与摘录工具。
 - `src/worker/src/routes/mcpAgentTools.ts` 注册工具与校验输入，经 `mcpAgentService.ts` 处理分页、新建和审计。数据库访问集中在 `db/mcpAgent.ts`，查询、附件和收藏共用 `db/mcpPermissions.ts` 的可见性条件。
 - Agent 与扩展的新建操作通过 `syncService.ts` 的纯插入路径，同一次批处理写入条目、同步日志和操作记录。收藏写入在更新语句中复核正文与元数据版本及目标可见性。
+
+## 2026-11-25 · TP13 Docker 部署适配
+
+`src/worker/docker/` 存放 Node 运行入口、D1 HTTP 和 R2 S3 适配器、AI 本地任务队列及 Docker 构建定义。容器沿用 `src/worker/src/index.ts` 装配的 Hono 路由和同一份迁移，无第二套业务层和数据结构。Web 静态产物由容器同源托管。业务数据沿用现有 D1/R2，部署凭据由运行环境注入。

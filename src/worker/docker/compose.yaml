@@ -1,0 +1,17 @@
+services:
+  menote:
+    image: ${MENOTE_IMAGE:-menote:local}
+    build:
+      context: ../../..
+      dockerfile: src/worker/docker/Dockerfile
+    ports:
+      - "127.0.0.1:8787:8787"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - state:/app/state
+    stop_grace_period: 75s
+
+volumes:
+  state:
