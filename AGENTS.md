@@ -59,6 +59,7 @@ Worker：`routes → services → db` 三层；业务逻辑只在 services；SQL
 - 开发在 `dev` 分支；**合并 `main` 仅凭产品负责人明确指示**；
 - 提交信息用 Conventional Commits（`feat/fix/docs/chore/refactor: 中文描述`）；
 - Workers 正式部署跟踪 `main`（Workers Builds）；`dev` 用于开发与备份提交。预览环境不得写生产数据。
+- 2026-11-25 起，`main` 的正式交付使用 Docker。仍指向 `main` 的旧 Workers Builds 在构建步骤退出。部署或恢复时查阅 [Docker 部署说明](src/worker/docker/README.md)。
 
 ## 10. 安全红线（违反即阻断）
 

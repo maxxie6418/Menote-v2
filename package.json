@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "build": "pnpm --filter @menote/shared build && pnpm --filter @menote/web build && pnpm --filter @menote/worker build",
+    "build": "node src/worker/docker/check-build-target.mjs && pnpm --filter @menote/shared build && pnpm --filter @menote/web build && pnpm --filter @menote/worker build",
     "typecheck": "pnpm -r typecheck",
     "dev:web": "pnpm --filter @menote/web dev",
     "dev:worker": "pnpm --filter @menote/worker dev",

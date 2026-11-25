@@ -72,11 +72,13 @@ pnpm build      # 构建前端并检查 Worker 部署包
 
 ## 部署
 
-[Docker 部署与 Kiri 本地验证](src/worker/docker/README.md)。
+从 `main` 构建服务器 Docker 镜像，沿用原 D1、R2 和 `AUTH_PEPPER`。首次切换前按部署说明制作实例备份并演练还原。 [Docker 部署与 Kiri 本地验证](src/worker/docker/README.md)。
+
+### Cloudflare 隔离验证
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmaxxie6418%2FMenote-v2)
 
-该入口使用仓库默认分支 `dev`，目前仅用于隔离测试，一键导入尚未完成验收。正式部署应单独跟踪 `main`；测试和预览资源不得连接生产 D1/R2。
+该入口使用仓库默认分支 `dev`，目前仅用于隔离测试，一键导入尚未完成验收。测试和预览资源使用隔离 D1/R2。旧 Workers Builds 若仍跟踪 `main`，会在构建步骤退出。
 
 应用使用 Cloudflare Workers、D1、R2、Workers AI 和 Queues。构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`，应在 Worker 的 Secrets 中安全设置，不要提交或设为公开变量；R2 可能需要先在账号级开通。
 
