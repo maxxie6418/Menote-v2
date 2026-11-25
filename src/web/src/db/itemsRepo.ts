@@ -12,6 +12,10 @@ export async function listUserItems(userId: string): Promise<Item[]> {
   return localDb.items.where("userId").equals(userId).toArray();
 }
 
+export async function listActiveItems(userId: string): Promise<Item[]> {
+  return localDb.items.where("userId").equals(userId).filter((item) => item.deletedAt === null).toArray();
+}
+
 export async function putItem(item: Item): Promise<void> {
   await localDb.items.put(item);
 }
@@ -33,11 +37,15 @@ export async function listItemsInSubtree(userId: string, topicIds: string[]): Pr
 }
 
 /** 未归类（收件箱/草稿箱）：type ≠ memo 且 topicId 为空；source 区分两个固定入口。 */
+export function isUnfiledItem(item: Item, source: "manual" | "external"): boolean {
+  return item.deletedAt === null && item.type !== "memo" && item.topicId === null
+    && (source === "manual" ? item.source === "manual" : item.source !== "manual");
+}
+
 export async function listUnfiled(userId: string, source: "manual" | "external"): Promise<Item[]> {
   return localDb.items
     .where("userId").equals(userId)
-    .filter((row) => row.deletedAt === null && row.type !== "memo" && row.topicId === null
-      && (source === "manual" ? row.source === "manual" : row.source !== "manual"))
+    .filter((row) => isUnfiledItem(row, source))
     .toArray();
 }
 

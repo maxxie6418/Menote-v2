@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { Item, MemoComment, TopicNode } from "@menote/shared";
-import { listItemsInSubtree, listMemos, listRecentItems, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
+import { isUnfiledItem, listActiveItems, listItemsInSubtree, listMemos, listRecentItems, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { listMemoComments } from "../db/memoCommentsRepo";
 import { listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { subscribeLocalChanges } from "../lib/broadcast";
@@ -72,17 +72,31 @@ export function useRecentItems(userId: string): Item[] {
   return useData(() => (userId ? listRecentItems(userId) : undefined), [userId], Boolean(userId)) ?? [];
 }
 
-/** 首页快照：只在服务层读取当前用户的完整本地条目集合，供状态统计与主题计数使用。 */
-export function useHomeSnapshot(userId: string): { items: Item[]; topics: TopicNode[] } {
+const EMPTY_HOME_SNAPSHOT = { items: [], topics: [], inboxCount: 0, recentInboxItems: [] };
+const HOME_INBOX_PREVIEW_SIZE = 4;
+
+/** 首页快照：使用同一次本地读取统计状态和生成收件箱预览。 */
+export function useHomeSnapshot(userId: string): {
+  items: Item[];
+  topics: TopicNode[];
+  inboxCount: number;
+  recentInboxItems: Item[];
+} {
   return useData(async () => {
-    if (!userId) return { items: [], topics: [] };
-    const { localDb } = await import("../db/localDb");
+    if (!userId) return EMPTY_HOME_SNAPSHOT;
     const [items, topics] = await Promise.all([
-      localDb.items.where("userId").equals(userId).filter((row) => row.deletedAt === null).toArray(),
+      listActiveItems(userId),
       listTopics(userId),
     ]);
-    return { items, topics: topics.filter((topic) => topic.deletedAt === null) };
-  }, [userId], Boolean(userId)) ?? { items: [], topics: [] };
+    const inbox = items.filter((item) => isUnfiledItem(item, "external"));
+    inbox.sort((a, b) => b.createdAt - a.createdAt);
+    return {
+      items,
+      topics: topics.filter((topic) => topic.deletedAt === null),
+      inboxCount: inbox.length,
+      recentInboxItems: inbox.slice(0, HOME_INBOX_PREVIEW_SIZE),
+    };
+  }, [userId], Boolean(userId)) ?? EMPTY_HOME_SNAPSHOT;
 }
 
 /** 当前本地待同步队列条数，供「我的」同步概览展示。 */
