@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
@@ -737,7 +737,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
-        {(!isTableDoc || clipSource) && <div className="mn-doc-meta" aria-label="文档信息">
+        <div className="mn-doc-meta" aria-label="文档信息">
           {!isTableDoc && <div className="mn-doc-meta-details">
             <time dateTime={new Date(item.createdAt).toISOString()}>{formatDocumentDate(item.createdAt)}</time>
             <span aria-hidden="true">·</span>
@@ -745,12 +745,27 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <span aria-hidden="true">·</span>
             <span>{contentCharacters.toLocaleString("zh-CN")} 字符</span>
           </div>}
+          <div className="mn-doc-tags" role="group" aria-label="标签">
+            {item.tags.map((tag) => (
+              <button key={tag} type="button" className="mn-tagchip" title="移除标签" aria-label={`移除标签 ${tag}`}
+                onClick={() => void saveItemMeta(userId, item.id, { tags: item.tags.filter((row) => row !== tag) })}>
+                #{tag}×
+              </button>
+            ))}
+            <input className="mn-taginput" placeholder="加标签" title="输入标签后按回车确认" aria-label="添加标签"
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                void addTag(event.currentTarget.value);
+                event.currentTarget.value = "";
+              }} />
+          </div>
           {clipSource && <div className="mn-clip-source">
             <span title={clipSource.host}>剪藏自 {clipSource.host}</span>
             <a href={clipSource.url} target="_blank" rel="noreferrer">打开原网页</a>
             <button type="button" className="mn-textbtn" onClick={() => void navigator.clipboard.writeText(clipSource.url)}>复制原链接</button>
           </div>}
-        </div>}
+        </div>
         {conflictOf && item.content.scope === "plain" && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={draft ?? item.content.markdown} onKeptOriginal={onBack} />
         )}
@@ -761,25 +776,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             onSave={saveFullMarkdown}
           />
         )}
-        <div className="mn-doc-tags" aria-label="标签">
-          <Tag className="mn-doc-tags-icon" />
-          {item.tags.map((tag) => (
-            <button key={tag} type="button" className="mn-tagchip" title="移除标签"
-              onClick={() => void saveItemMeta(userId, item.id, { tags: item.tags.filter((row) => row !== tag) })}>
-              #{tag}×
-            </button>
-          ))}
-          <input
-            className="mn-taginput" placeholder="加标签，回车确认" aria-label="添加标签"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void addTag(event.currentTarget.value);
-                event.currentTarget.value = "";
-              }
-            }}
-          />
-        </div>
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
         {plain && mode === "preview" && !isTableDoc && (
@@ -854,7 +850,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </aside>
         </>}
       </div>
-      {toolbarPos === "bottom" && mode === "edit" && editorKind === "wysiwyg" && !isTableDoc && (
+      {toolbarPos === "bottom" && mode === "edit" && !isTableDoc && (
         <div className="mn-formatdock" ref={setFormatDock} role="presentation" inert={encrypting} />
       )}
       <div className="mn-doc-foot">

@@ -5,7 +5,7 @@ import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
 import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
 import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
-import { FormatBar } from "./FormatBar";
+import { EDITOR_FONT_DEFAULT, FormatBar, type TextColorId } from "./FormatBar";
 import { SlashMenu } from "./SlashMenu";
 import { TableBlockToolbar } from "./TableBlockToolbar";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
@@ -13,7 +13,7 @@ import { SelectionFormatBar } from "./SelectionFormatBar";
 import { OutlinePanel } from "./OutlinePanel";
 import { filterActions, FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
-import { applyTextColor } from "./textColor";
+import { applyTextColor, DEFAULT_TEXT_COLORS } from "./textColor";
 
 export type EditorKind = "wysiwyg" | "source";
 
@@ -80,8 +80,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
   const [active, setActive] = useState<InlineAction[]>([]);
+  const [textColor, setCurrentTextColor] = useState<TextColorId>(DEFAULT_TEXT_COLORS[0].id);
+  const [fontSize, setFontSize] = useState(EDITOR_FONT_DEFAULT);
   const [selectionBar, setSelectionBar] = useState<{ x: number; y: number } | null>(null);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number } | null>(null);
+  const dismissSelectionBar = useCallback(() => setSelectionBar(null), []);
   // from：触发「/」菜单的那个斜杠在正文中的位置。所见即所得走原生选区用不到它，
   // 源码态按文本算上下文时要用（applySlash 靠它剥掉「/过滤词」）。
   const [slash, setSlash] = useState<{ query: string; from: number; index: number; top: number; left: number } | null>(null);
@@ -215,6 +218,8 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   };
 
   const runAction = (action: FormatAction, fromSlash = false) => {
+    dismissSelectionBar();
+    setSelectionMenu(null);
     const adapter = adapterRef.current;
     if (!adapter) return;
     if (action.id === "image") {
@@ -229,8 +234,6 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       // 所见即所得走编辑器原生选区，**不取整篇正文**（FR-EDT-10）。
       const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], fromSlash && slash ? slash.query.length + 1 : 0);
       setSlash(null);
-      setSelectionBar(null);
-      setSelectionMenu(null);
       if (applied) requestAnimationFrame(refreshSlash);
       return;
     }
@@ -339,22 +342,21 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     onSelect: () => runAction(action),
   }));
 
-  const setTextColor = (color: string | null) => {
+  const setTextColor = (color: string | null, choice?: TextColorId) => {
+    if (choice) setCurrentTextColor(choice);
+    dismissSelectionBar();
+    setSelectionMenu(null);
     const adapter = adapterRef.current;
     if (!adapter) return;
     if (adapter.setTextColor) {
       adapter.setTextColor(color);
-      setSelectionBar(null);
-      setSelectionMenu(null);
       return;
     }
     const markdown = readMarkdown(adapter.getMarkdown());
     const { start, end } = adapter.getSelection();
     const result = applyTextColor(markdown, start, end, color);
-    if (!result) return;
+    if (!result || result.markdown === markdown) return;
     commit(result.markdown, result.start, result.end);
-    setSelectionBar(null);
-    setSelectionMenu(null);
   };
 
   useEffect(() => {
@@ -373,8 +375,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (!dirtyRef.current) adapter.loadMarkdown(visible);
   }, [externalMarkdown, mode]);
 
-  const formatBar = mode === "edit" && kind === "wysiwyg"
-    ? <FormatBar active={active} disabled={false} onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />
+  const colors = { current: textColor, apply: setTextColor };
+  const formatBar = mode === "edit"
+    ? <FormatBar active={active} disabled={false} onAction={runAction}
+        actions={kind === "source" ? [] : undefined} colors={kind === "wysiwyg" ? colors : undefined}
+        fontSize={{ percent: fontSize, onChange: setFontSize }} />
     : null;
 
   return (
@@ -384,7 +389,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       {selectionBar && mode === "edit" && kind === "wysiwyg" && (
         <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
           actions={FORMAT_ACTIONS.filter((action) => action.group === "inline")}
-          onAction={(action) => runAction(action)} onSetTextColor={setTextColor} />
+          hostRef={hostRef} onAction={runAction} colors={colors} onDismiss={dismissSelectionBar} />
       )}
       {/* 表格块操作（FR-EDT-9）：浮出工具条 + 右键菜单，同一套命令。 */}
       {mode === "edit" && kind === "wysiwyg" && (
@@ -392,8 +397,14 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       )}
       <div
         ref={bindHost} className="mn-editor-host" data-mode={mode} data-kind={kind}
-        onKeyUp={() => { refreshSlash(); refreshSelectionBar(); }}
-        onMouseUp={() => { refreshSlash(); refreshSelectionBar(); }}
+        data-font-size={fontSize}
+        onKeyUp={(event) => {
+          refreshSlash();
+          const extendsSelection = event.shiftKey && /^(Arrow|Home|End|Page)/.test(event.key);
+          const selectsAll = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a";
+          if (extendsSelection || selectsAll) refreshSelectionBar();
+        }}
+        onMouseUp={(event) => { refreshSlash(); if (event.button === 0) refreshSelectionBar(); }}
         onContextMenu={(event) => {
           if (kind !== "wysiwyg" || mode !== "edit") return;
           const selection = window.getSelection();
@@ -405,7 +416,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
           setSelectionBar(null);
           setSelectionMenu({ x: event.clientX, y: event.clientY });
         }}
-        onMouseDown={(event) => { if (event.button === 0) setSelectionMenu(null); }}
+        onMouseDown={(event) => {
+          if (event.button !== 0) return;
+          dismissSelectionBar();
+          setSelectionMenu(null);
+        }}
         onKeyDown={(event) => {
           if (!slash) return;
           const actions = filterActions(slash.query);

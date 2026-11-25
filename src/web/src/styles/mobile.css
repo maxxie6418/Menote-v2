@@ -115,7 +115,7 @@
 .m-mobile-document .mn-doc-main > * + * { margin-top: var(--app-space-xs); }
 .m-mobile-document .mn-doc-main > * { max-width: var(--app-full-size); }
 /* 移动端格式栏：单行横向滚动，按钮保持 44 像素触控目标 */
-[data-layout="mobile"] .mn-formatbar { flex-wrap: nowrap; overflow-x: auto; }
+[data-layout="mobile"] .mn-formatbar-actions { flex-wrap: nowrap; overflow-x: auto; }
 [data-layout="mobile"] .mn-formatbar .mn-formatbtn { flex: none; width: var(--app-touch-target); height: var(--app-touch-target); }
 .m-mobile-document .mn-doc-title { font-size: var(--app-mobile-title-size); line-height: var(--app-leading-doc-title); }
 /* 属性区在触屏上抬高行高、⋯ 常驻（单列 / 双列由 PropertyPanel 按栏宽写 data-columns） */
@@ -131,7 +131,7 @@
 .m-mobile-document .mn-strip-more { min-height: var(--app-touch-target); }
 .m-mobile-document .mn-doc-tags { min-height: var(--app-mobile-row-min-height); }
 .m-mobile-document .mn-editor-host, .m-mobile-document .mn-doc-preview { font-size: var(--app-mobile-body-size); line-height: var(--md-body-leading); }
-.m-mobile-document .mn-editor-source { font-size: var(--app-mobile-body-size); }
+.m-mobile-document .mn-editor-source { font-size: calc(var(--app-mobile-body-size) * var(--app-editor-font-scale)); }
 .m-mobile-document .mn-doc-foot { height: var(--app-mobile-row-min-height); padding: var(--app-zero) var(--app-mobile-content-pad); }
 
 /* 我的、主题抽屉、事后动作 */

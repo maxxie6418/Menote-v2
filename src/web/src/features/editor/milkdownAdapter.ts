@@ -440,6 +440,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ? transaction.addMark(from, to, markType.create({ color }))
         : transaction.removeMark(from, to, markType);
       view.dispatch(transaction.scrollIntoView());
+      view.focus();
       return true;
     });
   }

@@ -1,7 +1,7 @@
 .markdown-content {
   color: var(--md-body-color);
   font-size: var(--md-body-size);
-  font-weight: var(--md-body-weight);
+  font-weight: var(--md-body-weight, var(--md-body-default-weight));
   line-height: var(--md-body-leading);
 }
 .markdown-content :is(h1, h2, h3, h4, h5, h6) { line-height: var(--md-heading-leading); margin-block: var(--md-block-space); }
