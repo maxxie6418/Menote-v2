@@ -14,6 +14,7 @@ import { OutlinePanel } from "./OutlinePanel";
 import { filterActions, FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import { activeInline, applyBlock, applySlash, insertAttachment, safeAttachmentName, slashContext, toggleInline, type InlineAction } from "./markdownEdit";
 import { applyTextColor, DEFAULT_TEXT_COLORS } from "./textColor";
+import type { NoteTextStyle } from "./extendedTextStyles";
 
 export type EditorKind = "wysiwyg" | "source";
 
@@ -40,7 +41,7 @@ const UPLOAD_ERRORS: Record<string, string> = {
 };
 
 /** 行内格式按下态比较：内容没变就不换数组引用，避免每次 keyup 都白白触发一次重渲染。 */
-function sameActions(previous: InlineAction[], next: InlineAction[]): boolean {
+function sameActions<T extends string>(previous: T[], next: T[]): boolean {
   return previous.length === next.length && previous.every((item, index) => item === next[index]);
 }
 
@@ -80,6 +81,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
   const [active, setActive] = useState<InlineAction[]>([]);
+  const [activeTextStyles, setActiveTextStyles] = useState<NoteTextStyle[]>([]);
   const [textColor, setCurrentTextColor] = useState<TextColorId>(DEFAULT_TEXT_COLORS[0].id);
   const [fontSize, setFontSize] = useState(EDITOR_FONT_DEFAULT);
   const [selectionBar, setSelectionBar] = useState<{ x: number; y: number } | null>(null);
@@ -301,6 +303,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     // 空选区的 storedMarks（按下 B 还没输入）只有编辑器自己知道，所以按下态仍走 activeMarks()。
     const marks = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : [];
     setActive((previous) => (sameActions(previous, marks) ? previous : marks));
+    refreshTextStyles(adapter);
     const { start, end } = adapter.getSelection();
     if (start !== end) { setSlash(null); return; }
     // 拿不到原生上下文就退化为「不显示菜单」，绝不用整篇序列化兜底。
@@ -333,6 +336,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     if (adapter instanceof MilkdownWysiwygAdapter) {
       const marks = adapter.activeMarks();
       setActive((previous) => sameActions(previous, marks) ? previous : marks);
+      refreshTextStyles(adapter);
     }
   };
 
@@ -359,6 +363,20 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
     commit(result.markdown, result.start, result.end);
   };
 
+  const refreshTextStyles = (adapter: EditorAdapter) => {
+    const next = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeTextStyles() : [];
+    setActiveTextStyles((previous) => sameActions(previous, next) ? previous : next);
+  };
+
+  const toggleTextStyle = (style: NoteTextStyle) => {
+    const adapter = adapterRef.current;
+    if (!(adapter instanceof MilkdownWysiwygAdapter)) return;
+    dismissSelectionBar();
+    setSelectionMenu(null);
+    adapter.toggleTextStyle(style);
+    refreshTextStyles(adapter);
+  };
+
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter || mode !== "edit") return;
@@ -376,9 +394,11 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
   }, [externalMarkdown, mode]);
 
   const colors = { current: textColor, apply: setTextColor };
+  const textStyles = { active: activeTextStyles, toggle: toggleTextStyle };
   const formatBar = mode === "edit"
     ? <FormatBar active={active} disabled={false} onAction={runAction}
         actions={kind === "source" ? [] : undefined} colors={kind === "wysiwyg" ? colors : undefined}
+        textStyles={kind === "wysiwyg" ? textStyles : undefined}
         fontSize={{ percent: fontSize, onChange: setFontSize }} />
     : null;
 
@@ -389,7 +409,7 @@ export function NoteEditor({ mode, kind, externalMarkdown, onInput, registerGetM
       {selectionBar && mode === "edit" && kind === "wysiwyg" && (
         <SelectionFormatBar x={selectionBar.x} y={selectionBar.y} active={active}
           actions={FORMAT_ACTIONS.filter((action) => action.group === "inline")}
-          hostRef={hostRef} onAction={runAction} colors={colors} onDismiss={dismissSelectionBar} />
+          hostRef={hostRef} onAction={runAction} colors={colors} textStyles={textStyles} onDismiss={dismissSelectionBar} />
       )}
       {/* 表格块操作（FR-EDT-9）：浮出工具条 + 右键菜单，同一套命令。 */}
       {mode === "edit" && kind === "wysiwyg" && (

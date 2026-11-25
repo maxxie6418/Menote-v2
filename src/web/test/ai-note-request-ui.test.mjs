@@ -6,7 +6,7 @@ import { JSDOM } from "jsdom";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 
 const dom = new JSDOM("<div id='root'></div>", { url: "https://menote.test", pretendToBeVisual: true });
-for (const key of ["window", "document", "HTMLElement", "Element", "CustomEvent", "Event", "MouseEvent"]) globalThis[key] = dom.window[key];
+for (const key of ["window", "document", "DOMParser", "HTMLElement", "Element", "CustomEvent", "Event", "MouseEvent"]) globalThis[key] = dom.window[key];
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
 globalThis.MessageChannel = class { port1 = { onmessage: null }; port2 = { postMessage: () => setTimeout(() => this.port1.onmessage?.(), 0) }; };
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };

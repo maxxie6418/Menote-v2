@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { FORMAT_ACTIONS, type FormatAction } from "./formatActions";
 import type { InlineAction } from "./markdownEdit";
 import { colorValueFromCss, DEFAULT_TEXT_COLORS } from "./textColor";
+import { NOTE_TEXT_STYLES, type NoteTextStyle } from "./extendedTextStyles";
 
 export type TextColorId = typeof DEFAULT_TEXT_COLORS[number]["id"];
 
@@ -18,12 +19,18 @@ export interface FormatBarColors {
   apply: (color: string | null, choice?: TextColorId) => void;
 }
 
+export interface FormatBarTextStyles {
+  active: readonly NoteTextStyle[];
+  toggle: (style: NoteTextStyle) => void;
+}
+
 interface FormatBarProps {
   active: readonly InlineAction[];
   onAction: (action: FormatAction) => void;
   disabled: boolean;
   actions?: readonly FormatAction[];
   colors?: FormatBarColors;
+  textStyles?: FormatBarTextStyles;
   fontSize?: { percent: number; onChange: (percent: number) => void };
 }
 
@@ -48,7 +55,7 @@ const ACTION_ICONS: Record<string, LucideIcon> = {
 };
 
 /** 正文上方常驻格式栏（FR-EDT-4）。预览态由调用方不渲染。 */
-export function FormatBar({ active, onAction, disabled, actions = FORMAT_ACTIONS, colors, fontSize }: FormatBarProps) {
+export function FormatBar({ active, onAction, disabled, actions = FORMAT_ACTIONS, colors, textStyles, fontSize }: FormatBarProps) {
   const inline = actions.filter((action) => action.group === "inline");
   const block = actions.filter((action) => action.group === "block");
   return (
@@ -58,6 +65,13 @@ export function FormatBar({ active, onAction, disabled, actions = FORMAT_ACTIONS
           <FormatButton key={action.id} action={action} pressed={active.includes(action.id as InlineAction)} disabled={disabled} onAction={onAction} />
         ))}
         {colors && <ColorPicker {...colors} disabled={disabled} />}
+        {textStyles && NOTE_TEXT_STYLES.map(({ id, label, shortcut }) => (
+          <button key={id} type="button" className="mn-formatbtn" aria-label={label}
+            title={shortcut ? `${label}（${shortcut} 加空格）` : label} aria-pressed={textStyles.active.includes(id)}
+            disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => textStyles.toggle(id)}>
+            <span aria-hidden="true" className={id === "highlight" ? "mn-obsidian-highlight" : `mn-note-underline-${id}`}>A</span>
+          </button>
+        ))}
         {block.length > 0 && <span className="mn-formatbar-gap" aria-hidden="true" />}
         {block.map((action) => (
           <FormatButton key={action.id} action={action} pressed={false} disabled={disabled} onAction={onAction} />

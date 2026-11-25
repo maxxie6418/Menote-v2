@@ -16,6 +16,9 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import { obsidianHighlight, remarkObsidianSyntax } from "../../lib/obsidianMarkdown";
+import { remarkNoteUnderline } from "../../lib/noteUnderline";
 
 /** mdast 节点的最小结构视图（只取参与等价判定的字段）。 */
 interface MdNode {
@@ -31,11 +34,17 @@ interface MdNode {
   checked?: boolean | null;
   align?: Array<string | null> | null;
   identifier?: string;
+  id?: string;
+  target?: string;
+  embedSize?: { width: number; height?: number };
+  kind?: string;
+  fold?: string;
+  underlineStyle?: string;
   children?: MdNode[];
   position?: { start?: { offset?: number }; end?: { offset?: number } };
 }
 
-const processor = unified().use(remarkParse).use(remarkGfm);
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkObsidianSyntax).use(remarkNoteUnderline);
 
 /** 一段内容单元及其在原文中的位置。 */
 export interface TextUnit {
@@ -62,18 +71,44 @@ function childrenKey(node: MdNode): string {
   return children.map((child) => canonicalKey(child)).join("|");
 }
 
+/** Markdown can place commuting inline marks in either order. */
+function annotation(node: MdNode): { id: string; children: MdNode[] } | null {
+  switch (node.type) {
+    case "emphasis":
+    case "strong":
+    case "delete": return { id: node.type, children: node.children ?? [] };
+    case "noteUnderline": return { id: `underline:${node.underlineStyle ?? ""}`, children: node.children ?? [] };
+    case "obsidianHighlight": {
+      const { marker, content } = obsidianHighlight(node as Parameters<typeof obsidianHighlight>[0]);
+      return { id: `highlight:${marker ?? ""}`, children: content as MdNode[] };
+    }
+    default: return null;
+  }
+}
+
+function annotationKey(mark: NonNullable<ReturnType<typeof annotation>>): string {
+  const styles = [mark.id];
+  let content = mark.children;
+  while (content.length === 1) {
+    const nested = annotation(content[0]!);
+    if (!nested) break;
+    styles.push(nested.id);
+    content = nested.children;
+  }
+  return `marks(${styles.sort().join(",")}|${content.map(canonicalKey).join("|")})`;
+}
+
 /**
  * 结构键：同键即视为语义等价。
  * 刻意**不**记录 position、spread、列表 start 等表现信息——它们正是序列化器会改写的地方。
  */
 export function canonicalKey(node: MdNode): string {
+  const mark = annotation(node);
+  if (mark) return annotationKey(mark);
   switch (node.type) {
     case "text": return `t(${node.value ?? ""})`;
     case "inlineCode": return `code(${node.value ?? ""})`;
     case "code": return `block(${node.lang ?? ""}|${node.value ?? ""})`;
-    case "emphasis": return `em(${childrenKey(node)})`;
-    case "strong": return `strong(${childrenKey(node)})`;
-    case "delete": return `del(${childrenKey(node)})`;
     case "paragraph": return `p(${childrenKey(node)})`;
     case "heading": return `h${node.depth ?? 1}(${childrenKey(node)})`;
     case "blockquote": return `bq(${childrenKey(node)})`;
@@ -88,6 +123,14 @@ export function canonicalKey(node: MdNode): string {
     case "thematicBreak": return "hr";
     case "break": return "br";
     case "html": return `html(${node.value ?? ""})`;
+    case "obsidianWikilink": return `wiki(${node.target ?? ""}|${childrenKey(node)})`;
+    case "obsidianWikiEmbed": return `embed(${node.target ?? ""}|${JSON.stringify(node.embedSize ?? null)}|${childrenKey(node)})`;
+    case "obsidianBlockId": return `blockId(${node.id ?? ""})`;
+    case "obsidianCallout": return `callout(${node.kind ?? ""}|${node.title ?? ""}|${node.fold ?? ""}|${childrenKey(node)})`;
+    case "obsidianComment":
+    case "obsidianBlockComment":
+    case "inlineMath":
+    case "math": return `${node.type}(${node.value ?? ""})`;
     case "link": return `link(${node.url ?? ""}|${node.title ?? ""})(${childrenKey(node)})`;
     case "image": return `image(${node.url ?? ""}|${node.alt ?? ""})`;
     case "definition": return `def(${node.identifier ?? ""}|${node.url ?? ""})`;
@@ -112,7 +155,7 @@ function span(node: MdNode): { start: number; end: number } | null {
  * - 有序列表保持整块：项序号随位置变化，逐项回填会写错编号。
  */
 export function parseText(text: string): ParsedText {
-  const tree = processor.parse(text) as unknown as { children: MdNode[] };
+  const tree = processor.runSync(processor.parse(text), text) as unknown as { children: MdNode[] };
   const units: TextUnit[] = [];
   for (const node of tree.children) {
     const children = node.children ?? [];

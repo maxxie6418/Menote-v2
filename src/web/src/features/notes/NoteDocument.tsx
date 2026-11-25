@@ -153,7 +153,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setModeReady(false);
     void readAppearance(userId).then((appearance) => {
       if (!active) return;
-      setMode(appearance?.noteModes[noteId] ?? "edit");
+      setMode(window.location.hash.startsWith("#obsidian-") ? "preview" : appearance?.noteModes[noteId] ?? "edit");
     }).catch(() => {}).finally(() => { if (active) setModeReady(true); });
     return () => { active = false; };
   }, [userId, noteId]);
@@ -779,7 +779,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
         {plain && mode === "preview" && !isTableDoc && (
-          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
+          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview"
+            obsidian={{ userId, itemId: item.id }} />
         )}
         {plain && isTableDoc && (
           <TableDocument

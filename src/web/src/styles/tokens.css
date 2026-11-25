@@ -45,6 +45,8 @@
   --app-text-color-blue: #2459a6;
   --app-text-color-purple: #7046a6;
   --app-text-color-gray: #6c6f6b;
+  --md-obsidian-highlight-mix: 26%;
+  --app-selection-toolbar-max: calc(100vw - var(--app-space-md) * 2);
   --app-paper-bg: #fffdf8;
   --app-paper-fg: #1a1a18;
   --app-paper-border: #dedbd2;

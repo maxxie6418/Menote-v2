@@ -334,7 +334,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={plain} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={plain} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview"
+          obsidian={{ userId, itemId: item.id }} />}
         {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}

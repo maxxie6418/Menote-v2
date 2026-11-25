@@ -15,6 +15,8 @@ import type { EditorAdapter } from "./EditorAdapter";
 import { textColorMark, textColorRemark, isAllowedTextColor } from "./textColorPlugin";
 import type { BlockAction, InlineAction } from "./markdownEdit";
 import { unlockedImageView } from "./unlockedImageView";
+import { hasNoteTextStyle, NOTE_TEXT_STYLES, noteUnderlineInput, noteUnderlineMark, noteUnderlineRemark, toggleNoteTextStyle, type NoteTextStyle } from "./extendedTextStyles";
+import { finishObsidianBlock, obsidianEditor } from "./obsidianEditor";
 
 /**
  * markdown 前缀长度（UTF-16 字符数）。
@@ -82,6 +84,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ctx.set(defaultValueCtx, options.initialMarkdown);
         ctx.update(editorViewOptionsCtx, (previous) => ({
           ...previous,
+          handleKeyDown: (view, event) => finishObsidianBlock(view, event) || previous.handleKeyDown?.(view, event) || false,
           attributes: { class: "md-body mn-editor-prose" },
           ...(options.attachmentItemId ? {
             nodeViews: { ...previous.nodeViews, image: (node: Node) => unlockedImageView(node, options.attachmentItemId!) },
@@ -104,6 +107,10 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       .use(gfm)
       .use(textColorMark)
       .use(textColorRemark)
+      .use(noteUnderlineMark)
+      .use(noteUnderlineRemark)
+      .use(noteUnderlineInput)
+      .use(obsidianEditor)
       .use(history)
       .use(listener)
       .create();
@@ -392,6 +399,22 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       const start = markdownPrefix(serializer, doc, from, scale);
       const end = from === to ? start : markdownPrefix(serializer, doc, to, scale);
       return { start, end };
+    });
+  }
+
+  activeTextStyles(): NoteTextStyle[] {
+    if (!this.editor) return [];
+    return this.editor.action((ctx) => {
+      const { state } = ctx.get(editorViewCtx);
+      return NOTE_TEXT_STYLES.map(({ id }) => id).filter((style) => hasNoteTextStyle(state, style));
+    });
+  }
+
+  toggleTextStyle(style: NoteTextStyle): void {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.dispatch(toggleNoteTextStyle(view.state, style));
+      view.focus();
     });
   }
 

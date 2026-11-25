@@ -12,9 +12,9 @@ import { syncQueueStatus } from "./syncEngine";
 /** 服务层数据钩子：UI 只经此读取本地库（结构检查：UI 禁直连 IndexedDB）。
  *  同标签页由 liveQuery 自动更新；跨标签页经无内容广播触发重读（refresh 版本号参与查询键）。 */
 
-export function useLocalRefresh(): number {
+export function useLocalRefresh(enabled = true): number {
   const [version, setVersion] = useState(0);
-  useEffect(() => subscribeLocalChanges(() => setVersion((value) => value + 1)), []);
+  useEffect(() => enabled ? subscribeLocalChanges(() => setVersion((value) => value + 1)) : undefined, [enabled]);
   return version;
 }
 

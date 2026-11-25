@@ -188,9 +188,9 @@ textarea.mn-doc-title { resize: none; overflow: hidden; overflow-wrap: anywhere;
 .mn-formatbar-size { display: flex; flex: none; align-items: center; margin-inline-start: auto; color: var(--app-fg-subtle); font-size: var(--app-size-chip); font-variant-numeric: tabular-nums; }
 .mn-formatbar-size output { min-width: var(--app-space-30); text-align: center; }
 .mn-formatbar-gap { align-self: stretch; width: var(--app-line); margin: var(--app-space-4) var(--app-space-4); background: var(--app-border); }
-.mn-selection-formatbar { position: fixed; z-index: var(--app-context-menu-z); transform: var(--app-popover-shift-up); }
+.mn-selection-formatbar { position: fixed; max-width: var(--app-selection-toolbar-max); z-index: var(--app-context-menu-z); transform: var(--app-popover-shift-up); }
 .mn-selection-formatbar .mn-formatbar { position: static; padding: var(--app-space-4); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-md); box-shadow: var(--app-shadow-dialog); }
-.mn-selection-formatbar .mn-formatbar-actions { flex-wrap: nowrap; }
+.mn-selection-formatbar .mn-formatbar-actions { flex-wrap: nowrap; overflow-x: auto; }
 .mn-formatbtn { display: grid; flex: none; place-items: center; width: var(--app-formatbtn-size); height: var(--app-formatbtn-size); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-fg-subtle); cursor: pointer; transition: color var(--app-motion-fast) var(--app-ease), background var(--app-motion-fast) var(--app-ease); }
 .mn-formatbtn svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
 .mn-formatbtn[aria-pressed="true"] { background: var(--app-accent-subtle); color: var(--app-accent-fg); box-shadow: var(--app-hairline-inset); }
