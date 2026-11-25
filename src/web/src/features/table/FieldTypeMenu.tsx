@@ -2,7 +2,7 @@ import { TABLE_FIELD_TYPES, type PropertyType } from "../../lib/frontmatter";
 
 /** 字段类型中文标签（表格侧 8 种，无多行文本）。 */
 export const FIELD_TYPE_LABELS: Readonly<Record<PropertyType, string>> = {
-  text: "文本", multiline: "多行文本", number: "数字", date: "日期",
+  text: "文本", multiline: "多行文本", number: "数字", date: "日期", datetime: "日期时间", list: "列表",
   select: "单选", multiselect: "多选", checkbox: "复选框", link: "链接",
   attachment: "附件",
 };

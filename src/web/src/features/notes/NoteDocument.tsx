@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Tag, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
+import { ChevronLeft, Clock, Code, Copy, Download, Eye, FileText, ListTree, MessageSquarePlus, MoreHorizontal, Paperclip, Pencil, Shield, Sparkles, Table2, Trash2, FolderInput, Focus, FilePlus2, X, Plus } from "../../icons";
 import type { Item, TopicNode } from "@menote/shared";
 import { NoteEditor, OutlinePanel, type EditorKind } from "../editor";
 import { MarkdownView } from "../markdown";
 import { PropertyPanel } from "../props";
-import { joinFrontmatter, readNoteMarginalia, splitFrontmatter, writeNoteMarginalia, writeSummaryProperty } from "../../lib/frontmatter";
+import { readNoteMarginalia, replaceMarkdownBody, splitFrontmatter, writeNoteMarginalia, writeSummaryProperty } from "../../lib/frontmatter";
+import { readNoteYamlTags, sameNoteTags, writeNoteYamlTags } from "../../lib/noteProperties";
 import { newId } from "../../lib/hash";
 import { TableDocument } from "../table";
 import { AiAssistDialog } from "../ai";
@@ -15,6 +16,7 @@ import { listVersions, purgeItemsPermanently, type VersionRow } from "../../serv
 import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment } from "../../services/attachmentService";
 import { OrganizeDialog } from "./OrganizeDialog";
 import { DocTitle } from "./DocTitle";
+import { NoteTags } from "./NoteTags";
 import { TemplatePicker, type TemplateOption } from "./TemplatePicker";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
@@ -153,7 +155,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setModeReady(false);
     void readAppearance(userId).then((appearance) => {
       if (!active) return;
-      setMode(appearance?.noteModes[noteId] ?? "edit");
+      setMode(window.location.hash.startsWith("#obsidian-") ? "preview" : appearance?.noteModes[noteId] ?? "edit");
     }).catch(() => {}).finally(() => { if (active) setModeReady(true); });
     return () => { active = false; };
   }, [userId, noteId]);
@@ -245,7 +247,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (editorValue === undefined || editorValue === null) return base;
     return editorKindRef.current === "source"
       ? editorValue
-      : joinFrontmatter(splitFrontmatter(base).frontText, editorValue);
+      : replaceMarkdownBody(base, editorValue);
   };
   useEffect(() => {
     if (!openSummaryToken || !item || item.id !== noteId || item.content.scope !== "plain") return;
@@ -274,12 +276,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         ? next
         : editorKind === "source"
           ? next
-          : joinFrontmatter(splitFrontmatter(next).frontText, editorValue);
+          : replaceMarkdownBody(next, editorValue);
       setDraft(value);
       const saved = await saveItemContent(userId, item.id, value);
       const savedMarkdown = saved.content.scope === "plain" ? saved.content.markdown : "";
       setDraft(savedMarkdown);
-      applyExternalRef.current?.(savedMarkdown);
+      if (dirtyTickRef.current === savingTick) applyExternalRef.current?.(savedMarkdown);
       setSavedTick(savingTick);
       setSaveState({ kind: "idle" });
       return true;
@@ -351,7 +353,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         ? currentFull
         : editorKind === "source"
           ? editorValue
-          : joinFrontmatter(splitFrontmatter(currentFull).frontText, editorValue);
+          : replaceMarkdownBody(currentFull, editorValue);
       if (value === item.content.markdown) {
         setSavedTick(savingTick);
         setSaveState({ kind: "idle" });
@@ -372,6 +374,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   // 自动保存防抖（键入不停顿不打断；失败有可见但不阻断的提示与重试）。
   // 依赖脏计数而不是正文：键入路径不再整篇序列化，flush 时才从编辑器取全量（FR-EDT-10）。
   const plainMarkdown = item?.content.scope === "plain" ? item.content.markdown : "";
+  const observedMarkdown = useRef(plainMarkdown);
+  useEffect(() => {
+    if (observedMarkdown.current === plainMarkdown) return;
+    observedMarkdown.current = plainMarkdown;
+    if (editorKind === "wysiwyg" || !getMarkdownRef.current || dirtyTickRef.current <= savedTick) setDraft(plainMarkdown);
+  }, [editorKind, plainMarkdown, savedTick]);
   // 页边注与字数统计随 draft 缓存：键入只递增 dirtyTick，不再每次重渲染都全量解析 YAML。
   const docSplit = useMemo(() => splitFrontmatter(draft ?? plainMarkdown), [draft, plainMarkdown]);
   const docMarginalia = useMemo(
@@ -397,7 +405,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (editorValue == null) return;
     const value = editorKindRef.current === "source"
       ? editorValue
-      : joinFrontmatter(splitFrontmatter(item.content.markdown).frontText, editorValue);
+      : replaceMarkdownBody(item.content.markdown, editorValue);
     scheduleRecovery(userId, item.id, value, "plain");
   }, [dirtyTick, savedTick, item, userId]);
 
@@ -408,7 +416,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       if (!current || editorValue == null || current.content.scope !== "plain") return;
       const value = editorKindRef.current === "source"
         ? editorValue
-        : joinFrontmatter(splitFrontmatter(current.content.markdown).frontText, editorValue);
+        : replaceMarkdownBody(current.content.markdown, editorValue);
       if (value !== current.content.markdown) void writeRecovery(userId, current.id, value, "plain");
     };
     window.addEventListener("pagehide", flushSnapshot);
@@ -431,7 +439,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     if (!currentItem || editorValue === null || editorValue === undefined || currentItem.content.scope !== "plain") return;
     const value = editorKindRef.current === "source"
       ? editorValue
-      : joinFrontmatter(splitFrontmatter(currentItem.content.markdown).frontText, editorValue);
+      : replaceMarkdownBody(currentItem.content.markdown, editorValue);
     if (value !== currentItem.content.markdown) void saveItemContent(userId, currentItem.id, value).catch(() => {});
   }, [noteId, userId]);
 
@@ -526,10 +534,23 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     });
   };
 
-  const addTag = async (raw: string) => {
-    const tag = raw.trim().replace(/^#/, "");
-    if (!item || !tag || item.tags.includes(tag)) return;
-    await saveItemMeta(userId, item.id, { tags: [...item.tags, tag] });
+  const changeTags = async (update: (tags: string[]) => string[]) => {
+    if (!item) return false;
+    try {
+      if (item.type !== "note") {
+        await saveItemMeta(userId, item.id, { tags: update(item.tags) });
+        return true;
+      }
+      const markdown = latestFullMarkdown();
+      const workingTags = readNoteYamlTags(markdown);
+      const storedTags = readNoteYamlTags(plainMarkdown);
+      const sourceChangedTags = !sameNoteTags(workingTags, storedTags);
+      const tags = sourceChangedTags ? workingTags ?? [] : item.tags;
+      return await saveFullMarkdown(writeNoteYamlTags(markdown, update(tags)));
+    } catch (cause) {
+      setSaveState({ kind: "error", message: String(cause) });
+      return false;
+    }
   };
 
   /** 附件上传（FR-SYNC-7）：sha256 内容寻址，插入相对路径引用（追加在正文末尾，M3 打磨光标插入）。 */
@@ -546,9 +567,9 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       const editorValue = getMarkdownRef.current?.();
       const full = editorKind === "source"
         ? editorValue ?? current
-        : joinFrontmatter(splitFrontmatter(current).frontText, editorValue ?? splitFrontmatter(current).body);
-      const { frontText, body } = splitFrontmatter(full);
-      const next = joinFrontmatter(frontText, `${body.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`);
+        : replaceMarkdownBody(current, editorValue ?? splitFrontmatter(current).body);
+      const { body } = splitFrontmatter(full);
+      const next = replaceMarkdownBody(full, `${body.trimEnd()}\n\n![${result.name}](attachments/${result.sha256}--${result.name})\n`);
       await saveFullMarkdown(next);
     } finally {
       setUploading(false);
@@ -737,7 +758,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           onChange={setTitle}
           onCommit={() => { if (title !== null) void flushTitle(title); }}
         />
-        {(!isTableDoc || clipSource) && <div className="mn-doc-meta" aria-label="文档信息">
+        <div className="mn-doc-meta" aria-label="文档信息">
           {!isTableDoc && <div className="mn-doc-meta-details">
             <time dateTime={new Date(item.createdAt).toISOString()}>{formatDocumentDate(item.createdAt)}</time>
             <span aria-hidden="true">·</span>
@@ -745,45 +766,29 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <span aria-hidden="true">·</span>
             <span>{contentCharacters.toLocaleString("zh-CN")} 字符</span>
           </div>}
+          <NoteTags item={item} onChange={changeTags} />
           {clipSource && <div className="mn-clip-source">
             <span title={clipSource.host}>剪藏自 {clipSource.host}</span>
             <a href={clipSource.url} target="_blank" rel="noreferrer">打开原网页</a>
             <button type="button" className="mn-textbtn" onClick={() => void navigator.clipboard.writeText(clipSource.url)}>复制原链接</button>
           </div>}
-        </div>}
+        </div>
         {conflictOf && item.content.scope === "plain" && (
           <ConflictCompare userId={userId} copy={item} original={conflictSource} copyText={draft ?? item.content.markdown} onKeptOriginal={onBack} />
         )}
         {plain && propsPos === "top" && (
           <PropertyPanel
             userId={userId}
+            itemId={item.type === "note" ? item.id : undefined}
             markdown={draft ?? plain.markdown}
             onSave={saveFullMarkdown}
           />
         )}
-        <div className="mn-doc-tags" aria-label="标签">
-          <Tag className="mn-doc-tags-icon" />
-          {item.tags.map((tag) => (
-            <button key={tag} type="button" className="mn-tagchip" title="移除标签"
-              onClick={() => void saveItemMeta(userId, item.id, { tags: item.tags.filter((row) => row !== tag) })}>
-              #{tag}×
-            </button>
-          ))}
-          <input
-            className="mn-taginput" placeholder="加标签，回车确认" aria-label="添加标签"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void addTag(event.currentTarget.value);
-                event.currentTarget.value = "";
-              }
-            }}
-          />
-        </div>
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
         {plain && mode === "preview" && !isTableDoc && (
-          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview" />
+          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview"
+            obsidian={{ userId, itemId: item.id }} />
         )}
         {plain && isTableDoc && (
           <TableDocument
@@ -801,6 +806,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         {plain && mode === "edit" && !isTableDoc && (
           <NoteEditor
             mode="edit"
+            userId={userId}
             kind={editorKind}
             formatDock={formatDock}
             externalMarkdown={editorKind === "source"
@@ -828,7 +834,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             <header className="mn-inspector-mobile-head"><strong>文档检查器</strong><button ref={inspectorCloseRef} type="button" className="mn-iconbtn" aria-label="关闭检查器" onClick={() => setInspectorOpen(false)}><X aria-hidden="true" /></button></header>
             {propsPos === "side" && <section className="mn-inspector-section mn-inspector-properties" aria-label="属性">
               <header className="mn-inspector-section-head"><h2>属性</h2><button type="button" className="mn-textbtn" onClick={() => setPropsPlacement("top")}>移至顶部</button></header>
-              <PropertyPanel userId={userId} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} />
+              <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} />
             </section>}
             <OutlinePanel hostRef={outlineHostRef} kind={editorKind} variant="inspector" markdown={mode === "preview" ? splitFrontmatter(draft ?? plain.markdown).body : undefined} />
             <section className="mn-inspector-section mn-inspector-marginalia" aria-label="页边注">
@@ -854,7 +860,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </aside>
         </>}
       </div>
-      {toolbarPos === "bottom" && mode === "edit" && editorKind === "wysiwyg" && !isTableDoc && (
+      {toolbarPos === "bottom" && mode === "edit" && !isTableDoc && (
         <div className="mn-formatdock" ref={setFormatDock} role="presentation" inert={encrypting} />
       )}
       <div className="mn-doc-foot">
@@ -879,8 +885,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             return saved;
           }}
           onApplyTags={async (recommended) => {
-            const merged = [...item.tags, ...recommended.filter((tag) => !item.tags.includes(tag))];
-            await saveItemMeta(userId, item.id, { tags: merged });
+            if (!await changeTags((tags) => [...new Set([...tags, ...recommended])])) throw new Error("标签未能保存");
           }}
           onClose={() => setAiAssist(false)}
         />
@@ -923,7 +928,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
               }}>
                 {exportBusy ? "正在导出…" : "导出 zip（含附件）"}
               </button>
-              <button type="button" className="mn-auth-link" onClick={() => { exportNoteMarkdown(item); setExporting(false); }}>
+              <button type="button" className="mn-auth-link" disabled={exportBusy} onClick={() => {
+                setExportBusy(true);
+                setExportError(false);
+                void exportNoteMarkdown(item).then(() => setExporting(false)).catch(() => setExportError(true)).finally(() => setExportBusy(false));
+              }}>
                 纯 Markdown
               </button>
               <button type="button" className="mn-auth-link" disabled={exportBusy} onClick={() => { setExportError(false); setExporting(false); }}>取消</button>

@@ -11,8 +11,8 @@ export function applyTextColor(markdown: string, start: number, end: number, col
   const close = after.match(/^<\/span>/i)?.[0];
   if (open && close) {
     const current = open.match(/#[0-9a-f]{6}/i)?.[0].toLowerCase();
-    const unwrapped = before.slice(0, -open.length) + selected + after.slice(close.length);
-    if (!color || current === color.toLowerCase()) return { markdown: unwrapped, start, end };
+    if (!color) return { markdown: before.slice(0, -open.length) + selected + after.slice(close.length), start: start - open.length, end: end - open.length };
+    if (current === color.toLowerCase()) return { markdown, start, end };
     const prefix = `<span style="color:${color}">`;
     const wrapped = `${prefix}${selected}</span>`;
     return { markdown: before.slice(0, -open.length) + wrapped + after.slice(close.length), start: start + prefix.length - open.length, end: end + prefix.length - open.length };

@@ -8,13 +8,16 @@ import { subscribeLocalChanges } from "../lib/broadcast";
 import { countPendingOutbox } from "../db/outboxRepo";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "./privateSpaceService";
 import { syncQueueStatus } from "./syncEngine";
+import { effectiveNoteTags, normalizeNoteTags, noteTagKey, withEffectiveNoteTags } from "../lib/noteProperties";
+import { splitFrontmatter } from "../lib/frontmatter";
+import { readObsidianInlineTags } from "../lib/obsidianMarkdown";
 
 /** 服务层数据钩子：UI 只经此读取本地库（结构检查：UI 禁直连 IndexedDB）。
  *  同标签页由 liveQuery 自动更新；跨标签页经无内容广播触发重读（refresh 版本号参与查询键）。 */
 
-export function useLocalRefresh(): number {
+export function useLocalRefresh(enabled = true): number {
   const [version, setVersion] = useState(0);
-  useEffect(() => subscribeLocalChanges(() => setVersion((value) => value + 1)), []);
+  useEffect(() => enabled ? subscribeLocalChanges(() => setVersion((value) => value + 1)) : undefined, [enabled]);
   return version;
 }
 
@@ -84,10 +87,11 @@ export function useHomeSnapshot(userId: string): {
 } {
   return useData(async () => {
     if (!userId) return EMPTY_HOME_SNAPSHOT;
-    const [items, topics] = await Promise.all([
+    const [storedItems, topics] = await Promise.all([
       listActiveItems(userId),
       listTopics(userId),
     ]);
+    const items = storedItems.map(withEffectiveNoteTags);
     const inbox = items.filter((item) => isUnfiledItem(item, "external"));
     inbox.sort((a, b) => b.createdAt - a.createdAt);
     return {
@@ -113,7 +117,10 @@ export function useMemoComments(userId: string, memoId: string): MemoComment[] {
 }
 
 export function useItem(userId: string, id: string | null): Item | undefined {
-  return useData(() => (userId && id ? getItem(userId, id) : undefined), [userId, id], Boolean(userId && id));
+  return useData(async () => {
+    const item = userId && id ? await getItem(userId, id) : undefined;
+    return item ? withEffectiveNoteTags(item) : undefined;
+  }, [userId, id], Boolean(userId && id));
 }
 
 export function useTrashedItems(userId: string): Item[] {
@@ -127,18 +134,25 @@ export type BrowseSection =
   | { kind: "topic"; id: string }
   | { kind: "tag"; tag: string };
 
+function browsableNoteTags(item: Item): string[] {
+  const tags = effectiveNoteTags(item);
+  if (item.type !== "note" || item.content.scope !== "plain") return tags;
+  return normalizeNoteTags([...tags, ...readObsidianInlineTags(splitFrontmatter(item.content.markdown).body)]);
+}
+
 /** 全部标签（去重，FR-IA-8 标签入口）。 */
 export function useAllTags(userId: string): string[] {
   return useData(async () => {
     if (!userId) return [];
-    const { localDb } = await import("../db/localDb");
     const [rows, topics] = await Promise.all([
-      localDb.items.where("userId").equals(userId).filter((row) => row.deletedAt === null).toArray(),
+      listActiveItems(userId),
       listTopics(userId),
     ]);
     const hidden = hiddenPrivateTopicIds(topics);
-    return [...new Set(rows.filter((row) => row.topicId === null || !hidden.has(row.topicId)).flatMap((row) => row.tags))]
-      .sort((a, b) => a.localeCompare(b));
+    const visible = rows.filter((row) => (row.topicId === null || !hidden.has(row.topicId)) && (row.groupId === null || !hidden.has(row.groupId)));
+    const notes = visible.filter((row) => row.type === "note" && row.content.scope === "plain");
+    const other = visible.filter((row) => row.type !== "note" || row.content.scope !== "plain");
+    return [...new Set([...normalizeNoteTags(notes.flatMap(browsableNoteTags)), ...other.flatMap((row) => row.tags)])].sort((a, b) => a.localeCompare(b));
   }, [userId], Boolean(userId)) ?? [];
 }
 
@@ -155,9 +169,11 @@ export function useMemoTags(userId: string): Set<string> {
 export function useTagItems(userId: string, tag: string): Item[] {
   return useData(async () => {
     if (!userId || !tag) return [];
-    const { localDb } = await import("../db/localDb");
-    const rows = await localDb.items.where("userId").equals(userId)
-      .filter((row) => row.deletedAt === null && row.type !== "memo" && row.tags.includes(tag)).toArray();
+    const key = noteTagKey(tag);
+    const rows = (await listActiveItems(userId)).filter((row) => row.type !== "memo").map(withEffectiveNoteTags)
+      .filter((row) => row.type === "note" && row.content.scope === "plain"
+        ? browsableNoteTags(row).some((value) => { const normalized = noteTagKey(value); return normalized === key || normalized.startsWith(`${key}/`); })
+        : row.tags.includes(tag));
     rows.sort((a, b) => b.updatedAt - a.updatedAt);
     return rows;
   }, [userId, tag], Boolean(userId && tag)) ?? [];

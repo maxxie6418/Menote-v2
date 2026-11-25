@@ -1,12 +1,20 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import { findMemoTagRanges } from "@menote/shared";
 import { attachmentUrl } from "../../services/attachmentService";
+import { appRoutePath, itemRoutePath } from "../../app/appRoutes";
 import { perfProbe } from "../../lib/perfProbe";
-import { parseAttachmentDestination } from "../../lib/attachmentRefs";
+import { extractAttachmentRefs, parseAttachmentDestination, type AttachmentRef } from "../../lib/attachmentRefs";
+import { remarkNoteUnderline } from "../../lib/noteUnderline";
+import { normalizeObsidianName, obsidianAnchor, remarkObsidianSyntax } from "../../lib/obsidianMarkdown";
+import { remarkObsidianPreview } from "../../lib/obsidianPreview";
+import { obsidianNoteTarget, useObsidianTargets } from "../../services/obsidianReferenceService";
 import { remarkTextColorForRender } from "../editor";
 import { UnlockedAttachment } from "../attachments";
+import { ObsidianReference, type ObsidianView } from "./ObsidianReference";
 import {
   batchCount,
   FIRST_BATCH_CHARS,
@@ -27,7 +35,16 @@ interface MarkdownViewProps {
   highlightMemoTags?: boolean;
   className?: string;
   attachmentItemId?: string;
+  obsidian?: ObsidianView;
 }
+
+const STANDARD_PLUGINS: ComponentProps<typeof ReactMarkdown>["remarkPlugins"] = [
+  remarkGfm, remarkTextColorForRender, [remarkNoteUnderline, { preview: true }],
+];
+const OBSIDIAN_PLUGINS: ComponentProps<typeof ReactMarkdown>["remarkPlugins"] = [
+  ...STANDARD_PLUGINS, remarkMath, remarkObsidianSyntax, remarkObsidianPreview,
+];
+const KATEX_OPTIONS = { trust: false, maxExpand: 500, maxSize: 25 };
 
 interface HastNode {
   type: string;
@@ -94,7 +111,7 @@ function cancelIdle(handle: { kind: "idle" | "timer"; id: number }): void {
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
-export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className, attachmentItemId }: MarkdownViewProps) {
+export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className, attachmentItemId, obsidian }: MarkdownViewProps) {
   // 渲染耗时基线（FR-EDT-10 / W0）：渲染开始 → 布局提交完成。诊断关闭时不打点。
   const renderStart = perfProbe.isEnabled ? performance.now() : 0;
   const renderStartRef = useRef(renderStart);
@@ -108,8 +125,33 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
   // 渐进渲染（FR-EDT-10 / W3c）：长文档先出可视区，其余空闲补齐；极端超长切纯文本。
   const chunks = useMemo(() => splitTopLevelBlocks(markdown), [markdown]);
   const lightweight = needsLightweightMode(markdown);
-  const progressive = needsProgressiveRender(markdown, chunks.length);
+  const hasWiki = Boolean(obsidian && markdown.includes("[["));
+  const hasNoteLinks = hasWiki || Boolean(obsidian && /\.m(?:d|arkdown)(?:[#?)\s>])/i.test(markdown));
+  const hasHeadingTarget = typeof window !== "undefined" && !obsidian?.trail && window.location.hash.startsWith("#obsidian-heading-");
+  const needsWholeTree = Boolean(obsidian && (hasHeadingTarget || /\[\^|\^\[|%%/.test(markdown)));
+  const progressive = !needsWholeTree && needsProgressiveRender(markdown, chunks.length);
   const [visibleCount, setVisibleCount] = useState(() => batchCount(chunks, 0, FIRST_BATCH_CHARS));
+  const fetchedTargets = useObsidianTargets(obsidian?.userId, hasNoteLinks && !lightweight && !obsidian?.targets);
+  const targets = obsidian?.targets ?? fetchedTargets;
+  const attachments = useMemo(() => {
+    const refs = new Map<string, AttachmentRef | null>();
+    if (!hasWiki) return refs;
+    for (const { sha256, name } of extractAttachmentRefs(markdown)) {
+      const ref = parseAttachmentDestination(`attachments/${sha256}--${name}`);
+      if (!ref) continue;
+      const key = normalizeObsidianName(ref.name);
+      if (refs.has(key) && refs.get(key)?.sha256 !== sha256) refs.set(key, null);
+      else refs.set(key, ref);
+    }
+    return refs;
+  }, [markdown, hasWiki]);
+  const remarkPlugins = obsidian ? OBSIDIAN_PLUGINS : STANDARD_PLUGINS;
+  const rehypePlugins: ComponentProps<typeof ReactMarkdown>["rehypePlugins"] = [
+    ...(highlightMemoTags ? [rehypeMemoTags] : []),
+    ...(obsidian ? [[rehypeKatex, KATEX_OPTIONS] as [typeof rehypeKatex, typeof KATEX_OPTIONS]] : []),
+  ];
+  const remarkRehypeOptions = obsidian ? { footnoteLabel: "脚注", footnoteBackLabel: "返回脚注引用",
+    clobberPrefix: obsidian.trail ? `obsidian-${obsidian.itemId}-` : undefined } : undefined;
 
   // 文档换了就回到首屏批次。
   useEffect(() => {
@@ -125,10 +167,38 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
     return () => cancelIdle(handle);
   }, [progressive, visibleCount, chunks]);
 
+  useEffect(() => {
+    if (!obsidian || obsidian.trail) return;
+    const scroll = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash.startsWith("obsidian-")) return;
+      try { document.getElementById(decodeURIComponent(hash))?.scrollIntoView(); } catch { /* Invalid URL escape. */ }
+    };
+    scroll();
+    window.addEventListener("hashchange", scroll);
+    return () => window.removeEventListener("hashchange", scroll);
+  }, [obsidian?.itemId, obsidian?.trail, visibleCount]);
+
   /** 渲染序内每个复选框的序号（文档序稳定），供 onToggleTask 定位源文本行。 */
   const counter = useMemo(() => ({ ordinal: 0 }), [markdown]);
   counter.ordinal = 0;
+  const wikiReference = (block: boolean, props: { node?: unknown; [key: string]: unknown }) => {
+    const { node, children, ...attributes } = props;
+    void node;
+    const label = children as ReactNode;
+    if (obsidian && attributes["data-obsidian-reference"]) {
+      return <ObsidianReference block={block} data={attributes} label={label} view={obsidian} source={markdown}
+        attachments={attachments} targets={targets} encryptedAttachmentItemId={attachmentItemId}
+        renderEmbedded={(body, next) => <MarkdownView markdown={body} obsidian={next} className="markdown-content md-body" />} />;
+    }
+    const tag = attributes["data-obsidian-tag"];
+    if (obsidian && typeof tag === "string" && !attachmentItemId) {
+      return <a className="mn-memo-tag" href={appRoutePath({ kind: "notes", section: { kind: "tag", tag } })}>{label}</a>;
+    }
+    return block ? <div {...attributes}>{label}</div> : <span {...attributes}>{label}</span>;
+  };
   const components: Record<string, (props: { node?: unknown; [key: string]: unknown }) => ReactNode> = {
+    ...(obsidian ? { span: (props) => wikiReference(false, props), div: (props) => wikiReference(true, props) } : {}),
     input(props) {
       const { node, checked, type, ...rest } = props;
       void node;
@@ -149,13 +219,30 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
       const link = typeof href === "string" ? href : undefined;
       const attachment = link && parseAttachmentDestination(link);
       if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} {...attachment}>{children as ReactNode}</UnlockedAttachment>;
-      return <a {...rest} href={resolveSrc(link)}>{children as ReactNode}</a>;
+      let resolved = resolveSrc(link);
+      if (obsidian && link && !attachment && !rest["data-footnote-ref"] && !rest["data-footnote-backref"]) {
+        const noteLink = /^(?![a-z][a-z\d+.-]*:|\/)([^#?]*\.m(?:d|arkdown))?(?:#([^?]+))?$/i.exec(link);
+        if (noteLink) {
+          try {
+            const path = noteLink[1] ? decodeURIComponent(noteLink[1]).replace(/\.markdown$/i, ".md") : "";
+            const heading = noteLink[2] ? decodeURIComponent(noteLink[2]) : "";
+            const id = path ? obsidianNoteTarget(targets, path) : obsidian.itemId;
+            const anchor = heading.startsWith("^") ? obsidianAnchor({ blockId: heading.slice(1) }) : obsidianAnchor({ heading });
+            if (id && (path || (anchor && !heading.startsWith("obsidian-")))) {
+              resolved = `${path ? itemRoutePath(id) : ""}${anchor ? `#${encodeURIComponent(anchor)}` : ""}`;
+            }
+          } catch { /* Keep links with malformed escapes in their original form. */ }
+        }
+      }
+      return <a {...rest} href={resolved}>{children as ReactNode}</a>;
     },
     img(props) {
       const { node, ...rest } = props as { node?: unknown; src?: unknown; alt?: unknown; [key: string]: unknown };
       void node;
       const src = typeof rest.src === "string" ? rest.src : undefined;
-      const alt = typeof rest.alt === "string" ? rest.alt : "";
+      let alt = typeof rest.alt === "string" ? rest.alt : "";
+      const size = obsidian ? /^(?:(.*?)\|)?([1-9]\d{0,4})(?:x([1-9]\d{0,4}))?$/.exec(alt) : null;
+      if (size) alt = size[1] ?? (typeof rest.title === "string" ? rest.title : "");
       const attachment = src && parseAttachmentDestination(src);
       if (attachment && attachmentItemId) return <UnlockedAttachment itemId={attachmentItemId} sha256={attachment.sha256} name={alt || attachment.name} image />;
       const imgProps: Record<string, unknown> = { ...rest };
@@ -169,6 +256,8 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
           {...imgProps}
           src={resolved}
           alt={alt}
+          width={size ? Number(size[2]) : undefined}
+          height={size?.[3] ? Number(size[3]) : undefined}
           loading="lazy"
           className={imageClass || undefined}
           {...(onImageClick && resolved ? {
@@ -216,7 +305,8 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
       },
     };
     return (
-      <ReactMarkdown key={key} remarkPlugins={[remarkGfm, remarkTextColorForRender]} rehypePlugins={highlightMemoTags ? [rehypeMemoTags] : undefined} components={chunkComponents}>{chunk.text}</ReactMarkdown>
+      <ReactMarkdown key={key} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}
+        remarkRehypeOptions={remarkRehypeOptions} components={chunkComponents}>{chunk.text}</ReactMarkdown>
     );
   };
 
@@ -242,7 +332,8 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
 
   return (
     <div className={className ?? "md-body"}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTextColorForRender]} rehypePlugins={highlightMemoTags ? [rehypeMemoTags] : undefined} components={components}>{markdown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}
+        remarkRehypeOptions={remarkRehypeOptions} components={components}>{markdown}</ReactMarkdown>
     </div>
   );
 }

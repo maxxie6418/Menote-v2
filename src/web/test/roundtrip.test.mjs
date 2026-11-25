@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { parseText, preserveUnchanged, RoundTripGuard } from "../src/features/editor/roundtrip.ts";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
+
+const bundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/features/editor/roundtrip.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "node",
+});
+const { parseText, preserveUnchanged, RoundTripGuard } = await import(
+  `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
+);
 
 /** PoC 证据：14 项语料，其中 8 项会被序列化器规范化改写。 */
 const evidence = JSON.parse(await readFile(new URL("../poc/evidence.json", import.meta.url), "utf8"));

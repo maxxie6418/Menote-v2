@@ -26,6 +26,19 @@ test("frontmatter round-trip preserves untouched keys verbatim (FR-PROP-7)", () 
   assert.match(twice, /'quoted key': "保持 原样 # 引号"/);
 });
 
+test("Obsidian native properties retain dates, scalar list types and structured data through editing", () => {
+  const markdown = "---\r\nfinished: false\r\nmeeting: 2026-11-25T12:30:00\r\nrelated: [1, true, '[[Note]]']\r\ncustom: { key: [hi, 7] } # comment\r\n---\r\n\r\n\r\nBody\r\n";
+  const related = fm.readPropRows(markdown, fm.PROPS_KEY).find((row) => row.key === "related");
+  assert.deepEqual(related.listValues, [1, true, "[[Note]]"]);
+  assert.deepEqual(fm.parsePropertyList('[0, false, "[[Link]]"]'), [0, false, "[[Link]]"]);
+  assert.equal(fm.parsePropertyList("[nested: [true]]"), null);
+  const next = fm.renameProp(fm.writeValue(markdown, "related", [0, false, "[[Link]]"]), fm.PROPS_KEY, "custom", "renamed");
+  assert.deepEqual(fm.parseFrontmatterData(next), { finished: false, meeting: "2026-11-25T12:30:00", related: [0, false, "[[Link]]"], renamed: { key: ["hi", 7] } });
+  assert.match(next, /# comment\r\n/);
+  assert.ok(next.endsWith("---\r\n\r\n\r\nBody\r\n"));
+  assert.ok(fm.replaceMarkdownBody(next, "Edited").endsWith("---\r\n\r\n\r\nEdited"));
+});
+
 test("reserved namespaces props/fields carry type definitions (开放项 #5)", () => {
   let markdown = "正文";
   markdown = fm.writeDef(markdown, fm.PROPS_KEY, "due", { type: "date", label: "截止日" });

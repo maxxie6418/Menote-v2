@@ -152,8 +152,12 @@ function safeFilename(title: string): string {
 }
 
 /** Memo 导出按约定生成 YAML + Markdown；Note 保持原始 .md（FR-SYNC-6）。 */
-function itemMarkdown(item: Item): string {
+async function itemMarkdown(item: Item): Promise<string> {
   const content = item.content.scope === "plain" ? item.content.markdown : "";
+  if (item.type === "note") {
+    const { obsidianExportMarkdown } = await import("../lib/noteProperties");
+    return obsidianExportMarkdown(item);
+  }
   if (item.type !== "memo") return content;
   const front = [
     "---",
@@ -170,7 +174,7 @@ function itemMarkdown(item: Item): string {
 export async function exportNoteZip(userId: string, item: Item): Promise<{ ok: true } | { ok: false; error: string }> {
   void userId;
   if (item.content.scope !== "plain") return { ok: false, error: "locked" };
-  return exportAttachmentZip(item.title ?? "memo", itemMarkdown(item), fetchAttachmentBlob);
+  return exportAttachmentZip(item.title ?? "memo", await itemMarkdown(item), fetchAttachmentBlob);
 }
 
 /** An export either includes every attachment or fails without producing an incomplete ZIP. */
@@ -202,10 +206,10 @@ export async function exportAttachmentZip(title: string, markdown: string,
 }
 
 /** 纯 .md 导出（可选；正文附件引用将断链，调用方提示）。 */
-export function exportNoteMarkdown(item: Item): void {
+export async function exportNoteMarkdown(item: Item): Promise<void> {
   if (item.content.scope !== "plain") return;
   const name = safeFilename(item.title ?? "memo");
-  downloadBlob(new Blob([itemMarkdown(item)], { type: "text/markdown" }), `${name}.md`);
+  downloadBlob(new Blob([await itemMarkdown(item)], { type: "text/markdown" }), `${name}.md`);
 }
 
 /** 断链提示依据（FR-SYNC-9）。 */

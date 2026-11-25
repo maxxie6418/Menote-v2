@@ -45,6 +45,8 @@
   --app-text-color-blue: #2459a6;
   --app-text-color-purple: #7046a6;
   --app-text-color-gray: #6c6f6b;
+  --md-obsidian-highlight-mix: 26%;
+  --app-selection-toolbar-max: calc(100vw - var(--app-space-md) * 2);
   --app-paper-bg: #fffdf8;
   --app-paper-fg: #1a1a18;
   --app-paper-border: #dedbd2;
@@ -160,6 +162,7 @@
   --app-mobile-record-size: 2.75rem;
   --app-mobile-record-color: var(--app-accent-text);
   --app-mobile-title-size: 1.5rem;
+  --app-mobile-doc-title-size: 1.375rem;
   --app-mobile-body-size: 0.9375rem;
   --app-mobile-content-pad: 1rem;
   --app-mobile-composer-half-top: 9.375rem;
@@ -268,7 +271,7 @@
   --app-doc-measure-narrow: 42rem;
   --app-doc-measure-wide: 56rem;
   --app-doc-measure: var(--app-doc-measure-narrow);
-  --app-doc-title-size: 2.25rem;   /* 36px 文档标题（DESIGN §3 / design.html .doc-title） */
+  --app-doc-title-size: 1.875rem;  /* 30px 文档标题（DESIGN §3） */
   --app-icon-xs: 0.875rem;         /* 14px 小按钮内图标（原 12px，2026-11-10 上抬） */
   --app-icon-xxs: 0.625rem;        /* 10px 树箭头/拖柄：这是字形槽不是按钮图标，尺寸被树连接线
                                       几何锁死（--app-tree-guide-x = 行内边距 + 槽中心），不可上抬 */
@@ -325,6 +328,7 @@
   --app-context-menu-max-width: calc(100vw - 1rem);
   --app-context-menu-max-height: min(20rem, calc(100dvh - 1.25rem));
   --app-context-menu-z: 30;
+  --app-editor-palette-z: calc(var(--app-immersive-z) + 1);
   --app-perf-panel-width: 22rem;     /* 性能诊断面板（FR-EDT-10，诊断模式才出现） */
   --app-perf-panel-z: 40;
   --app-logo-size: 1.375rem;       /* 22px 侧栏品牌图标 */
@@ -448,6 +452,7 @@
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
   --app-formatbtn-size: 1.75rem;    /* 格式栏图标按钮 28px 见方（原 24px） */
+  --app-editor-font-scale: 1;
   --app-table-cell-min: 7.5rem;       /* 表格单元格最小宽（弹窗网格与文档表格共用） */
   --app-table-colw-0: 7.5rem; --app-table-colw-1: 9rem; --app-table-colw-2: 10.5rem; --app-table-colw-3: 12rem;
   --app-table-colw-4: 14rem; --app-table-colw-5: 17rem; --app-table-colw-6: 20rem; --app-table-colw-7: 24rem;
@@ -475,7 +480,8 @@
   /* 文档渲染（--md-* 首版与外壳同源，FR-STYLE-2 后分叉） */
   --md-body-size: 0.875rem;
   --md-body-leading: 1.78;
-  --md-body-weight: 400;
+  --md-body-default-weight: 400;
+  --md-note-body-weight: 500;
   --md-body-color: var(--app-fg-muted);
   --md-block-intrinsic-size: 3rem;   /* 渐进渲染：离屏块的占位高度（FR-EDT-10） */
   --md-h1-size: 2rem;
@@ -799,7 +805,7 @@
   --app-radius-xl: .75rem;
   --app-font-serif: var(--app-font);
   --app-weight-serif: 600;
-  --app-doc-title-size: 2.125rem;
+  --app-doc-title-size: 1.75rem;
   /* 编辑器默认文字色板 */
   --app-text-color-red: #c2412d;
   --app-text-color-orange: #b45309;
@@ -980,3 +986,11 @@
   --app-surface-raised: #232322; --app-canvas-bg: #232322;
   --app-paper-bg: #232322; --app-paper-fg: #dcdcd7; --app-paper-border: rgba(255, 255, 255, .1);
 }
+
+.mn-editor-host[data-font-size="80"] { --app-editor-font-scale: .8; }
+.mn-editor-host[data-font-size="90"] { --app-editor-font-scale: .9; }
+.mn-editor-host[data-font-size="110"] { --app-editor-font-scale: 1.1; }
+.mn-editor-host[data-font-size="120"] { --app-editor-font-scale: 1.2; }
+.mn-editor-host[data-font-size="130"] { --app-editor-font-scale: 1.3; }
+.mn-editor-host[data-font-size="140"] { --app-editor-font-scale: 1.4; }
+.mn-editor-host[data-font-size="150"] { --app-editor-font-scale: 1.5; }

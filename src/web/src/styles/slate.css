@@ -22,8 +22,8 @@
 }
 :root[data-skin="slate"] .mn-docbar { border-bottom-color: var(--app-border-subtle); }
 :root[data-skin="slate"] .mn-doc-foot { border-top-color: var(--app-border-subtle); }
-/* 抬头收束：标签行下方压一条 1px 线，把「角标 / 标题 / 日期 / 属性 / 标签」关成一块 */
-:root[data-skin="slate"] .mn-doc[data-form="note"] .mn-doc-tags {
+/* 日期与标签共用信息行，整行用细线与下方内容分隔。 */
+:root[data-skin="slate"] .mn-doc[data-form="note"] .mn-doc-meta {
   padding-bottom: var(--app-space-12);
   border-bottom: var(--app-line) solid var(--app-border);
 }

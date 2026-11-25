@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, Download, Eye, Lock, Pencil, Shield, ShieldOff, Focus } from "../../icons";
+import { ChevronLeft, Code, Download, Eye, Lock, Pencil, Shield, ShieldOff, Focus } from "../../icons";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import type { Item } from "@menote/shared";
-import { NoteEditor } from "../editor";
+import { NoteEditor, type EditorKind } from "../editor";
+import { replaceMarkdownBody, splitFrontmatter } from "../../lib/frontmatter";
 import { MarkdownView } from "../markdown";
 import { TableDocument } from "../table";
 import { useItem, useLockVersion } from "../../services/contentHooks";
@@ -36,6 +37,7 @@ interface EncryptedNoteViewProps {
 export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: EncryptedNoteViewProps) {
   useLockVersion();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [editorKind, setEditorKind] = useState<EditorKind>("wysiwyg");
   const [plain, setPlain] = useState<string | null>(null);
   // 脏计数：编辑器的 onInput 只是「正文变了」的信号，不带正文（FR-EDT-10）。
   const [dirtyTick, setDirtyTick] = useState(0);
@@ -59,7 +61,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const conflictSource = useItem(userId, item.conflictOf ?? null);
   const inSpace = item.content.scope === "private_space";
   const plainFlow = plain !== null && unlocked;
-  const notePosition = useNoteViewPosition(userId, item.id, mode === "preview" ? "preview" : "wysiwyg",
+  const notePosition = useNoteViewPosition(userId, item.id, mode === "preview" ? "preview" : editorKind,
     plainFlow && item.type === "note", true);
 
   useEffect(() => {
@@ -191,13 +193,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
     }
   };
 
-  const switchMode = async (next: "edit" | "preview") => {
-    if (next === mode || viewChanging.current || !plainFlow || attachmentMigrationRef.current) return;
-    if (next === "edit") {
-      notePosition.rememberPosition();
-      setMode(next);
-      return;
-    }
+  const saveBeforeChange = async (apply: () => void) => {
+    if (viewChanging.current || !plainFlow || attachmentMigrationRef.current) return;
     if (hasPendingSealedAttachmentUpload(item.id)) return;
     viewChanging.current = true;
     try {
@@ -206,12 +203,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
           || await flush(value)));
       if (!saved || !isNoteUnlocked(item.id)) return;
       notePosition.rememberPosition();
-      setMode(next);
+      apply();
     } catch (cause) {
       setSaveState({ kind: "error", message: String(cause) });
     } finally {
       viewChanging.current = false;
     }
+  };
+
+  const switchMode = (next: "edit" | "preview") => {
+    if (next !== mode) void saveBeforeChange(() => setMode(next));
   };
 
   const migrateAttachments = async () => {
@@ -307,6 +308,9 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
                   disabled={migratingAttachments}
                   onClick={() => void switchMode("preview")}><Eye /></button>
               </span>
+              {mode === "edit" && item.type === "note" && <button type="button" className="mn-iconbtn" aria-label="源码模式"
+                title="源码模式" aria-pressed={editorKind === "source"} disabled={migratingAttachments}
+                onClick={() => void saveBeforeChange(() => setEditorKind((current) => current === "source" ? "wysiwyg" : "source"))}><Code /></button>}
             </>
           )}
         </span>
@@ -334,7 +338,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={plain} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview" />}
+        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={splitFrontmatter(plain).body} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview"
+          obsidian={{ userId, itemId: item.id }} />}
         {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}
@@ -351,12 +356,16 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
         {plainFlow && mode === "edit" && item.type !== "table" && (
           <NoteEditor
             mode="edit"
-            kind="wysiwyg"
-            externalMarkdown={plain}
+            userId={userId}
+            kind={editorKind}
+            externalMarkdown={editorKind === "source" ? plain : splitFrontmatter(plain).body}
             onInput={() => setDirtyTick((n) => n + 1)}
             attachmentItemId={item.id}
             uploadFile={(file, onProgress) => uploadSealedAttachment(userId, item.id, file, onProgress)}
-            registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
+            registerGetMarkdown={(get) => { getMarkdownRef.current = get && (() => {
+              const markdown = get();
+              return editorKind === "source" ? markdown : replaceMarkdownBody(plainRef.current ?? "", markdown);
+            }); }}
             registerCursor={notePosition.registerCursor}
             registerApplyExternal={() => {}}
           />

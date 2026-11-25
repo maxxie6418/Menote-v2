@@ -376,6 +376,24 @@ test("content write from a metadata-stale client keeps the server-side metadata 
   });
 });
 
+test("YAML tag edits sync with the Note body while preserving a concurrent title edit", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const id = "obsidian-tags";
+    await post(mf, cookie, [itemOp(id, { rev: 1, metaRev: 1 })]);
+    await post(mf, cookie, [metaItemOp(id, { rev: 1, baseRev: 1, baseMetaRev: 1, metaRev: 2, title: "新标题", tags: ["旧标签"] })]);
+    const markdown = "---\ntags: []\n---\n\n正文";
+    const body = itemOp(id, { rev: 2, baseRev: 1, baseMetaRev: 1, metaRev: 2, markdown });
+    body.noteTagsFromContent = true;
+    const result = (await (await post(mf, cookie, [body])).json()).results[0];
+    assert.equal(result.result, "applied");
+    assert.equal(result.metaRev, 3);
+    const db = await mf.getD1Database("DB");
+    const row = await db.prepare("SELECT title, tags_json, content_markdown, meta_rev FROM items WHERE id = ?").bind(id).first();
+    assert.deepEqual(row, { title: "新标题", tags_json: "[]", content_markdown: markdown, meta_rev: 3 });
+  });
+});
+
 test("conflict copies keep their link to the source item (G2 §5-2)", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

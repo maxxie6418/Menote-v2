@@ -15,6 +15,8 @@ import type { EditorAdapter } from "./EditorAdapter";
 import { textColorMark, textColorRemark, isAllowedTextColor } from "./textColorPlugin";
 import type { BlockAction, InlineAction } from "./markdownEdit";
 import { unlockedImageView } from "./unlockedImageView";
+import { hasNoteTextStyle, NOTE_TEXT_STYLES, noteUnderlineInput, noteUnderlineMark, noteUnderlineRemark, toggleNoteTextStyle, type NoteTextStyle } from "./extendedTextStyles";
+import { finishObsidianBlock, obsidianEditor } from "./obsidianEditor";
 
 /**
  * markdown 前缀长度（UTF-16 字符数）。
@@ -82,6 +84,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ctx.set(defaultValueCtx, options.initialMarkdown);
         ctx.update(editorViewOptionsCtx, (previous) => ({
           ...previous,
+          handleKeyDown: (view, event) => finishObsidianBlock(view, event) || previous.handleKeyDown?.(view, event) || false,
           attributes: { class: "md-body mn-editor-prose" },
           ...(options.attachmentItemId ? {
             nodeViews: { ...previous.nodeViews, image: (node: Node) => unlockedImageView(node, options.attachmentItemId!) },
@@ -104,6 +107,10 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       .use(gfm)
       .use(textColorMark)
       .use(textColorRemark)
+      .use(noteUnderlineMark)
+      .use(noteUnderlineRemark)
+      .use(noteUnderlineInput)
+      .use(obsidianEditor)
       .use(history)
       .use(listener)
       .create();
@@ -207,6 +214,34 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
       const match = /^\/([^/\n]*)$/.exec(line);
       if (!match) return null;
       return { query: match[1] ?? "" };
+    });
+  }
+
+  getWikiLinkContext(): { query: string; from: number; embed: boolean } | null {
+    if (!this.editor) return null;
+    return this.editor.action((ctx) => {
+      const { selection } = ctx.get(editorViewCtx).state;
+      const head = selection.$head;
+      if (!selection.empty || !head.parent.isTextblock || head.parent.type.spec.code || head.marks().some((mark) => mark.type.spec.code)) return null;
+      const before = head.parent.textBetween(0, head.parentOffset, "", "\uFFFC");
+      const match = /(?<![\\\[])!?\[\[([^\[\]|#\n\uFFFC]*)$/.exec(before);
+      return match ? { query: match[1] ?? "", from: head.pos - match[0].length, embed: match[0].startsWith("!") } : null;
+    });
+  }
+
+  insertWikiLink(path: string, label: string): boolean {
+    const range = this.getWikiLinkContext();
+    if (!range || !this.editor) return false;
+    return this.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const type = view.state.schema.nodes.obsidianInline;
+      if (!type) return false;
+      const raw = `${range.embed ? "!" : ""}[[${path}${label === path || range.embed ? "" : `|${label}`}]]`;
+      const node = type.create({ syntax: range.embed ? "obsidianWikiEmbed" : "obsidianWikilink", raw, label });
+      const transaction = view.state.tr.replaceWith(range.from, view.state.selection.head, node);
+      view.dispatch(transaction.setSelection(TextSelection.create(transaction.doc, range.from + node.nodeSize)).scrollIntoView());
+      view.focus();
+      return true;
     });
   }
 
@@ -395,6 +430,22 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
     });
   }
 
+  activeTextStyles(): NoteTextStyle[] {
+    if (!this.editor) return [];
+    return this.editor.action((ctx) => {
+      const { state } = ctx.get(editorViewCtx);
+      return NOTE_TEXT_STYLES.map(({ id }) => id).filter((style) => hasNoteTextStyle(state, style));
+    });
+  }
+
+  toggleTextStyle(style: NoteTextStyle): void {
+    this.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.dispatch(toggleNoteTextStyle(view.state, style));
+      view.focus();
+    });
+  }
+
   getCursorPosition(): { start: number; end: number } {
     if (!this.editor) return { start: 0, end: 0 };
     return this.editor.action((ctx) => {
@@ -440,6 +491,7 @@ export class MilkdownWysiwygAdapter implements EditorAdapter {
         ? transaction.addMark(from, to, markType.create({ color }))
         : transaction.removeMark(from, to, markType);
       view.dispatch(transaction.scrollIntoView());
+      view.focus();
       return true;
     });
   }

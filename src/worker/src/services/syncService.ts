@@ -108,6 +108,8 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   }
   // 正文操作必带 contentHash（G2 §3 推送协议）；缺省即元数据操作。
   const contentOp = operation.contentHash !== undefined;
+  const noteTagsFromContent = contentOp && operation.noteTagsFromContent === true
+    && current?.type === "note" && !current.encrypted && item.type === "note" && item.content.scope === "plain";
   if (current && contentOp) {
     // §5-1 正文一致收敛：版本落后也不算冲突，不生成冲突副本。
     const sameContent = item.contentHash === current.contentHash;
@@ -133,10 +135,10 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
       return conflictResult(operation.operationId, current);
     }
   }
-  // 版本推进：正文写 rev+1 且 meta_rev 不动；元数据写 meta_rev+1 且 rev 不动（G2 §1）。
+  // 版本推进：正文推进 rev，元数据推进 meta_rev；明文笔记的 YAML 标签跟随正文提交。
   const rev = current ? (contentOp ? Math.max(item.rev, current.rev + 1) : current.rev) : Math.max(item.rev, 1);
   const metaRev = current
-    ? (contentOp ? Math.max(item.metaRev, current.metaRev) : Math.max(item.metaRev, current.metaRev + 1))
+    ? (contentOp && !noteTagsFromContent ? Math.max(item.metaRev, current.metaRev) : Math.max(item.metaRev, current.metaRev + 1))
     : Math.max(item.metaRev, 1);
   // 客户端的元数据版本落后（他端改过元数据）时，正文照落、元数据保持服务端值（G2 §5-3 服务端胜出）。
   const metadataStale = current ? operation.baseMetaRev !== current.metaRev : false;
@@ -145,8 +147,8 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
     // 元数据写只落元数据列：正文与正文版本号保持服务端原值（避免把尚未上传的正文提前写进服务端）。
     statements.push(updateItemMetaStatement(ctx.db, ctx.userId, ctx.deviceId, item, metaRev));
   } else if (current && metadataStale) {
-    // 正文写 + 元数据落后：窄写正文列，不连带覆盖服务端更新的标题/标签/归属。
-    statements.push(updateItemContentStatement(ctx.db, ctx.userId, ctx.deviceId, item, rev));
+    // 元数据落后时保留服务端更新；YAML 标签索引属于这次正文写。
+    statements.push(updateItemContentStatement(ctx.db, ctx.userId, ctx.deviceId, item, rev, noteTagsFromContent ? metaRev : undefined));
   } else {
     statements.push(upsertItemRowStatement(ctx.db, ctx.userId, ctx.deviceId, item, rev, metaRev));
   }

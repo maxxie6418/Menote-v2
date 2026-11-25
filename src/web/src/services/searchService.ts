@@ -2,6 +2,8 @@ import type { Item, TopicNode } from "@menote/shared";
 import { parseEnvelope } from "./encryptionCommandService";
 import { isNoteUnlocked, readPlain } from "./keyringService";
 import { isHiddenPrivateItem } from "./privateSpaceService";
+import { effectiveNoteTags, readNoteAliases } from "../lib/noteProperties";
+import { splitFrontmatter } from "../lib/frontmatter";
 
 /** 本地检索命中（FR-IA-10）。摘要只来自可展示的明文，不缓存正文副本。 */
 export interface SearchHit {
@@ -22,7 +24,8 @@ export function displayTitle(item: Item): string {
   const named = item.title?.trim();
   if (named) return named;
   if (item.content.scope === "plain") {
-    const line = item.content.markdown.split("\n").map((row) => row.trim()).find(Boolean);
+    const markdown = item.type === "note" ? splitFrontmatter(item.content.markdown).body : item.content.markdown;
+    const line = markdown.split("\n").map((row) => row.trim()).find(Boolean);
     if (line) return line.replace(/^#{1,6}\s*/, "").slice(0, 80);
   }
   return item.type === "memo" ? "无标题 Memo" : "无标题";
@@ -54,7 +57,7 @@ export function filterItems(items: Item[], query: string): Item[] {
   const tokens = searchTokens(query);
   if (!tokens.length) return items;
   return items.filter((item) => {
-    const titleBlob = `${displayTitle(item)}\n${item.tags.join(" ")}`.toLocaleLowerCase();
+    const titleBlob = `${displayTitle(item)}\n${searchableProperties(item)}`.toLocaleLowerCase();
     const bodyBlob = item.content.scope === "plain" ? item.content.markdown.toLocaleLowerCase() : "";
     return tokens.every((token) => titleBlob.includes(token) || bodyBlob.includes(token));
   });
@@ -71,6 +74,11 @@ async function readableBody(item: Item): Promise<{ text: string; locked: boolean
   }
 }
 
+function searchableProperties(item: Item): string {
+  const aliases = item.type === "note" && item.content.scope === "plain" ? readNoteAliases(item.content.markdown) : [];
+  return [...effectiveNoteTags(item), ...aliases].join(" ");
+}
+
 /** 全局检索。多词为“同时包含”。锁定加密条目只匹配标题、标签和主题名（FR-ENC-5）。 */
 export async function searchLocalItems(items: Item[], topics: TopicNode[], query: string): Promise<SearchHit[]> {
   const tokens = searchTokens(query);
@@ -79,7 +87,7 @@ export async function searchLocalItems(items: Item[], topics: TopicNode[], query
   for (const item of items) {
     if (item.deletedAt !== null || isHiddenPrivateItem(item, topics)) continue;
     const title = displayTitle(item);
-    const titleBlob = `${title}\n${item.tags.join(" ")}\n${topicLabel(item, topics)}`.toLocaleLowerCase();
+    const titleBlob = `${title}\n${searchableProperties(item)}\n${topicLabel(item, topics)}`.toLocaleLowerCase();
     const body = await readableBody(item);
     const bodyBlob = body.text.toLocaleLowerCase();
     if (!tokens.every((token) => titleBlob.includes(token) || bodyBlob.includes(token))) continue;
