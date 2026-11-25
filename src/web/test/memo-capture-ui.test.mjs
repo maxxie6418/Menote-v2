@@ -24,7 +24,7 @@ const stubs = {
   attachmentService: "export const uploadAttachment = (...args) => globalThis.testUploadAttachment(...args);",
   contentHooks: [
     "export const useAllTags = () => [], useLocalSearch = () => [], useRecentItems = () => [];",
-    "export const useHomeSnapshot = () => ({ items: [], topics: [] });",
+    "export const useHomeSnapshot = () => ({ items: [], topics: [], inboxCount: 0, recentInboxItems: [] });",
   ].join("\n"),
 };
 const bundle = await build({

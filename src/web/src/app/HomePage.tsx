@@ -18,6 +18,16 @@ function formatTime(timestamp: number): string {
   return date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
 }
 
+function HomeDocumentRow({ item, timestamp, onOpenItem }: {
+  item: Item; timestamp: number; onOpenItem: (item: Item) => void;
+}) {
+  return <button type="button" className="mn-home-document" onClick={() => onOpenItem(item)}>
+    <span className="mn-home-document-icon">{item.type === "table" ? <Table2 /> : <FilePlus2 />}</span>
+    <span className="mn-home-document-title">{item.title || "无标题"}</span>
+    <time>{formatTime(timestamp)}</time>
+  </button>;
+}
+
 function HomeStamp({ now }: { now: Date }) {
   return <div className="mn-home-stamp"><time>{now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time><span>{now.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })}</span></div>;
 }
@@ -84,13 +94,13 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
   }, []);
   const hits = useLocalSearch(userId, query);
   const searching = query.trim().length > 0;
-  const snapshot = useHomeSnapshot(userId);
+  const { items, topics, inboxCount, recentInboxItems } = useHomeSnapshot(userId);
   const recent = useRecentItems(userId);
   // 私人空间无论锁定与否都不进首页最近列表与搜索结果（与 Memo 侧栏、移动端同一口径）。
-  const privateIds = alwaysHiddenPrivateTopicIds(snapshot.topics);
+  const privateIds = alwaysHiddenPrivateTopicIds(topics);
   const visible = (item: Item) => item.topicId === null || !privateIds.has(item.topicId);
-  const documents = snapshot.items.filter((item) => item.type !== "memo" && visible(item));
-  const memos = snapshot.items.filter((item) => item.type === "memo" && visible(item));
+  const documents = items.filter((item) => item.type !== "memo" && visible(item));
+  const memos = items.filter((item) => item.type === "memo" && visible(item));
   const today = new Date(clock); today.setHours(0, 0, 0, 0);
   const todayMemos = memos.filter((item) => item.createdAt >= today.getTime());
   const recentDocuments = recent.filter((item) => item.type !== "memo" && visible(item)).slice(0, 4);
@@ -101,7 +111,6 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
     return { day, count };
   });
   const maxCount = Math.max(1, ...week.map((day) => day.count));
-  const inboxCount = documents.filter((item) => item.topicId === null && item.source !== "manual").length;
   const continueItem = recentDocuments[0];
   const hour = clock.getHours();
   const greeting = hour < 6 ? "夜深了" : hour < 11 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
@@ -130,8 +139,19 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
             <button type="button" onClick={() => onNavigate({ kind: "inbox" })}><span className="mn-home-action-icon"><ArrowUpRight /></span><span><strong>收件箱</strong><small>{inboxCount} 条待整理</small></span></button>
             <button type="button" onClick={() => searchRef.current?.focus()}><span className="mn-home-action-icon"><Search /></span><span><strong>搜索</strong><small>笔记与随记</small></span></button>
           </nav>
+          <section className="mn-home-recent" aria-label="收件箱">
+            <div className="mn-home-recent-heading">
+              <span>收件箱</span>
+              <button type="button" aria-label={`查看全部收件箱条目，${inboxCount} 条`} onClick={() => onNavigate({ kind: "inbox" })}>全部 {inboxCount} 条</button>
+            </div>
+            {recentInboxItems.length ? recentInboxItems.map((item) => (
+              <HomeDocumentRow key={item.id} item={item} timestamp={item.createdAt} onOpenItem={onOpenItem} />
+            )) : <p className="mn-home-empty">收件箱为空</p>}
+          </section>
           <section className="mn-home-recent" aria-label="最近文档"><div className="mn-home-recent-heading"><span>最近文档</span><button type="button" onClick={() => onNavigate({ kind: "recent" })}>全部 {documents.length} 篇</button></div>
-            {recentDocuments.length ? recentDocuments.map((item) => <button type="button" className="mn-home-document" key={item.id} onClick={() => onOpenItem(item)}><span className="mn-home-document-icon">{item.type === "table" ? <Table2 /> : <FilePlus2 />}</span><span className="mn-home-document-title">{item.title || "无标题"}</span><time>{formatTime(item.updatedAt)}</time></button>) : <p className="mn-home-empty">还没有最近编辑的文档</p>}
+            {recentDocuments.length ? recentDocuments.map((item) => (
+              <HomeDocumentRow key={item.id} item={item} timestamp={item.updatedAt} onOpenItem={onOpenItem} />
+            )) : <p className="mn-home-empty">还没有最近编辑的文档</p>}
           </section>
         </>}
         {searching && <section className="mn-home-search-results"><div className="mn-home-recent-heading"><span>搜索结果</span><button type="button" onClick={() => setQuery("")}>清除</button></div>{hits === undefined ? <p className="mn-home-empty">正在查找…</p> : hits.length ? hits.filter((hit) => visible(hit.item)).map((hit) => <button type="button" className="mn-home-document" key={hit.item.id} onClick={() => onOpenItem(hit.item)}><span className="mn-home-document-icon">{hit.item.type === "table" ? <Table2 /> : <FilePlus2 />}</span><span className="mn-home-document-title">{hit.title}</span><time>{hit.item.type === "memo" ? "Memo" : hit.item.type === "table" ? "表格" : "笔记"}</time></button>) : <p className="mn-home-empty">没有匹配的内容</p>}</section>}
