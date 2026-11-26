@@ -121,7 +121,6 @@
 .mn-dialog-settings .mn-dlg-nav { overflow-y: auto; min-height: var(--app-zero); }
 .mn-settings-nav-group { display: grid; gap: var(--app-line); }
 .mn-settings-nav-group a:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-space-2) * -1); }
-.mn-settings-nav-group a[aria-current="page"] { box-shadow: inset var(--app-space-2) var(--app-zero) var(--app-accent); }
 .mn-dlg-content { min-width: var(--app-zero); overscroll-behavior: contain; }
 .mn-settings-page { display: grid; gap: var(--app-space-18); max-width: var(--app-main-width); margin-inline: auto; min-width: var(--app-zero); }
 .mn-settings-page > .mn-backup { margin-inline: var(--app-zero); }

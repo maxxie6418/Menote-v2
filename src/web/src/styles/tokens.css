@@ -385,10 +385,8 @@
   --app-shadow-seg: 0 1px 1px rgba(26, 26, 24, 0.08);
   --app-shadow-seg-lift: 0 1px 2px rgba(26, 26, 24, 0.12);
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(120, 60, 0, 0.16);
-  /* 选中态左侧强调条已于 0.2.89 移除（负责人反馈不喜欢选中框左边的颜色条）：
-     --app-selected-bar-side / --app-selected-bar-list 删除；top/bottom 保留（底部导航与移动端筛选底条）。 */
+  /* 底部导航的选中标记。 */
   --app-selected-bar-top: inset 0 0.125rem 0 var(--app-accent);
-  --app-selected-bar-bottom: inset 0 -0.125rem 0 var(--app-accent);
   --app-hairline-inset: inset 0 0 0 var(--app-line) var(--app-border);
   --app-overlay-bg: rgba(26, 26, 24, 0.4);
   --app-drawer-hidden: translateX(-100%);

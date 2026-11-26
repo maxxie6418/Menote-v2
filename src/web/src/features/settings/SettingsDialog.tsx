@@ -82,7 +82,7 @@ export function SettingsDialog({ userId, section, onClose, onSectionChange }: Se
               <div className="mn-settings-nav-group" key={group.label}>
                 <p className="mn-nav-label">{group.label}</p>
                 {group.entries.filter(entry => entry.id !== "ai" || aiAvailable).map(entry => (
-                  <a key={entry.id} href={`/settings/${entry.id}`} className={section === entry.id ? "on" : ""}
+                  <a key={entry.id} href={`/settings/${entry.id}`}
                     aria-current={section === entry.id ? "page" : undefined}
                     onClick={event => {
                       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
