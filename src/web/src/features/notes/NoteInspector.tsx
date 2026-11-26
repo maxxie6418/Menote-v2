@@ -2,20 +2,23 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import { X } from "../../icons";
 
-export type NoteInspectorTab = "annotations" | "scripts";
+export type NoteInspectorInfoTab = "properties" | "outline";
+export type NoteInspectorDiscussionTab = "annotations" | "scripts";
 
 interface NoteInspectorProps {
   open: boolean;
   onClose: () => void;
-  tab: NoteInspectorTab;
-  onTabChange: (tab: NoteInspectorTab) => void;
+  infoTab: NoteInspectorInfoTab;
+  onInfoTabChange: (tab: NoteInspectorInfoTab) => void;
+  discussionTab: NoteInspectorDiscussionTab;
+  onDiscussionTabChange: (tab: NoteInspectorDiscussionTab) => void;
   properties?: ReactNode;
   outline: ReactNode;
   annotations: ReactNode;
   versions: ReactNode;
 }
 
-export function NoteInspector({ open, onClose, tab, onTabChange, properties, outline, annotations, versions }: NoteInspectorProps) {
+export function NoteInspector({ open, onClose, infoTab, onInfoTabChange, discussionTab, onDiscussionTabChange, properties, outline, annotations, versions }: NoteInspectorProps) {
   const inspectorRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -61,9 +64,22 @@ export function NoteInspector({ open, onClose, tab, onTabChange, properties, out
           <button ref={closeRef} type="button" className="mn-iconbtn" aria-label="关闭侧栏" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         <div className="mn-inspector-scroll">
-          {properties}
-          {outline}
-          <Tabs.Root className="mn-inspector-section" value={tab} onValueChange={onTabChange}>
+          {properties ? (
+            <Tabs.Root className="mn-inspector-section" value={infoTab} onValueChange={onInfoTabChange}>
+              <Tabs.List className="mn-inspector-tablist" aria-label="属性与大纲">
+                <Tabs.Tab className="mn-inspector-tab" value="properties">属性</Tabs.Tab>
+                <Tabs.Tab className="mn-inspector-tab" value="outline">大纲</Tabs.Tab>
+              </Tabs.List>
+              <Tabs.Panel className="mn-inspector-panel" value="properties" keepMounted>{properties}</Tabs.Panel>
+              <Tabs.Panel className="mn-inspector-panel" value="outline">{outline}</Tabs.Panel>
+            </Tabs.Root>
+          ) : (
+            <section className="mn-inspector-section">
+              <header className="mn-inspector-section-head"><h2 className="mn-inspector-heading">大纲</h2></header>
+              {outline}
+            </section>
+          )}
+          <Tabs.Root className="mn-inspector-section" value={discussionTab} onValueChange={onDiscussionTabChange}>
             <Tabs.List className="mn-inspector-tablist" aria-label="批注与脚本">
               <Tabs.Tab className="mn-inspector-tab" value="annotations">批注</Tabs.Tab>
               <Tabs.Tab className="mn-inspector-tab" value="scripts">脚本</Tabs.Tab>

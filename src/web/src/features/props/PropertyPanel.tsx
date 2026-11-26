@@ -23,6 +23,7 @@ interface PropertyPanelProps {
   /** 写回经统一文档更新链路（FR-PROP-3）：产出新 markdown，由上层走 saveItemContent 保存。 */
   onSave: (next: string) => Promise<boolean> | boolean | void;
   onMoveToTop?: () => void;
+  active?: boolean;
 }
 
 /**
@@ -38,7 +39,7 @@ interface PropertyPanelProps {
  * 网格是清单，定义过就留一行淡破折。纯带内类型（单选 / 复选框）没有值时不渲染，
  * 因为它们在网格里没有可读的「空」形态。
  */
-export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop }: PropertyPanelProps) {
+export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop, active = true }: PropertyPanelProps) {
   const sidebar = onMoveToTop !== undefined;
   const rows = useMemo(() => readPropRows(markdown, PROPS_KEY), [markdown]);
   const invalid = useMemo(() => tryParseFrontmatterData(markdown) === null, [markdown]);
@@ -74,6 +75,14 @@ export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop }:
   const stripRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+
+  // 属性面板保留撤销状态，切到其他页签时关闭挂在页面根部的浮层。
+  useLayoutEffect(() => {
+    if (active) return;
+    setAdding(null);
+    setSettings(null);
+    setOptionPick(null);
+  }, [active]);
 
   /* 单列 / 双列看「文档栏宽」而不是窗口宽度：ResizeObserver 盯住属性区自身 */
   useEffect(() => {
@@ -347,7 +356,7 @@ export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop }:
   return (
     <section ref={sectionRef} className="mn-props" data-columns={sidebar ? 1 : columns} data-placement={sidebar ? "side" : undefined} aria-label="属性区">
       <div className="mn-props-head">
-        {sidebar ? <h2 className="mn-props-title">属性</h2> : <span className="mn-props-title">属性</span>}
+        {!sidebar && <span className="mn-props-title">属性</span>}
         <span className="mn-props-count">{rows.length}{sidebar && " 项"}</span>
         {sidebar && <button type="button" className="mn-textbtn mn-props-move" onClick={onMoveToTop}>移至顶部</button>}
         <button

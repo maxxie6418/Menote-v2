@@ -17,7 +17,7 @@ import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment 
 import { OrganizeDialog } from "./OrganizeDialog";
 import { DocTitle } from "./DocTitle";
 import { NoteTags } from "./NoteTags";
-import { NoteInspector, type NoteInspectorTab } from "./NoteInspector";
+import { NoteInspector, type NoteInspectorDiscussionTab, type NoteInspectorInfoTab } from "./NoteInspector";
 import { TemplatePicker, type TemplateOption } from "./TemplatePicker";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
@@ -79,7 +79,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const previewHostRef = useRef<HTMLDivElement>(null);
   const [versionRows, setVersionRows] = useState<VersionRow[]>([]);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [inspectorTab, setInspectorTab] = useState<NoteInspectorTab>("annotations");
+  const [inspectorInfoTab, setInspectorInfoTab] = useState<NoteInspectorInfoTab>("properties");
+  const [inspectorDiscussionTab, setInspectorDiscussionTab] = useState<NoteInspectorDiscussionTab>("annotations");
   const inspectorPropertiesRef = useRef<HTMLDivElement>(null);
   const closeInspector = useCallback(() => setInspectorOpen(false), []);
   const [selectedQuote, setSelectedQuote] = useState("");
@@ -118,7 +119,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       setAnnotationError(null);
       setAnnotationId(newId());
       setAnnotationOpen(true);
-      setInspectorTab("annotations");
+      setInspectorDiscussionTab("annotations");
       setInspectorOpen(true);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -788,10 +789,12 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         <NoteInspector
           open={inspectorOpen}
           onClose={closeInspector}
-          tab={inspectorTab}
-          onTabChange={setInspectorTab}
-          properties={propsPos === "side" && <div ref={inspectorPropertiesRef} className="mn-inspector-section">
-            <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} onMoveToTop={movePropertiesToTop} />
+          infoTab={inspectorInfoTab}
+          onInfoTabChange={setInspectorInfoTab}
+          discussionTab={inspectorDiscussionTab}
+          onDiscussionTabChange={setInspectorDiscussionTab}
+          properties={propsPos === "side" && <div ref={inspectorPropertiesRef}>
+            <PropertyPanel active={inspectorInfoTab === "properties"} userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} onMoveToTop={movePropertiesToTop} />
           </div>}
           outline={<OutlinePanel hostRef={mode === "preview" ? previewHostRef : outlineHostRef} kind={mode === "preview" ? "preview" : editorKind} variant="inspector" onNavigate={closeInspector} />}
           annotations={(
@@ -843,6 +846,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           onApplySummary={async (summary) => {
             const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
             if (saved && propsPos === "side") {
+              setInspectorInfoTab("properties");
               setInspectorOpen(true);
               requestAnimationFrame(() => inspectorPropertiesRef.current?.scrollIntoView({ block: "start" }));
             }
