@@ -14,7 +14,7 @@ export const SETTINGS_CACHE = {
   ai: (userId: string) => `ai.settings:${userId}`,
   usage: "ai.usage",
   raindrop: (userId: string) => `raindrop.settings:${userId}`,
-  raindropStatus: "raindrop.status",
+  raindropStatus: (userId: string) => `raindrop.status:${userId}`,
   attachments: (userId: string, cursor = "") => `attachments:${userId}:${cursor}`,
   attachmentRefs: (userId: string) => `attachment.refs:${userId}`,
   clipTemplates: "clip.templates",

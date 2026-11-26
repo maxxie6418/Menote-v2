@@ -61,10 +61,12 @@ function runDetailText(detail: string | null): string {
 const STATUS_LABELS = { ok: "成功", partial: "部分完成", failed: "失败" } as const;
 
 /** Raindrop 连接器面板（TP9）：令牌、搜索选取表格、立即拉取、同步记录与快照信息。 */
-export function RaindropPanel({ userId }: { userId: string }) {
+export function RaindropPanel({ userId, active }: { userId: string; active: boolean }) {
   const snapshot = useHomeSnapshot(userId);
   const tables = useMemo(() => bindableTables(snapshot.items, snapshot.topics), [snapshot.items, snapshot.topics]);
-  const [status, setStatus] = useState<RaindropStatusView | null>(() => peek<RaindropStatusView | null>(SETTINGS_CACHE.raindropStatus) ?? null);
+  const statusKey = SETTINGS_CACHE.raindropStatus(userId);
+  const [status, setStatus] = useState<RaindropStatusView | null>(() => peek<RaindropStatusView | null>(statusKey) ?? null);
+  const [statusFailed, setStatusFailed] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [pulling, setPulling] = useState(false);
@@ -79,18 +81,34 @@ export function RaindropPanel({ userId }: { userId: string }) {
   const [confirmChecked, setConfirmChecked] = useState(false);
 
   const refresh = (fresh = false) => {
-    void loadShared(SETTINGS_CACHE.raindropStatus, () => readRaindropStatus(), fresh).then((value) => { if (value) setStatus(value); }).catch(() => undefined);
+    setStatusFailed(false);
+    void loadShared(statusKey, () => readRaindropStatus(), fresh).then((value) => {
+      if (value) setStatus(value);
+      else setStatusFailed(true);
+    }).catch(() => setStatusFailed(true));
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    if (active) {
+      refresh();
+      return;
+    }
+    setTokenDraft("");
+    setConfirmChecked(false);
+  }, [active]);
 
   useEffect(() => {
-    if (!status?.hasToken) return;
-    void readRaindropCollections().then(setCollections).catch((error) => {
+    if (!active || !status?.hasToken) return;
+    let cancelled = false;
+    void readRaindropCollections().then((value) => {
+      if (!cancelled) setCollections(value);
+    }).catch((error) => {
+      if (cancelled) return;
       setCollections([]);
       setMessage(error instanceof Error ? error.message : "收藏夹读取失败");
     });
-  }, [status?.hasToken]);
+    return () => { cancelled = true; };
+  }, [active, status?.hasToken]);
 
   const binding = status?.binding ?? null;
 
@@ -137,6 +155,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
   };
 
   const runs = status?.runs ?? [];
+  const hasTables = tables.length > 0;
   const needle = query.trim().toLowerCase();
   const resolvedQuery = query.trim() ? resolveItemId(query) : "";
   const shown = tables.filter((item) => {
@@ -167,15 +186,21 @@ export function RaindropPanel({ userId }: { userId: string }) {
     }, "");
   };
 
+  const statusError = statusFailed ? <p className="mn-settings-notice is-error" role="alert">
+    读取 Raindrop 配置失败。{" "}<button type="button" className="mn-statuslink" onClick={() => refresh(true)}>重新读取</button>
+  </p> : null;
+  if (!status) return statusError ?? <p className="mn-settings-empty" role="status">正在读取配置…</p>;
+
   return (
     <div className="mn-settings-stack">
       {message && <p className="mn-settings-notice" role="status">{message}</p>}
+      {statusError}
 
       <SettingsGroup title="连接账号">
         <div className="mn-setrow">
           <div>
             <p className="mn-setlabel">Raindrop 访问令牌<InfoHint>
-              粘贴 Test Token 后自动验证并加密保存；也可手动输入后点“验证并保存”。令牌不会显示或回传。
+              粘贴 Test Token 会自动验证并加密保存，可替换已有令牌。手动输入后需点击「验证并保存」。
             </InfoHint></p>
           </div>
           {status?.hasToken
@@ -185,7 +210,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
         </div>
         <div className="mn-setrow">
           <input type="password" className="mn-propinput mn-raindrop-token-input" aria-label="Raindrop 访问令牌" autoComplete="off"
-            placeholder={status?.hasToken ? "已验证（粘贴新令牌可替换）" : "粘贴 Raindrop Test Token"}
+            placeholder={status.hasToken ? "已验证" : "粘贴 Raindrop Test Token"}
             value={tokenDraft} onChange={(event) => setTokenDraft(event.target.value)} onPaste={handleTokenPaste} />
           <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy || !tokenDraft.trim()}
             onClick={() => validateAndSaveToken(tokenDraft.trim())}>
@@ -199,29 +224,26 @@ export function RaindropPanel({ userId }: { userId: string }) {
         <div className="mn-setrow">
           <div>
             <p className="mn-setlabel">选择表格<InfoHint>
-              可按标题搜索明文多维表格，也可粘贴该表格的链接。连接时会补齐「行 ID」列并开始首轮拉取。
+              仅可绑定私人空间之外的明文多维表格。连接时会补齐「行 ID」列，立即拉取收藏，并按频率自动同步。
             </InfoHint></p>
           </div>
         </div>
         <div className="mn-tablepick">
-          <input type="search" className="mn-propselect" aria-label="搜索表格" placeholder="搜索表格标题，或粘贴 /n/ 链接"
+          <input type="search" className="mn-propselect" aria-label={hasTables ? "搜索表格" : "暂无可绑定表格"}
+            placeholder={hasTables ? "搜索标题或粘贴链接" : "暂无可绑定表格"} disabled={!hasTables}
             value={query} onChange={(event) => setQuery(event.target.value)} />
-          <p className="mn-sethint">
-            {selected
-              ? `已选：${selected.title || "无标题"}`
-              : selectedId ? "已选当前绑定（本机列表里暂时没有这张表）" : "请选择一张表格"}
-          </p>
-          <div className="mn-tablepick-list" role="listbox" aria-label="可绑定的表格">
-            {shown.length === 0
-              ? <p className="mn-sethint">没有可绑定的明文表格。先新建一张不在私人空间里的多维表格。</p>
-              : shown.map((item) => (
-                <button key={item.id} type="button" role="option" aria-selected={item.id === selectedId}
-                  className={item.id === selectedId ? "on" : ""} onClick={() => setSelectedId(item.id)}>
-                  <span>{item.title || "无标题"}</span>
-                  <span>{topicLabel(item, snapshot.topics)}</span>
-                </button>
-              ))}
-          </div>
+          {selectedId && <p className="mn-sethint">{selected ? `已选：${selected.title || "无标题"}` : "已选当前绑定表格"}</p>}
+          {shown.length > 0
+            ? <div className="mn-tablepick-list" role="listbox" aria-label="可绑定的表格">
+                {shown.map((item) => (
+                  <button key={item.id} type="button" role="option" aria-selected={item.id === selectedId}
+                    className={item.id === selectedId ? "on" : ""} onClick={() => setSelectedId(item.id)}>
+                    <span>{item.title || "无标题"}</span>
+                    <span>{topicLabel(item, snapshot.topics)}</span>
+                  </button>
+                ))}
+              </div>
+            : hasTables && <p className="mn-sethint" role="status">没有匹配的表格</p>}
         </div>
         <div className="mn-setrow">
           <select className="mn-propselect" aria-label="Raindrop 收藏范围" value={collectionDraft}
@@ -270,18 +292,18 @@ export function RaindropPanel({ userId }: { userId: string }) {
         </div>}
 
         {binding
-          ? <div className="mn-setrow">
-              <div>
-                <p className="mn-setlabel">当前绑定</p>
-                <p className="mn-sethint">
-                  表格 {bound?.title || binding.tableItemId} · 收藏范围 {binding.collectionId === 0 ? "全部" : `收藏夹 ${binding.collectionId}`}
-                  · 频率 {INTERVAL_LABELS[binding.pullIntervalHours] ?? `${binding.pullIntervalHours} 小时`}
-                  · 上次拉取 {formatTime(binding.lastPullAt)} · 上次推送 {formatTime(binding.lastPushAt)}
-                  · 最新快照 {formatTime(binding.lastSnapshotAt)}（远端原始 JSON 保存在实例附件目录，作风险兜底）
-                </p>
-              </div>
+          ? <div>
+              <p className="mn-setlabel">当前绑定</p>
+              <dl className="mn-settings-metrics">
+                <div><dt>表格</dt><dd>{bound?.title || binding.tableItemId}</dd></div>
+                <div><dt>收藏范围</dt><dd>{binding.collectionId === 0 ? "全部" : `收藏夹 ${binding.collectionId}`}</dd></div>
+                <div><dt>自动拉取</dt><dd>{INTERVAL_LABELS[binding.pullIntervalHours] ?? `${binding.pullIntervalHours} 小时`}</dd></div>
+                <div><dt>上次拉取</dt><dd>{formatTime(binding.lastPullAt)}</dd></div>
+                <div><dt>上次推送</dt><dd>{formatTime(binding.lastPushAt)}</dd></div>
+                <div><dt>最新快照</dt><dd>{formatTime(binding.lastSnapshotAt)}</dd></div>
+              </dl>
             </div>
-          : <p className="mn-sethint">尚未绑定表格；绑定后定时拉取才会执行。</p>}
+          : null}
 
       </SettingsGroup>
 
@@ -339,25 +361,23 @@ export function RaindropPanel({ userId }: { userId: string }) {
           </SettingsGroup>
         : null}
 
-      <SettingsGroup title="最近同步记录">
-          {runs.length === 0
-            ? <p className="mn-sethint">暂无记录；绑定并拉取后逐次登记推/拉条数与冲突。</p>
-            : <ul className="mn-raindrop-run-list">
-                {runs.map((run) => (
-                  <li key={run.id} className="mn-sethint">
-                    <div className="mn-raindrop-run-summary">
-                      <strong>{STATUS_LABELS[run.status]}</strong>
-                      <span>{formatTime(run.finishedAt)} · {run.direction === "pull" ? "拉取" : "推送"}（{run.source === "manual" ? "手动" : "定时"}）</span>
-                      <span>{runSummary(run)}</span>
-                    </div>
-                    {run.detail && <details className="mn-raindrop-run-error">
-                      <summary>查看错误详情</summary>
-                      <p>{runDetailText(run.detail)}</p>
-                    </details>}
-                  </li>
-                ))}
-              </ul>}
-      </SettingsGroup>
+      {runs.length > 0 && <SettingsGroup title="最近同步记录">
+        <ul className="mn-raindrop-run-list">
+          {runs.map((run) => (
+            <li key={run.id} className="mn-sethint">
+              <div className="mn-raindrop-run-summary">
+                <strong>{STATUS_LABELS[run.status]}</strong>
+                <span>{formatTime(run.finishedAt)} · {run.direction === "pull" ? "拉取" : "推送"}（{run.source === "manual" ? "手动" : "定时"}）</span>
+                <span>{runSummary(run)}</span>
+              </div>
+              {run.detail && <details className="mn-raindrop-run-error">
+                <summary>查看错误详情</summary>
+                <p>{runDetailText(run.detail)}</p>
+              </details>}
+            </li>
+          ))}
+        </ul>
+      </SettingsGroup>}
     </div>
   );
 }

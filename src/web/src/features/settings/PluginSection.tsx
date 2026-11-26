@@ -1,41 +1,63 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings, type RaindropSettings } from "@menote/shared";
+import { Bookmark } from "../../icons";
 import { readRaindropSettings, updateRaindropSettings } from "../../services/raindropSettingsService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
+import { PluginSettingsRow } from "./PluginSettingsRow";
 import { RaindropPanel } from "./RaindropPanel";
 
-/** 插件设置节（FR-EXT-3，TP9）：默认关闭；启用才渲染 Raindrop 面板。开关不影响应用其余功能。 */
-export function PluginSection({ userId }: { userId: string }) {
+export function PluginSection({ userId, mobile }: { userId: string; mobile: boolean }) {
+  return <ul className="mn-plugin-list" aria-label="内置插件">
+    <RaindropPlugin key={userId} userId={userId} mobile={mobile} />
+  </ul>;
+}
+
+function RaindropPlugin({ userId, mobile }: { userId: string; mobile: boolean }) {
   const [settings, setSettings] = useState<RaindropSettings | null>(() => {
     const cached = peek<RaindropSettings | null>(SETTINGS_CACHE.raindrop(userId));
-    if (cached === undefined) return null;
-    return cached ? normalizeRaindropSettings(cached) : { ...DEFAULT_RAINDROP_SETTINGS };
+    return cached === undefined ? null : normalizeRaindropSettings(cached ?? DEFAULT_RAINDROP_SETTINGS);
   });
+  const [readAttempt, setReadAttempt] = useState(0);
+  const [readFailed, setReadFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = (fresh: boolean) => {
-      void loadShared(SETTINGS_CACHE.raindrop(userId), () => readRaindropSettings(userId), fresh).then((value) => {
-        // 无本地记录时服务返回 null，由调用方回退默认（关闭）。不能把 null 一直当成加载中，否则开关永远禁用。
-        if (!cancelled) setSettings(value ? normalizeRaindropSettings(value) : { ...DEFAULT_RAINDROP_SETTINGS });
-      });
+    let latestRead = 0;
+    const refresh = async (fresh: boolean) => {
+      const read = ++latestRead;
+      try {
+        const value = await loadShared(SETTINGS_CACHE.raindrop(userId), () => readRaindropSettings(userId), fresh);
+        if (cancelled || read !== latestRead) return;
+        setSettings(normalizeRaindropSettings(value ?? DEFAULT_RAINDROP_SETTINGS));
+        setReadFailed(false);
+      } catch {
+        if (!cancelled && read === latestRead) setReadFailed(true);
+      }
     };
-    refresh(false);
-    const onChange = () => refresh(true);
+    void refresh(readAttempt > 0);
+    const onChange = () => { void refresh(true); };
     window.addEventListener("menote:raindrop-settings", onChange);
     return () => { cancelled = true; window.removeEventListener("menote:raindrop-settings", onChange); };
-  }, [userId]);
+  }, [readAttempt, userId]);
 
-  const enabled = settings?.enabled ?? false;
-  return <div className="mn-settings-stack">
-    <section className="mn-settings-card mn-settings-status" aria-label="Raindrop 连接器">
-      <div className="mn-settings-heading">
-        <div><h3>Raindrop 连接器</h3><p className="mn-sethint">定时拉取收藏到多维表格，也可预览本地改动后手动推送。</p></div>
-        <label className="mn-settings-toggle"><input type="checkbox" aria-label="启用插件" checked={enabled} disabled={!settings}
-          onChange={(event) => void updateRaindropSettings(userId, { enabled: event.target.checked }).then(setSettings)} />
-          {settings ? enabled ? "已启用" : "已停用" : "正在读取…"}</label>
-      </div>
-    </section>
-    {enabled && <RaindropPanel userId={userId} />}
-  </div>;
+  const toggle = async (enabled: boolean) => {
+    setSaving(true);
+    setSaveFailed(false);
+    try {
+      setSettings(await updateRaindropSettings(userId, { enabled }));
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <PluginSettingsRow name="Raindrop 连接器" description="在 Raindrop 与多维表格之间同步收藏。"
+    icon={Bookmark} mobile={mobile} enabled={settings?.enabled ?? null} saving={saving} readFailed={readFailed}
+    saveFailed={saveFailed} onToggle={(enabled) => void toggle(enabled)} onRetry={() => {
+      setReadFailed(false);
+      setReadAttempt((attempt) => attempt + 1);
+    }} renderConfig={(active) => <RaindropPanel userId={userId} active={active} />} />;
 }

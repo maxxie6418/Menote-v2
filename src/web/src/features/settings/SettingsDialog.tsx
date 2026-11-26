@@ -104,6 +104,7 @@ export function SettingsDialog({ userId, section, mobile, onClose, onSectionChan
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || document.getElementById("mn-confirm-title")) return;
+      if (event.target instanceof Element && event.target.closest(".mn-plugin-dialog")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -192,7 +193,7 @@ export function SettingsDialog({ userId, section, mobile, onClose, onSectionChan
               {page === "recovery" && <RecoverySection userId={userId} />}
               {page === "ai" && (aiAvailable ? <AiSection userId={userId} /> : <p className="mn-settings-empty" role="status">{aiAvailable === null ? "正在检查可用性…" : "此实例尚未配置 AI 助手。"}</p>)}
               {page === "clipTemplates" && <ClipTemplateManager />}
-              {page === "plugins" && <PluginSection userId={userId} />}
+              {page === "plugins" && <PluginSection userId={userId} mobile={mobile} />}
             </div>
           </div>}
         </div>
