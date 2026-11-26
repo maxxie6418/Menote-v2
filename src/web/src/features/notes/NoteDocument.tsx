@@ -17,6 +17,7 @@ import { exportNoteMarkdown, exportNoteZip, hasAttachmentRefs, uploadAttachment 
 import { OrganizeDialog } from "./OrganizeDialog";
 import { DocTitle } from "./DocTitle";
 import { NoteTags } from "./NoteTags";
+import { NoteInspector, type NoteInspectorTab } from "./NoteInspector";
 import { TemplatePicker, type TemplateOption } from "./TemplatePicker";
 import { EncryptedNoteView } from "./EncryptedNoteView";
 import { HistoryPanel } from "../versions";
@@ -75,23 +76,23 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const item = useItem(userId, noteId);
   const [editorHost, setEditorHost] = useState<HTMLDivElement | null>(null);
   const outlineHostRef = useMemo(() => ({ current: editorHost }), [editorHost]);
+  const previewHostRef = useRef<HTMLDivElement>(null);
   const [versionRows, setVersionRows] = useState<VersionRow[]>([]);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<NoteInspectorTab | null>(null);
+  const closeInspector = useCallback(() => setInspectorOpen(false), []);
   const [selectedQuote, setSelectedQuote] = useState("");
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [annotationId, setAnnotationId] = useState<string | null>(null);
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationError, setAnnotationError] = useState<string | null>(null);
-  const documentRootRef = useRef<HTMLElement>(null);
-  const inspectorRef = useRef<HTMLElement>(null);
-  const inspectorCloseRef = useRef<HTMLButtonElement>(null);
   const readSelectedQuote = useCallback((target?: EventTarget | null): string => {
     if (target instanceof HTMLTextAreaElement) {
       return target.value.slice(target.selectionStart, target.selectionEnd).trim().slice(0, 4_000);
     }
     const selection = window.getSelection();
     const node = selection?.anchorNode;
-    const preview = documentRootRef.current?.querySelector(".mn-doc-preview");
+    const preview = previewHostRef.current;
     if (!selection || selection.isCollapsed || !node) return "";
     if (!editorHost?.contains(node) && !preview?.contains(node)) return "";
     return selection.toString().trim().slice(0, 4_000);
@@ -103,28 +104,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     void listVersions(item.id).then((rows) => { if (current) setVersionRows(rows); });
     return () => { current = false; };
   }, [item?.id, item?.rev]);
-  useEffect(() => {
-    if (!inspectorOpen) return;
-    const layout = document.querySelector<HTMLElement>(".mn-shell")?.dataset.layout;
-    if (layout !== "compact" && layout !== "tablet" && layout !== "mobile") return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inspectorCloseRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); setInspectorOpen(false); return; }
-      if (event.key !== "Tab") return;
-      const nodes = inspectorRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])');
-      if (!nodes?.length) return;
-      const first = nodes[0]!;
-      const last = nodes[nodes.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      if (previous?.isConnected) previous.focus();
-    };
-  }, [inspectorOpen]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "m") return;
@@ -138,6 +117,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       setAnnotationError(null);
       setAnnotationId(newId());
       setAnnotationOpen(true);
+      setInspectorTab("annotations");
       setInspectorOpen(true);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -194,6 +174,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
   // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
   const [propsPos, setPropsPos] = useState(getPropsPlacement);
+  const defaultInspectorTab = propsPos === "side" ? "properties" : "outline";
+  const activeInspectorTab = inspectorTab === "properties" ? defaultInspectorTab : inspectorTab ?? defaultInspectorTab;
   const [toolbarPos, setToolbarPos] = useState(resolveToolbar);
   const [formatDock, setFormatDock] = useState<HTMLDivElement | null>(null);
   useEffect(() => subscribeDocLayout(() => {
@@ -201,37 +183,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
     setToolbarPos(resolveToolbar());
   }), []);
   const [focusMode, setFocusMode] = useState(false);
-  // 右侧检查器跟随正文起点；标题换行、属性展开、工具栏位置变化均重新测量。
-  useEffect(() => {
-    const root = documentRootRef.current;
-    const main = root?.querySelector<HTMLElement>(".mn-doc-main");
-    const inspector = inspectorRef.current;
-    if (!root || !main || !inspector) return;
-    let frame = 0;
-    const align = () => {
-      const body = main.querySelector<HTMLElement>(".mn-doc-preview, .mn-editor-host");
-      const heading = inspector.querySelector<HTMLElement>(".mn-inspector-outline .mn-inspector-section-head");
-      if (!body || !heading) return;
-      const inset = heading.getBoundingClientRect().top - inspector.getBoundingClientRect().top;
-      const viewportCenter = root.getBoundingClientRect().top + root.clientHeight / 2;
-      const bodyTop = body.getBoundingClientRect().top;
-      const offset = Math.max(0, Math.round((bodyTop + viewportCenter) / 2 - main.getBoundingClientRect().top - inset));
-      root.style.setProperty("--app-doc-inspector-offset", `${offset}px`);
-    };
-    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(align); };
-    const observer = new ResizeObserver(schedule);
-    observer.observe(main);
-    observer.observe(inspector);
-    for (const child of main.children) observer.observe(child);
-    window.addEventListener("resize", schedule);
-    schedule();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      window.removeEventListener("resize", schedule);
-      root.style.removeProperty("--app-doc-inspector-offset");
-    };
-  }, [item?.id, mode, editorHost, propsPos, toolbarPos]);
   const [aiAssist, setAiAssist] = useState(false);
   useEffect(() => {
     if (!focusMode) return;
@@ -665,9 +616,13 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const degradeDoc = () => {
     degradeTableToNote(userId, item.id).catch((cause) => setSaveState({ kind: "error", message: String(cause) }));
   };
+  const movePropertiesToTop = () => {
+    setPropsPlacement("top");
+    void updateAppearance(userId, { propsPos: "top" });
+  };
 
   return (
-    <article ref={documentRootRef} className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-editor={isTableDoc ? undefined : editorKind} data-focus={focusMode || undefined} data-inspector-open={inspectorOpen || undefined}
+    <article className="mn-doc" aria-label="文档区" data-form={isTableDoc ? "table" : "note"} data-mode={mode} data-editor={isTableDoc ? undefined : editorKind} data-focus={focusMode || undefined} data-inspector-open={inspectorOpen || undefined}
       onMouseUpCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onSelectCapture={(event) => { if (!(event.target instanceof Element) || !event.target.closest(".mn-doc-inspector")) captureSelectedQuote(event.target); }}
       onKeyUpCapture={(event) => { if (event.target instanceof Element && event.target.closest(".mn-editor-host")) captureSelectedQuote(event.target); }}>
@@ -678,7 +633,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           <>
             <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
             <span className="mn-docbar-div" aria-hidden="true" />
-            {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档检查器" : "打开文档检查器"} title="文档检查器" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
+            {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档侧栏" : "打开文档侧栏"} title="文档侧栏" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
             <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
           </>
         )}
@@ -743,7 +698,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           </>
         )}
       />
-      <div className="mn-docbody" inert={encrypting} ref={notePosition.scrollerRef}>
+      <div className="mn-doc-frame" inert={encrypting}>
+      <div className="mn-docbody" ref={notePosition.scrollerRef}>
         <div className="mn-doc-main">
         {recoveryText && (
           <p className="mn-conflictnote">
@@ -787,7 +743,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
         {plain && mode === "preview" && !isTableDoc && (
-          <MarkdownView markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview"
+          <MarkdownView ref={previewHostRef} markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview"
             obsidian={{ userId, itemId: item.id }} />
         )}
         {plain && isTableDoc && (
@@ -828,17 +784,18 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           />
         )}
         </div>
-        {!isTableDoc && <>
-          <button type="button" className="mn-doc-inspector-backdrop" aria-label="关闭文档检查器" onClick={() => setInspectorOpen(false)} />
-          <aside ref={inspectorRef} id="mn-doc-inspector" className="mn-doc-inspector" aria-label="文档检查器" data-open={inspectorOpen || undefined}>
-            <header className="mn-inspector-mobile-head"><strong>文档检查器</strong><button ref={inspectorCloseRef} type="button" className="mn-iconbtn" aria-label="关闭检查器" onClick={() => setInspectorOpen(false)}><X aria-hidden="true" /></button></header>
-            {propsPos === "side" && <section className="mn-inspector-section mn-inspector-properties" aria-label="属性">
-              <header className="mn-inspector-section-head"><h2>属性</h2><button type="button" className="mn-textbtn" onClick={() => setPropsPlacement("top")}>移至顶部</button></header>
-              <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} />
-            </section>}
-            <OutlinePanel hostRef={outlineHostRef} kind={editorKind} variant="inspector" markdown={mode === "preview" ? splitFrontmatter(draft ?? plain.markdown).body : undefined} />
+      </div>
+      {!isTableDoc && (
+        <NoteInspector
+          open={inspectorOpen}
+          onClose={closeInspector}
+          tab={activeInspectorTab}
+          onTabChange={setInspectorTab}
+          properties={propsPos === "side" && <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} onMoveToTop={movePropertiesToTop} />}
+          outline={<OutlinePanel hostRef={mode === "preview" ? previewHostRef : outlineHostRef} kind={mode === "preview" ? "preview" : editorKind} variant="inspector" onNavigate={closeInspector} />}
+          annotations={(
             <section className="mn-inspector-section mn-inspector-marginalia" aria-label="页边注">
-              <header className="mn-inspector-section-head"><h2>页边注</h2><span>{marginalia.length} 条</span></header>
+              <header className="mn-inspector-section-head"><span>{marginalia.length} 条批注</span></header>
               {marginalia.map((annotation) => <article className="mn-marginalia-card" key={annotation.id}>
                 {annotation.quote && <blockquote><mark>{annotation.quote}</mark></blockquote>}
                 <p>{annotation.note}</p>
@@ -849,16 +806,19 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
                 <textarea autoFocus value={annotationDraft} onChange={(event) => setAnnotationDraft(event.target.value)} aria-label="页边注内容" placeholder="写下这段文字的批注…" maxLength={4_000} />
                 {annotationError && <p role="alert">{annotationError}</p>}
                 <div><button type="button" className="mn-textbtn" onClick={() => { setAnnotationOpen(false); setAnnotationDraft(""); setAnnotationId(null); setAnnotationError(null); }}>取消</button><button type="submit" className="mn-textbtn" disabled={!annotationDraft.trim()}>保存批注</button></div>
-              </form> : <button type="button" className="mn-inspector-add-annotation" disabled={!selectedQuote} title={selectedQuote ? "添加页边注" : "选中正文后添加页边注"} onClick={() => { setAnnotationId(newId()); setAnnotationError(null); setAnnotationOpen(true); }}><MessageSquarePlus aria-hidden="true" />新建页边注</button>}
+              </form> : <button type="button" className="mn-inspector-add-annotation" disabled={!selectedQuote} onClick={() => { setAnnotationId(newId()); setAnnotationError(null); setAnnotationOpen(true); }}><MessageSquarePlus aria-hidden="true" />{selectedQuote ? "添加批注" : "选中正文后添加批注"}</button>}
             </section>
+          )}
+          versions={(
             <section className="mn-inspector-section mn-inspector-versions" aria-label="版本">
-              <header className="mn-inspector-section-head"><h2>版本</h2><button type="button" className="mn-textbtn" onClick={() => setHistory(true)}>全部</button></header>
-              {versionRows.length === 0 ? <p className="mn-outline-empty">保存后会在这里保留版本记录</p> : versionRows.slice(0, 3).map((version) => <button type="button" className="mn-inspector-version" key={version.id} onClick={() => setHistory(true)}>
+              <header className="mn-inspector-section-head"><button type="button" className="mn-textbtn" onClick={() => { closeInspector(); setHistory(true); }}>查看全部版本</button></header>
+              {versionRows.length === 0 ? <p className="mn-outline-empty">保存后会在这里保留版本记录</p> : versionRows.slice(0, 3).map((version) => <button type="button" className="mn-inspector-version" key={version.id} onClick={() => { closeInspector(); setHistory(true); }}>
                 <time dateTime={new Date(version.createdAt).toISOString()}>{formatDocumentUpdate(version.createdAt)}</time><span>{version.reason === "manual" ? "手动保存" : version.reason === "restore" ? "恢复前存档" : version.reason === "session" ? "会话存档" : "自动保存"}</span>
               </button>)}
             </section>
-          </aside>
-        </>}
+          )}
+        />
+      )}
       </div>
       {toolbarPos === "bottom" && mode === "edit" && !isTableDoc && (
         <div className="mn-formatdock" ref={setFormatDock} role="presentation" inert={encrypting} />
@@ -881,7 +841,10 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           markdown={aiMarkdown ?? (draft ?? item.content.markdown)}
           onApplySummary={async (summary) => {
             const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
-            if (saved && propsPos === "side") setInspectorOpen(true);
+            if (saved && propsPos === "side") {
+              setInspectorTab("properties");
+              setInspectorOpen(true);
+            }
             return saved;
           }}
           onApplyTags={async (recommended) => {

@@ -97,7 +97,10 @@ export function AnchoredPanel({ anchor, label, layoutKey, className = "mn-anchor
       onClose();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (panelRef.current?.contains(document.activeElement)) anchor.focus();
+      onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);

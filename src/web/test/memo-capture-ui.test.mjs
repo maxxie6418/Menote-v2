@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<div id='root'></div>", { url: "https://menote.test", pretendToBeVisual: true });
-for (const key of ["window", "document", "HTMLElement", "Event", "requestAnimationFrame"]) {
+const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "https://menote.test", pretendToBeVisual: true });
+for (const key of ["window", "document", "DOMParser", "HTMLElement", "Event", "requestAnimationFrame"]) {
   globalThis[key] = key === "requestAnimationFrame" ? dom.window[key].bind(dom.window) : dom.window[key];
 }
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
@@ -30,12 +30,13 @@ const stubs = {
 const bundle = await build({
   stdin: {
     contents: [
-      'export { createElement, act } from "react";',
+      'export { createElement, act, StrictMode } from "react";',
       'export { createRoot } from "react-dom/client";',
       'export { MemoCaptureProvider } from "./src/features/memo/useMemoCapture";',
       'export { QuickComposer } from "./src/features/memo/QuickComposer";',
       'export { HomePage } from "./src/app/HomePage";',
       'export { MobileComposer } from "./src/app/MobileComposer";',
+      'export { MarkdownView } from "./src/features/markdown";',
     ].join("\n"),
     resolveDir: fileURLToPath(new URL("..", import.meta.url)),
   },
@@ -52,7 +53,7 @@ const bundle = await build({
     },
   }],
 });
-const { createElement, act, createRoot, MemoCaptureProvider, QuickComposer, HomePage, MobileComposer } =
+const { createElement, act, StrictMode, createRoot, MemoCaptureProvider, QuickComposer, HomePage, MobileComposer, MarkdownView } =
   await import("data:text/javascript;base64," + Buffer.from(bundle.outputFiles[0].text).toString("base64"));
 
 async function withCapture(run) {
@@ -79,6 +80,21 @@ function submitShortcut(node, properties = {}) {
 
 const getText = () => document.querySelector("textarea");
 const quick = (props = {}) => createElement(QuickComposer, { userId: "test-user", ...props });
+
+test("Memo task checkboxes can be toggled while Note preview checkboxes stay read-only", async () => {
+  await withCapture(async (render) => {
+    const markdown = "- [ ] 第一项\n- [x] 第二项";
+    const changes = [];
+    await render(createElement(StrictMode, null, createElement(MarkdownView, { markdown, onToggleTask: (...change) => changes.push(change) })));
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    assert.equal(checkboxes[1].disabled, false);
+    await act(async () => checkboxes[1].click());
+    assert.deepEqual(changes, [[1, false]]);
+
+    await render(createElement(MarkdownView, { markdown }));
+    assert.equal(document.querySelector('input[type="checkbox"]').disabled, true);
+  });
+});
 
 test("side capture waits for IME, prevents duplicate save and retains edits entered while saving", async () => {
   await withCapture(async (render) => {

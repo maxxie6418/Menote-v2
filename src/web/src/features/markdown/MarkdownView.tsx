@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -27,6 +27,7 @@ import {
 
 interface MarkdownViewProps {
   markdown: string;
+  ref?: Ref<HTMLDivElement>;
   /** 传入时任务复选框可点击（FR-MEMO-3）；不传则复选框只读（Note 预览态）。 */
   onToggleTask?: (ordinal: number, checked: boolean) => void;
   /** 传入时图片可用鼠标或键盘打开预览；Memo 时间线使用。 */
@@ -56,6 +57,20 @@ interface HastNode {
 
 function rehypeMemoTags() {
   return (tree: unknown) => decorateMemoTags(tree as HastNode);
+}
+
+/** 任务顺序在 Markdown 树中确定，重复渲染不会改变序号。 */
+function rehypeTaskOrdinals(taskBase: number) {
+  return (tree: unknown) => {
+    let ordinal = taskBase;
+    const visit = (node: HastNode) => {
+      if (node.tagName === "input" && node.properties?.type === "checkbox") {
+        node.properties.dataTaskOrdinal = ordinal++;
+      }
+      for (const child of node.children ?? []) visit(child);
+    };
+    visit(tree as HastNode);
+  };
 }
 
 function decorateMemoTags(node: HastNode): void {
@@ -111,7 +126,7 @@ function cancelIdle(handle: { kind: "idle" | "timer"; id: number }): void {
 }
 
 /** Markdown 渲染（md-* tokens 驱动样式）；不支持的语法由渲染器降级显示，不改写内容（C-1）。 */
-export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMemoTags = false, className, attachmentItemId, obsidian }: MarkdownViewProps) {
+export function MarkdownView({ markdown, ref, onToggleTask, onImageClick, highlightMemoTags = false, className, attachmentItemId, obsidian }: MarkdownViewProps) {
   // 渲染耗时基线（FR-EDT-10 / W0）：渲染开始 → 布局提交完成。诊断关闭时不打点。
   const renderStart = perfProbe.isEnabled ? performance.now() : 0;
   const renderStartRef = useRef(renderStart);
@@ -150,6 +165,8 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
     ...(highlightMemoTags ? [rehypeMemoTags] : []),
     ...(obsidian ? [[rehypeKatex, KATEX_OPTIONS] as [typeof rehypeKatex, typeof KATEX_OPTIONS]] : []),
   ];
+  const pluginsFor = (taskBase: number): ComponentProps<typeof ReactMarkdown>["rehypePlugins"] =>
+    onToggleTask ? [...rehypePlugins, [rehypeTaskOrdinals, taskBase]] : rehypePlugins;
   const remarkRehypeOptions = obsidian ? { footnoteLabel: "脚注", footnoteBackLabel: "返回脚注引用",
     clobberPrefix: obsidian.trail ? `obsidian-${obsidian.itemId}-` : undefined } : undefined;
 
@@ -179,9 +196,6 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
     return () => window.removeEventListener("hashchange", scroll);
   }, [obsidian?.itemId, obsidian?.trail, visibleCount]);
 
-  /** 渲染序内每个复选框的序号（文档序稳定），供 onToggleTask 定位源文本行。 */
-  const counter = useMemo(() => ({ ordinal: 0 }), [markdown]);
-  counter.ordinal = 0;
   const wikiReference = (block: boolean, props: { node?: unknown; [key: string]: unknown }) => {
     const { node, children, ...attributes } = props;
     void node;
@@ -200,16 +214,14 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
   const components: Record<string, (props: { node?: unknown; [key: string]: unknown }) => ReactNode> = {
     ...(obsidian ? { span: (props) => wikiReference(false, props), div: (props) => wikiReference(true, props) } : {}),
     input(props) {
-      const { node, checked, type, ...rest } = props;
-      void node;
-      if (type !== "checkbox" || !onToggleTask) {
-        return <input type="checkbox" checked={Boolean(checked)} disabled readOnly {...rest} />;
+      const { node, checked, type, "data-task-ordinal": _ordinal, ...rest } = props;
+      const ordinal = (node as HastNode | undefined)?.properties?.dataTaskOrdinal;
+      if (type !== "checkbox" || !onToggleTask || typeof ordinal !== "number") {
+        return <input type="checkbox" checked={Boolean(checked)} {...rest} disabled readOnly />;
       }
-      const ordinal = counter.ordinal;
-      counter.ordinal += 1;
       return (
         <input
-          type="checkbox" checked={Boolean(checked)} {...rest}
+          type="checkbox" checked={Boolean(checked)} {...rest} disabled={false}
           onChange={(event) => onToggleTask(ordinal, event.target.checked)}
         />
       );
@@ -283,37 +295,15 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
     },
   };
 
-  /** 渐进渲染时按块渲染：每块的复选框序号从该块的任务基数开始。 */
-  const renderChunk = (chunk: BlockChunk, key: number) => {
-    const chunkCounter = { ordinal: chunk.taskBase };
-    const chunkComponents: Record<string, (props: { node?: unknown; [key: string]: unknown }) => ReactNode> = {
-      ...components,
-      input(props) {
-        const { node, checked, type, ...rest } = props;
-        void node;
-        if (type !== "checkbox" || !onToggleTask) {
-          return <input type="checkbox" checked={Boolean(checked)} disabled readOnly {...rest} />;
-        }
-        const ordinal = chunkCounter.ordinal;
-        chunkCounter.ordinal += 1;
-        return (
-          <input
-            type="checkbox" checked={Boolean(checked)} {...rest}
-            onChange={(event) => onToggleTask(ordinal, event.target.checked)}
-          />
-        );
-      },
-    };
-    return (
-      <ReactMarkdown key={key} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}
-        remarkRehypeOptions={remarkRehypeOptions} components={chunkComponents}>{chunk.text}</ReactMarkdown>
-    );
-  };
+  const renderChunk = (chunk: BlockChunk, key: number) => (
+    <ReactMarkdown key={key} remarkPlugins={remarkPlugins} rehypePlugins={pluginsFor(chunk.taskBase)}
+      remarkRehypeOptions={remarkRehypeOptions} components={components}>{chunk.text}</ReactMarkdown>
+  );
 
   if (lightweight) {
     // 极端兜底：文档过大时只渲染纯文本，内容完整不截断。
     return (
-      <div className={className ?? "md-body"}>
+      <div ref={ref} className={className ?? "md-body"}>
         <p className="md-lite-notice" role="status">
           文档过大（{markdown.length} 字符），已切换轻量模式：正文以纯文本显示，内容完整未截断。
         </p>
@@ -324,15 +314,15 @@ export function MarkdownView({ markdown, onToggleTask, onImageClick, highlightMe
 
   if (progressive) {
     return (
-      <div className={className ?? "md-body"}>
+      <div ref={ref} className={className ?? "md-body"}>
         {chunks.slice(0, visibleCount).map((chunk, index) => renderChunk(chunk, index))}
       </div>
     );
   }
 
   return (
-    <div className={className ?? "md-body"}>
-      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}
+    <div ref={ref} className={className ?? "md-body"}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={pluginsFor(0)}
         remarkRehypeOptions={remarkRehypeOptions} components={components}>{markdown}</ReactMarkdown>
     </div>
   );

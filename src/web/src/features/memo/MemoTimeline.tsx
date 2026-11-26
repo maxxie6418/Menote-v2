@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, FileText, MessageCircle, Pencil, Pin, Repeat2, Star, Trash2 } from "../../icons";
 import type { Item } from "@menote/shared";
 import { appendTags } from "@menote/shared";
@@ -38,12 +38,26 @@ export function MemoTimeline({ userId, username, memos, allMemos, onDragItem, on
   return (
     <div className="mn-timeline" aria-label="Memo 时间线">
       {groups.map((group) => (
-        <section key={group.key}>
-          <p className="mn-mgroup">{group.label}</p>
-          {group.memos.map((memo) => <MemoCard key={memo.id} userId={userId} username={username} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onOpenNote={onOpenNote} onQuoted={onQuoted} onImagePreview={setImagePreview} />)}
+        <section className="mn-memo-day" key={group.key} aria-labelledby={`memo-${group.key}`}>
+          <h2 className="mn-mgroup" id={`memo-${group.key}`}>{group.label}</h2>
+          {group.memos.map((memo) => (
+            <MemoTimelineEntry key={memo.id} timestamp={memo.createdAt}>
+              <MemoCard userId={userId} username={username} memo={memo} allMemos={allMemos} onDragItem={onDragItem} onOpenSource={onOpenSource} onOpenNote={onOpenNote} onQuoted={onQuoted} onImagePreview={setImagePreview} />
+            </MemoTimelineEntry>
+          ))}
         </section>
       ))}
       {imagePreview && <MemoImagePreview image={imagePreview} onClose={() => setImagePreview(null)} />}
+    </div>
+  );
+}
+
+export function MemoTimelineEntry({ timestamp, children }: { timestamp: number; children: ReactNode }) {
+  const date = new Date(timestamp);
+  return (
+    <div className="mn-memo-entry">
+      <time className="mn-memo-meta" dateTime={date.toISOString()}>{date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
+      {children}
     </div>
   );
 }
@@ -89,31 +103,10 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
   return (
     <article
       id={`memo-${memo.id}`}
-      className={memo.createdAt >= Date.now() - 60_000 ? "mn-memo-card mn-memo-card-now" : "mn-memo-card"}
+      className="mn-memo-card"
       draggable={!editing}
       onDragStart={(event) => onDragItem(event, memo.id)}
     >
-      <div className="mn-memo-meta">
-        <time>{new Date(memo.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
-      </div>
-      <span className="mn-memo-actions">
-          {plain && !editing && <>
-            <button type="button" className="mn-minibtn" title={memo.pinned ? "取消置顶" : "置顶"} aria-label={memo.pinned ? "取消置顶 Memo" : "置顶 Memo"} aria-pressed={memo.pinned} onClick={() => void saveItemMeta(userId, memo.id, { pinned: !memo.pinned })}>
-              <Pin aria-hidden="true" />
-            </button>
-            <button type="button" className="mn-minibtn" title={conversion === "done" ? "打开创建的 Note（原 Memo 保留）" : conversion === "busy" ? "转换中" : conversion === "error" ? "重试转文档" : "转文档"} aria-label={conversion === "done" ? "打开创建的 Note，原 Memo 保留" : conversion === "error" ? "转文档失败，重试" : "转为 Note"} disabled={conversion === "busy"} onClick={() => conversion === "done" && createdNoteId ? onOpenNote(createdNoteId) : void convertToNote()}>
-              {conversion === "done" ? <Check aria-hidden="true" /> : <FileText aria-hidden="true" />}
-            </button>
-          </>}
-          {plain && !editing && (
-            <button type="button" className="mn-minibtn" aria-label="编辑 Memo" onClick={() => { setValue(source); setEditing(true); }}>
-              <Pencil aria-hidden="true" />
-            </button>
-          )}
-          <button type="button" className="mn-minibtn" aria-label="移入回收站" onClick={() => void softDeleteItem(userId, memo.id)}>
-            <Trash2 />
-          </button>
-      </span>
       <div className="mn-memo-card-body">
         {editing ? (
           <textarea
@@ -146,6 +139,24 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
             <MarkdownView markdown={memo.memoQuote.snapshot} className="mn-memo-quote-content" highlightMemoTags onImageClick={(src, alt) => onImagePreview({ src, alt })} />
           </aside>
         )}
+      </div>
+      <footer className="mn-memo-footer">
+        <span className="mn-memo-actions">
+          {plain && !editing && <>
+            <button type="button" className="mn-minibtn" title={memo.pinned ? "取消置顶" : "置顶"} aria-label={memo.pinned ? "取消置顶 Memo" : "置顶 Memo"} aria-pressed={memo.pinned} onClick={() => void saveItemMeta(userId, memo.id, { pinned: !memo.pinned })}>
+              <Pin aria-hidden="true" />
+            </button>
+            <button type="button" className="mn-minibtn" title={conversion === "done" ? "打开创建的 Note（原 Memo 保留）" : conversion === "busy" ? "转换中" : conversion === "error" ? "重试转文档" : "转文档"} aria-label={conversion === "done" ? "打开创建的 Note，原 Memo 保留" : conversion === "error" ? "转文档失败，重试" : "转为 Note"} disabled={conversion === "busy"} onClick={() => conversion === "done" && createdNoteId ? onOpenNote(createdNoteId) : void convertToNote()}>
+              {conversion === "done" ? <Check aria-hidden="true" /> : <FileText aria-hidden="true" />}
+            </button>
+            <button type="button" className="mn-minibtn" aria-label="编辑 Memo" title="编辑 Memo" onClick={() => { setValue(source); setEditing(true); }}>
+              <Pencil aria-hidden="true" />
+            </button>
+          </>}
+          <button type="button" className="mn-minibtn" aria-label="移入回收站" title="移入回收站" onClick={() => void softDeleteItem(userId, memo.id)}>
+            <Trash2 aria-hidden="true" />
+          </button>
+        </span>
         {plain && !editing && (
           <div className="mn-memo-interactions" aria-label="Memo 互动">
             <button type="button" aria-label={`评论${comments.length ? `，${comments.length} 条` : ""}`} title="评论" aria-expanded={panel === "comments"} onClick={() => setPanel((current) => current === "comments" ? null : "comments")}>
@@ -160,11 +171,11 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
             </button>
           </div>
         )}
-        {plain && !editing && panel === "comments" && <MemoCommentPanel userId={userId} username={username} memoId={memo.id} />}
-        {plain && !editing && panel === "quote" && (
-          <MemoQuotePanel userId={userId} memo={memo} onCancel={() => setPanel(null)} onCreated={(item) => { setPanel(null); onQuoted(item); }} />
-        )}
-      </div>
+      </footer>
+      {plain && !editing && panel === "comments" && <MemoCommentPanel userId={userId} username={username} memoId={memo.id} />}
+      {plain && !editing && panel === "quote" && (
+        <MemoQuotePanel userId={userId} memo={memo} onCancel={() => setPanel(null)} onCreated={(item) => { setPanel(null); onQuoted(item); }} />
+      )}
     </article>
   );
 }

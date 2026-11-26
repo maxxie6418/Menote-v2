@@ -291,7 +291,6 @@
   --app-prop-key-width: 5.5rem;    /* 88px：兼顾剪藏长键与属性值可用宽度 */
   /* 属性区双列：键列 72、行尾 ⋯ 28、多选胶囊 20、控件 28、浮层 320/252 */
   --app-props-key-duo: 4.5rem;
-  --app-doc-inspector-offset: var(--app-zero); /* 由文档布局测量正文起点，供桌面检查器对齐 */
   --app-props-more: 1.75rem;   /* 28px 行尾 ⋯（原 22px）：属性行 32 高，上下各留 2 */
   --app-props-chip: 1.25rem;
   --app-props-btn: 1.75rem;    /* 28px 属性区按钮（原 24px） */
@@ -335,17 +334,16 @@
   --app-authloading-logo: 6rem;    /* 96px 登录检查屏 logo（与 shell.css 动效幅度成对，见该处注释） */
   --app-cnt-height: 0.9375rem;     /* 15px 计数胶囊行高 */
   /* Memo workspace dimensions and rendering details (TP5). */
-  --app-memo-timeline-pad-right: 1.125rem;
-  --app-memo-timeline-pad-left: 1.125rem;
-  --app-memo-meta-width: 3.25rem;
-  --app-memo-dot-left: 3.1rem;
-  --app-memo-dot-center-offset: 0.15625rem;
-  --app-memo-axis-left: calc(var(--app-space-18) + var(--app-memo-dot-left) + var(--app-memo-dot-center-offset));
-  --app-memo-dot-top: 1.3rem;
+  --app-memo-feed-gutter: var(--app-space-18);
+  --app-memo-body-size: 0.9375rem;
+  --app-memo-time-width: 2.75rem;
+  --app-memo-time-width-compact: 2.25rem;
+  --app-memo-axis-gap: var(--app-space-12);
+  --app-memo-entry-gap: var(--app-space-10);
+  --app-memo-axis-point: calc(var(--app-space-14) + var(--app-size-chip) * var(--app-leading-nav) / 2);
   --app-memo-list-indent: 1.2em;
   --app-memo-work-width: 14.5rem;
   --app-memo-todo-width: 13.5rem;
-  --app-memo-composer-max: 43.75rem; /* 700px v3 Memo 输入版心 */
   --app-memo-composer-height: 6.25rem; /* 100px v3 输入卡片高度 */
   --app-memo-work-min: 13rem;
   --app-memo-todo-min: 10rem;
@@ -358,14 +356,9 @@
   --app-memo-heat-level-2: 45%;
   --app-memo-heat-level-3: 70%;
   --app-memo-gallery-default-ratio: 4 / 3;
-  /* Memo 版心：时间轴/图册的最大宽度，与编辑器同受 --app-doc-measure（阅读宽度档位）驱动；
-     calc 里带 100% 时（measure=full）max-width 超出容器，自然退化为撑满。 */
-  --app-memo-timeline-max: calc(var(--app-memo-timeline-pad-left) + var(--app-memo-meta-width) + var(--app-space-sm) + var(--app-doc-measure) + var(--app-memo-timeline-pad-right));
+  --app-memo-gallery-max: calc(var(--app-doc-measure) + 6.25rem);
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
-  --app-memo-card-pad-y: 0.8125rem;
-  --app-memo-card-pad-x: 1rem;
   --app-memo-action-size: 1.75rem;   /* 28px Memo 互动按钮（原 26，低于 §8.2 底线） */
-  --app-memo-action-gap: 0.75rem;
   --app-memo-action-radius: 0.5rem;
   --app-memo-thread-indent: 0.875rem;
   --app-memo-quote-radius: 0.75rem;
@@ -446,7 +439,6 @@
   --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */
   --app-dlg-head-height: 3.125rem;  /* 设置对话框头（50px，改 rem 以便随界面密度缩放） */
   --app-dlg-nav-width: 9.875rem;    /* 设置对话框左导航（158px） */
-  --app-memo-time-col: 38px;        /* Memo 时间列 */
   --app-lockmark-size: 46px;        /* 锁定卡图标圆 */
   --app-quote-pad-y: 2px;           /* 引用块上下留白 */
   --app-editor-min: 12rem;          /* WYSIWYG 编辑区最小高度 */
@@ -624,7 +616,10 @@
    原先只在柔纸令牌块里定义，墨台与素灰下是未定义变量（声明被浏览器丢弃），此处提到主题无关层统一。 */
 :root {
   --app-doc-side-width: 9.25rem;   /* 148px 页边注 */
-  --app-doc-inspector-width: 16rem; /* 256px Note 检查器 */
+  --app-doc-inspector-width: 17rem;
+  --app-inspector-tab-height: 2.5rem;
+  --app-inspector-prop-height: 2.25rem;
+  --app-inspector-prop-label: 33%;
   --app-doc-side-gap: 0.75rem;
   --app-doc-side-top: 0.25rem;
   --app-dock-left: 50%;

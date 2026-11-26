@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, ChevronDown, ChevronRight, Clock3, FileText, Folder, Inbox, LockKeyhole, MoreHorizontal, Plus, Search, Settings, Tag, UserRound, X } from "../icons";
 import type { Item } from "@menote/shared";
+import { appendTags } from "@menote/shared";
 import { useHomeSnapshot, useLocalSearch, useLockVersion, useMemos, useMemoTags, usePendingOutboxCount, useSectionItems, useTopics, type BrowseSection } from "../services/contentHooks";
 import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
 import { toggleGlobalTagSection } from "./appRoutes";
-import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, statusLabel, MemoGallery, type MemoImagePreviewData } from "../features/memo";
+import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, statusLabel, MemoGallery, MemoTimelineEntry, type MemoImagePreviewData } from "../features/memo";
 import { NoteDocument, noteSnippet } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
@@ -113,10 +114,14 @@ function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initia
         <button type="button" role="tab" aria-selected={tab === "gallery"} onClick={() => setTab("gallery")}>图册<em>{images.length}</em></button>
       </div>
       {tab === "gallery" ? <div className="m-gallery"><MemoGallery images={images} onOpen={goMemo} /></div>
-        : tab === "all" ? <div className="m-stream">
-          {memos.length ? groupByDay(memos).map((group) => <section key={group.key}>
-            <div className="m-day"><b>{group.label}</b><i /></div>
-            {group.memos.map((memo) => <MobileMemoRow key={memo.id} memo={memo} userId={userId} onLongPress={onLongPress} />)}
+        : tab === "all" ? <div className="m-stream m-memo-timeline">
+          {memos.length ? groupByDay(memos).map((group) => <section className="mn-memo-day" key={group.key} aria-labelledby={`memo-${group.key}`}>
+            <h2 className="mn-mgroup" id={`memo-${group.key}`}>{group.label}</h2>
+            {group.memos.map((memo) => (
+              <MemoTimelineEntry key={memo.id} timestamp={memo.createdAt}>
+                <MobileMemoRow memo={memo} userId={userId} onLongPress={onLongPress} />
+              </MemoTimelineEntry>
+            ))}
           </section>) : <p className="m-empty">{initialTag ? `没有带 #${initialTag} 的 Memo。` : "还没有 Memo，点底部记录键随手记下。"}</p>}
         </div> : <div className="m-stream m-todos">
           {([ ["todo", "待办"], ["doing", "进行中"], ["done", "已完成"] ] as const).map(([status, label]) => {
@@ -137,7 +142,7 @@ function MobileMemoContent({ userId, onLongPress, onOpenMemo, selectedId, initia
 function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: Item; userId: string; onLongPress: (item: Item) => void; compact?: boolean }) {
   const timer = useRef<number | undefined>(undefined);
   const [imagePreview, setImagePreview] = useState<MemoImagePreviewData | null>(null);
-  const markdown = memo.content.scope === "plain" ? memo.content.markdown : "";
+  const markdown = memo.content.scope === "plain" ? appendTags(memo.content.markdown, memo.tags) : "";
   const stopHold = () => { window.clearTimeout(timer.current); };
   const startHold = () => { timer.current = window.setTimeout(() => { onLongPress(memo); }, 480); };
 
@@ -146,8 +151,8 @@ function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: I
     {memo.content.scope === "plain" ? <div className="m-memo-prose"><MarkdownView markdown={markdown} highlightMemoTags onImageClick={(src, alt) => setImagePreview({ src, alt })} onToggleTask={(ordinal, checked) => {
       const next = setTaskCheckbox(markdown, ordinal, checked); if (next !== markdown) void saveItemContent(userId, memo.id, next);
     }} /></div> : <p>已加密</p>}
-    <div className="m-meta"><time>{new Date(memo.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
-      {memo.content.scope === "plain" && memo.tags.slice(0, 2).map((tag) => <span className="chip" key={tag}>#{tag}</span>)}
+    <div className="m-meta">{compact && <time>{new Date(memo.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>}
+      {compact && memo.content.scope === "plain" && memo.tags.slice(0, 2).map((tag) => <span className="chip" key={tag}>#{tag}</span>)}
       {statusLabel(memo.status) && <span className="st"><i />{statusLabel(memo.status)}</span>}
       <button className="more" type="button" aria-label="更多操作" onClick={() => onLongPress(memo)}><MoreHorizontal /></button>
     </div>

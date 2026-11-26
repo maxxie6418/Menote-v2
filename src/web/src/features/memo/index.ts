@@ -2,7 +2,7 @@ export { MemoBar } from "./MemoBar";
 export { MemoAccessGate } from "./MemoAccessGate";
 export { MemoGallery } from "./MemoGallery";
 export { MemoImagePreview } from "./MemoImagePreview";
-export { MemoTimeline } from "./MemoTimeline";
+export { MemoTimeline, MemoTimelineEntry } from "./MemoTimeline";
 export { MemoWorkbar } from "./MemoWorkbar";
 export { MemoWorkspace } from "./MemoWorkspace";
 export { QuickComposer } from "./QuickComposer";

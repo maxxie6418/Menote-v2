@@ -22,6 +22,7 @@ interface PropertyPanelProps {
   itemId?: string;
   /** 写回经统一文档更新链路（FR-PROP-3）：产出新 markdown，由上层走 saveItemContent 保存。 */
   onSave: (next: string) => Promise<boolean> | boolean | void;
+  onMoveToTop?: () => void;
 }
 
 /**
@@ -37,7 +38,8 @@ interface PropertyPanelProps {
  * 网格是清单，定义过就留一行淡破折。纯带内类型（单选 / 复选框）没有值时不渲染，
  * 因为它们在网格里没有可读的「空」形态。
  */
-export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPanelProps) {
+export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop }: PropertyPanelProps) {
+  const sidebar = onMoveToTop !== undefined;
   const rows = useMemo(() => readPropRows(markdown, PROPS_KEY), [markdown]);
   const invalid = useMemo(() => tryParseFrontmatterData(markdown) === null, [markdown]);
   const targets = useObsidianTargets(userId, rows.some((row) => row.raw.includes("[[")));
@@ -76,14 +78,14 @@ export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPane
   /* 单列 / 双列看「文档栏宽」而不是窗口宽度：ResizeObserver 盯住属性区自身 */
   useEffect(() => {
     const section = sectionRef.current;
-    if (!section || typeof ResizeObserver === "undefined") return;
+    if (sidebar || !section || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0;
       setColumns(width > 0 && width < PROPS_TWO_COLUMN_MIN ? 1 : 2);
     });
     observer.observe(section);
     return () => observer.disconnect();
-  }, []);
+  }, [sidebar]);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,7 +292,7 @@ export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPane
   const settingsRow = settings ? rows.find((row) => row.key === settings.key) ?? null : null;
   const optionRow = optionPick ? rows.find((row) => row.key === optionPick.key) ?? null : null;
   const slotRow = slotEdit ? rows.find((row) => row.key === slotEdit.key) ?? null : null;
-  const hasAnyCell = groups.left.length > 0 || groups.right.length > 0 || cells.length > 0;
+  const hasAnyCell = sidebar ? rows.length > 0 : groups.left.length > 0 || groups.right.length > 0 || cells.length > 0;
 
   const openSlotEdit = (row: PropRow, anchor: HTMLElement) => {
     setSettings(null);
@@ -299,21 +301,23 @@ export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPane
     setSlotEdit({ key: row.key, anchor });
   };
 
-  const renderRow = (row: PropRow, span: boolean, second: boolean, wide: boolean) => {
+  const renderRow = (row: PropRow, span = true, second = false, wide = false) => {
     const type = row.def?.type ?? inferType(row);
     const label = labelOf(row);
     /* 独享整排的文本按两行显示（概述/摘要要读一段）；链接与附件仍单行，URL 换行没有信息量 */
-    const clamp = wide && (type === "multiline" || type === "text");
+    const clamp = (wide && (type === "multiline" || type === "text")) || (sidebar && type === "multiline");
+    const fullValue = sidebar && (clamp || row.isStructured || row.listValues || type === "list" || type === "multiselect");
     const classes = [
       "mn-props-row",
       span ? "is-span" : "is-half",
       second ? "is-second" : "",
       clamp ? "is-multiline" : "",
+      fullValue ? "is-full-value" : "",
       flash === row.key ? "is-flash" : "",
     ].filter(Boolean).join(" ");
     return (
       <div key={row.key} className={classes}>
-        <span className="mn-props-key" title={row.key}>{label}</span>
+        <span className="mn-props-key" title={label === row.key ? label : `${label}（${row.key}）`}>{label}</span>
         <div className="mn-props-value">
           <PropertyValue
             row={row} type={type} label={label} editing={editing === row.key}
@@ -341,22 +345,24 @@ export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPane
   };
 
   return (
-    <section ref={sectionRef} className="mn-props" data-columns={columns} aria-label="属性区">
+    <section ref={sectionRef} className="mn-props" data-columns={sidebar ? 1 : columns} data-placement={sidebar ? "side" : undefined} aria-label="属性区">
       <div className="mn-props-head">
-        <span className="mn-props-title">属性</span>
-        <span className="mn-props-count">{rows.length}</span>
+        {!sidebar && <span className="mn-props-title">属性</span>}
+        <span className="mn-props-count">{rows.length}{sidebar && " 项"}</span>
+        {sidebar && <button type="button" className="mn-textbtn mn-props-move" onClick={onMoveToTop}>移至顶部</button>}
         <button
           type="button" className="mn-props-add" data-panel-trigger
+          aria-label="添加属性"
           aria-expanded={adding !== null} title="添加属性" disabled={invalid}
           onClick={(event) => setAdding(adding ? null : event.currentTarget)}
         >
-          <Plus aria-hidden />属性
+          <Plus aria-hidden />{sidebar ? "添加" : "属性"}
         </button>
       </div>
       {invalid && <p className="mn-sethint" role="status">YAML 属性格式有误，可在源码模式修正。</p>}
 
       {/* 区一：带。左右都空就不渲染，连底线一起（否则只剩一条空线） */}
-      {(groups.left.length > 0 || groups.right.length > 0) && (
+      {!sidebar && (groups.left.length > 0 || groups.right.length > 0) && (
         <div className="mn-props-strip" ref={stripRef}>
           <div className="mn-strip-left" ref={leftRef}>
             {groups.left.map((row) => {
@@ -408,17 +414,19 @@ export function PropertyPanel({ markdown, userId, itemId, onSave }: PropertyPane
       )}
 
       {/* 区二 + 区三：网格。多选两两并排或跨满，长字段跨满，多行文本固定两行 */}
-      {cells.length > 0 && (
+      {hasAnyCell && (sidebar || cells.length > 0) && (
         <div className="mn-props-grid">
-          {cells.map((cell) => renderRow(cell.row, cell.span, cell.second, cell.wide))}
+          {sidebar ? rows.map((row) => renderRow(row)) : cells.map((cell) => renderRow(cell.row, cell.span, cell.second, cell.wide))}
         </div>
       )}
 
-      {!invalid && !hasAnyCell && (
+      {!invalid && !hasAnyCell && (sidebar ? (
+        <p className="mn-props-side-empty">暂无属性</p>
+      ) : (
         <button type="button" className="mn-props-empty" data-panel-trigger onClick={(event) => setAdding(event.currentTarget)}>
           <Plus aria-hidden />{rows.length === 0 ? "添加属性" : "属性都还没有值，点这里补一个"}
         </button>
-      )}
+      ))}
 
       {undo && (
         <div className="mn-props-undo" role="status">
@@ -565,7 +573,7 @@ function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCan
     const on = row.raw === "true";
     return (
       <label className="mn-props-check">
-        <input type="checkbox" checked={on} onChange={(event) => onCommit(event.target.checked)} />
+        <input type="checkbox" aria-label={label} checked={on} onChange={(event) => onCommit(event.target.checked)} />
         <span>{on ? "是" : "否"}</span>
       </label>
     );
@@ -615,8 +623,8 @@ function PropertyValue({ row, type, label, editing, onStartEdit, onCommit, onCan
   if (link) {
     return (
       <span className="mn-props-link">
-        <a href={link.href} target={link.external ? "_blank" : undefined} rel="noreferrer">{link.label}</a>
-        <button type="button" className="mn-props-relink" onClick={onStartEdit} title="修改链接">改</button>
+        <a href={link.href} title={link.label} target={link.external ? "_blank" : undefined} rel="noreferrer">{link.label}</a>
+        <button type="button" className="mn-props-relink" onClick={onStartEdit} aria-label={`编辑 ${label}`} title="修改链接">改</button>
       </span>
     );
   }

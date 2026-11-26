@@ -57,65 +57,87 @@
 .mn-memo-bar-title { font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-muted); text-transform: uppercase; }
 .mn-memo-bar-count { margin-left: auto; font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); font-variant-numeric: tabular-nums; }
 
-.mn-memo-scroll { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
-/* 版心约束（负责人 2026-11-02）：时间轴不再无限拉宽，与编辑器同受阅读宽度档位（data-measure）
-   控制并居中；左右 padding 仍为工作栏 / Todo 浮层让位，窄窗下浮层不压卡片。 */
-.mn-memo-main .mn-timeline {
-  position: relative;
-  max-width: var(--app-memo-timeline-max);
+.mn-memo-scroll {
+  --app-memo-feed-width: min(var(--app-doc-measure), calc(var(--app-full-size) - 2 * var(--app-memo-feed-gutter)));
+  flex: 1; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable;
+}
+/* 窄时刻列提供定位，轴线仅连接同日的记录。 */
+.mn-timeline {
+  display: grid;
+  width: var(--app-memo-feed-width);
   margin-inline: auto;
-  padding: var(--app-space-6) var(--app-memo-timeline-pad-right) var(--app-space-18) var(--app-memo-timeline-pad-left);
+  padding-block: var(--app-space-22) var(--app-space-24);
+  gap: var(--app-space-24);
 }
-.mn-memo-main .mn-timeline::before {
-  content: "";
-  position: absolute;
-  left: var(--app-memo-axis-left); top: var(--app-space-14); bottom: var(--app-space-22); /* 轴线压在时间列与卡片之间 */
-  width: var(--app-line);
-  background: var(--app-fg-faint);
-  opacity: 0.32;
+.mn-memo-day {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-memo-entry-gap);
 }
-.mn-mgroup { font-size: var(--app-size-nav); color: var(--app-fg-subtle); padding: var(--app-space-14) var(--app-zero) var(--app-space-6); display: flex; align-items: center; gap: var(--app-space-10); }
-.mn-mgroup::after { content: ""; flex: 1; height: var(--app-line); background: var(--app-border-subtle); }
-
-.mn-memo-main .mn-memo-card {
+.mn-mgroup {
+  margin: var(--app-zero);
+  padding-inline: var(--app-space-2);
+  color: var(--app-fg-subtle);
+  font-size: var(--app-size-button);
+  font-weight: var(--app-weight-medium);
+  line-height: var(--app-leading-nav);
+}
+.mn-memo-entry {
   position: relative;
   display: grid;
-  grid-template-columns: var(--app-memo-meta-width) minmax(0, 1fr);
-  gap: var(--app-space-sm);
-  align-items: start;
-  padding: var(--app-zero);
-  border: var(--app-zero);
-  border-radius: var(--app-zero);
-  background: none;
+  grid-template-columns: var(--app-memo-time-width) minmax(0, 1fr);
+  gap: var(--app-memo-axis-gap);
 }
-.mn-memo-main .mn-memo-card::before {
+.mn-memo-entry:not(:last-child)::before {
   content: "";
   position: absolute;
-  left: var(--app-memo-dot-left); top: var(--app-memo-dot-top);
-  width: var(--app-dot-size); height: var(--app-dot-size);
+  inset-inline-start: var(--app-memo-time-width);
+  inset-block: var(--app-memo-axis-point) calc((var(--app-memo-entry-gap) + var(--app-memo-axis-point)) * -1);
+  width: var(--app-line);
+  background: var(--app-border);
+  pointer-events: none;
+}
+.mn-memo-entry::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--app-memo-time-width) + (var(--app-line) - var(--app-dot-size)) / 2);
+  inset-block-start: calc(var(--app-memo-axis-point) - var(--app-dot-size) / 2);
+  width: var(--app-dot-size);
+  height: var(--app-dot-size);
   border-radius: var(--app-radius-pill);
   background: var(--app-fg-faint);
-  box-shadow: 0 0 0 var(--app-focus-width) var(--app-surface);
+  pointer-events: none;
 }
-.mn-memo-main .mn-memo-card-now::before { background: var(--app-accent); }
-.mn-memo-main .mn-memo-card:hover { background: none; }
-.mn-memo-main .mn-memo-meta {
-  grid-column: 1;
-  display: flex; flex-direction: column; align-items: flex-end;
-  gap: var(--app-space-2);
-  padding: var(--app-space-14) var(--app-space-10) var(--app-zero) var(--app-zero);
-  font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint);
-  font-variant-numeric: tabular-nums; text-align: right;
+.mn-memo-card {
+  min-width: var(--app-zero);
+  padding: var(--app-space-14) var(--app-space-18) var(--app-space-8);
+  border: var(--app-line) solid var(--app-border-subtle);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
 }
-.mn-memo-main .mn-memo-actions {
-  position: absolute; top: var(--app-space-6); right: var(--app-space-8); z-index: 1;
-  display: flex; align-items: center; gap: var(--app-space-2); padding: var(--app-space-2);
-  border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm);
-  background: var(--app-surface); box-shadow: var(--app-shadow-card);
-  opacity: 0; transform: translateY(calc(-1 * var(--app-space-2))); pointer-events: none;
-  transition: opacity var(--app-motion-fast) var(--app-ease), transform var(--app-motion-fast) var(--app-ease);
+.mn-memo-card:is(:hover, :focus-within) { border-color: var(--app-border); }
+.mn-memo-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--app-space-2) var(--app-space-8);
+  margin-top: var(--app-space-8);
 }
-.mn-memo-main .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; transform: none; pointer-events: auto; }
+.mn-memo-meta {
+  padding-inline-end: var(--app-space-6);
+  padding-block-start: var(--app-space-14);
+  color: var(--app-fg-subtle);
+  font-size: var(--app-size-chip);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--app-leading-nav);
+  text-align: end;
+  white-space: nowrap;
+}
+.mn-memo-actions { display: flex; align-items: center; margin-inline-start: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .mn-memo-actions { opacity: 0; pointer-events: none; }
+  .mn-memo-card:is(:hover, :focus-within) .mn-memo-actions { opacity: 1; pointer-events: auto; }
+}
 /* 互动卡片动作：几何沿用 .mn-minibtn 基类（28 槽 + 14 图标），此处只管状态色与排布 */
 .mn-memo-main .mn-memo-actions .mn-minibtn { display: inline-flex; align-items: center; justify-content: center; }
 .mn-memo-main .mn-memo-actions .mn-minibtn:hover:not(:disabled) { color: var(--app-fg); background: var(--app-hover); }
@@ -123,22 +145,12 @@
 .mn-memo-main .mn-memo-actions .mn-minibtn:focus-visible { outline: var(--app-focus-width) solid var(--app-accent); outline-offset: var(--app-space-2); }
 .mn-memo-main .mn-memo-actions .mn-minibtn:disabled { cursor: default; }
 
-.mn-memo-card-body {
-  margin-bottom: var(--app-space-sm);
-  padding: var(--app-memo-card-pad-y) var(--app-memo-card-pad-x) var(--app-space-10);
-  border: var(--app-line) solid var(--app-border-subtle);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-surface);
-  min-width: 0;
-}
-.mn-memo-main .mn-memo-card:hover .mn-memo-card-body { border-color: var(--app-border); }
-
 /* Memo 互动操作栏（TP5 / 20261102-Memo 互动样式方案）。 */
-.mn-memo-interactions { display: flex; align-items: center; gap: var(--app-memo-action-gap); margin-top: var(--app-space-10); }
+.mn-memo-interactions { display: flex; align-items: center; gap: var(--app-space-2); }
 .mn-memo-interactions button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--app-space-5);
   min-width: var(--app-memo-action-size); height: var(--app-memo-action-size);
-  margin: var(--app-zero) calc(var(--app-space-10) * -1); padding: var(--app-zero) var(--app-space-10);
+  padding: var(--app-zero) var(--app-space-6);
   border: var(--app-zero); border-radius: var(--app-memo-action-radius); background: none;
   color: var(--app-fg-faint); font-family: var(--app-font-mono); font-size: var(--app-size-nav); cursor: pointer;
   transition: background var(--app-duration-fast) var(--app-ease), color var(--app-duration-fast) var(--app-ease);
@@ -150,7 +162,14 @@
 .mn-memo-interactions button[aria-pressed="true"] svg { fill: var(--app-accent); stroke: var(--app-accent); }
 .mn-memo-interactions button[aria-pressed="true"]:hover { background: var(--app-accent-subtle); color: var(--app-accent-fg); }
 
-.mn-memo-body { margin-top: var(--app-zero); font-size: var(--app-size-list-title); line-height: var(--app-leading-meta); color: var(--app-fg-muted); }
+.mn-memo-card .mn-memo-body {
+  margin: var(--app-zero);
+  color: var(--app-fg);
+  font-family: var(--app-font);
+  font-size: var(--app-memo-body-size);
+  line-height: var(--app-leading-editor);
+  overflow-wrap: anywhere;
+}
 .mn-memo-body :is(p, ul, ol, blockquote, pre) { margin: var(--app-zero) var(--app-zero) var(--app-space-6); }
 .mn-memo-body :is(p, ul, ol, blockquote, pre):last-child { margin-bottom: var(--app-zero); }
 .mn-memo-body strong { font-weight: var(--app-weight-medium); color: var(--app-fg); }
@@ -162,6 +181,8 @@
 .mn-memo-body :is(ul, ol) { padding-left: var(--app-memo-list-indent); }
 .mn-memo-body li + li { margin-top: var(--app-space-2); }
 .mn-memo-body li::marker { color: var(--app-fg-faint); }
+.mn-memo-body .task-list-item { list-style: none; }
+.mn-memo-body .task-list-item input { accent-color: var(--app-accent); }
 .mn-memo-body blockquote { padding-left: var(--app-space-14); border-left: var(--app-focus-width) solid var(--app-accent); color: var(--app-fg-subtle); }
 .mn-memo-body pre { padding: var(--app-space-xs) var(--app-space-10); background: var(--app-surface-sunken); border-radius: var(--app-radius-sm); overflow: auto; }
 .mn-memo-body pre code { background: none; padding: var(--app-zero); font-size: var(--app-size-chip); line-height: var(--app-leading-meta); }
@@ -276,13 +297,13 @@
 .mn-memo-otd-empty { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
 
 .mn-memo-main.is-gallery .mn-timeline { display: none; }
-/* 图册与时间轴同宽同轴心：切换视图时内容列的左缘不跳，图册列宽同样吃阅读宽度档位。 */
+/* 图册仍按阅读宽度档位排布。 */
 .mn-memo-main.is-gallery .mn-memo-gallery {
   column-count: 3;
   column-gap: var(--app-space-14);
-  max-width: var(--app-memo-timeline-max);
+  max-width: var(--app-memo-gallery-max);
   margin-inline: auto;
-  padding: var(--app-space-md) var(--app-memo-timeline-pad-right) var(--app-space-lg) var(--app-memo-timeline-pad-left);
+  padding: var(--app-space-md) var(--app-space-18) var(--app-space-lg);
 }
 .mn-memo-gal-item { display: block; width: var(--app-full-size); margin-bottom: var(--app-space-14); break-inside: avoid; border: var(--app-zero); background: none; padding: var(--app-zero); text-align: left; cursor: pointer; }
 .mn-memo-gal-thumb { display: block; width: var(--app-full-size); aspect-ratio: var(--mn-memo-gallery-ratio, var(--app-memo-gallery-default-ratio)); border-radius: var(--app-radius); overflow: hidden; background: var(--app-surface-sunken); border: var(--app-line) solid var(--app-border-subtle); }

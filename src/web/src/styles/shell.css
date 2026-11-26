@@ -634,7 +634,7 @@ select.mn-props-ctrl { width: auto; min-width: var(--app-field-width); }
 .mn-props-undo button { border: var(--app-zero); border-radius: var(--app-radius-sm); background: none; color: var(--app-accent-fg); font-family: var(--app-font); font-size: var(--app-size-chip); padding: var(--app-space-1) var(--app-space-4); cursor: pointer; }
 .mn-props-undo button:hover { background: var(--app-hover); }
 /* 浮层：纸面 + 发丝描边 + 卡片阴影，与文档「更多」菜单同一层语言 */
-.mn-proppop { position: fixed; z-index: var(--app-props-z); visibility: hidden; display: flex; flex-direction: column; width: var(--app-props-pop); max-height: var(--app-context-menu-max-height); overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
+.mn-proppop { position: fixed; z-index: var(--app-props-z); visibility: hidden; display: flex; flex-direction: column; width: var(--app-props-pop); max-width: calc(var(--app-full-size) - var(--app-space-8) * 2); max-height: var(--app-context-menu-max-height); overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: var(--app-shadow-card); }
 .mn-proppop-sm, .mn-proppop-options, .mn-proppop-edit, .mn-proppop-more { width: var(--app-props-pop-sm); }
 .mn-proppop-title { margin: var(--app-space-2) var(--app-space-2) var(--app-zero); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
 .mn-striplist-key { flex: none; min-width: var(--app-props-striplist-key-min); color: var(--app-fg-subtle); font-size: var(--app-size-chip); text-align: start; }
