@@ -97,53 +97,20 @@
   --app-size-button: 0.78125rem;   /* 12.5px 按钮 */
   --app-size-list-title: 0.84375rem; /* 13.5px 清单标题 */
   --app-size-brand: 1.0625rem;     /* 17px 品牌字 */
-  /* 首页尺寸（wiki/design.html 第 01 屏） */
-  --app-home-bar-pad: 2rem 2.625rem 1.375rem;
-  --app-home-content-pad: 1.75rem 2.625rem 2.125rem;
+  /* 首页工作区尺寸 */
   --app-home-title-size: 1.9375rem;
-  --app-home-title-track: 0.01em;
-  --app-home-section-gap: 1.875rem;
-  --app-home-action-height: 4.5rem;
-  --app-home-stat-size: 1.875rem;
-  --app-home-topic-gap: 1.625rem;
-  --app-home-links-top: 1.625rem;
-  --app-home-negative-inline: -0.75rem;
-  --app-home-lift: -0.125rem;
-  --app-home-tag-menu-height: 12rem;
-  --app-home-tag-menu-width: 10rem;
-  --app-home-search-width: 24rem;
+  --app-home-search-width: 22rem;
   --app-home-layout-max: 63.375rem;
-  --app-home-aside-width: 17.875rem;
-  --app-home-layout-gap: 2.875rem;
-  --app-home-layout-pad: 1.5rem 2.5rem 3rem;
-  --app-home-clock-size: 2.375rem;
-  --app-home-clock-mobile-size: 1.875rem;
-  --app-home-greeting-margin: 0.9375rem 0 1.75rem;
-  --app-home-greeting-size: 1.3125rem;
-  --app-home-greeting-mobile-size: 1.125rem;
+  --app-home-layout-pad: var(--app-space-2xl) var(--app-space-xl) var(--app-space-xl);
+  --app-home-greeting-mobile-size: 1.5rem;
   /* Flomo 导入预览区高度（FR-IMP-1）：摘要下面滚动显示前几条笔记。 */
   --app-import-preview-height: 12rem;
   --app-import-summary-min: 7rem;
   /* Obsidian 导入勾选列表高度（FR-IMP-2）：整库可能有几百篇，列表区独立滚动。 */
   --app-import-list-height: 16rem;
-  --app-home-greeting-track: -0.008em;
   --app-home-capture-height: 7rem;
-  --app-home-capture-pad: 1.1875rem 1.3125rem 0;
   --app-home-capture-size: 1.03125rem;
-  --app-home-capture-bar: 2.625rem;
-  --app-home-tag-input-width: 11rem;
-  --app-home-accent-mark: 2rem;
-  --app-home-save-height: 1.75rem;  /* 28px 首页快速输入的保存按钮（原 25） */
-  --app-home-actions-top: 1rem;
-  --app-home-action-pad: 0.875rem 0;
-  --app-home-action-gap: 1.125rem;
-  --app-home-action-icon: 1.6875rem;
-  --app-home-recent-top: 1.625rem;
-  --app-home-document-height: 2rem;
-  --app-home-document-icon: 1.25rem;
-  --app-home-bars-height: 1.75rem;
-  --app-home-side-action-height: 1.875rem;
-  --app-home-footer-height: 2.25rem;
+  --app-home-document-height: 2.625rem;
   --app-appearance-preview-height: 7.75rem;
   --app-appearance-preview-nav: 1.375rem;
   --app-appearance-preview-nav-full: 3.5rem;
@@ -723,8 +690,6 @@
   --app-drawer-width: 17.5rem;
   --app-list-nav-max-height: 48%;
   --app-viewport-width: 100vw;
-  --app-home-content-max: 78rem;
-  --app-home-capture-max: 46rem;
   --app-animation-progress-start: -100%;
   --app-animation-progress-end: 200%;
   --app-disabled-opacity: .5;
