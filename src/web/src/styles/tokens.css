@@ -123,26 +123,26 @@
   --app-icon-xl: 1.25rem;          /* 20px：独立图形（非工具栏），工具栏见 --app-docbar-icon */
   --app-dot-size-lg: 0.5rem;
   /* 移动端专有尺寸（TP1 / wiki/Menote_V2_移动端设计_v0.1.md） */
-  --app-mobile-header-height: 2.75rem;
+  --app-mobile-touch-floor: 44px;
+  --app-mobile-row-min-height: max(var(--app-mobile-touch-floor), 2.75rem);
+  --app-mobile-header-height: var(--app-mobile-row-min-height);
   --app-mobile-tab-height: 3.125rem;
   --app-mobile-tabbar-height: calc(var(--app-mobile-tab-height) + env(safe-area-inset-bottom, 0px));
-  --app-mobile-record-size: 2.75rem;
+  --app-mobile-record-size: var(--app-mobile-row-min-height);
   --app-mobile-record-color: var(--app-accent-text);
   --app-mobile-title-size: 1.5rem;
   --app-mobile-doc-title-size: 1.375rem;
   --app-mobile-body-size: 0.9375rem;
   --app-mobile-content-pad: 1rem;
   --app-mobile-composer-half-top: 9.375rem;
+  --app-mobile-composer-half-offset: 0.25;
   --app-mobile-composer-full-top: env(safe-area-inset-top, 0px);
   --app-mobile-composer-radius: 1rem 1rem 0 0;
   --app-mobile-row-height: 4rem;
-  --app-mobile-row-min-height: 2.75rem;
   --app-mobile-selection-shadow: inset 0.1875rem 0 0 var(--app-accent);
   --app-mobile-sheet-height: min(84dvh, 42rem);
-  --app-mobile-filter-height: 2.375rem;
   --app-mobile-sheet-radius: 1rem 1rem 0 0;
   --app-mobile-empty-height: 10rem;
-  --app-mobile-action-sheet-height: 17rem;
   --app-mobile-compose-side-width: 3.5rem;
   --app-mobile-card-width: 9.375rem;
   --app-mobile-card-height: 5.75rem;
@@ -151,13 +151,13 @@
   --app-mobile-segment-width: 3.125rem;
   --app-mobile-safe-top: env(safe-area-inset-top, 0px);
   --app-mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-mobile-safe-left: env(safe-area-inset-left, 0px);
+  --app-mobile-safe-right: env(safe-area-inset-right, 0px);
   --app-mobile-settings-head-height: 3.5rem;
   --app-mobile-settings-tab-height: 2.75rem;
   --app-mobile-title-max-width: 76%;
-  --app-mobile-center-x: 50%;
-  --app-mobile-center-x-shift: -50%;
-  --app-safe-area-fallback: 0px;
   --app-mobile-press-scale: 0.96;
+  --app-mobile-motion-duration: 180ms;
   --app-mobile-disabled-opacity: 0.55;
   --app-mobile-z-nav: 9;
   --app-mobile-z-filter: 2;

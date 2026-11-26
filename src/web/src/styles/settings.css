@@ -293,7 +293,8 @@
 .mn-plugin-dialog .mn-tablepick > input { min-height: var(--app-btn-height); }
 .mn-plugin-dialog-layer[data-mobile="true"] { padding: var(--app-zero); }
 .mn-plugin-dialog-layer[data-mobile="true"] .mn-plugin-dialog {
-  width: var(--app-full-size); height: 100dvh; max-height: none; border: var(--app-zero); border-radius: var(--app-zero);
+  width: var(--app-full-size); height: var(--app-full-viewport-height); max-height: none; border: var(--app-zero); border-radius: var(--app-zero);
+  padding-inline: var(--app-mobile-safe-left) var(--app-mobile-safe-right);
 }
 .mn-plugin-dialog-layer[data-mobile="true"] .mn-dlg-head {
   height: calc(var(--app-mobile-settings-head-height) + var(--app-mobile-safe-top));

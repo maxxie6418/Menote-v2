@@ -242,8 +242,10 @@ export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onS
   const allTags = [...new Set(useHomeSnapshot(userId).items.filter((item) => item.type === "memo" || !item.topicId || !alwaysHiddenPrivateTopicIds(topics).has(item.topicId)).flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
   const memoTags = useMemoTags(userId);
 
-  return <div className="m-sheet-overlay" role="presentation" onClick={onClose}><section className="m-topic-sheet" role="dialog" aria-modal="true" aria-label="主题导航" onClick={(event) => event.stopPropagation()}>
-    <header className="m-sheet-head"><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><ArrowLeft /></button><b>主题与标签</b><span className="grow" /><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><X /></button></header>
+  return <div className="m-sheet-overlay" role="presentation" onClick={onClose}><section className="m-topic-sheet" role="dialog" aria-modal="true" aria-label="主题导航" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+    if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+  }}>
+    <header className="m-sheet-head"><button type="button" className="m-icon-btn" aria-label="返回清单" autoFocus onClick={onClose}><ArrowLeft /></button><b>主题与标签</b><span className="m-grow" /><button type="button" className="m-icon-btn" aria-label="关闭" onClick={onClose}><X /></button></header>
     <div className="m-sheet-scroll">
       <button type="button" className={`m-tree-row${selected.kind === "recent" ? " on" : ""}`} onClick={() => { onSelect({ kind: "recent" }); onClose(); }}><Clock3 />最近编辑</button>
       {roots.map((topic) => {
@@ -274,10 +276,10 @@ function MobileItemRow({ item, timestamp = item.updatedAt, current = false, onOp
   return <button type="button" className={`m-nrow${current ? " on" : ""}`} onPointerDown={() => {
     held.current = false;
     if (onLongPress) timer.current = window.setTimeout(() => { held.current = true; onLongPress(item); }, 480);
-  }} onPointerUp={stop} onPointerLeave={stop} onContextMenu={(event) => { event.preventDefault(); onLongPress?.(item); }} onClick={() => {
+  }} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onContextMenu={(event) => { event.preventDefault(); onLongPress?.(item); }} onClick={() => {
     if (held.current) { held.current = false; return; }
     onOpen();
   }}>
-    <span className="ic">{item.type === "memo" ? <Clock3 /> : <FileText />}</span><span className="copy"><b>{item.title || previewText(item) || "（空白）"}{item.content.scope !== "plain" && <LockKeyhole className="lock" />}</b><em>{previewText(item)}</em></span><time className="d">{dateLabel(timestamp)}</time>
+    <span className="ic">{item.type === "memo" ? <Clock3 /> : <FileText />}</span><span className="copy"><b><span>{item.title || previewText(item) || "（空白）"}</span>{item.content.scope !== "plain" && <LockKeyhole className="lock" />}</b><em>{previewText(item)}</em></span><time className="d">{dateLabel(timestamp)}</time>
   </button>;
 }

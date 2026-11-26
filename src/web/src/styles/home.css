@@ -258,6 +258,9 @@
 [data-layout="mobile"] .mn-home-header { align-items: stretch; flex-direction: column; gap: var(--app-space-14); padding-bottom: var(--app-space-14); }
 [data-layout="mobile"] .mn-home-search { width: var(--app-full-size); }
 [data-layout="mobile"] .mn-home-greeting { font-size: var(--app-home-greeting-mobile-size); }
+[data-layout="mobile"] .mn-home-capture-head { align-items: stretch; flex-direction: column; }
+[data-layout="mobile"] .mn-home-create-actions { display: grid; grid-template-columns: repeat(3, minmax(var(--app-zero), 1fr)); }
+[data-layout="mobile"] .mn-home-create-actions > button { padding-inline: var(--app-space-4); white-space: normal; }
 [data-layout="mobile"] .mn-home-capture textarea { padding: var(--app-space-12); }
 [data-layout="mobile"] .mn-home-collections { grid-template-columns: minmax(0, 1fr); gap: var(--app-space-14); }
 [data-layout="mobile"] .mn-home :is(.mn-home-create-actions > button, .mn-home-capture-tool, .mn-home-save, .mn-home-tag-input, .mn-home-document, .mn-home-link) {

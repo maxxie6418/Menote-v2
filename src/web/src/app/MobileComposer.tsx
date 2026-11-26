@@ -93,7 +93,9 @@ export function MobileComposer({ userId, mode, title, onMode, onTitle, onClose, 
 
   return <div className="m-compose-layer">
     <button type="button" className="m-veil" aria-label="关闭写入面板" disabled={noteSaving} onClick={close} />
-    <section className={`m-composer ${mode === "memo" ? "m-composer--half" : "m-composer--full"}`} data-mode={mode} role="dialog" aria-modal="true" aria-label={mode === "memo" ? "记录 Memo" : "新建笔记"}>
+    <section className={`m-composer ${mode === "memo" ? "m-composer--half" : "m-composer--full"}`} data-mode={mode} role="dialog" aria-modal="true" aria-label={mode === "memo" ? "记录 Memo" : "新建笔记"} onKeyDown={(event) => {
+      if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.stopPropagation(); close(); }
+    }}>
       {mode === "memo" && <button type="button" className="m-grab" aria-label="下拉关闭" onPointerDown={(event) => { grabY.current = event.clientY; }} onPointerUp={(event) => {
         if (grabY.current !== null && event.clientY - grabY.current > 48) close();
         grabY.current = null;

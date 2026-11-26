@@ -420,8 +420,10 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   if (view === "status") {
     return (
       <div className="mn-shell" {...shellProps}>
-        {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
-        {sidebar}
+        {layout !== "mobile" && <>
+          {drawerOpen && <div className="mn-overlay" onClick={() => setDrawerOpen(false)} />}
+          {sidebar}
+        </>}
         <SystemStatusPage onBack={() => { goBack({ kind: "home" }); setView("main"); }} />
         {settingsDialog}
         {privateDialog}
