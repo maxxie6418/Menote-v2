@@ -184,10 +184,7 @@ backupRoutes.post("/api/backup/run/:id", resolveSession, sameOriginGuard, requir
     if (result.status === "unavailable") return c.json({ ok: false, error: "unavailable" }, 503);
     return c.json({ error: "target_disabled" }, 409);
   }
-  return c.json(
-    result.ok ? { ok: true, shards: result.shards, backupId: result.backupId, missingAttachments: result.missingAttachments } : { ok: false, error: result.error },
-    { status: result.ok ? 200 : 502 },
-  );
+  return c.json(result, { status: result.ok ? 200 : 502 });
 });
 
 /** 凭据复显（C-7：支持事后查看与复制分发；会话内）。 */

@@ -65,6 +65,11 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
     let corruptMarker = false;
     const oldDirectory = "/dav/menote/20000101T000000000Z-00000001";
     const newerDirectory = "/dav/menote/20990101T000000000Z-00000002";
+    const partialDirectory = "/dav/menote/20010101T000000000Z-00000003";
+    const recentId = new Date(Date.now() - 30 * 60_000).toISOString().replace(/[-:.]/g, "");
+    const recentDirectory = `/dav/menote/${recentId}-00000004`;
+    const directories = new Set([oldDirectory, newerDirectory, partialDirectory, recentDirectory]);
+    let markerUnavailable = false;
     globalThis.fetch = async (url, init = {}) => {
       const path = new URL(url).pathname;
       const method = init.method ?? "GET";
@@ -76,15 +81,16 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
         return new Response(null, { status: 201 });
       }
       if (method === "GET") {
+        if (markerUnavailable && path === `${oldDirectory}/COMPLETE`) return new Response(null, { status: 503 });
         if (corruptRead && path.endsWith(".json") && !path.endsWith("manifest.json")) return new Response("corrupt");
         return files.has(path) ? new Response(files.get(path)) : new Response(null, { status: 404 });
       }
       if (method === "PROPFIND") {
-        const hrefs = path === "/dav/menote" ? [oldDirectory, newerDirectory] : [`${oldDirectory}/manifest.json`, "/dav/other/manifest.json"];
+        const hrefs = path === "/dav/menote" ? [...directories] : [`${path}/manifest.json`, "/dav/other/manifest.json"];
         return new Response(`<d:multistatus xmlns:d="DAV:">${hrefs.map((href) =>
           `<d:response><d:href>${href}</d:href><d:collection/></d:response>`).join("")}</d:multistatus>`, { status: 207 });
       }
-      if (method === "DELETE") { files.delete(path); return new Response(null, { status: 204 }); }
+      if (method === "DELETE") { directories.delete(path); files.delete(path); return new Response(null, { status: 204 }); }
       throw new Error(`unexpected ${method} ${path}`);
     };
     try {
@@ -102,10 +108,12 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
       const damaged = await backupService.pushBackup(ctx, target);
       assert.equal(damaged.ok, false);
       assert.match(damaged.error, /文件校验失败/);
-      assert.equal(calls.some((call) => call.method === "DELETE" || call.method === "PROPFIND"), false, "读回校验失败不得清理旧快照");
+      assert.deepEqual(calls.filter(call => call.method === "DELETE").map(call => call.path),
+        [`${partialDirectory}/manifest.json`, partialDirectory], "读回失败只清理超额的旧未完成目录，保留完整和仍可能上传的目录");
       assert.equal(calls.some((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")), false, "读回校验失败不得发布标记");
 
       corruptRead = false;
+      calls.length = 0;
       corruptMarker = true;
       const badMarker = await backupService.pushBackup(ctx, target);
       assert.equal(badMarker.ok, false);
@@ -113,15 +121,23 @@ test("备份包含回收站附件；缺失或远端读回损坏时不清理旧�
       const invalidMarker = calls.findLast((call) => call.method === "PUT" && call.path.endsWith("/COMPLETE")).path;
       assert.deepEqual(calls.filter((call) => call.method === "DELETE").map((call) => call.path), [invalidMarker]);
       assert.equal(files.has(invalidMarker), false, "只撤回损坏快照的完成标记");
-      assert.equal(calls.some((call) => call.method === "PROPFIND"), false, "损坏标记不得触发保留策略");
+      assert.equal(directories.has(oldDirectory), true, "损坏标记不触发完整快照轮替");
       assert.equal(files.has(`${oldDirectory}/COMPLETE`), true);
 
       corruptMarker = false;
+      markerUnavailable = true;
+      directories.add(partialDirectory);
+      calls.length = 0;
+      const unknown = await backupService.pushBackup(ctx, target);
+      assert.equal(unknown.ok, true, "已完成的推送按成功记录，避免清理异常引发重复推送");
+      assert.match(unknown.cleanupError, /503/);
+      assert.equal(calls.some(call => call.method === "DELETE"), false, "完成标记读取异常时禁止把已有备份当作未完成删除");
+      markerUnavailable = false;
       calls.length = 0;
       const complete = await backupService.pushBackup(ctx, target);
       assert.equal(complete.ok, true, "含回收站附件的快照可通过真实恢复校验器");
       assert.deepEqual(calls.filter((call) => call.method === "DELETE").map((call) => call.path),
-        [`${oldDirectory}/manifest.json`, oldDirectory], "只在旧快照目录内删除，保留并发产生的更新快照");
+        [`${partialDirectory}/manifest.json`, partialDirectory, `${oldDirectory}/manifest.json`, oldDirectory], "先清理未完成快照，再轮替最旧完整快照，保留更新及可能在途的快照");
 
     } finally { globalThis.fetch = originalFetch; }
   });
@@ -532,6 +548,12 @@ test("backup target CRUD with reversible secret storage and reveal (FR-BAK-1, C-
     const list = await (await json(mf, cookie, "GET", "/api/backup/targets")).json();
     assert.equal(list.targets.length, 1);
     assert.equal(list.targets[0].name, "主备份");
+    assert.equal(list.targets[0].retentionCount, 10);
+    for (const retentionCount of [0, 3]) {
+      assert.equal((await json(mf, cookie, "PATCH", `/api/backup/targets/${id}`, { retentionCount })).status, 200);
+      const saved = await (await json(mf, cookie, "GET", "/api/backup/targets")).json();
+      assert.equal(saved.targets[0].retentionCount, retentionCount);
+    }
     assert.match(list.targets[0].secretCiphertext, /^[A-Za-z0-9+/=]+$/);
     assert.equal(list.targets[0].secretCiphertext.includes("secret-value-123"), false, "明文凭据不入库");
     const revealed = await (await json(mf, cookie, "GET", `/api/backup/targets/${id}/secret`)).json();

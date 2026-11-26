@@ -1,4 +1,4 @@
-import type { AccountArchiveSummary, BackupTarget } from "@menote/shared";
+import type { AccountArchiveSummary, BackupTarget, RemoteBackup, RemoteBackupPushResult } from "@menote/shared";
 
 export async function downloadAccountPackage(): Promise<void> {
   const response = await fetch("/api/backup/archive/download", { method: "POST", cache: "no-store" });
@@ -74,10 +74,11 @@ export async function testSavedTarget(id: string): Promise<{ ok: boolean; error?
   } catch (error) { return { ok: false, error: String(error) }; }
 }
 
-export async function listRemoteBackups(id: string): Promise<{ backups: Array<{ id: string; lastModified: string | null; complete: boolean }>; error?: string }> {
+export async function listRemoteBackups(id: string): Promise<{ backups: RemoteBackup[]; error?: string }> {
   try {
     const response = await fetch(`/api/backup/targets/${id}/backups`, { cache: "no-store" });
-    const body = await response.json() as { backups?: Array<{ id: string; lastModified: string | null; complete: boolean }>; error?: string };
+    const body = await response.json() as { backups?: RemoteBackup[]; error?: string };
+    if (!response.ok) return { backups: [], error: body.error ?? `HTTP ${response.status}` };
     return { backups: Array.isArray(body.backups) ? body.backups : [], ...(body.error ? { error: body.error } : {}) };
   } catch (error) { return { backups: [], error: String(error) }; }
 }
@@ -104,10 +105,12 @@ export async function restoreRemoteBackup(targetId: string, backupId: string): P
   } catch (error) { return { ok: false, error: String(error) }; }
 }
 
-export async function runTargetOnce(id: string): Promise<{ ok: boolean; shards?: number; error?: string; missingAttachments?: string[] }> {
+export async function runTargetOnce(id: string): Promise<RemoteBackupPushResult> {
   try {
     const response = await fetch(`/api/backup/run/${id}`, { method: "POST" });
-    return (await response.json().catch(() => ({}))) as { ok: boolean; shards?: number; error?: string; missingAttachments?: string[] };
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.ok) return { ok: false, error: result?.error ?? `HTTP ${response.status}` };
+    return result;
   } catch (cause) {
     return { ok: false, error: String(cause) };
   }
@@ -123,13 +126,14 @@ export async function revealSecret(id: string): Promise<string | null> {
   }
 }
 
-export async function updateTarget(id: string, patch: { enabled?: boolean; schedule?: "manual" | "daily" | "weekly" }): Promise<boolean> {
+export async function updateTarget(id: string, patch: { enabled?: boolean; retentionCount?: number; schedule?: "manual" | "daily" | "weekly" }): Promise<boolean> {
   const response = await fetch(`/api/backup/targets/${id}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
   }).catch(() => null);
   return response?.ok ?? false;
 }
 
-export async function deleteTarget(id: string): Promise<void> {
-  await fetch(`/api/backup/targets/${id}`, { method: "DELETE" }).catch(() => {});
+export async function deleteTarget(id: string): Promise<boolean> {
+  const response = await fetch(`/api/backup/targets/${id}`, { method: "DELETE" }).catch(() => null);
+  return response?.ok ?? false;
 }

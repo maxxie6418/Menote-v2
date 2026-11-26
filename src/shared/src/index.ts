@@ -31,6 +31,7 @@ export { SEALED_ATTACHMENT_MIME, SEALED_ATTACHMENT_MAGIC, SEALED_ATTACHMENT_MIME
 export {
   MCP_PERMISSION_KEYS, MCP_CLIP_MAX_ATTACHMENTS,
   type OpaqueCiphertext, type McpToken, type McpTokenView, type McpTokenConfig,
+  DEFAULT_BACKUP_RETENTION, MAX_BACKUP_RETENTION, type RemoteBackup, type RemoteBackupPushResult,
   type McpPermission, type McpTokenScope, type McpAudit, type BackupTarget,
   type McpClipRequest, type McpClipResult, type McpBookmarkRequest, type McpBookmarkResult,
   type McpMemoRequest, type McpMemoResult,

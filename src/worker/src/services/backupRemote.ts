@@ -1,3 +1,4 @@
+import type { RemoteBackup } from "@menote/shared";
 import { AwsClient } from "aws4fetch";
 
 export interface RemoteTarget {
@@ -9,8 +10,6 @@ export interface RemoteTarget {
   remotePath: string;
   retentionCount: number;
 }
-
-export interface RemoteBackup { id: string; lastModified: string | null; complete: boolean }
 
 function safePath(value: string): string {
   const parts = value.replace(/\\/g, "/").split("/").filter(Boolean);
@@ -177,7 +176,9 @@ async function hasCompleteMarker(target: RemoteTarget, directory: string): Promi
     ? await fetch(davUrl(target, `${directory}/COMPLETE`), { headers: { Authorization: auth(target) } })
     : await s3(target, s3Url(target, `${directory}/COMPLETE`), { method: "HEAD" });
   await response.body?.cancel().catch(() => {});
-  return response.ok;
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`读取备份完成标记失败：HTTP ${response.status}`);
+  return true;
 }
 
 /** Withdraw a marker that was not confirmed, leaving its incomplete snapshot for diagnosis. */
@@ -191,23 +192,29 @@ export async function removeCompleteMarker(target: RemoteTarget, id: string): Pr
   if (!response.ok && response.status !== 404) throw new Error(`删除备份完成标记失败：HTTP ${response.status}`);
 }
 
-export async function deleteRemoteBackup(target: RemoteTarget, id: string): Promise<void> {
+const snapshotFile = /^(?:COMPLETE|manifest\.json|\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/;
+
+export async function deleteRemoteBackup(target: RemoteTarget, id: string, onlyIfIncomplete = false): Promise<void> {
   if (!/^\d{8}T\d{9}Z-[0-9a-f]{8}$/i.test(id)) throw new Error("无效的备份目录名");
   const root = normalizeRemotePath(target.remotePath);
   const directory = `${root}/${id}`;
+  if (onlyIfIncomplete && await hasCompleteMarker(target, directory)) return;
   if (target.kind === "webdav") {
     const base = baseUrl(target);
     const listing = await fetch(davUrl(target, directory), {
       method: "PROPFIND", headers: { Authorization: auth(target), Depth: "1", "Content-Type": "application/xml" },
       body: "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\"><d:allprop/></d:propfind>",
     });
-    if (!listing.ok && listing.status !== 207) throw new Error(`读取待删除快照失败：HTTP ${listing.status}`);
+    if (listing.status === 404) return;
+    if (!listing.ok) throw new Error(`读取待删除快照失败：HTTP ${listing.status}`);
     const xml = await listing.text();
     const basePath = new URL(davUrl(target, directory)).pathname.replace(/\/+$/, "");
     const children = [...xml.matchAll(/<(?:[\w.-]+:)?href\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?href>/gi)]
       .map((match) => new URL(decodeXml(match[1]!), base))
-      .filter((url) => url.origin === base.origin && url.pathname.startsWith(`${basePath}/`) && !url.search
-        && /^(?:COMPLETE|manifest\.json|\d{4}-\d{2}\.json|attachment-[a-f0-9]{64})$/.test(url.pathname.slice(basePath.length + 1)));
+      .filter(url => url.origin === base.origin && url.pathname.startsWith(`${basePath}/`) && url.pathname !== `${basePath}/`);
+    if (children.some(url => url.search || !snapshotFile.test(url.pathname.slice(basePath.length + 1)))) {
+      throw new Error("快照目录含其他文件，已保留该目录");
+    }
     for (const child of children) {
       const response = await fetch(child, { method: "DELETE", headers: { Authorization: auth(target) } });
       const status = response.status;
@@ -220,15 +227,23 @@ export async function deleteRemoteBackup(target: RemoteTarget, id: string): Prom
     if (!response.ok && status !== 404) throw new Error(`删除 WebDAV 快照目录失败：HTTP ${status}`);
     return;
   }
+  const keys: string[] = [];
   for await (const xml of s3ListPages(target, `${directory}/`)) {
     for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) {
       const key = decodeXml(match[1]!);
       if (!key.startsWith(`${directory}/`)) continue;
-      const response = await s3(target, s3Url(target, key), { method: "DELETE" });
-      const status = response.status;
-      await response.body?.cancel().catch(() => {});
-      if (!response.ok && status !== 404) throw new Error(`删除 S3 快照对象失败：HTTP ${status}`);
+      if (key !== `${directory}/` && !snapshotFile.test(key.slice(directory.length + 1))) {
+        throw new Error("快照目录含其他文件，已保留该目录");
+      }
+      keys.push(key);
     }
+  }
+  for (const key of keys) {
+    const url = s3Url(target, key) + (key.endsWith("/") ? "/" : "");
+    const response = await s3(target, url, { method: "DELETE" });
+    const status = response.status;
+    await response.body?.cancel().catch(() => {});
+    if (!response.ok && status !== 404) throw new Error(`删除 S3 快照对象失败：HTTP ${status}`);
   }
 }
 

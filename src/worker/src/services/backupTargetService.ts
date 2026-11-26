@@ -1,3 +1,4 @@
+import { DEFAULT_BACKUP_RETENTION, MAX_BACKUP_RETENTION, type RemoteBackupPushResult } from "@menote/shared";
 import {
   createTarget, deleteTarget, getTarget, listTargets, recordTargetResult, updateTarget,
 } from "../db/backup";
@@ -41,7 +42,7 @@ export function normalizeTargetInput(input: TargetInput): NormalizedTargetInput 
     schedule: input.schedule == null || input.schedule === "daily" ? "daily" : input.schedule === "weekly" ? "weekly" : "manual",
     name: typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 100) : "备份目标",
     remotePath: typeof input.remotePath === "string" && input.remotePath.trim() ? input.remotePath.trim().slice(0, 300) : "menote",
-    retentionCount: typeof input.retentionCount === "number" && Number.isInteger(input.retentionCount) ? Math.max(0, Math.min(1000, input.retentionCount)) : 0,
+    retentionCount: typeof input.retentionCount === "number" && Number.isInteger(input.retentionCount) ? Math.max(0, Math.min(MAX_BACKUP_RETENTION, input.retentionCount)) : DEFAULT_BACKUP_RETENTION,
   };
 }
 
@@ -65,7 +66,7 @@ function normalizeTargetPatch(patch: TargetInput): Partial<Omit<NormalizedTarget
     ...(patch.schedule === "daily" || patch.schedule === "weekly" || patch.schedule === "manual" ? { schedule: patch.schedule } : {}),
     ...(typeof patch.enabled === "boolean" ? { enabled: patch.enabled } : {}),
     ...(typeof patch.remotePath === "string" ? { remotePath: patch.remotePath.trim().slice(0, 300) || "menote" } : {}),
-    ...(typeof patch.retentionCount === "number" && Number.isInteger(patch.retentionCount) ? { retentionCount: Math.max(0, Math.min(1000, patch.retentionCount)) } : {}),
+    ...(typeof patch.retentionCount === "number" && Number.isInteger(patch.retentionCount) ? { retentionCount: Math.max(0, Math.min(MAX_BACKUP_RETENTION, patch.retentionCount)) } : {}),
   };
 }
 
@@ -117,8 +118,7 @@ export async function testUnsavedTarget(
 }
 
 export type TargetPushResult =
-  | { ok: true; shards: number; backupId: string; missingAttachments: string[] }
-  | { ok: false; error: string }
+  | RemoteBackupPushResult
   | { status: "target_missing_or_disabled" }
   | { status: "unavailable" };
 
@@ -148,7 +148,10 @@ async function pushTarget(
     const result = await pushBackup({ db: ctx.db, userId: ctx.userId, bucket: ctx.bucket }, toRemoteTarget(target, secret));
     const pushedAt = Date.now();
     // ok:<ISO> 前缀是定时调度判断上次成功时间的合同。
-    await recordTargetResult(ctx.db, ctx.userId, target.id, result.ok ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片` : `失败:${result.error}`, result.ok ? pushedAt : null);
+    const status = result.ok
+      ? `ok:${new Date(pushedAt).toISOString()}:${result.shards} 分片${result.cleanupError ? "；清理失败：" + result.cleanupError : ""}`
+      : `失败:${result.error}`;
+    await recordTargetResult(ctx.db, ctx.userId, target.id, status, result.ok ? pushedAt : null);
     return result;
   } catch (error) {
     await recordTargetResult(ctx.db, ctx.userId, target.id, `失败:${String(error).slice(0, 200)}`);

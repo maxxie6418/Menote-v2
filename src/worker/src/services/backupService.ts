@@ -1,4 +1,4 @@
-import { bytesToBase64, encodeBackupRow } from "@menote/shared";
+import { bytesToBase64, encodeBackupRow, type RemoteBackupPushResult } from "@menote/shared";
 import { collectBackupRows } from "../db/backup";
 import { MAX_STORED_ATTACHMENT_BYTES } from "./attachmentService";
 import {
@@ -130,11 +130,32 @@ export async function writeSnapshotFiles(
   return manifestHash;
 }
 
+const activeSnapshots = new Set<string>();
+
+/** 目录按时间倒序列出。其他实例近一小时创建的未完成目录也预留上传时间。 */
+async function trimRemoteBackups(target: RemoteTarget, id: string, published: boolean) {
+  if (target.retentionCount === 0) return;
+  const backups = (await listRemoteBackups(target)).filter(backup => backup.id <= id);
+  const complete = backups.filter(backup => backup.complete && (!published || backup.id !== id));
+  const completeSlots = target.retentionCount - Number(published);
+  const incompleteSlots = Math.max(0, completeSlots - complete.length);
+  const incomplete = backups.filter(backup => !backup.complete && (!published || backup.id !== id));
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString().replace(/[-:.]/g, "");
+  for (const backup of incomplete.slice(incompleteSlots).reverse()) {
+    if (backup.id !== id && (activeSnapshots.has(backup.id) || backup.id >= cutoff)) continue;
+    await deleteRemoteBackup(target, backup.id, true);
+  }
+  if (published) {
+    for (const backup of complete.slice(completeSlots).reverse()) await deleteRemoteBackup(target, backup.id);
+  }
+}
+
 /** 推送一次：建立独立快照目录，先传内容与 manifest，最后写 COMPLETE。 */
 export async function pushBackup(
   ctx: { db: SqlDatabase; userId: string; bucket: AttachmentBucket },
   target: RemoteTarget,
-): Promise<{ ok: true; shards: number; backupId: string; missingAttachments: string[] } | { ok: false; error: string }> {
+): Promise<RemoteBackupPushResult> {
+  let writingId: string | null = null;
   try {
     const snapshot = await collectBackup(ctx.db, ctx.userId, ctx.bucket);
     const { manifest, missingAttachments } = snapshot;
@@ -146,6 +167,8 @@ export async function pushBackup(
       // Create namespace and snapshot collection before PUT; DAV servers do not create parents implicitly.
       await ensureDavSnapshotDirectories(target, root, directory);
     }
+    activeSnapshots.add(id);
+    writingId = id;
     const manifestHash = await writeSnapshotFiles(ctx.bucket, snapshot, id,
       (path, bytes, mime) => remotePut(target, `${directory}/${path}`, bytes, mime));
     // Publish COMPLETE only after validating the actual remote payload.
@@ -159,14 +182,23 @@ export async function pushBackup(
       await removeCompleteMarker(target, id).catch(() => {});
       throw error;
     }
-    if (target.retentionCount > 0) {
-      // 只清理严格更早的快照，避免两个并发推送互相删除刚验证的快照。
-      const backups = (await listRemoteBackups(target)).filter((backup) => backup.complete && backup.id < id);
-      for (const old of backups.slice(target.retentionCount - 1)) await deleteRemoteBackup(target, old.id);
+    // The new snapshot is durable even if the remote denies deletion. Keep its successful schedule.
+    const result = { ok: true, shards: manifest.shards.length, backupId: id, missingAttachments } as const;
+    try {
+      await trimRemoteBackups(target, id, true);
+      return result;
+    } catch (error) {
+      return { ...result, cleanupError: String(error).slice(0, 300) };
     }
-    return { ok: true, shards: manifest.shards.length, backupId: id, missingAttachments };
   } catch (error) {
+    if (writingId) {
+      // 上传中断时只清理超额的未完成目录，完整快照留到成功推送后轮替。
+      try { await trimRemoteBackups(target, writingId, false); }
+      catch (cleanupError) { return { ok: false, error: `${String(error).slice(0, 150)}；清理失败：${String(cleanupError).slice(0, 120)}` }; }
+    }
     return { ok: false, error: String(error).slice(0, 300) };
+  } finally {
+    if (writingId) activeSnapshots.delete(writingId);
   }
 }
 

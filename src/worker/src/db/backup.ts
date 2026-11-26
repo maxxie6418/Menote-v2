@@ -43,14 +43,14 @@ export async function createTarget(
   db: SqlDatabase, userId: string, input: {
     kind: "s3" | "webdav"; endpoint: string; bucket: string | null; username: string | null;
     secretCiphertext: string; deletePolicy: "append_only" | "sync"; schedule: "manual" | "daily" | "weekly"; name: string;
-    remotePath?: string; retentionCount?: number;
+    remotePath?: string; retentionCount: number;
   },
 ): Promise<string> {
   const id = crypto.randomUUID();
   await db.prepare(
     `INSERT INTO backup_targets (id, user_id, kind, endpoint, bucket, username, secret_ciphertext, delete_policy, schedule, enabled, name, remote_path, retention_count)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-  ).bind(id, userId, input.kind, input.endpoint, input.bucket, input.username, input.secretCiphertext, input.deletePolicy, input.schedule, input.name, input.remotePath ?? "menote", input.retentionCount ?? 0).run();
+  ).bind(id, userId, input.kind, input.endpoint, input.bucket, input.username, input.secretCiphertext, input.deletePolicy, input.schedule, input.name, input.remotePath ?? "menote", input.retentionCount).run();
   return id;
 }
 

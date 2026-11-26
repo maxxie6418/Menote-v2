@@ -133,12 +133,39 @@ test("Docker HTTP serves the Web app and preserves session and API guards", asyn
     const originalFetch = globalThis.fetch;
     const files = new Map();
     const targets = [];
+    // A target already at its limit, plus two more recent interrupted uploads.
+    for (const kind of ["s3", "webdav"]) {
+      const root = kind === "s3" ? "https://s3.backup.test/backup/menote/" : "https://webdav.backup.test/menote/";
+      for (let n = 1; n <= 12; n++) {
+        const path = root + `200001${String(n).padStart(2, "0")}T000000000Z-00000001/`;
+        files.set(path + "manifest.json", "{}");
+        if (n <= 10) files.set(path + "COMPLETE", "fixture");
+      }
+      files.set(root + "notes/keep.txt", "keep");
+    }
     globalThis.fetch = async (url, options) => {
       const req = new Request(url, options);
       const address = new URL(req.url);
       if (!address.hostname.endsWith(".backup.test")) return originalFetch(url, options);
       if (address.hostname === "s3.backup.test") assert.match(req.headers.get("authorization"), /\/s3\/aws4_request/);
       const key = req.url;
+      const paths = [...files.keys()].filter(path => path.startsWith(address.origin + "/")).map(path => new URL(path).pathname);
+      if (req.method === "GET" && address.searchParams.has("list-type")) {
+        const prefix = address.searchParams.get("prefix");
+        const entries = paths.map(path => path.slice("/backup/".length)).filter(key => key.startsWith(prefix));
+        if (address.searchParams.has("delimiter")) {
+          const dirs = [...new Set(entries.map(key => key.slice(0, key.lastIndexOf("/") + 1)))];
+          return new Response(`<ListBucketResult>${dirs.map(dir => `<CommonPrefixes><Prefix>${dir}</Prefix></CommonPrefixes>`).join("")}</ListBucketResult>`);
+        }
+        return new Response(`<ListBucketResult>${entries.map(key => `<Contents><Key>${key}</Key></Contents>`).join("")}</ListBucketResult>`);
+      }
+      if (req.method === "PROPFIND") {
+        const prefix = address.pathname + "/";
+        const hrefs = [...new Set(paths.filter(path => path.startsWith(prefix)).map(path => prefix + path.slice(prefix.length).split("/")[0]))];
+        return new Response(`<d:multistatus xmlns:d="DAV:">${hrefs.map(href => `<d:response><d:href>${href}</d:href>${address.pathname === "/menote" ? "<d:collection/>" : ""}</d:response>`).join("")}</d:multistatus>`, { status: 207 });
+      }
+      if (req.method === "HEAD") return new Response(null, { status: files.has(key) ? 200 : 404 });
+      if (req.method === "DELETE") { files.delete(key); return new Response(null, { status: 204 }); }
       if (req.method === "MKCOL") return new Response(null, { status: 201 });
       if (req.method === "PUT") { files.set(key, await req.arrayBuffer()); return new Response(null); }
       if (req.method === "GET") return new Response(files.get(key), { status: files.has(key) ? 200 : 404 });
@@ -159,7 +186,11 @@ test("Docker HTTP serves the Web app and preserves session and API guards", asyn
       const pushed = await db.prepare("SELECT last_pushed_at FROM backup_targets").all();
       assert.ok(pushed.results.every(row => row.last_pushed_at > 0));
       for (const [index, kind] of ["s3", "webdav"].entries()) {
-        const marker = [...files.keys()].find(path => new URL(path).hostname === kind + ".backup.test" && path.endsWith("/COMPLETE"));
+        const remaining = [...files.keys()].filter(path => new URL(path).hostname === kind + ".backup.test");
+        assert.equal(remaining.filter(path => path.endsWith("manifest.json")).length, 10);
+        assert.ok(remaining.some(path => path.endsWith("/notes/keep.txt")));
+        assert.ok(!remaining.some(path => /200001(?:01|11|12)T/.test(path)), "先清理两个未完成快照，再轮替最早的完整快照");
+        const marker = remaining.find(path => path.endsWith("/COMPLETE") && !path.includes("/200001"));
         assert.ok(marker);
         const id = marker.split("/").at(-2);
         const response = await fetch(url + "/api/backup/targets/" + targets[index] + "/backups/" + id + "/restore", {

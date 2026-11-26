@@ -122,6 +122,19 @@ export interface McpMemoResult {
   result: "applied" | "duplicate";
 }
 
+export const DEFAULT_BACKUP_RETENTION = 10;
+export const MAX_BACKUP_RETENTION = 1000;
+
+export type RemoteBackupPushResult =
+  | { ok: true; shards: number; backupId: string; missingAttachments: string[]; cleanupError?: string }
+  | { ok: false; error: string };
+
+export interface RemoteBackup {
+  id: string;
+  lastModified: string | null;
+  complete: boolean;
+}
+
 export interface BackupTarget {
   id: string;
   userId: string;
@@ -131,7 +144,7 @@ export interface BackupTarget {
   endpoint: string;
   /** Remote namespace for Menote backups; defaults to `menote`. */
   remotePath: string;
-  /** Maximum completed snapshots to retain; 0 means unlimited. */
+  /** Maximum snapshots to retain, prioritizing completed snapshots; 0 means unlimited. */
   retentionCount: number;
   lastPushedAt: number | null;
   bucket: string | null;
