@@ -241,7 +241,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setMemoComposerSignal((value) => value + 1);
     if (layout === "tablet" || layout === "mobile") setDrawerOpen(true);
   }, [layout]);
-  const openSettings = useCallback((next: SettingsSection = "appearance") => {
+  const openSettings = useCallback((next: SettingsSection = "overview") => {
     setSettingsSection(next);
     setSettingsOpen(true);
     setDrawerOpen(false);
@@ -394,10 +394,13 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   );
   const settingsDialog = settingsOpen ? (
     <Suspense fallback={null}><SettingsDialog
+      key={userId}
       userId={userId}
       section={settingsSection}
+      mobile={layout === "mobile"}
       onClose={() => { setSettingsOpen(false); goBack(settingsReturn.current); }}
       onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
+      onOpenTrash={() => { setSettingsOpen(false); navigate({ kind: "notes", section: { kind: "trash" } }, true); }}
     /></Suspense>
   ) : null;
   const privateDialog = privateGate ? (

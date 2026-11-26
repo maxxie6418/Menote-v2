@@ -1,3 +1,4 @@
+import { requestSyncNow } from "./syncEngine";
 import type { AccountArchiveSummary, BackupTarget, RemoteBackup, RemoteBackupPushResult } from "@menote/shared";
 
 export async function downloadAccountPackage(): Promise<void> {
@@ -34,14 +35,10 @@ export interface TargetView extends BackupTarget {
 }
 
 export async function listTargets(): Promise<TargetView[]> {
-  try {
-    const response = await fetch("/api/backup/targets", { cache: "no-store" });
-    const body: unknown = await response.json();
-    const targets = (body as { targets?: TargetView[] }).targets;
-    return Array.isArray(targets) ? targets : [];
-  } catch {
-    return [];
-  }
+  const response = await fetch("/api/backup/targets", { cache: "no-store" });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !Array.isArray(body?.targets)) throw new Error("无法读取远端备份位置。");
+  return body.targets;
 }
 
 export async function createTarget(input: {
@@ -113,6 +110,54 @@ export async function runTargetOnce(id: string): Promise<RemoteBackupPushResult>
     return result;
   } catch (cause) {
     return { ok: false, error: String(cause) };
+  }
+}
+
+type BackupRunState = {
+  running: boolean;
+  status: string;
+  results: ReadonlyArray<{ id: string; name: string; ok: boolean; detail: string; finishedAt: number }>;
+};
+
+const IDLE_BACKUP_RUN: BackupRunState = { running: false, status: "", results: [] };
+const backupRuns = new Map<string, BackupRunState>();
+const backupRunListeners = new Set<() => void>();
+
+export function getBackupRun(userId: string): BackupRunState {
+  return backupRuns.get(userId) ?? IDLE_BACKUP_RUN;
+}
+
+export function subscribeBackupRuns(listener: () => void): () => void {
+  backupRunListeners.add(listener);
+  return () => { backupRunListeners.delete(listener); };
+}
+
+export async function runBackups(userId: string, targets: ReadonlyArray<Pick<TargetView, "id" | "name">>, syncFirst: boolean): Promise<void> {
+  if (getBackupRun(userId).running || !targets.length) return;
+  const publish = (patch: Partial<BackupRunState>) => {
+    backupRuns.set(userId, { ...getBackupRun(userId), ...patch });
+    backupRunListeners.forEach(listener => listener());
+  };
+  publish({ running: true, status: syncFirst ? "正在同步本机改动…" : "正在准备备份…", results: [] });
+  let failure = "";
+  try {
+    if (syncFirst && !await requestSyncNow(userId)) {
+      failure = "本机改动尚未确认同步，请先检查同步状态。";
+      return;
+    }
+    for (const target of targets) {
+      const name = target.name || "备份位置";
+      publish({ status: "正在推送并校验「" + name + "」…" });
+      const result = await runTargetOnce(target.id);
+      const detail = result.ok
+        ? "已保存 " + result.shards + " 个数据分片" + (result.cleanupError ? "，旧备份清理失败" : "")
+        : result.error;
+      publish({ results: [...getBackupRun(userId).results, { id: target.id, name, ok: result.ok, detail, finishedAt: Date.now() }] });
+    }
+  } catch {
+    failure = "未能完成本轮备份，请查看各目标结果后重试。";
+  } finally {
+    publish({ running: false, status: failure });
   }
 }
 

@@ -1,8 +1,19 @@
 /* Settings / backup. Keep each storage target and its own history together. */
 .mn-backup { display: grid; gap: var(--app-space-18); color: var(--app-fg); min-width: var(--app-zero); }
-.mn-dlg-content .mn-backup h2#backup-heading { font-size: var(--app-size-brand); margin: var(--app-zero); }
 .mn-dlg-content .mn-backup :is(.bk-heading, .bk-name) > :is(h3, h4) { margin: var(--app-zero); }
-.mn-backup [hidden] { display: none; }
+.mn-backup .mn-settings-status { background: var(--app-bg-side); }
+.mn-backup-summary { display: flex; align-items: flex-start; gap: var(--app-space-10); }
+.mn-backup-summary .mn-sethint { margin-top: var(--app-space-4); }
+.mn-backup-empty {
+  display: grid; justify-items: center; gap: var(--app-space-8);
+  border: var(--app-line) dashed var(--app-border); border-radius: var(--app-radius-lg);
+  padding: var(--app-space-lg); text-align: center;
+}
+.mn-backup-empty > svg { width: var(--app-icon-lg); height: var(--app-icon-lg); color: var(--app-fg-subtle); }
+.mn-backup-results { margin: var(--app-zero); padding: var(--app-zero); list-style: none; }
+.mn-backup-results li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--app-space-4) var(--app-space-8); border-top: var(--app-line) solid var(--app-border-subtle); padding: var(--app-space-6) var(--app-zero); font-size: var(--app-size-nav); overflow-wrap: anywhere; }
+.mn-backup-results [data-error="true"] { color: var(--app-danger); }
+.mn-backup [hidden], .bk-local [hidden] { display: none; }
 .bk-section, .bk-target-body, .bk-local, .bk-import, .bk-snapshot-detail { display: grid; gap: var(--app-space-10); min-width: var(--app-zero); }
 .bk-heading, .bk-name, .bk-actions, .bk-policy, .bk-last, .bk-history-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-8); }
 .bk-heading, .bk-history-head { justify-content: space-between; }
@@ -36,12 +47,12 @@
 .bk-last svg, .bk-chevron { width: var(--app-icon-sm); height: var(--app-icon-sm); flex-shrink: 0; }
 .bk-chevron { color: var(--app-fg-subtle); }
 .bk-history-toggle[aria-expanded="true"] .bk-chevron, .bk-snapshot[open] > summary .bk-chevron { transform: rotate(180deg); }
-.mn-backup .mn-textbtn { min-height: var(--app-btn-height); padding-inline: var(--app-space-10); justify-content: center; border-radius: var(--app-radius-lg); }
-.mn-backup .bk-outline { border: var(--app-line) solid var(--app-border); background: var(--app-surface); color: var(--app-fg); }
-.mn-backup .bk-outline:hover { background: var(--app-hover); }
+:is(.mn-backup, .bk-local) .mn-textbtn { min-height: var(--app-btn-height); padding-inline: var(--app-space-10); justify-content: center; border-radius: var(--app-radius-lg); }
+:is(.mn-backup, .bk-local) .bk-outline { border: var(--app-line) solid var(--app-border); background: var(--app-surface); color: var(--app-fg); }
+:is(.mn-backup, .bk-local) .bk-outline:hover { background: var(--app-hover); }
 .mn-backup .bk-primary { background: var(--app-accent); color: var(--app-accent-text); font-weight: var(--app-weight-medium); }
 .mn-backup .bk-primary:hover { background: var(--app-accent-hover); }
-.mn-backup .mn-textbtn:disabled { background: var(--app-surface-sunken); color: var(--app-fg-faint); }
+:is(.mn-backup, .bk-local) .mn-textbtn:disabled { background: var(--app-surface-sunken); color: var(--app-fg-faint); }
 .mn-backup .bk-danger, .bk-error { color: var(--app-danger); }
 .bk-policy-hint { flex-basis: var(--app-full-size); }
 .bk-target-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: var(--app-space-8); }

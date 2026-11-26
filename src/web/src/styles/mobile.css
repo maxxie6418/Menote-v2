@@ -240,26 +240,13 @@
 [data-layout="mobile"] .mn-dialog-settings {
   position: fixed; inset: var(--app-zero); top: var(--app-zero); left: var(--app-zero);
   z-index: var(--app-mobile-z-settings-dialog); width: var(--app-full-size); max-width: var(--app-full-size);
-  height: 100dvh; transform: none; padding: var(--app-zero); border: var(--app-zero);
+  height: 100dvh; max-height: none; transform: none; padding: var(--app-zero); border: var(--app-zero);
   border-radius: var(--app-zero); box-shadow: none;
 }
 [data-layout="mobile"] .mn-dialog-settings .mn-dlg-head {
   height: calc(var(--app-mobile-settings-head-height) + var(--app-mobile-safe-top));
   min-height: calc(var(--app-mobile-settings-head-height) + var(--app-mobile-safe-top));
   padding: var(--app-mobile-safe-top) var(--app-space-md) var(--app-zero);
-}
-[data-layout="mobile"] .mn-dialog-settings .mn-dlg-body { display: flex; flex-direction: column; }
-[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav {
-  display: flex; flex: none; flex-direction: row; gap: var(--app-space-2); overflow-x: auto;
-  padding: var(--app-space-2) var(--app-space-xs); border-right: var(--app-zero);
-  border-bottom: var(--app-line) solid var(--app-border-subtle); scrollbar-width: none;
-  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
-}
-[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav::-webkit-scrollbar { display: none; }
-[data-layout="mobile"] .mn-dialog-settings .mn-dlg-nav a {
-  display: flex; min-height: var(--app-mobile-settings-tab-height); flex: 1 0 auto;
-  align-items: center; justify-content: center; padding-inline: var(--app-space-10);
-  border-radius: var(--app-radius-sm); white-space: nowrap; text-align: center;
 }
 [data-layout="mobile"] .mn-dialog-settings .mn-dlg-content {
   flex: 1; padding: var(--app-space-md); padding-bottom: calc(var(--app-space-md) + var(--app-mobile-safe-bottom));

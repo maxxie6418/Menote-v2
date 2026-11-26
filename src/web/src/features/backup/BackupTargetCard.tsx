@@ -2,16 +2,22 @@ import { useState } from "react";
 import { MAX_BACKUP_RETENTION } from "@menote/shared";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { ChevronDown, Clock, Folder, Settings, ArrowUp } from "../../icons";
-import { deleteTarget, revealSecret, runTargetOnce, testSavedTarget, updateTarget, type TargetView } from "../../services/backupService";
+import { deleteTarget, revealSecret, testSavedTarget, updateTarget, type TargetView } from "../../services/backupService";
 import { RemoteBackupHistory } from "./RemoteBackupHistory";
 
-type Props = { target: TargetView; userId: string; refresh: () => Promise<void> };
+type Props = {
+  target: TargetView;
+  userId: string;
+  refresh: () => Promise<void>;
+  pushTarget: () => Promise<void>;
+  pushing: boolean;
+  revision: number;
+};
 type Frequency = "manual" | "daily" | "weekly";
 
-export function BackupTargetCard({ target, userId, refresh }: Props) {
+export function BackupTargetCard({ target, userId, refresh, pushTarget, pushing, revision }: Props) {
   const [managing, setManaging] = useState(false);
   const [history, setHistory] = useState(false);
-  const [revision, setRevision] = useState(0);
   const [secret, setSecret] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
@@ -38,18 +44,6 @@ export function BackupTargetCard({ target, userId, refresh }: Props) {
         await refresh(); setRetention(null); setFrequency(null);
         setMessage("策略已保存，下次推送时按此上限清理。");
       } else setMessage("保存失败，请重试。");
-    } finally { setBusy(""); }
-  }
-
-  async function push() {
-    setBusy("push"); setMessage("正在推送并校验备份…");
-    try {
-      const result = await runTargetOnce(target.id);
-      setMessage(result.ok
-        ? `推送完成，共 ${result.shards} 个数据分片。${result.cleanupError ? "远端清理失败，请查看错误详情。" : ""}`
-        : `推送失败：${result.error}`);
-      setRevision(value => value + 1);
-      await refresh();
     } finally { setBusy(""); }
   }
 
@@ -99,8 +93,8 @@ export function BackupTargetCard({ target, userId, refresh }: Props) {
           {target.lastPushedAt && <span>最近成功于 {new Date(target.lastPushedAt).toLocaleString("zh-CN", { hour12: false })}</span>}
         </div>
         <div className="bk-actions">
-          <button type="button" className="mn-textbtn bk-primary" disabled={Boolean(busy) || !target.enabled} onClick={() => void push()}>
-            <ArrowUp />{busy === "push" ? "推送中…" : "推送一次"}</button>
+          <button type="button" className="mn-textbtn bk-primary" disabled={Boolean(busy) || pushing || !target.enabled} onClick={() => void pushTarget()}>
+            <ArrowUp />推送一次</button>
           <button type="button" className="mn-textbtn" aria-expanded={managing} disabled={Boolean(busy)}
             onClick={() => { setManaging(!managing); setSecret(""); }}><Settings />管理</button>
         </div>
@@ -110,9 +104,9 @@ export function BackupTargetCard({ target, userId, refresh }: Props) {
         <p className="bk-meta">自动备份每小时检查一次，按上次成功推送时间计算间隔。目标停用时暂停。</p>
         <div className="bk-actions">
           <button type="button" className="mn-textbtn" disabled={Boolean(busy)} onClick={() => void manage("test")}>{busy === "test" ? "测试中…" : "测试连接"}</button>
-          <button type="button" className="mn-textbtn" disabled={Boolean(busy)} onClick={() => void manage("enabled")}>{target.enabled ? "停用目标" : "启用目标"}</button>
+          <button type="button" className="mn-textbtn" disabled={Boolean(busy) || pushing} onClick={() => void manage("enabled")}>{target.enabled ? "停用目标" : "启用目标"}</button>
           <button type="button" className="mn-textbtn" disabled={Boolean(busy)} onClick={() => void manage("secret")}>{secret ? "隐藏凭据" : "查看凭据"}</button>
-          <button type="button" className="mn-textbtn bk-danger" disabled={Boolean(busy)} onClick={() => void manage("remove")}>删除位置</button>
+          <button type="button" className="mn-textbtn bk-danger" disabled={Boolean(busy) || pushing} onClick={() => void manage("remove")}>删除位置</button>
         </div>
         {secret && <code className="bk-code">{secret}</code>}
       </div>}

@@ -4,6 +4,7 @@ import { Archive, Download, FolderInput } from "../../icons";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { downloadAccountPackage, uploadAccountArchive } from "../../services/backupService";
 import { requestSyncNow } from "../../services/syncEngine";
+import "../../styles/backup.css";
 
 export function ArchiveRestorePanel({ userId }: { userId: string }) {
   const [importing, setImporting] = useState(false);

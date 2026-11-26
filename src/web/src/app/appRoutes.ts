@@ -21,7 +21,7 @@ export function toggleGlobalTagSection(current: BrowseSection, tag: string, memo
   return memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag };
 }
 
-const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "sync", "style", "ai", "plugins", "backup", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
+const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "editor", "sync", "style", "ai", "plugins", "backup", "data", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
 
 function decodeSegment(segment: string | undefined): string | null {
   if (!segment) return null;
@@ -53,7 +53,7 @@ export function appRoutePath(route: AppRoute): string {
   if (route.kind === "home") return "/home";
   if (route.kind === "me") return "/me";
   if (route.kind === "status") return "/status";
-  if (route.kind === "settings") return `/settings/${encodeURIComponent(route.section)}`;
+  if (route.kind === "settings") return route.section === "overview" ? "/settings" : `/settings/${encodeURIComponent(route.section)}`;
   if (route.kind === "memos") {
     if (route.tag) return `/memos/tag/${encodeURIComponent(route.tag)}`;
     return route.itemId ? `/memos/${encodeItemId(route.itemId)}` : "/memos";
@@ -74,6 +74,7 @@ export function parseAppRoute(pathname: string): AppRoute {
   if (root === "me") return { kind: "me" };
   if (root === "status") return { kind: "status" };
   if (root === "settings") {
+    if (!second) return { kind: "settings", section: "overview" };
     const section = SETTINGS_SECTIONS.includes(second as SettingsSection) ? second as SettingsSection : "backup";
     return { kind: "settings", section };
   }

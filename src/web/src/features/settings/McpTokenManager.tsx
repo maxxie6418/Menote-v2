@@ -14,6 +14,7 @@ import {
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { copyMcpConnectionPrompt } from "./mcpConnectionPrompt";
+import { SettingsGroup } from "./SettingsGroup";
 
 const PERMISSION_LABELS: Record<McpPermission, string> = {
   "content:read": "读取内容",
@@ -46,11 +47,14 @@ async function copyText(value: string): Promise<void> {
   await navigator.clipboard.writeText(value);
 }
 
-export function McpTokenManager() {
+export function McpTokenManager({ userId }: { userId: string }) {
   const endpoint = useMemo(() => `${window.location.origin}/api/mcp`, []);
-  const [tokens, setTokens] = useState<McpTokenView[]>(() => (peek<McpTokenView[]>(SETTINGS_CACHE.tokens) ?? []).filter((token) => token.revokedAt === null));
-  const [topics, setTopics] = useState<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(() => peek<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(SETTINGS_CACHE.topics) ?? []);
-  const [loading, setLoading] = useState(() => peek(SETTINGS_CACHE.tokens) === undefined || peek(SETTINGS_CACHE.topics) === undefined);
+  const tokensKey = SETTINGS_CACHE.tokens(userId);
+  const topicsKey = SETTINGS_CACHE.topics(userId);
+  const [tokens, setTokens] = useState<McpTokenView[]>(() => (peek<McpTokenView[]>(tokensKey) ?? []).filter((token) => token.revokedAt === null));
+  const [topics, setTopics] = useState<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(() => peek<Array<Pick<TopicNode, "id" | "parentId" | "name" | "depth">>>(topicsKey) ?? []);
+  const [loading, setLoading] = useState(() => peek(tokensKey) === undefined || peek(topicsKey) === undefined);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [creating, setCreating] = useState(false);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,19 +63,21 @@ export function McpTokenManager() {
   const [message, setMessage] = useState("");
 
   const refresh = useCallback(async (fresh = false) => {
-    const known = peek(SETTINGS_CACHE.tokens) !== undefined && peek(SETTINGS_CACHE.topics) !== undefined;
+    const known = peek(tokensKey) !== undefined && peek(topicsKey) !== undefined;
     if (!known) setLoading(true);
+    setLoadFailed(false);
     try {
       const [nextTokens, nextTopics] = await Promise.all([
-        loadShared(SETTINGS_CACHE.tokens, listMcpTokens, fresh),
-        loadShared(SETTINGS_CACHE.topics, listMcpScopeTopics, fresh),
+        loadShared(tokensKey, listMcpTokens, fresh),
+        loadShared(topicsKey, listMcpScopeTopics, fresh),
       ]);
       setTokens(nextTokens.filter((token) => token.revokedAt === null));
       setTopics(nextTopics);
     } catch (error) {
+      setLoadFailed(true);
       setMessage(errorMessage(error));
     } finally { setLoading(false); }
-  }, []);
+  }, [tokensKey, topicsKey]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -139,11 +145,12 @@ export function McpTokenManager() {
           <code className="mn-mcp-address">{endpoint}</code>
           <button type="button" className="mn-textbtn" onClick={() => void copyEndpoint()}>复制地址</button>
         </div>
+        <p className="mn-sethint">使用 Streamable HTTP 与 Bearer Token。每个 Token 可以单独配置权限和访问范围。</p>
       </div>
 
       <div className="mn-mcp-heading">
         <h3 className="mn-mcp-title">访问 Token</h3>
-        {!creating && <button type="button" className="mn-textbtn mn-settings-primary" onClick={() => {
+        {!creating && <button type="button" className="mn-textbtn mn-settings-primary" disabled={loading || loadFailed} onClick={() => {
           setCreating(true);
           setDetailsId(null);
           setEditingId(null);
@@ -152,9 +159,13 @@ export function McpTokenManager() {
       </div>
 
       {message && <p className="mn-mcp-message" role="status">{message}</p>}
+      {loadFailed && <button type="button" className="mn-textbtn mn-settings-outline" onClick={() => {
+        setMessage("");
+        void refresh(true);
+      }}>重新加载 Token</button>}
       {creating && <TokenEditor topics={topics} onCancel={() => setCreating(false)} onSave={create} />}
       {loading && <p className="mn-mcp-empty">正在读取 Token…</p>}
-      {!loading && tokens.length === 0 && !creating && <p className="mn-settings-empty">还没有访问 Token。创建后可以复制该 Token 的 AI 接入提示词。</p>}
+      {!loading && !loadFailed && tokens.length === 0 && !creating && <p className="mn-settings-empty">还没有访问 Token。创建后可以复制该 Token 的 AI 接入提示词。</p>}
       {!loading && tokens.length > 0 && <div className="mn-mcp-token-list">
         {tokens.map((token) => {
           const expanded = detailsId === token.id;
@@ -210,8 +221,50 @@ export function McpTokenManager() {
           );
         })}
       </div>}
+      <McpClientGuides endpoint={endpoint} />
     </section>
   );
+}
+
+function McpClientGuides({ endpoint }: { endpoint: string }) {
+  const [feedback, setFeedback] = useState("");
+  const guides = [
+    {
+      title: "Codex",
+      hint: "在 Codex 的 config.toml 添加配置，并在 Codex 进程环境中设置 MENOTE_MCP_TOKEN。",
+      snippet: '[mcp_servers.menote]\nurl = "' + endpoint + '"\nbearer_token_env_var = "MENOTE_MCP_TOKEN"',
+    },
+    {
+      title: "Claude Code",
+      hint: "以下是 .mcp.json 的配置结构。在 Claude Code 进程环境中设置 MENOTE_MCP_TOKEN。",
+      snippet: JSON.stringify({ mcpServers: { menote: { type: "http", url: endpoint, headers: { Authorization: "Bearer ${MENOTE_MCP_TOKEN}" } } } }, null, 2),
+    },
+    {
+      title: "通用 MCP 客户端",
+      hint: "选择 Streamable HTTP，填入服务地址并设置 Authorization 请求头。",
+      snippet: endpoint + "\nAuthorization: Bearer <你的 Menote Token>",
+    },
+  ];
+
+  return <SettingsGroup title="连接客户端">
+    <div className="mn-mcp-guides">
+      {guides.map(guide => <details key={guide.title} className="mn-settings-fold">
+        <summary>{guide.title}<ChevronDown aria-hidden="true" /></summary>
+        <div className="mn-settings-fold-body">
+          <p className="mn-sethint">{guide.hint}</p>
+          <pre className="mn-settings-code"><code>{guide.snippet}</code></pre>
+          <div className="mn-set-actions">
+            <button type="button" className="mn-textbtn mn-settings-outline"
+              aria-label={"复制 " + guide.title + " 配置"} onClick={() => void copyText(guide.snippet).then(
+                () => setFeedback(guide.title + " 配置已复制。"),
+                () => setFeedback("复制失败，请检查浏览器剪贴板权限。"),
+              )}>复制配置</button>
+          </div>
+        </div>
+      </details>)}
+      {feedback && <p className="mn-sethint" role="status">{feedback}</p>}
+    </div>
+  </SettingsGroup>;
 }
 
 function TokenEditor({

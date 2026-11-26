@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { Item, MemoComment, TopicNode } from "@menote/shared";
-import { isUnfiledItem, listActiveItems, listItemsInSubtree, listMemos, listRecentItems, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
+import { countAccountItems, isUnfiledItem, listActiveItems, listItemsInSubtree, listMemos, listRecentItems, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { listMemoComments } from "../db/memoCommentsRepo";
 import { listSubtreeIds, listTopics } from "../db/topicsRepo";
 import { subscribeLocalChanges } from "../lib/broadcast";
@@ -33,6 +33,11 @@ export function useSyncQueueStatus(userId: string): { pending: number; failed: n
 
 export function useTopics(userId: string): TopicNode[] {
   return useData(() => (userId ? listTopics(userId) : undefined), [userId], Boolean(userId)) ?? [];
+}
+
+export function useLocalDataSummary(userId: string) {
+  const lockVersion = useLockVersion();
+  return useData(async () => countAccountItems(userId, hiddenPrivateTopicIds(await listTopics(userId))), [userId, lockVersion], Boolean(userId));
 }
 
 /** Non-Memo note/table counts for group rows; root topic counts are intentionally not rendered. */

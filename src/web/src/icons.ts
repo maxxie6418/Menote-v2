@@ -71,6 +71,7 @@ export { default as Minus } from "lucide-react/icons/minus";
 export { default as MoreHorizontal } from "lucide-react/icons/more-horizontal";
 export { default as PanelLeftClose } from "lucide-react/icons/panel-left-close";
 export { default as PanelLeftOpen } from "lucide-react/icons/panel-left-open";
+export { default as Palette } from "lucide-react/icons/palette";
 export { default as Paperclip } from "lucide-react/icons/paperclip";
 export { default as Pencil } from "lucide-react/icons/pencil";
 export { default as Pin } from "lucide-react/icons/pin";

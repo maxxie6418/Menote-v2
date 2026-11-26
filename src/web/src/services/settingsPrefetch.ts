@@ -9,8 +9,8 @@ const generation = new Map<string, number>();
 
 export const SETTINGS_CACHE = {
   targets: (userId: string) => `backup.targets:${userId}`,
-  tokens: "mcp.tokens",
-  topics: "mcp.topics",
+  tokens: (userId: string) => `mcp.tokens:${userId}`,
+  topics: (userId: string) => `mcp.topics:${userId}`,
   ai: (userId: string) => `ai.settings:${userId}`,
   usage: "ai.usage",
   raindrop: (userId: string) => `raindrop.settings:${userId}`,

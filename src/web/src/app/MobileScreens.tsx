@@ -204,7 +204,7 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
   const tags = [...new Set(items.flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
 
   return <div className="m-screen m-me">
-    <header className="m-topbar"><strong className="m-page-title">我的</strong><span className="grow" /><button type="button" className="m-icon-btn" onClick={() => onSettings("appearance")} aria-label="设置"><Settings /></button></header>
+    <header className="m-topbar"><strong className="m-page-title">我的</strong><span className="grow" /><button type="button" className="m-icon-btn" onClick={() => onSettings("overview")} aria-label="设置"><Settings /></button></header>
     <div className="m-me-scroll">
       <div className="m-mecard"><span className="av">{username.slice(0, 1).toUpperCase()}</span><span className="nm"><b>{username}</b><em><i />{role === "owner" ? "管理员" : "成员"}</em></span><ChevronRight /></div>
       <div className="m-mstat"><span>待同步 {pending}</span><i /><SyncBadge /><i /><span>本机优先</span></div>
@@ -215,7 +215,7 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
       <button type="button" className="m-mi" onClick={onOpenPrivate}><LockKeyhole />私人空间<em>{spaceLabel}</em><ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => { const tag = tags[0]; if (tag) onOpenSection(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); }}><Tag />标签<em>{tags.length}</em><ChevronRight className="chev" /></button>
       <div className="m-msec"><b>设置</b></div>
-      <button type="button" className="m-mi" onClick={() => onSettings("appearance")}><Settings />外观与账户<ChevronRight className="chev" /></button>
+      <button type="button" className="m-mi" onClick={() => onSettings("appearance")}><Settings />外观<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => onSettings("backup")}><Archive />备份与恢复<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => onSettings("recovery")}><LockKeyhole />加密与恢复<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={onStatus}><Clock3 />资源状态<em>查看</em><ChevronRight className="chev" /></button>

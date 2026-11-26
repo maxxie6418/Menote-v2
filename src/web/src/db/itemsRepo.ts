@@ -16,6 +16,15 @@ export async function listActiveItems(userId: string): Promise<Item[]> {
   return localDb.items.where("userId").equals(userId).filter((item) => item.deletedAt === null).toArray();
 }
 
+export async function countAccountItems(userId: string, hiddenTopics: ReadonlySet<string>) {
+  const summary = { note: 0, memo: 0, table: 0, trash: 0 };
+  await localDb.items.where("userId").equals(userId).each((item) => {
+    if ((item.topicId && hiddenTopics.has(item.topicId)) || (item.groupId && hiddenTopics.has(item.groupId))) return;
+    summary[item.deletedAt === null ? item.type : "trash"]++;
+  });
+  return summary;
+}
+
 export async function putItem(item: Item): Promise<void> {
   await localDb.items.put(item);
 }

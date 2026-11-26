@@ -2,13 +2,13 @@ import { useState, type FormEvent } from "react";
 import { DEFAULT_BACKUP_RETENTION, MAX_BACKUP_RETENTION } from "@menote/shared";
 import { createTarget, testTarget } from "../../services/backupService";
 
-export function BackupTargetForm({ onCreated }: { onCreated: (message: string) => Promise<void> }) {
+export function BackupTargetForm({ active, onCreated }: { active: boolean; onCreated: (message: string) => Promise<void> }) {
   const [kind, setKind] = useState<"webdav" | "s3">("webdav");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !active) return;
     const fields = new FormData(event.currentTarget);
     const value = (name: string) => String(fields.get(name) ?? "");
     const connection = { kind, endpoint: value("endpoint").trim(), bucket: kind === "s3" ? value("bucket") : null,
@@ -36,8 +36,8 @@ export function BackupTargetForm({ onCreated }: { onCreated: (message: string) =
     <label className="bk-full">服务地址<input className="mn-propinput" name="endpoint" type="url" required
       placeholder={kind === "s3" ? "https://s3.example.com" : "https://dav.example.com/dav"} /></label>
     {kind === "s3" && <label className="bk-full">存储桶<input className="mn-propinput" name="bucket" required /></label>}
-    <label>{kind === "s3" ? "Access Key" : "用户名"}<input className="mn-propinput" name="username" autoComplete="off" /></label>
-    <label>{kind === "s3" ? "Secret Key" : "密码"}<input className="mn-propinput" name="secret" type="password" autoComplete="new-password" required /></label>
+    <label>{kind === "s3" ? "Access Key" : "用户名"}<input className="mn-propinput" key={"user-" + active} name="username" autoComplete="off" /></label>
+    <label>{kind === "s3" ? "Secret Key" : "密码"}<input className="mn-propinput" key={"secret-" + active} name="secret" type="password" autoComplete="new-password" required /></label>
     <label className="bk-full">远端目录<input className="mn-propinput" name="path" defaultValue="menote" /></label>
     <label>备份频率<select className="mn-propselect" name="schedule" defaultValue="daily">
       <option value="manual">仅手动</option><option value="daily">每天</option><option value="weekly">每周</option>
