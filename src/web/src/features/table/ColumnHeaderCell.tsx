@@ -1,5 +1,5 @@
-import { useEffect, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from "../../icons";
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowDown, ArrowUp, MoreHorizontal } from "../../icons";
 import { OPTION_COLORS, type OptionColor, type PropertyDef, type PropertyType } from "../../lib/frontmatter";
 import { AnchoredPanel } from "../../components/ui/AnchoredPanel";
 import { FIELD_TYPE_LABELS, FieldTypeMenu } from "./FieldTypeMenu";
@@ -27,7 +27,7 @@ interface ColumnHeaderCellProps {
   onTouchColumnDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onColumnDragEnd: () => void;
   onColumnDrop: (event: ReactDragEvent<HTMLDivElement>) => void;
-  onSort: () => void;
+  onSort: (direction: "asc" | "desc") => void;
   onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onResize: (level: number) => void;
   onDraft: (value: string) => void;
@@ -41,7 +41,7 @@ interface ColumnHeaderCellProps {
   onDelete: () => void;
 }
 
-/** 已有字段的表头：默认只露字段名，排序与类型在悬停该列时浮出（FR-TBL-19）。
+/** 已有字段的表头：字段名与列菜单保持单行，菜单按钮兼作拖动手柄（FR-TBL-19）。
  *  类型菜单挂到该列下方（portal，不被滚动容器裁切），顺手放「裁切 / 自动换行」。 */
 export function ColumnHeaderCell({
   name, index, dragging, readOnly, draft, type, def, optionColors, wrap, menuOpen, error, sortDirection, widthLevel,
@@ -49,18 +49,29 @@ export function ColumnHeaderCell({
   onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onWrapChange, onDelete,
 }: ColumnHeaderCellProps) {
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchDragged = useRef(false);
+  const keyboardOpen = useRef(false);
+  const firstMenuAction = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (menuOpen && keyboardOpen.current) firstMenuAction.current?.focus({ preventScroll: true });
+  }, [menuOpen]);
   const options = (def?.options ?? []).join("\n");
   const [optionsDraft, setOptionsDraft] = useState<string | null>(null);
   const [colorTarget, setColorTarget] = useState<string | null>(null);
   return (
     <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}${dragging ? " dragging" : ""}${readOnly ? " readonly" : ""}`}
-      role="columnheader" ref={setAnchor} data-column-index={index} data-wrap={wrap ? "true" : "false"}
+      role="columnheader" ref={setAnchor} aria-sort={sortDirection ? (sortDirection === "asc" ? "ascending" : "descending") : undefined}
+      data-menu-open={menuOpen || undefined} data-column-index={index} data-wrap={wrap ? "true" : "false"}
       onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-menote-column")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
+      onKeyDown={event => {
+        if (!menuOpen || event.key !== "Escape") return;
+        event.stopPropagation();
+        onClose();
+        menuButton.current?.focus({ preventScroll: true });
+      }}
       onDrop={onColumnDrop}>
-      {!readOnly && (
-        <button type="button" className="mn-tabledoc-col-drag" aria-label={`拖动第 ${index + 1} 列调整顺序`} title="拖动调整列顺序"
-          draggable onPointerDown={onTouchColumnDragStart} onDragStart={onColumnDragStart} onDragEnd={onColumnDragEnd}><GripVertical aria-hidden="true" /></button>
-      )}
       {readOnly ? (
         <span className="mn-tabledoc-hname mn-tabledoc-hname-static" title={name}>{name}</span>
       ) : (
@@ -73,14 +84,31 @@ export function ColumnHeaderCell({
       )}
       {!readOnly && (
         <>
-          <button type="button" className={`mn-tabledoc-sort${sortDirection ? " active" : ""}`}
-            aria-label={`按${name}排序${sortDirection ? `，当前${sortDirection === "asc" ? "升序" : "降序"}` : ""}`}
-            title={sortDirection === "asc" ? "升序（再次点击降序）" : sortDirection === "desc" ? "降序（再次点击升序）" : "排序"} onClick={onSort}>
-            {sortDirection === "desc" ? <ArrowDown aria-hidden="true" /> : sortDirection === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowUpDown aria-hidden="true" />}
-          </button>
-          <button type="button" className="mn-tabledoc-hbadge" aria-label={`字段类型：${FIELD_TYPE_LABELS[type]}`}
-            aria-expanded={menuOpen} onClick={onToggle} data-panel-trigger>
-            {FIELD_TYPE_LABELS[type]}
+          <button ref={menuButton} type="button" className="mn-tabledoc-col-menu" draggable
+            title={`字段设置：${name}（${FIELD_TYPE_LABELS[type]}），拖动可调整列顺序`}
+            aria-label={`字段设置：${name}`} aria-haspopup="dialog" aria-expanded={menuOpen} data-panel-trigger
+            onDragStart={onColumnDragStart} onDragEnd={onColumnDragEnd}
+            onPointerDown={event => {
+              touchDragged.current = false;
+              if (event.pointerType !== "touch") return;
+              touchStartX.current = event.clientX;
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={event => {
+              // 留出手指轻点时的抖动距离，越过阈值后再启动原有列重排。
+              if (event.pointerType !== "touch" || touchStartX.current === null || Math.abs(event.clientX - touchStartX.current) < 6) return;
+              touchStartX.current = null;
+              touchDragged.current = true;
+              onTouchColumnDragStart(event);
+            }}
+            onPointerUp={() => { touchStartX.current = null; }}
+            onPointerCancel={() => { touchStartX.current = null; touchDragged.current = false; }}
+            onClick={event => {
+              if (event.detail && touchDragged.current) return;
+              keyboardOpen.current = event.detail === 0;
+              onToggle();
+            }}>
+            {sortDirection === "asc" ? <ArrowUp aria-hidden="true" /> : sortDirection === "desc" ? <ArrowDown aria-hidden="true" /> : <MoreHorizontal aria-hidden="true" />}
           </button>
           <button type="button" className="mn-tabledoc-colresize" aria-label={`调整${name}列宽`} title="拖动调整列宽"
             onPointerDown={(event) => { event.preventDefault(); onResizeStart(event); }}
@@ -97,6 +125,14 @@ export function ColumnHeaderCell({
         <AnchoredPanel className="mn-tabledoc-hmenu" anchor={anchor} label={`字段设置：${name}`}
           layoutKey={`${type}:${options}:${JSON.stringify(optionColors)}:${wrap}:${error ?? ""}`} onClose={onClose}>
           {error && <p className="mn-tabledoc-error" role="alert">{error}</p>}
+          <div className="mn-tabledoc-segmented" role="group" aria-label="按此列重排行">
+            {(["asc", "desc"] as const).map(direction => (
+              <button key={direction} type="button" ref={direction === "asc" ? firstMenuAction : undefined}
+                aria-pressed={sortDirection === direction} onClick={() => { onSort(direction); onClose(); menuButton.current?.focus(); }}>
+                {direction === "asc" ? "升序排列" : "降序排列"}
+              </button>
+            ))}
+          </div>
           <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
           <div className="mn-tabledoc-display">
             <span className="mn-tabledoc-display-title">内容显示</span>

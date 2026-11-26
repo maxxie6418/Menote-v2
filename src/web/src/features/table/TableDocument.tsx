@@ -168,9 +168,12 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
         writeTableColumnWidths(userId, itemId, columnWidthsRef.current);
       }
     };
+    const cancelColumnDrag = () => { touchColumnDrag.current = null; setDraggingColumn(null); };
+    window.addEventListener("pointercancel", cancelColumnDrag);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
+      window.removeEventListener("pointercancel", cancelColumnDrag);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
@@ -248,9 +251,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     return { type: columnType(col), def: fieldDefs[name] };
   };
 
-  const toggleSort = (col: number) => {
+  const sortColumn = (col: number, direction: "asc" | "desc") => {
     if (!table || readOnly) return;
-    const direction = sortCol === col ? (sortDirection === "asc" ? "desc" : "asc") : "asc";
     const sorted = [...table.rows].sort((a, b) => {
       const left = a[col] ?? "";
       const right = b[col] ?? "";
@@ -826,7 +828,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   wrap={columnWrap(col)}
                   sortDirection={sortCol === col ? sortDirection : null}
                   widthLevel={columnWidths[col] ?? 0}
-                  onSort={() => toggleSort(col)}
+                  onSort={(direction) => sortColumn(col, direction)}
                   onResizeStart={(event) => { resizeRef.current = { col, startX: event.clientX, startLevel: columnWidths[col] ?? 0 }; }}
                   onResize={(level) => updateColumnWidth(col, level)}
                   menuOpen={menuCol === col}

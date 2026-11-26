@@ -10,6 +10,7 @@ for (const key of ["window", "document", "HTMLElement", "HTMLInputElement", "HTM
   globalThis[key] = dom.window[key];
 }
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 globalThis.MessageChannel = class { port1 = { onmessage: null }; port2 = { postMessage: () => setTimeout(() => this.port1.onmessage?.(), 0) } };
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.indexedDB = indexedDB;
@@ -50,7 +51,10 @@ test("行详情按排序和筛选后的顺序浏览，保留网格滚动和打�
   };
   try {
     await act(async () => render());
-    await act(async () => button("按标题排序").click());
+    await act(async () => button("字段设置：标题").click());
+    const ascending = [...document.querySelectorAll("button")].find(element => element.textContent === "升序排列");
+    await act(async () => ascending.click());
+    assert.equal(document.querySelector('[data-column-index="0"]').getAttribute("aria-sort"), "ascending");
     assert.match(markdown, /\| A \| 展示 \|\n\| B \| 隐藏 \|\n\| C \| 展示 \|/);
     await act(async () => [...document.querySelectorAll("button")].find((element) => element.textContent === "筛选").click());
     await act(async () => {
