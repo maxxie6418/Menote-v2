@@ -1,0 +1,10 @@
+[Unit]
+Description=Publish the latest Menote main revision
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /usr/local/lib/menote-autodeploy/deploy.sh
+TimeoutStartSec=30min

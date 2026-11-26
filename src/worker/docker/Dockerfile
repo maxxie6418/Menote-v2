@@ -11,6 +11,7 @@ RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile --fetch
 COPY src/shared ./src/shared
 COPY src/web ./src/web
 COPY src/worker ./src/worker
+ARG MENOTE_BUILD_COMMIT
 RUN pnpm --filter @menote/web build && node src/worker/docker/build.mjs
 
 FROM ${MENOTE_ARTIFACTS} AS artifacts

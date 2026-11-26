@@ -14,6 +14,8 @@ function resolveAppVersion(): string {
 }
 
 function resolveBuildCommit(): string {
+  const supplied = process.env.MENOTE_BUILD_COMMIT?.trim();
+  if (supplied && /^[a-f0-9]{7,40}$/.test(supplied)) return supplied;
   try {
     return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || "unknown";
   } catch {

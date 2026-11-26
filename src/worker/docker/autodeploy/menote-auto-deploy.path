@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch the Menote release queue
+Requires=menote-github-hook.service
+After=menote-github-hook.service
+
+[Path]
+PathExists=/var/lib/menote-github-hook/pending
+
+[Install]
+WantedBy=multi-user.target

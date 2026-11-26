@@ -1,0 +1,19 @@
+[Unit]
+Description=Menote GitHub push receiver
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/lib/menote-autodeploy/webhook.py
+DynamicUser=yes
+StateDirectory=menote-github-hook
+StateDirectoryMode=0750
+LoadCredential=github-webhook:/opt/menote-local/autodeploy/github-webhook.secret
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+TasksMax=32
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
