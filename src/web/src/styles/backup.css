@@ -8,8 +8,8 @@
 .bk-heading, .bk-history-head { justify-content: space-between; }
 .bk-card { min-width: var(--app-zero); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); }
 .bk-target-body, .bk-local, .bk-form { padding: var(--app-space-14) var(--app-space-md); }
-.bk-local { gap: var(--app-space-8); background: var(--app-bg-side); }
-.bk-icon { display: inline-grid; place-items: center; width: var(--app-space-32); height: var(--app-space-32); border-radius: var(--app-radius); background: var(--app-accent-subtle); color: var(--app-accent-fg); flex: none; }
+.bk-local { gap: var(--app-space-8); }
+.bk-icon { display: inline-grid; place-items: center; width: var(--app-space-32); height: var(--app-space-32); border-radius: var(--app-radius-lg); background: var(--app-accent-subtle); color: var(--app-accent-fg); flex: none; }
 .bk-icon svg { width: var(--app-icon-lg); height: var(--app-icon-lg); }
 .bk-local .bk-icon { width: auto; height: auto; background: none; }
 .bk-local .bk-icon svg { width: var(--app-icon-md); height: var(--app-icon-md); }
@@ -29,14 +29,14 @@
 .bk-path { grid-column: 2 / -1; grid-row: 2; }
 .bk-policy { padding-block: var(--app-space-10); border-block: var(--app-line) solid var(--app-border-subtle); gap: var(--app-space-6) var(--app-space-14); }
 .bk-policy label, .bk-quantity { display: inline-flex; align-items: center; gap: var(--app-space-8); color: var(--app-fg-muted); font-size: var(--app-size-button); }
-.bk-policy .mn-propselect, .bk-policy .mn-propinput, .bk-form :is(input, select) { flex: none; height: var(--app-btn-height); padding-inline: var(--app-space-8); border: var(--app-line) solid var(--app-border); background: var(--app-surface); font: inherit; color: var(--app-fg); border-radius: var(--app-radius-sm); box-sizing: border-box; }
+.mn-backup :is(.bk-policy, .bk-form) :is(input.mn-propinput, select.mn-propselect) { flex: none; height: var(--app-btn-height); padding-inline: var(--app-space-8); border: var(--app-line) solid var(--app-border); background: var(--app-surface); font: inherit; color: var(--app-fg); border-radius: var(--app-radius-lg); box-sizing: border-box; }
 .bk-policy .mn-propinput { width: calc(var(--app-btn-height) * 2); min-width: var(--app-zero); }
 .bk-policy .mn-propselect { min-width: var(--app-zero); width: auto; }
 .bk-last { gap: var(--app-space-6); }
 .bk-last svg, .bk-chevron { width: var(--app-icon-sm); height: var(--app-icon-sm); flex-shrink: 0; }
 .bk-chevron { color: var(--app-fg-subtle); }
 .bk-history-toggle[aria-expanded="true"] .bk-chevron, .bk-snapshot[open] > summary .bk-chevron { transform: rotate(180deg); }
-.mn-backup .mn-textbtn { min-height: var(--app-btn-height); padding-inline: var(--app-space-10); justify-content: center; }
+.mn-backup .mn-textbtn { min-height: var(--app-btn-height); padding-inline: var(--app-space-10); justify-content: center; border-radius: var(--app-radius-lg); }
 .mn-backup .bk-outline { border: var(--app-line) solid var(--app-border); background: var(--app-surface); color: var(--app-fg); }
 .mn-backup .bk-outline:hover { background: var(--app-hover); }
 .mn-backup .bk-primary { background: var(--app-accent); color: var(--app-accent-text); font-weight: var(--app-weight-medium); }
@@ -46,10 +46,10 @@
 .bk-policy-hint { flex-basis: var(--app-full-size); }
 .bk-target-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: var(--app-space-8); }
 .bk-import, .bk-management { padding-top: var(--app-space-10); border-top: var(--app-line) solid var(--app-border); }
-.bk-file { min-width: var(--app-zero); max-width: var(--app-full-size); flex: 1 1 var(--app-field-width); font: inherit; font-size: var(--app-size-button); color: var(--app-fg-muted); }
-.bk-file::file-selector-button { min-height: var(--app-btn-height); padding-inline: var(--app-space-8); margin-inline-end: var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg); cursor: pointer; }
-.bk-empty, .bk-notice { padding: var(--app-space-8) var(--app-space-10); background: var(--app-surface-sunken); border-radius: var(--app-radius); color: var(--app-fg-muted); }
-.bk-history-toggle { width: var(--app-full-size); display: flex; justify-content: space-between; align-items: center; min-height: var(--app-space-34); padding: var(--app-space-6) var(--app-space-md); border: var(--app-zero); border-top: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-zero) var(--app-zero) var(--app-radius-lg) var(--app-radius-lg); background: var(--app-bg-side); color: var(--app-fg); font: inherit; font-size: var(--app-size-button); font-weight: var(--app-weight-medium); cursor: pointer; }
+.bk-file { min-width: var(--app-zero); max-width: var(--app-full-size); flex: 1 1 var(--app-field-width); border-radius: var(--app-radius-lg); font: inherit; font-size: var(--app-size-button); color: var(--app-fg-muted); }
+.bk-file::file-selector-button { min-height: var(--app-btn-height); padding-inline: var(--app-space-8); margin-inline-end: var(--app-space-8); border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); color: var(--app-fg); cursor: pointer; }
+.bk-empty, .bk-notice { padding: var(--app-space-8) var(--app-space-10); background: var(--app-surface-sunken); border-radius: var(--app-radius-lg); color: var(--app-fg-muted); }
+.bk-history-toggle { width: var(--app-full-size); display: flex; justify-content: space-between; align-items: center; min-height: var(--app-space-34); padding: var(--app-space-6) var(--app-space-md); border: var(--app-zero); border-top: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-zero) var(--app-zero) var(--app-radius-lg) var(--app-radius-lg); background: var(--app-surface); color: var(--app-fg); font: inherit; font-size: var(--app-size-button); font-weight: var(--app-weight-medium); cursor: pointer; }
 .bk-history-toggle[aria-expanded="true"] { border-radius: var(--app-zero); }
 .bk-history { padding: var(--app-space-6) var(--app-space-md) var(--app-space-10); }
 .bk-history-head { color: var(--app-fg-subtle); padding-block: var(--app-space-4); }
