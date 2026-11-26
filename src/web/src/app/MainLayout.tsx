@@ -1,14 +1,12 @@
-import { LayoutGrid, List, Menu, Plus, Search } from "../icons";
+import { Menu, Plus, Search } from "../icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Item } from "@menote/shared";
-import type { LayoutMode, MobilePane, ViewMode } from "../lib/layout";
+import type { LayoutMode, MobilePane } from "../lib/layout";
 import { NoteGrid, NoteList } from "../features/notes";
 import { filterItems } from "../services/searchService";
 
 interface MainLayoutProps {
   layout: LayoutMode;
-  viewMode: ViewMode;
-  onViewMode: (mode: ViewMode) => void;
   title: string;
   items: Item[] | undefined;
   selectedNoteId: string | null;
@@ -31,8 +29,8 @@ interface MainLayoutProps {
   listNavigation?: ReactNode;
 }
 
-/* 主区：清单/网格双布局壳（FR-IA-7）+ 文档区；数据由 AppShell 注入。 */
-export function MainLayout({ layout, viewMode, onViewMode, title, items, selectedNoteId, topicOverview, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
+/* 主区：笔记清单与文章区（FR-IA-7），数据由 AppShell 注入。 */
+export function MainLayout({ layout, title, items, selectedNoteId, topicOverview, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -109,14 +107,6 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
               <button type="button" className="mn-textbtn" aria-pressed={picking} onClick={() => { setPicking((value) => !value); setPicked(new Set()); }}>选择</button>
             )}
             {onCreateNote && <button type="button" className="mn-iconbtn" aria-label="在当前主题或分类中新建笔记" title="新建笔记" onClick={onCreateNote}><Plus /></button>}
-            <span className="mn-vt" role="group" aria-label="视图切换">
-              <button type="button" className={viewMode === "list" ? "on" : ""} aria-label="列表视图" aria-pressed={viewMode === "list"} onClick={() => onViewMode("list")}>
-                <List />
-              </button>
-              <button type="button" className={viewMode === "grid" ? "on" : ""} aria-label="网格视图" aria-pressed={viewMode === "grid"} onClick={() => onViewMode("grid")}>
-                <LayoutGrid />
-              </button>
-            </span>
           </div>
           <label className="mn-listsearch">
             <Search aria-hidden="true" />
@@ -131,9 +121,7 @@ export function MainLayout({ layout, viewMode, onViewMode, title, items, selecte
               <button type="button" className="mn-textbtn" onClick={() => { setPicking(false); setPicked(new Set()); }}>取消</button>
             </div>
           )}
-          {viewMode === "list"
-            ? <NoteList {...resultProps} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
-            : <NoteGrid {...resultProps} />}
+          <NoteList {...resultProps} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
         </section>
       )}
       {showOverview ? (

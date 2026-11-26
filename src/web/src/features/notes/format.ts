@@ -2,14 +2,17 @@ import type { Item } from "@menote/shared";
 import { FIELDS_KEY, readDefs, splitFrontmatter } from "../../lib/frontmatter";
 import { findTables } from "../../lib/gfmTable";
 
-/** 清单/卡片元信息行；时间用本地日期。 */
-export function formatItemMeta(item: Item): string {
+/** 当天显示时间，其他日期显示月日。 */
+export function formatItemUpdatedAt(item: Item): string {
   const date = new Date(item.updatedAt);
   const sameDay = new Date().toDateString() === date.toDateString();
-  const time = sameDay
+  return sameDay
     ? date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
     : date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
-  return `编辑于 ${time}`;
+}
+
+export function formatItemMeta(item: Item): string {
+  return `编辑于 ${formatItemUpdatedAt(item)}`;
 }
 
 /** 清单行描述（design nr-d）：正文去标记后的纯文本摘要。

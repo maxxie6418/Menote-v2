@@ -54,7 +54,6 @@ export { default as ImagePlus } from "lucide-react/icons/image-plus";
 export { default as Inbox } from "lucide-react/icons/inbox";
 export { default as Info } from "lucide-react/icons/info";
 export { default as Italic } from "lucide-react/icons/italic";
-export { default as LayoutGrid } from "lucide-react/icons/layout-grid";
 export { default as Link } from "lucide-react/icons/link";
 export { default as List } from "lucide-react/icons/list";
 export { default as ListOrdered } from "lucide-react/icons/list-ordered";
