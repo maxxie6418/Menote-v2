@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, Check, Home, ListTodo, Plus, UserRound, X } from "../icons";
 import { alertDialog } from "../components/ui/ConfirmDialog";
 import type { AuthUser, Item } from "@menote/shared";
@@ -39,12 +39,13 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   const [undoItem, setUndoItem] = useState<Item | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
   const userId = user.id;
+  const sheetOpen = composeOpen || topicSheetOpen || actionItem !== null;
 
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
     const syncKeyboardInset = () => {
-      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      const inset = viewport.scale === 1 ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
       appRef.current?.style.setProperty("--kb", `${inset}px`);
     };
     syncKeyboardInset();
@@ -55,6 +56,8 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
       viewport.removeEventListener("scroll", syncKeyboardInset);
     };
   }, []);
+
+  useEffect(() => () => window.clearTimeout(undoTimer.current), []);
 
   useEffect(() => {
     setPage(routePage);
@@ -143,6 +146,9 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   };
 
   const closeAction = () => setActionItem(null);
+  const focusActionSheet = useCallback((sheet: HTMLElement | null) => {
+    sheet?.focus({ preventScroll: true });
+  }, []);
 
   const deleteItem = async () => {
     if (!actionItem) return;
@@ -178,8 +184,8 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
   };
 
   return <div ref={appRef} className="m-app" data-page={page}>
-    <div className="m-body">
-      {page === "home" && <HomePage userId={userId} username={user.username} onCreateNote={() => void createAndOpenNote()} onCreateTable={() => void createTable()} onImportMarkdown={importMarkdown}
+    <div className="m-body" inert={sheetOpen}>
+      {page === "home" && <HomePage userId={userId} username={user.username} mobile onCreateNote={() => void createAndOpenNote()} onCreateTable={() => void createTable()} onImportMarkdown={importMarkdown}
         onOpenItem={(item) => {
           if (item.type === "memo") openMemo(item.id);
           else { setPage("notes"); setNoteSection({ kind: "recent" }); setSelectedNoteId(item.id); onNavigate({ kind: "notes", section: { kind: "recent" }, itemId: item.id }); }
@@ -198,13 +204,15 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
         onTopicSheet={() => setTopicSheetOpen(true)} onCreate={() => void createAndOpenNote()} onLongPress={onLongPress} />}
       {page === "me" && <MobileMe userId={userId} username={user.username} role={user.role} onSettings={onOpenSettings} onOpenPrivate={onOpenPrivate} onStatus={onOpenStatus} onLogout={onLogout} onOpenSection={openSection} />}
     </div>
-    <MobileTabBar page={page} onPage={(next) => { goPage(next); if (next === "notes") setSelectedNoteId(null); }} onRecord={() => setComposeOpen(true)} />
+    <MobileTabBar page={page} inert={sheetOpen} onPage={(next) => { goPage(next); if (next === "notes") setSelectedNoteId(null); }} onRecord={() => setComposeOpen(true)} />
 
     {topicSheetOpen && <MobileTopicSheet userId={userId} selected={noteSection} onClose={() => setTopicSheetOpen(false)} onOpenPrivate={onOpenPrivate} onSelect={(next) => { openSection(next); setTopicSheetOpen(false); }} />}
     {composeOpen && <MobileComposer userId={userId} mode={composeMode} title={composeTitle}
       onMode={setComposeMode} onTitle={setComposeTitle}
       onClose={() => setComposeOpen(false)} onSaved={handleSaved} />}
-    {actionItem && <div className="m-sheet-overlay" role="presentation" onClick={closeAction}><section className="m-action-sheet" role="dialog" aria-modal="true" aria-label="条目操作" onClick={(event) => event.stopPropagation()}>
+    {actionItem && <div className="m-sheet-overlay" role="presentation" onClick={closeAction}><section className="m-action-sheet" role="dialog" aria-modal="true" aria-label="条目操作" tabIndex={-1} ref={focusActionSheet} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+      if (event.key === "Escape") { event.stopPropagation(); closeAction(); }
+    }}>
       <div className="m-action-grab"><i /></div><h2>{actionItem.title || (actionItem.content.scope === "plain" ? actionItem.content.markdown.slice(0, 36) : "已加密")}</h2>
       {actionItem.type === "memo" && <div className="m-status-choice" role="group" aria-label="任务状态">
         {([ ["todo", "待办"], ["doing", "进行中"], ["done", "已完成"] ] as const).map(([status, label]) => <button type="button" className={actionItem.status === status ? "on" : ""} key={status} onClick={() => { void saveItemMeta(userId, actionItem.id, { status }); setActionItem(null); }}>{actionItem.status === status && <Check />}{label}</button>)}
@@ -212,11 +220,11 @@ export function MobileApp({ user, onLogout, onOpenSettings, onOpenPrivate, onOpe
       <label className="m-action-tags"><span>标签</span><input value={actionTags} onChange={(event) => setActionTags(event.target.value)} placeholder="用空格或逗号分隔" /></label>
       <div className="m-action-buttons"><button type="button" onClick={() => void saveTags()}>保存标签</button><button type="button" className="danger" onClick={() => void deleteItem()}>移入回收站</button><button type="button" className="cancel" onClick={closeAction}>取消</button></div>
     </section></div>}
-    {undoItem && <div className="m-undo" role="status"><span>已移入回收站</span><button type="button" onClick={() => { void restoreFromTrash(userId, undoItem.id); setUndoItem(null); window.clearTimeout(undoTimer.current); }}>撤销</button><button type="button" aria-label="关闭撤销提示" onClick={() => setUndoItem(null)}><X /></button></div>}
+    {undoItem && !sheetOpen && <div className="m-undo" role="status"><span>已移入回收站</span><button type="button" onClick={() => { void restoreFromTrash(userId, undoItem.id); setUndoItem(null); window.clearTimeout(undoTimer.current); }}>撤销</button><button type="button" aria-label="关闭撤销提示" onClick={() => setUndoItem(null)}><X /></button></div>}
   </div>;
 }
 
-function MobileTabBar({ page, onPage, onRecord }: { page: MobilePage; onPage: (page: MobilePage) => void; onRecord: () => void }) {
+function MobileTabBar({ page, inert, onPage, onRecord }: { page: MobilePage; inert: boolean; onPage: (page: MobilePage) => void; onRecord: () => void }) {
   const pointerStart = useRef<[number, number] | null>(null);
   const record = (event: React.PointerEvent<HTMLButtonElement>) => {
     const start = pointerStart.current;
@@ -227,13 +235,14 @@ function MobileTabBar({ page, onPage, onRecord }: { page: MobilePage; onPage: (p
       && Math.abs(event.clientX - start[0]) <= 44 && Math.abs(event.clientY - start[1]) <= 44;
     if (inside) onRecord();
   };
-  return <nav className="m-tabbar" aria-label="主导航">
+  return <nav className="m-tabbar" aria-label="主导航" inert={inert}>
     <button type="button" className="m-tab" aria-current={page === "home" ? "page" : undefined} onClick={() => onPage("home")}><Home /><b>首页</b></button>
     <button type="button" className="m-tab" aria-current={page === "memo" ? "page" : undefined} onClick={() => onPage("memo")}><ListTodo /><b>Memo</b></button>
-    <span className="m-tab m-tab--record"><button type="button" className="m-record" aria-label="记录" onPointerDown={(event) => {
+    <span className="m-tab"><button type="button" className="m-record" aria-label="记录" onPointerDown={(event) => {
+      if (!event.isPrimary || event.button !== 0) return;
       pointerStart.current = [event.clientX, event.clientY];
       event.currentTarget.setPointerCapture(event.pointerId);
-    }} onPointerUp={record} onPointerCancel={() => { pointerStart.current = null; }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onRecord(); } }}><Plus /></button></span>
+    }} onPointerUp={record} onPointerCancel={() => { pointerStart.current = null; }} onClick={(event) => { if (event.detail === 0) onRecord(); }}><Plus /></button></span>
     <button type="button" className="m-tab" aria-current={page === "notes" ? "page" : undefined} onClick={() => onPage("notes")}><BookOpen /><b>笔记</b></button>
     <button type="button" className="m-tab" aria-current={page === "me" ? "page" : undefined} onClick={() => onPage("me")}><UserRound /><b>我的</b></button>
   </nav>;

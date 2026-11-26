@@ -629,9 +629,9 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
       <DocBar
         crumb={documentCrumb} showBack={showBack} onBack={onBack} note={!isTableDoc}
         mode={mode} onMode={switchMode} inert={encrypting} actionsDisabled={!modeReady}
+        status={<DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />}
         before={(
           <>
-            <DocSyncStatus userId={userId} itemId={item.id} saving={saveState.kind === "saving"} dirty={dirtyTick > savedTick} saveError={saveState.kind === "error"} onRetrySave={() => { void flush(); }} />
             <span className="mn-docbar-div" aria-hidden="true" />
             {!isTableDoc && <button type="button" className="mn-iconbtn mn-doc-inspector-toggle" aria-label={inspectorOpen ? "关闭文档侧栏" : "打开文档侧栏"} title="文档侧栏" aria-expanded={inspectorOpen} aria-controls="mn-doc-inspector" onClick={() => setInspectorOpen((open) => !open)}><ListTree aria-hidden="true" /></button>}
             <button type="button" className="mn-iconbtn" aria-label={focusMode ? "退出专注模式" : "专注模式"} title={focusMode ? "退出专注模式（Esc）" : "专注模式"} aria-pressed={focusMode} onClick={() => setFocusMode((value) => !value)}><Focus /></button>
@@ -929,7 +929,8 @@ interface DocBarProps {
   onMode: (mode: "edit" | "preview") => void;
   actionsDisabled?: boolean;
   inert?: boolean;
-  /** 模式分段之前的控件（状态与视图组）。 */
+  status?: React.ReactNode;
+  /** 模式分段之前的视图控件。 */
   before?: React.ReactNode;
   /** 模式分段之后的控件（动作组）。 */
   after?: React.ReactNode;
@@ -937,9 +938,9 @@ interface DocBarProps {
 
 /* 文档栏（2026-11-13 重排）：左面包屑，右侧三组——状态 / 视图（检查器·专注·模式）/ 动作（附件·更多）。
    分段只表达编辑与预览两种常驻形态；源码是低频形态，留在「更多」里。 */
-function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, inert, before, after }: DocBarProps) {
+function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, inert, status, before, after }: DocBarProps) {
   return (
-    <div className="mn-docbar" inert={inert}>
+    <div className="mn-docbar mn-docbar-structured" inert={inert}>
       <span className="mn-docbar-left">
         {showBack && (
           <button type="button" className="mn-iconbtn" aria-label="返回清单" onClick={onBack}>
@@ -950,14 +951,17 @@ function DocBar({ crumb, note, showBack, onBack, mode, onMode, actionsDisabled, 
         <span className="mn-crumb" title={crumb}>{crumb}</span>
       </span>
       <span className="mn-docbar-right">
-        {before}
-        <span className="mn-vt" role="group" aria-label="编辑/预览切换">
-          <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" title="编辑" aria-pressed={mode === "edit"}
-            disabled={actionsDisabled} onClick={() => onMode("edit")}><Pencil /></button>
-          <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" title="预览" aria-pressed={mode === "preview"}
-            disabled={actionsDisabled} onClick={() => onMode("preview")}><Eye /></button>
+        {status}
+        <span className="mn-docbar-controls">
+          {before}
+          <span className="mn-vt" role="group" aria-label="编辑/预览切换">
+            <button type="button" className={mode === "edit" ? "on" : ""} aria-label="编辑" title="编辑" aria-pressed={mode === "edit"}
+              disabled={actionsDisabled} onClick={() => onMode("edit")}><Pencil /></button>
+            <button type="button" className={mode === "preview" ? "on" : ""} aria-label="预览" title="预览" aria-pressed={mode === "preview"}
+              disabled={actionsDisabled} onClick={() => onMode("preview")}><Eye /></button>
+          </span>
+          {after}
         </span>
-        {after}
       </span>
     </div>
   );

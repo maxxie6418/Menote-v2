@@ -8,6 +8,7 @@ import { useMemoCapture } from "../features/memo";
 interface HomePageProps {
   userId: string;
   username: string;
+  mobile?: boolean;
   onCreateNote: () => void;
   onCreateTable: () => void;
   onImportMarkdown: (files: File[]) => Promise<number>;
@@ -105,7 +106,7 @@ function HomeMemoCapture({ input }: { input: RefObject<HTMLTextAreaElement | nul
   );
 }
 
-export function HomePage({ userId, username, onCreateNote, onCreateTable, onImportMarkdown, onOpenItem, onNavigate }: HomePageProps) {
+export function HomePage({ userId, username, mobile = false, onCreateNote, onCreateTable, onImportMarkdown, onOpenItem, onNavigate }: HomePageProps) {
   const [query, setQuery] = useState("");
   const [importFeedback, setImportFeedback] = useState("");
   const [clock, setClock] = useState(() => new Date());
@@ -188,7 +189,9 @@ export function HomePage({ userId, username, onCreateNote, onCreateTable, onImpo
             <div className="mn-home-create-actions" role="group" aria-label="新建与导入">
               <button type="button" onClick={onCreateNote}><FilePlus2 aria-hidden="true" />新建笔记</button>
               <button type="button" onClick={onCreateTable}><Table2 aria-hidden="true" />新建表格</button>
-              <button type="button" onClick={() => importRef.current?.click()}><Download aria-hidden="true" />导入 Markdown</button>
+              <button type="button" aria-label={mobile ? "导入文档（Markdown）" : undefined} onClick={() => importRef.current?.click()}>
+                <Download aria-hidden="true" />{mobile ? "导入文档" : "导入 Markdown"}
+              </button>
               <input ref={importRef} type="file" accept=".md,text/markdown" multiple hidden onChange={(event) => {
                 void importFiles(event.target.files);
                 event.currentTarget.value = "";

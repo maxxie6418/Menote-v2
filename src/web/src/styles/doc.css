@@ -45,6 +45,7 @@
    现在按「状态 / 视图 / 动作」分三组：组间 1px 竖线 + 4px 外边距，动作组只留附件与更多，
    导出与删除收进「更多」。 */
 .mn-docbar-right { display: flex; align-items: center; gap: var(--app-space-4); }
+.mn-docbar-controls { display: flex; align-items: center; gap: inherit; }
 /* 用后代选择器而不是子选择器：「更多」按钮包在 .mn-docmore 里，此前漏掉它，
    于是同一排里只有它是 28 槽 / 14 图标，比邻居小一圈。 */
 .mn-docbar-right .mn-iconbtn { min-width: var(--app-docbar-btn); min-height: var(--app-docbar-btn); padding: var(--app-zero); }
