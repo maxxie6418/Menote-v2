@@ -572,6 +572,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         layout={layout}
         title={title}
         headerExtra={section.kind === "inbox" ? <InboxRefresh userId={userId} /> : undefined}
+        showCreatedAt={section.kind === "inbox"}
         items={items}
         selectedNoteId={noteId}
         topicOverview={isTopic}

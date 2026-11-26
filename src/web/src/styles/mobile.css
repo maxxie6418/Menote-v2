@@ -99,7 +99,7 @@
 .m-todo-head { display: flex; width: var(--app-full-size); height: var(--app-mobile-row-min-height); align-items: center; gap: var(--app-space-6); padding: var(--app-zero) var(--app-space-14); border: var(--app-zero); background: var(--app-surface); color: var(--app-fg-subtle); font-size: var(--app-size-nav); text-align: left; }
 .m-todo-head span { color: var(--app-fg-faint); font-family: var(--app-font-mono); }
 .m-todo-head svg { width: var(--app-icon-xs); height: var(--app-icon-xs); margin-left: auto; }
-.m-gallery .mn-memo-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-10); }
+.m-gallery .mn-memo-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--app-space-6); padding: var(--app-space-10) var(--app-space-8); }
 .m-gallery .mn-memo-gal-item { min-width: 0; }
 
 /* 笔记清单与复用桌面 NoteDocument 的移动样式 */

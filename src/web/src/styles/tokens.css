@@ -358,7 +358,6 @@
   --app-memo-heat-level-2: 45%;
   --app-memo-heat-level-3: 70%;
   --app-memo-gallery-default-ratio: 4 / 3;
-  --app-memo-gallery-max: calc(var(--app-doc-measure) + 6.25rem);
   /* Memo 互动卡片（TP5）：对应 20261102-Memo 互动样式方案。 */
   --app-memo-action-size: 1.75rem;   /* 28px Memo 互动按钮（原 26，低于 §8.2 底线） */
   --app-memo-action-radius: 0.5rem;

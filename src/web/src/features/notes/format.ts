@@ -3,8 +3,8 @@ import { FIELDS_KEY, readDefs, splitFrontmatter } from "../../lib/frontmatter";
 import { findTables } from "../../lib/gfmTable";
 
 /** 当天显示时间，其他日期显示月日。 */
-export function formatItemUpdatedAt(item: Item): string {
-  const date = new Date(item.updatedAt);
+export function formatListTime(timestamp: number): string {
+  const date = new Date(timestamp);
   const sameDay = new Date().toDateString() === date.toDateString();
   return sameDay
     ? date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
@@ -12,7 +12,7 @@ export function formatItemUpdatedAt(item: Item): string {
 }
 
 export function formatItemMeta(item: Item): string {
-  return `编辑于 ${formatItemUpdatedAt(item)}`;
+  return `编辑于 ${formatListTime(item.updatedAt)}`;
 }
 
 /** 清单行描述（design nr-d）：正文去标记后的纯文本摘要。

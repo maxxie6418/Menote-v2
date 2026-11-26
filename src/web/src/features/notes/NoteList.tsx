@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FileText, MessageCircle, Table2 } from "../../icons";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
-import { formatItemUpdatedAt, noteSnippet } from "./format";
+import { formatListTime, noteSnippet } from "./format";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 
 interface NoteListProps {
@@ -11,6 +11,7 @@ interface NoteListProps {
   onSelect: (id: string) => void;
   emptyTitle: string;
   emptyDetail: string;
+  showCreatedAt?: boolean;
   onMove?: (item: Item) => void;
   onToggleStar?: (item: Item) => void;
   onTrash?: (item: Item) => void;
@@ -22,7 +23,7 @@ interface NoteListProps {
 }
 
 /** 清单视图（FR-IA-3 穿透聚合后的扁平列表；行样式自 M1.2 git 历史恢复）。 */
-export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, onMove, onToggleStar, onTrash, onAiSummary, picking = false, pickedIds, onTogglePicked }: NoteListProps) {
+export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail, showCreatedAt = false, onMove, onToggleStar, onTrash, onAiSummary, picking = false, pickedIds, onTogglePicked }: NoteListProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: Item; trigger: HTMLElement } | null>(null);
   if (!items) return <div className="mn-empty" role="status" aria-busy="true" />;
   if (items.length === 0) return <NoteEmptyState title={emptyTitle} detail={emptyDetail} />;
@@ -77,7 +78,7 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
             : item.type === "memo" ? <MessageCircle className="mn-note-row-icon" aria-hidden="true" />
               : <FileText className="mn-note-row-icon" aria-hidden="true" />}
           <span className="mn-note-row-title">{item.title ?? (item.type === "memo" ? noteSnippet(item).slice(0, 36) || "无标题" : "无标题")}</span>
-          <span className="mn-note-row-meta">{formatItemUpdatedAt(item)}</span>
+          <span className="mn-note-row-meta">{formatListTime(showCreatedAt ? item.createdAt : item.updatedAt)}</span>
           <span className="mn-note-row-desc">{noteSnippet(item) || "（空白）"}</span>
         </button>
         </div>

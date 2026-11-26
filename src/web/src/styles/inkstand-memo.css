@@ -5,7 +5,8 @@
 :root .mn-memo-bar-count { font-size: var(--app-size-chip); }
 :root .mn-memo-stage {
   --app-memo-todo-active-width: var(--app-memo-todo-width);
-  --app-memo-todo-reserve: var(--app-zero);
+  /* 参与长度运算，关闭 Todo 时也需要带长度单位的零。 */
+  --app-memo-todo-reserve: calc(var(--app-space-14) * var(--app-zero));
   --app-memo-work-preferred: var(--mn-memo-workbar-width, var(--app-memo-work-width));
   --app-memo-work-column: clamp(var(--app-memo-work-min), var(--app-memo-work-preferred), calc(var(--app-full-size) - var(--app-memo-feed-min) - var(--app-memo-todo-reserve)));
   display: grid;
@@ -52,7 +53,6 @@
 :root .mn-memo-comment-head { min-height: var(--app-space-20); }
 :root .mn-memo-comment-content { font-family: var(--app-font-serif); }
 :root .mn-memo-quote-snapshot { border-left: var(--app-space-2) solid var(--app-accent); border-radius: var(--app-radius-sm); }
-:root .mn-memo-main.is-gallery .mn-memo-gallery { padding: var(--app-space-14); }
 :root .mn-memo-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--app-space-2); text-align: center; }
 :root .mn-memo-calendar > span { display: grid; place-items: center; min-height: var(--app-space-20); border-radius: var(--app-radius-sm); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 :root .mn-memo-calendar > .mn-memo-calendar-weekday { color: var(--app-fg-faint); font-weight: var(--app-weight-medium); }

@@ -5,12 +5,12 @@ import { build } from "esbuild";
 
 const bundle = await build({
   stdin: {
-    contents: `export { groupByDay, memoImages, dayLabel } from "./src/features/memo/memoView";`,
+    contents: `export { groupByDay, memoImages, memoSourceLabel, dayLabel } from "./src/features/memo/memoView";`,
     resolveDir: fileURLToPath(new URL("..", import.meta.url)),
   },
   bundle: true, write: false, format: "esm", platform: "browser",
 });
-const { groupByDay, memoImages } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
+const { groupByDay, memoImages, memoSourceLabel } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
 
 const memo = (id, createdAt, markdown = "正文", tags = []) => ({
   id, userId: "u", type: "memo", topicId: null, groupId: null, title: null, tags,
@@ -53,4 +53,13 @@ test("图册图片只来自明文条目", () => {
   ]);
   assert.equal(images.length, 1);
   assert.equal(images[0].memoId, "a");
+  assert.equal(images[0].originLabel, "外部导入");
+});
+
+test("记录的 Memo 来源区分 Flomo、网页剪藏和 Agent", () => {
+  const clip = memo("clip", 1, "> 正文\n\n—— [原网页](https://example.com/path_(1))\n\n#收集");
+  assert.equal(memoSourceLabel({ ...clip, source: "clipper" }), "浏览器剪藏 · example.com");
+  assert.equal(memoSourceLabel({ ...clip, source: "manual" }), "手动记录");
+  assert.equal(memoSourceLabel({ ...clip, source: "agent" }), "Agent 创建");
+  assert.equal(memoSourceLabel(memo("flomo", 1, "正文 #flomo", ["flomo"])), "Flomo 导入");
 });

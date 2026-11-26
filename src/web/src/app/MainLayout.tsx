@@ -8,6 +8,7 @@ import { filterItems } from "../services/searchService";
 interface MainLayoutProps {
   layout: LayoutMode;
   title: string;
+  showCreatedAt?: boolean;
   items: Item[] | undefined;
   selectedNoteId: string | null;
   topicOverview?: boolean;
@@ -30,7 +31,7 @@ interface MainLayoutProps {
 }
 
 /* 主区：笔记清单与文章区（FR-IA-7），数据由 AppShell 注入。 */
-export function MainLayout({ layout, title, items, selectedNoteId, topicOverview, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
+export function MainLayout({ layout, title, showCreatedAt, items, selectedNoteId, topicOverview, onSelectNote, onMoveNote, onToggleStar, onTrashNote, onAiSummary, onBatchMove, onBatchTrash, onCreateNote, emptyTitle, emptyDetail, document, headerExtra, mobilePane, onBackToList, onOpenDrawer, listNavigation }: MainLayoutProps) {
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -121,7 +122,7 @@ export function MainLayout({ layout, title, items, selectedNoteId, topicOverview
               <button type="button" className="mn-textbtn" onClick={() => { setPicking(false); setPicked(new Set()); }}>取消</button>
             </div>
           )}
-          <NoteList {...resultProps} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
+          <NoteList {...resultProps} showCreatedAt={showCreatedAt} onMove={onMoveNote} onToggleStar={onToggleStar} onTrash={onTrashNote} onAiSummary={onAiSummary} />
         </section>
       )}
       {showOverview ? (

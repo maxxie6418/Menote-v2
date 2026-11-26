@@ -152,6 +152,26 @@ export interface MemoImage {
   sha256: string;
   createdAt: number;
   tag: string | null;
+  originLabel: string | null;
+}
+
+/** 显示已记录的采集方式。扩展剪藏的网页地址仍保留在正文的来源行。 */
+export function memoSourceLabel(memo: Item): string | null {
+  if (!isPlainMemo(memo)) return null;
+  switch (memo.source) {
+    case "manual": return "手动记录";
+    case "agent": return "Agent 创建";
+    case "external":
+      return memo.tags.some((tag) => tag.toLowerCase() === "flomo") ? "Flomo 导入" : "外部导入";
+    case "clipper": {
+      const url = /^—— \[.*\]\((https?:\/\/[^\r\n]+)\)[\t ]*$/m.exec(memoText(memo))?.[1];
+      if (url) {
+        try { return `浏览器剪藏 · ${new URL(url).host}`; } catch { /* 来源行不可解析时沿用采集方式。 */ }
+      }
+      return "浏览器剪藏";
+    }
+    default: return null;
+  }
 }
 
 /** 图册只收明文 Memo 的图片引用。加密条目没有可展示的正文，整条排除。 */
@@ -159,8 +179,9 @@ export function memoImages(memos: Item[]): MemoImage[] {
   const images: MemoImage[] = [];
   for (const memo of memos) {
     if (!isPlainMemo(memo)) continue;
+    const originLabel = memoSourceLabel(memo);
     for (const match of memoText(memo).matchAll(IMAGE_REF)) {
-      images.push({ memoId: memo.id, sha256: match[1]!, createdAt: memo.createdAt, tag: memo.tags[0] ?? null });
+      images.push({ memoId: memo.id, sha256: match[1]!, createdAt: memo.createdAt, tag: memo.tags[0] ?? null, originLabel });
     }
   }
   images.sort((a, b) => b.createdAt - a.createdAt);

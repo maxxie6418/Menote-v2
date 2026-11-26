@@ -87,7 +87,7 @@ function MemoWorkspaceContent({ userId, username, layout, initialTag = null, tod
         filtered={range !== "all" || tag !== null}
         onBack={onBackToNotes}
       />
-      <div className={`mn-memo-stage${workbarOpen ? " is-work-open" : ""}${view === "timeline" && todoOpen ? " is-todo-open" : ""}`}>
+      <div className={`mn-memo-stage${workbarOpen ? " is-work-open" : ""}${todoOpen ? " is-todo-open" : ""}`}>
         <MemoWorkbar
           ref={workbarRef} memos={memos} range={range} tag={tag} onRange={setRange} onTag={setTag}
           onWander={() => { const picked = pickRandomMemo(visible); if (picked) openMemo(picked.id); }}

@@ -123,6 +123,7 @@
   gap: var(--app-space-2) var(--app-space-8);
   margin-top: var(--app-space-8);
 }
+.mn-memo-origin { min-width: var(--app-zero); overflow: hidden; color: var(--app-fg-subtle); font-family: var(--app-font); font-size: var(--app-size-chip); text-overflow: ellipsis; white-space: nowrap; }
 .mn-memo-meta {
   padding-inline-end: var(--app-space-6);
   padding-block-start: var(--app-space-14);
@@ -297,20 +298,20 @@
 .mn-memo-otd-empty { margin: var(--app-zero); padding: var(--app-zero) var(--app-space-xs); color: var(--app-fg-faint); font-size: var(--app-size-nav); }
 
 .mn-memo-main.is-gallery .mn-timeline { display: none; }
-/* 图册仍按阅读宽度档位排布。 */
+/* 图册与时间线共用版心和横向留白。 */
 .mn-memo-main.is-gallery .mn-memo-gallery {
   column-count: 3;
   column-gap: var(--app-space-14);
-  max-width: var(--app-memo-gallery-max);
+  width: var(--app-memo-feed-width);
   margin-inline: auto;
-  padding: var(--app-space-md) var(--app-space-18) var(--app-space-lg);
+  padding-block: var(--app-space-14) var(--app-space-24);
 }
 .mn-memo-gal-item { display: block; width: var(--app-full-size); margin-bottom: var(--app-space-14); break-inside: avoid; border: var(--app-zero); background: none; padding: var(--app-zero); text-align: left; cursor: pointer; }
 .mn-memo-gal-thumb { display: block; width: var(--app-full-size); aspect-ratio: var(--mn-memo-gallery-ratio, var(--app-memo-gallery-default-ratio)); border-radius: var(--app-radius); overflow: hidden; background: var(--app-surface-sunken); border: var(--app-line) solid var(--app-border-subtle); }
 .mn-memo-gal-thumb[data-loaded="false"] { background: linear-gradient(90deg, var(--app-surface-sunken), var(--app-border-subtle), var(--app-surface-sunken)); }
 .mn-memo-gal-thumb img { display: block; width: var(--app-full-size); height: auto; }
 .mn-memo-gal-cap { display: flex; align-items: center; gap: var(--app-space-xs); margin-top: var(--app-space-6); font-family: var(--app-font-mono); font-size: var(--app-size-chip); color: var(--app-fg-faint); }
-.mn-memo-gal-cap span { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-nav); }
+.mn-memo-gal-tag { color: var(--app-fg-subtle); background: var(--app-surface-sunken); border-radius: var(--app-radius-pill); padding: var(--app-space-2) var(--app-space-6); font-family: var(--app-font); font-size: var(--app-size-nav); }
 
 /* 评论与引述（FR-MEMO-7/8）：卡片内原位编辑、平铺评论、不可变来源快照。 */
 .mn-memo-interactions button:disabled { cursor: default; opacity: var(--app-mobile-disabled-opacity); }

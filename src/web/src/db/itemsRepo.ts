@@ -52,10 +52,11 @@ export function isUnfiledItem(item: Item, source: "manual" | "external"): boolea
 }
 
 export async function listUnfiled(userId: string, source: "manual" | "external"): Promise<Item[]> {
-  return localDb.items
+  const rows = await localDb.items
     .where("userId").equals(userId)
     .filter((row) => isUnfiledItem(row, source))
     .toArray();
+  return source === "external" ? rows.sort((a, b) => b.createdAt - a.createdAt) : rows;
 }
 
 export async function listMemos(userId: string, limit = 200): Promise<Item[]> {

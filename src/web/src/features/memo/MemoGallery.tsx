@@ -78,7 +78,8 @@ function GalleryItem({ image, onOpen }: { image: MemoImage; onOpen: (memoId: str
       </span>
       <span className="mn-memo-gal-cap">
         <time>{new Date(image.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</time>
-        {image.tag && <span>#{image.tag}</span>}
+        {image.tag && <span className="mn-memo-gal-tag">#{image.tag}</span>}
+        {image.originLabel && <span className="mn-memo-origin" title={image.originLabel}>{image.originLabel}</span>}
       </span>
     </button>
   );

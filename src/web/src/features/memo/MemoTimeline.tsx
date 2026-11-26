@@ -8,7 +8,7 @@ import { convertMemoToNote, saveItemContent, saveItemMeta, softDeleteItem } from
 import { useMemoComments } from "../../services/contentHooks";
 import { MemoCommentPanel, MemoQuotePanel } from "./MemoInlineEditors";
 import { MemoImagePreview, type MemoImagePreviewData } from "./MemoImagePreview";
-import { degradeMemoMarkdown, groupByDay, isPlainMemo, memoText, statusLabel } from "./memoView";
+import { degradeMemoMarkdown, groupByDay, isPlainMemo, memoSourceLabel, memoText, statusLabel } from "./memoView";
 
 interface MemoTimelineProps {
   userId: string;
@@ -75,6 +75,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
   const comments = useMemoComments(userId, memo.id);
   const rendered = degradeMemoMarkdown(body);
   const status = statusLabel(memo.status);
+  const originLabel = memoSourceLabel(memo);
 
   const commit = async () => {
     setEditing(false);
@@ -141,6 +142,7 @@ function MemoCard({ userId, username, memo, allMemos, onDragItem, onOpenSource, 
         )}
       </div>
       <footer className="mn-memo-footer">
+        {originLabel && <span className="mn-memo-origin" title={originLabel}>{originLabel}</span>}
         <span className="mn-memo-actions">
           {plain && !editing && <>
             <button type="button" className="mn-minibtn" title={memo.pinned ? "取消置顶" : "置顶"} aria-label={memo.pinned ? "取消置顶 Memo" : "置顶 Memo"} aria-pressed={memo.pinned} onClick={() => void saveItemMeta(userId, memo.id, { pinned: !memo.pinned })}>

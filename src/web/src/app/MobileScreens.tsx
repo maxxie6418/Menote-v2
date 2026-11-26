@@ -7,7 +7,7 @@ import { isTopicUnlocked } from "../services/keyringService";
 import { alwaysHiddenPrivateTopicIds, hiddenPrivateTopicIds } from "../services/privateSpaceService";
 import { filterItems } from "../services/searchService";
 import { toggleGlobalTagSection } from "./appRoutes";
-import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, statusLabel, MemoGallery, MemoTimelineEntry, type MemoImagePreviewData } from "../features/memo";
+import { MemoAccessGate, MemoImagePreview, groupByDay, memoImages, memoSourceLabel, statusLabel, MemoGallery, MemoTimelineEntry, type MemoImagePreviewData } from "../features/memo";
 import { NoteDocument, noteSnippet } from "../features/notes";
 import { MarkdownView } from "../features/markdown";
 import { saveItemContent, saveItemMeta } from "../services/contentService";
@@ -143,6 +143,7 @@ function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: I
   const timer = useRef<number | undefined>(undefined);
   const [imagePreview, setImagePreview] = useState<MemoImagePreviewData | null>(null);
   const markdown = memo.content.scope === "plain" ? appendTags(memo.content.markdown, memo.tags) : "";
+  const originLabel = memoSourceLabel(memo);
   const stopHold = () => { window.clearTimeout(timer.current); };
   const startHold = () => { timer.current = window.setTimeout(() => { onLongPress(memo); }, 480); };
 
@@ -152,6 +153,7 @@ function MobileMemoRow({ memo, userId, onLongPress, compact = false }: { memo: I
       const next = setTaskCheckbox(markdown, ordinal, checked); if (next !== markdown) void saveItemContent(userId, memo.id, next);
     }} /></div> : <p>已加密</p>}
     <div className="m-meta">{compact && <time>{new Date(memo.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}</time>}
+      {originLabel && <span className="mn-memo-origin" title={originLabel}>{originLabel}</span>}
       {compact && memo.content.scope === "plain" && memo.tags.slice(0, 2).map((tag) => <span className="chip" key={tag}>#{tag}</span>)}
       {statusLabel(memo.status) && <span className="st"><i />{statusLabel(memo.status)}</span>}
       <button className="more" type="button" aria-label="更多操作" onClick={() => onLongPress(memo)}><MoreHorizontal /></button>
@@ -183,7 +185,7 @@ export function MobileNotes({ userId, section, selectedId, onSelect, onTopicShee
     <header className="m-topbar m-notes-topbar"><button type="button" className="m-ptitle" onClick={onTopicSheet}><span>{title}</span><ChevronDown /></button><span className="grow" />{section.kind === "inbox" && <InboxRefresh userId={userId} mobile />}<button type="button" className="m-icon-btn" aria-label="新建笔记" onClick={onCreate}><Plus /></button></header>
     <label className="m-search"><Search aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索当前清单" aria-label="搜索当前清单" /></label>
     <div className="m-list">
-      {items.length ? items.map((item) => <MobileItemRow key={item.id} item={item} current={item.id === selectedId} onOpen={() => onSelect(item)} onLongPress={onLongPress} />)
+      {items.length ? items.map((item) => <MobileItemRow key={item.id} item={item} timestamp={section.kind === "inbox" ? item.createdAt : item.updatedAt} current={item.id === selectedId} onOpen={() => onSelect(item)} onLongPress={onLongPress} />)
         : <p className="m-empty">{query.trim() ? "没有匹配的内容" : "这个分区还没有笔记。"}</p>}
     </div>
   </div>;
@@ -263,8 +265,8 @@ export function MobileTopicSheet({ userId, selected, onClose, onOpenPrivate, onS
   </section></div>;
 }
 
-function MobileItemRow({ item, current = false, onOpen, onLongPress }: {
-  item: Item; current?: boolean; onOpen: () => void; onLongPress?: (item: Item) => void;
+function MobileItemRow({ item, timestamp = item.updatedAt, current = false, onOpen, onLongPress }: {
+  item: Item; timestamp?: number; current?: boolean; onOpen: () => void; onLongPress?: (item: Item) => void;
 }) {
   const timer = useRef<number | undefined>(undefined);
   const held = useRef(false);
@@ -276,6 +278,6 @@ function MobileItemRow({ item, current = false, onOpen, onLongPress }: {
     if (held.current) { held.current = false; return; }
     onOpen();
   }}>
-    <span className="ic">{item.type === "memo" ? <Clock3 /> : <FileText />}</span><span className="copy"><b>{item.title || previewText(item) || "（空白）"}{item.content.scope !== "plain" && <LockKeyhole className="lock" />}</b><em>{previewText(item)}</em></span><time className="d">{dateLabel(item.updatedAt)}</time>
+    <span className="ic">{item.type === "memo" ? <Clock3 /> : <FileText />}</span><span className="copy"><b>{item.title || previewText(item) || "（空白）"}{item.content.scope !== "plain" && <LockKeyhole className="lock" />}</b><em>{previewText(item)}</em></span><time className="d">{dateLabel(timestamp)}</time>
   </button>;
 }

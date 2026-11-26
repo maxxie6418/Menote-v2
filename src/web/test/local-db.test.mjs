@@ -78,10 +78,12 @@ test("topics subtree aggregation and inbox/drafts sections", async () => {
   const filed = await content.createNote(USER, { topicId: group.id });
   const draft = await content.createNote(USER);
   const collected = await content.createNote(USER, { source: "agent" });
+  const newerCollected = { ...collected, id: `${collected.id}-newer`, source: "clipper", createdAt: 2, updatedAt: 2 };
+  await dbModule.localDb.items.bulkPut([{ ...collected, createdAt: 1, updatedAt: 3 }, newerCollected]);
   const inTopic = await content.queries.notesInTopic(USER, topic.id);
   assert.deepEqual(inTopic.map((row) => row.id), [filed.id], "穿透聚合含子分组直属笔记");
   assert.deepEqual((await content.queries.drafts(USER)).map((row) => row.id), [draft.id]);
-  assert.deepEqual((await content.queries.inbox(USER)).map((row) => row.id), [collected.id]);
+  assert.deepEqual((await content.queries.inbox(USER)).map((row) => row.id), [newerCollected.id, collected.id], "收件箱按创建时间倒序，编辑旧条目不改变顺序");
   const renamed = await content.renameTopic(USER, topic.id, "工作（改名）");
   assert.equal(renamed.name, "工作（改名）");
   await content.softDeleteTopic(USER, topic.id);
