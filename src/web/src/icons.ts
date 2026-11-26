@@ -21,6 +21,7 @@ export { default as ArrowUpDown } from "lucide-react/icons/arrow-up-down";
 export { default as ArrowUpRight } from "lucide-react/icons/arrow-up-right";
 export { default as Bold } from "lucide-react/icons/bold";
 export { default as Bookmark } from "lucide-react/icons/bookmark";
+export { default as BrainCircuit } from "lucide-react/icons/brain-circuit";
 export { default as BookOpen } from "lucide-react/icons/book-open";
 export { default as Check } from "lucide-react/icons/check";
 export { default as CheckSquare } from "lucide-react/icons/check-square";

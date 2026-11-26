@@ -13,6 +13,7 @@ interface ColumnHeaderCellProps {
   index: number;
   dragging: boolean;
   readOnly: boolean;
+  fixedField?: boolean;
   draft: string | undefined;
   type: PropertyType;
   def: PropertyDef | undefined;
@@ -44,7 +45,7 @@ interface ColumnHeaderCellProps {
 /** 已有字段的表头：字段名与列菜单保持单行，菜单按钮兼作拖动手柄（FR-TBL-19）。
  *  类型菜单挂到该列下方（portal，不被滚动容器裁切），顺手放「裁切 / 自动换行」。 */
 export function ColumnHeaderCell({
-  name, index, dragging, readOnly, draft, type, def, optionColors, wrap, menuOpen, error, sortDirection, widthLevel,
+  name, index, dragging, readOnly, fixedField, draft, type, def, optionColors, wrap, menuOpen, error, sortDirection, widthLevel,
   onColumnDragStart, onTouchColumnDragStart, onColumnDragEnd, onColumnDrop, onSort, onResizeStart, onResize,
   onDraft, onCommit, onToggle, onClose, onPick, onOptions, onColor, onWrapChange, onDelete,
 }: ColumnHeaderCellProps) {
@@ -72,7 +73,7 @@ export function ColumnHeaderCell({
         menuButton.current?.focus({ preventScroll: true });
       }}
       onDrop={onColumnDrop}>
-      {readOnly ? (
+      {readOnly || fixedField ? (
         <span className="mn-tabledoc-hname mn-tabledoc-hname-static" title={name}>{name}</span>
       ) : (
         <input
@@ -133,7 +134,7 @@ export function ColumnHeaderCell({
               </button>
             ))}
           </div>
-          <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />
+          {!fixedField && <FieldTypeMenu value={def?.type ?? type} onPick={onPick} />}
           <div className="mn-tabledoc-display">
             <span className="mn-tabledoc-display-title">内容显示</span>
             <div className="mn-tabledoc-segmented" role="group" aria-label="内容显示方式">
@@ -141,7 +142,7 @@ export function ColumnHeaderCell({
               <button type="button" aria-pressed={wrap} onClick={() => onWrapChange(true)}>自动换行</button>
             </div>
           </div>
-          {def && (def.type === "select" || def.type === "multiselect") && (
+          {!fixedField && def && (def.type === "select" || def.type === "multiselect") && (
             <>
               <label className="mn-tabledoc-optedit">
                 候选值（每行一个，禁含逗号）
@@ -173,7 +174,7 @@ export function ColumnHeaderCell({
               )}
             </>
           )}
-          <button type="button" className="mn-tabledoc-hdel" onClick={onDelete}>删除字段</button>
+          {!fixedField && <button type="button" className="mn-tabledoc-hdel" onClick={onDelete}>删除字段</button>}
         </AnchoredPanel>
       )}
     </div>

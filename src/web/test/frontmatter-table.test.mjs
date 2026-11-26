@@ -139,6 +139,8 @@ test("GFM table parsing accepts omitted outer pipes (FR-TBL-1)", () => {
 test("GFM table parser handles escaped backslash parity around pipes", () => {
   assert.deepEqual(table.splitRow("| a\\\\|b | c |"), ["a\\", "b", "c"]);
   assert.deepEqual(table.splitRow("| a\\\\\\|b | c |"), ["a\\|b", "c"]);
+  const body = table.renderTable(["标题"], [[String.raw`a\|b`]]);
+  assert.deepEqual(table.findTables(body)[0].rows, [[String.raw`a\|b`]]);
 });
 
 test("候选值分隔：换行与中英文分号、逗号都认，空格不作分隔符", () => {

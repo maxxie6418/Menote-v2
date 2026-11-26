@@ -5,10 +5,12 @@ import { readRaindropSettings, updateRaindropSettings } from "../../services/rai
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { PluginSettingsRow } from "./PluginSettingsRow";
 import { RaindropPanel } from "./RaindropPanel";
+import { MemoryPlugin } from "./MemoryPlugin";
 
 export function PluginSection({ userId, mobile }: { userId: string; mobile: boolean }) {
   return <ul className="mn-plugin-list" aria-label="内置插件">
     <RaindropPlugin key={userId} userId={userId} mobile={mobile} />
+    <MemoryPlugin key={`memory:${userId}`} userId={userId} mobile={mobile} />
   </ul>;
 }
 

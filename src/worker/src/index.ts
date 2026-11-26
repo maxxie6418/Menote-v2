@@ -16,6 +16,7 @@ import { mcpRoutes } from "./routes/mcp";
 import { clipTemplateRoutes } from "./routes/clipTemplates";
 import { aiRoutes } from "./routes/ai";
 import { raindropRoutes } from "./routes/raindrop";
+import { memoryRoutes } from "./routes/memory";
 import { dispatchAiQueue } from "./services/aiService";
 import { pepperKeyMaterial } from "./services/authService";
 import { schemaIsCurrent } from "./services/schemaService";
@@ -35,7 +36,8 @@ const app = new Hono<AppEnv>()
   .route("/", mcpRoutes)
   .route("/", clipTemplateRoutes)
   .route("/", aiRoutes)
-  .route("/", raindropRoutes);
+  .route("/", raindropRoutes)
+  .route("/", memoryRoutes);
 
 export default {
   async scheduled(_controller: unknown, env: Env, ctx: TaskContext) {

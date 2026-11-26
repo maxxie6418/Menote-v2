@@ -25,6 +25,8 @@ const PERMISSION_LABELS: Record<McpPermission, string> = {
   "clip:templates:read": "同步剪藏模板",
   "clip:templates:write": "保存剪藏模板",
   "bookmark:write": "收藏到指定文档/表格",
+  "memory:read": "读取 AI 记忆库",
+  "memory:write": "修改 AI 记忆库",
 };
 
 const EMPTY_CONFIG: McpTokenConfig = {
@@ -285,7 +287,8 @@ function TokenEditor({
   const [saving, setSaving] = useState(false);
 
   const togglePermission = (permission: McpPermission, checked: boolean) => {
-    setPermissions((current) => checked ? [...new Set([...current, permission])] : current.filter((item) => item !== permission));
+    setPermissions((current) => checked ? [...new Set([...current, permission])]
+      : current.filter((item) => item !== permission && (permission !== "memory:read" || item !== "memory:write")));
   };
   const toggleScopeId = (kind: "topicIds" | "groupIds", id: string, checked: boolean) => {
     setScope((current) => ({
@@ -316,7 +319,8 @@ function TokenEditor({
         <legend className="mn-setlabel">权限（未勾选即拒绝）</legend>
         <div className="mn-mcp-check-grid">
           {MCP_PERMISSION_KEYS.map((permission) => <label className="mn-mcp-check" key={permission}>
-            <input type="checkbox" checked={permissions.includes(permission)} onChange={(event) => togglePermission(permission, event.target.checked)} />
+            <input type="checkbox" checked={permissions.includes(permission)} disabled={permission === "memory:write" && !permissions.includes("memory:read")}
+              onChange={(event) => togglePermission(permission, event.target.checked)} />
             <span>{PERMISSION_LABELS[permission]}</span>
           </label>)}
         </div>

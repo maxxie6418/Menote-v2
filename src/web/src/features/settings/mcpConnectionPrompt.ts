@@ -14,6 +14,7 @@ function formatPrompt(endpoint: string, secret: string, token: McpTokenView): st
   if (attachments && canCreate) abilities.push("为新条目上传附件");
   if (permissions.has("clip:templates:read")) abilities.push("同步剪藏模板");
   if (permissions.has("clip:templates:write")) abilities.push("保存剪藏模板");
+  if (permissions.has("memory:read")) abilities.push(permissions.has("memory:write") ? "查询和维护 AI 记忆库" : "查询 AI 记忆库");
 
   return [
     "请连接我的 Menote 笔记库。",

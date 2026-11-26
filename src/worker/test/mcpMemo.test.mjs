@@ -93,6 +93,108 @@ async function openMcp(mf, secret, origin = "chrome-extension://menote-test") {
   return { call: (name, args) => rpc("tools/call", { name, arguments: args }), list: () => rpc("tools/list", {}) };
 }
 
+test("TP20 isolates memory permissions, serializes row writes and merges independent browser edits", async () => {
+  await withWorker(async (mf) => {
+    const cookie = await loginCookie(mf);
+    const owner = (path, method = "GET", data) => req(mf, path, { method, headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
+      ...(data && { body: JSON.stringify(data) }) });
+    assert.deepEqual(await (await owner("/api/memory/status")).json(), { enabled: false, binding: null });
+    assert.equal((await owner("/api/memory/enabled", "PUT", { enabled: true })).status, 200);
+    const created = await owner("/api/memory/binding/new", "POST");
+    assert.equal(created.status, 201);
+    const { binding } = await created.json();
+    assert.equal(binding.available, true);
+    const readWrite = await openMcp(mf, await createTokenSecret(mf, cookie, false, { permissions: ["memory:read", "memory:write"] }));
+    const readOnly = await openMcp(mf, await createTokenSecret(mf, cookie, false, { permissions: ["memory:read"] }));
+    const list = (client) => client.list().then(parseRpc).then(({ result }) => result.tools.map(({ name }) => name).sort());
+    assert.deepEqual(await list(readOnly), ["connection_status", "memory_query"]);
+    assert.deepEqual(await list(readWrite), ["connection_status", "memory_create", "memory_query", "memory_update"]);
+    const call = (client, name, args) => client.call(name, args).then(parseRpc).then(({ result, error }) => result?.isError ? result.content[0].text : result?.structuredContent ?? error);
+    const query = { scope: "project", project_id: "menote" };
+    const firstQuery = await call(readOnly, "memory_query", query);
+    assert.deepEqual(firstQuery, { binding_id: binding.id, rows: [], next_cursor: null });
+    const a = { ...query, binding_id: binding.id, operation_id: crypto.randomUUID(), key: "release.language", title: "发布语言", value: "简体|中文", source: String.raw`仓库规则 A\|B` };
+    const b = { ...a, operation_id: crypto.randomUUID(), key: "review.owner", title: "审核人", value: "审核 A" };
+    const [first, second] = await Promise.all([call(readWrite, "memory_create", a), call(readWrite, "memory_create", b)]);
+    assert.equal(first.row_rev, 1);
+    assert.equal(second.row_rev, 1);
+    assert.deepEqual(await call(readWrite, "memory_create", a), first);
+    assert.equal(await call(readWrite, "memory_create", { ...a, value: "different" }), "operation_conflict");
+    assert.equal(await call(readWrite, "memory_create", { ...a, operation_id: crypto.randomUUID() }), "key_exists");
+    const page = await call(readOnly, "memory_query", { ...query, key: a.key });
+    assert.equal(page.rows[0].value, a.value);
+    assert.equal(page.rows[0].source, a.source);
+
+    const pullItem = async () => (await (await owner("/api/sync/pull?cursor=0")).json()).items.find(({ id }) => id === binding.tableId);
+    const base = await pullItem();
+    async function browserEdit(item, replacements) {
+      const original = item.content.markdown;
+      const markdown = replacements.reduce((value, [from, to]) => value.replace(from, to), original);
+      assert.notEqual(original, markdown);
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown));
+      const contentHash = Buffer.from(digest).toString("hex");
+      const result = await owner("/api/sync/push", "POST", { deviceId: "offline-browser", operations: [{ operationId: crypto.randomUUID(),
+        userId: item.userId, entity: "item", entityId: item.id, action: "upsert", baseRev: item.rev, baseMetaRev: item.metaRev, contentHash,
+        payload: { item: { ...item, rev: item.rev + 1, contentHash, content: { scope: "plain", markdown } }, memoryBaseMarkdown: original } }] });
+      return (await result.json()).results[0];
+    }
+    const update = { binding_id: binding.id, operation_id: crypto.randomUUID(), id: first.id, expected_row_rev: 1,
+      patch: { value: "英文", source: "维护者 B" } };
+    assert.equal((await call(readWrite, "memory_update", update)).row_rev, 2);
+    assert.equal((await browserEdit(base, [["审核 A", "审核 B"], ["简体\\|中文", "旧浏览器稿"]])).result, "conflict");
+    const after = await call(readOnly, "memory_query", query);
+    assert.deepEqual(after.rows.map(({ key, value, row_rev }) => [key, value, row_rev]).sort(), [[a.key, "英文", 2], [b.key, "审核 B", 2]]);
+    assert.equal(await call(readWrite, "memory_update", { ...update, operation_id: crypto.randomUUID() }), "revision_conflict");
+    assert.equal((await call(readWrite, "memory_update", { ...update, expected_row_rev: 2, operation_id: crypto.randomUUID(), patch: { status: "archived" } })).status, "archived");
+    assert.deepEqual((await call(readOnly, "memory_query", { ...query, key: a.key })).rows, []);
+    assert.equal((await call(readOnly, "memory_query", { ...query, key: a.key, status: "all" })).rows[0].status, "archived");
+    assert.equal((await call(readWrite, "memory_update", { ...update, expected_row_rev: 3, operation_id: crypto.randomUUID(), patch: { status: "active" } })).id, first.id);
+    assert.equal((await owner("/api/auth/registration", "POST", { open: true, openUntil: Date.now() + 900_000 })).status, 200);
+    const secondLogin = await req(mf, "/api/auth/register", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ username: "second-owner", password: "isolated-account-password" }) });
+    assert.equal(secondLogin.status, 201);
+    const secondCookie = secondLogin.headers.get("set-cookie").split(";")[0];
+    const secondOwner = (path, method, data) => req(mf, path, { method, headers: { cookie: secondCookie, origin: "http://localhost", "content-type": "application/json" },
+      ...(data && { body: JSON.stringify(data) }) });
+    assert.equal((await secondOwner("/api/memory/enabled", "PUT", { enabled: true })).status, 200);
+    const otherBinding = (await (await secondOwner("/api/memory/binding/new", "POST")).json()).binding;
+    assert.notEqual(otherBinding.id, binding.id);
+    const otherAgent = await openMcp(mf, await createTokenSecret(mf, secondCookie, false, { permissions: ["memory:read", "memory:write"] }));
+    assert.equal(await call(otherAgent, "memory_query", { ...query, binding_id: binding.id }), "binding_changed");
+    assert.equal(await call(otherAgent, "memory_update", { ...update, binding_id: otherBinding.id, operation_id: crypto.randomUUID() }), "not_found");
+    assert.equal((await call(otherAgent, "memory_create", { ...a, binding_id: otherBinding.id, value: "第二账号内容" })).row_rev, 1);
+    assert.equal((await call(readOnly, "memory_query", { ...query, key: a.key })).rows[0].value, "英文");
+    assert.equal((await call(otherAgent, "memory_query", { ...query, key: a.key })).rows[0].value, "第二账号内容");
+    await owner("/api/memory/enabled", "PUT", { enabled: false });
+    assert.equal(await call(readWrite, "memory_create", a), "memory_unavailable");
+    const restored = await (await owner("/api/memory/enabled", "PUT", { enabled: true })).json();
+    assert.notEqual(restored.binding.id, binding.id);
+    assert.equal(await call(readOnly, "memory_query", { ...query, binding_id: binding.id }), "binding_changed");
+    assert.equal((await owner(`/api/memory/binding/${restored.binding.id}`, "DELETE")).status, 200);
+    assert.equal(await call(readOnly, "memory_query", query), "memory_unavailable");
+    assert.match((await pullItem()).content.markdown, /审核 B/);
+
+    const tableId = crypto.randomUUID();
+    const emptyTable = "---\nfields:\n  自定义:\n    type: text\n---\n\n| 自定义 |\n| --- |";
+    const checksum = Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(emptyTable))).toString("hex");
+    const customTable = { ...base, id: tableId, title: "存量表", rev: 1, metaRev: 1, contentHash: checksum, content: { scope: "plain", markdown: emptyTable } };
+    const seeded = await owner("/api/sync/push", "POST", { deviceId: "legacy-table", operations: [{ operationId: crypto.randomUUID(),
+      userId: base.userId, entity: "item", entityId: tableId, action: "upsert", baseRev: 0, baseMetaRev: 0, contentHash: checksum,
+      payload: { item: customTable } }] });
+    assert.equal((await seeded.json()).results[0].result, "applied");
+    const preview = await (await owner("/api/memory/binding/preview", "POST", { tableId })).json();
+    assert.equal(preview.columnsToAdd.length, 11);
+    assert.deepEqual(preview.issues, []);
+    assert.equal((await owner("/api/memory/binding", "PUT", { tableId, rev: preview.rev })).status, 200);
+    const rebound = (await (await owner("/api/sync/pull?cursor=0")).json()).items.find(({ id }) => id === tableId);
+    assert.match(rebound.content.markdown, /\| 自定义 \| 范围 \|/);
+    const db = await mf.getD1Database("DB");
+    await db.prepare("UPDATE items SET deleted_at = ? WHERE id = ?").bind(Date.now(), tableId).run();
+    assert.equal(await call(readOnly, "memory_query", query), "memory_unavailable");
+    assert.equal((await (await owner("/api/memory/status")).json()).binding.available, false);
+  });
+});
+
 test("create_memo writes a timeline memo with quote and source line (FR-EXT-2/FR-MCP-4)", async () => {
   await withWorker(async (mf) => {
     const cookie = await loginCookie(mf);

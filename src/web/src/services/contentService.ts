@@ -1,5 +1,5 @@
 import type { Item, MemoQuote, TopicNode } from "@menote/shared";
-import { appendTags, extractTags } from "@menote/shared";
+import { appendTags, extractTags, isMemoryMarkdown, MEMORY_FIELDS, MEMORY_SYSTEM_COLUMNS } from "@menote/shared";
 import { localDb } from "../db/localDb";
 import { notifyLocalChange } from "../lib/broadcast";
 import { newId, sha256Hex } from "../lib/hash";
@@ -7,7 +7,7 @@ import { enqueueWrite, outboxTopic, outboxUpsert, requireItem } from "./contentS
 import { archiveVersionBeforeSave } from "./versionService";
 import { FIELDS_KEY, splitFrontmatter, writeDef } from "../lib/frontmatter";
 import { normalizeNoteTags, noteTagsAfterContentEdit, sameNoteTags, writeNoteYamlTags } from "../lib/noteProperties";
-import { findTables, renderTable } from "../lib/gfmTable";
+import { findTables, renderTable, replaceTable } from "../lib/gfmTable";
 import { attachmentHashesOf } from "../lib/attachmentRefs";
 import { listItemsInSubtree, listMemos, listTrashedItems, listUnfiled, getItem } from "../db/itemsRepo";
 import { getTopic, listSubtreeIds, listTopics } from "../db/topicsRepo";
@@ -285,9 +285,36 @@ export function saveItemContent(userId: string, id: string, markdown: string): P
   return enqueueWrite(() => saveItemContentInner(userId, id, markdown));
 }
 
+function applyLocalMemoryRevisions(previous: string, markdown: string): string {
+  const base = findTables(splitFrontmatter(previous).body)[0];
+  const { frontText, body } = splitFrontmatter(markdown);
+  const next = findTables(body)[0];
+  if (!base || !next || !frontText) return markdown;
+  const previousId = base.header.indexOf(MEMORY_FIELDS.id.name);
+  const previousRev = base.header.indexOf(MEMORY_FIELDS.row_rev.name);
+  const rowId = next.header.indexOf(MEMORY_FIELDS.id.name);
+  const rowRev = next.header.indexOf(MEMORY_FIELDS.row_rev.name);
+  if (Math.min(previousId, previousRev, rowId, rowRev) < 0) return markdown;
+  const byId = new Map(base.rows.filter((row) => row[previousId]).map((row) => [row[previousId], row]));
+  const compared = next.header.flatMap((name, index) => MEMORY_SYSTEM_COLUMNS.includes(name) ? [] : [[index, base.header.indexOf(name)] as const]);
+  let changed = false;
+  const rows = next.rows.map((row) => {
+    if (!row[rowId]) return row;
+    const original = byId.get(row[rowId]);
+    const edited = !original || compared.some(([nextIndex, baseIndex]) => (row[nextIndex] ?? "") !== (original[baseIndex] ?? ""));
+    const revision = String((Number(original?.[previousRev]) || 0) + Number(edited));
+    if (row[rowRev] === revision) return row;
+    changed = true;
+    return row.map((value, index) => index === rowRev ? revision : value);
+  });
+  return changed ? `${frontText}\n\n${replaceTable(body, 0, { ...next, rows })}` : markdown;
+}
+
 async function saveItemContentInner(userId: string, id: string, markdown: string): Promise<Item> {
   const current = await requireItem(userId, id);
   if (current.content.scope !== "plain") throw new Error("加密条目正文经加密门面保存（G7）");
+  const memoryTable = current.type === "table" && isMemoryMarkdown(current.content.markdown);
+  if (memoryTable && markdown !== current.content.markdown) markdown = applyLocalMemoryRevisions(current.content.markdown, markdown);
   // FR-VER-2：autosave 空闲封存（写入前留一份当前稿，10 分钟节流）。
   const contentChanged = markdown !== current.content.markdown;
   const tags = current.type === "memo" ? extractTags(markdown) : noteTagsAfterContentEdit(current, markdown);
@@ -304,10 +331,11 @@ async function saveItemContentInner(userId: string, id: string, markdown: string
     tags,
     content: { scope: "plain", markdown },
   };
+  const memoryBase = contentChanged && memoryTable ? current.content.markdown : undefined;
   await localDb.transaction("rw", localDb.items, localDb.outbox, async () => {
     await localDb.items.put(next);
     await localDb.outbox.add(outboxUpsert(next, current.rev, current.metaRev, contentChanged ? contentHash : undefined,
-      contentChanged && noteTagsChanged ? true : undefined));
+      contentChanged && noteTagsChanged ? true : undefined, memoryBase));
   });
   if (contentChanged) await discardRecovery(id);
   recordSyncDiagnostic(userId, {

@@ -1,5 +1,5 @@
 import { Document, isMap, parseDocument, YAMLMap } from "yaml";
-import { BOOKMARK_COLUMNS } from "@menote/shared";
+import { BOOKMARK_COLUMNS, decodeGfmTableRow as parseTableRow, escapeGfmTablePipes } from "@menote/shared";
 
 /** GFM 表格 Markdown 的纯解析/序列化工具（TP3 收藏写入与 TP9 连接器共用）。
  *  仅处理「首张可解析表格」；转义规则与 Menote 表格文档的序列化保持一致。 */
@@ -11,21 +11,10 @@ export function splitFrontmatter(markdown: string): { yaml: string | null; body:
 
 export function toTableCell(value: string | string[] | boolean): string {
   const raw = Array.isArray(value) ? value.join(", ") : String(value);
-  return raw.replace(/[\r\n]+/g, " ").replace(/\|/g, "\\|").trim();
+  return escapeGfmTablePipes(raw.replace(/[\r\n]+/g, " ").trim());
 }
 
-export function parseTableRow(line: string): string[] {
-  const content = line.trim().replace(/^\|/, "").replace(/\|$/, "");
-  const cells: string[] = [];
-  let value = "";
-  for (let i = 0; i < content.length; i += 1) {
-    if (content[i] === "\\" && content[i + 1] === "|") { value += "|"; i += 1; }
-    else if (content[i] === "|") { cells.push(value.trim()); value = ""; }
-    else value += content[i];
-  }
-  cells.push(value.trim());
-  return cells;
-}
+export { parseTableRow };
 
 export function isDelimiter(line: string): boolean {
   const cells = parseTableRow(line);

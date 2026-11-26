@@ -1,3 +1,5 @@
+import { decodeGfmTableRow as splitRow, escapeGfmTablePipes } from "@menote/shared";
+
 /**
  * GFM 表格解析与写回（FR-TBL-1/6）：内容载体永远是标准 GFM 表格。
  * 写回契约：多选 `值A, 值B`（候选由调用方校验禁逗号）；单元格禁换行；竖线转义；值首尾空格不保留。
@@ -11,38 +13,7 @@ export interface ParsedTable {
   rows: string[][];
 }
 
-export function splitRow(line: string): string[] {
-  // 按未转义竖线切分；连续反斜线按 GFM 奇偶规则处理。
-  const trimmed = line.trim();
-  const cells: string[] = [];
-  let current = "";
-  for (let i = 0; i < trimmed.length; i += 1) {
-    const char = trimmed[i]!;
-    if (char === "\\") {
-      let end = i;
-      while (trimmed[end + 1] === "\\") end += 1;
-      const count = end - i + 1;
-      if (trimmed[end + 1] === "|") {
-        current += "\\".repeat(Math.floor(count / 2));
-        if (count % 2) current += "|";
-        else { cells.push(current); current = ""; }
-        i = end + 1;
-        continue;
-      }
-      current += "\\".repeat(count);
-      i = end;
-      continue;
-    }
-    if (char === "|") { cells.push(current); current = ""; continue; }
-    current += char;
-  }
-  cells.push(current);
-  if (trimmed.startsWith("|")) cells.shift();
-  let trailingSlashes = 0;
-  for (let index = trimmed.length - 2; index >= 0 && trimmed[index] === "\\"; index -= 1) trailingSlashes += 1;
-  if (trimmed.endsWith("|") && trailingSlashes % 2 === 0) cells.pop();
-  return cells.map((cell) => cell.trim());
-}
+export { splitRow };
 
 function isDelimiter(line: string): boolean {
   const cells = splitRow(line);
@@ -84,7 +55,7 @@ export function normalizeCellValue(value: string): string {
 }
 
 function escapeCell(value: string): string {
-  return normalizeCellValue(value).replace(/\|/g, "\\|");
+  return escapeGfmTablePipes(normalizeCellValue(value));
 }
 
 export function renderTable(header: string[], rows: string[][]): string {
