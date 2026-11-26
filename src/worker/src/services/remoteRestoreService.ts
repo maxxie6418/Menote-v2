@@ -1,6 +1,6 @@
 import { publishAttachmentStatements, realignAttachmentStatements } from "../db/attachments";
 import { importBackupEntries } from "./restoreService";
-import { readRemoteSnapshotMetadata, readVerifiedAttachment } from "./backupVerifyService";
+import { readRemoteSnapshotMetadata, readVerifiedAttachment, type UploadedSnapshotSource } from "./backupVerifyService";
 import type { RemoteTarget } from "./backupRemote";
 import { reserveAttachmentStage } from "./attachmentService";
 
@@ -9,7 +9,14 @@ export async function restoreRemoteSnapshot(
   ctx: { db: D1Database; userId: string; bucket: R2Bucket }, target: RemoteTarget, snapshotId: string,
 ) {
   const snapshot = await readRemoteSnapshotMetadata(target, snapshotId);
-  const referenced = snapshot.attachments.filter((file) => file.referenced);
+  return restoreSnapshot(ctx, target, snapshot);
+}
+
+export async function restoreSnapshot(
+  ctx: { db: D1Database; userId: string; bucket: R2Bucket }, target: RemoteTarget | UploadedSnapshotSource,
+  snapshot: Awaited<ReturnType<typeof readRemoteSnapshotMetadata>>, includeUnreferenced = false, extras: D1PreparedStatement[] = [],
+) {
+  const referenced = includeUnreferenced ? snapshot.attachments : snapshot.attachments.filter((file) => file.referenced);
   const stagedKeys = await reserveAttachmentStage(ctx.db, ctx.userId, referenced.map((file) => file.sha256));
   for (const file of snapshot.attachments) {
     const bytes = await readVerifiedAttachment(target, snapshot.directory, file);
@@ -25,7 +32,7 @@ export async function restoreRemoteSnapshot(
   }
   const imported = await importBackupEntries(
     { db: ctx.db, userId: ctx.userId }, snapshot.entries, snapshot.itemKeyWraps, snapshot.topicKeyWraps, snapshot.settings, now,
-    { attachmentPublications, attachmentStatements, recoveryCodeBinding: snapshot.recoveryCodeBinding },
+    { attachmentPublications, attachmentStatements: [...attachmentStatements, ...extras], recoveryCodeBinding: snapshot.recoveryCodeBinding },
   );
   return { ...imported, attachments: referenced.length };
 }

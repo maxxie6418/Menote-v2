@@ -2,6 +2,20 @@ import { parseRecoveryCodeBinding, type RecoveryCodeBinding } from "@menote/shar
 import { MAX_STORED_ATTACHMENT_BYTES } from "./attachmentService";
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
 
+export interface UploadedSnapshotSource {
+  remotePath: string;
+  id: string;
+  read(path: string, expectedSize?: number): Promise<Uint8Array>;
+  snapshotFileCount: number;
+  clipTemplates: unknown[];
+  raindrop: unknown;
+}
+
+type SnapshotSource = RemoteTarget | UploadedSnapshotSource;
+function readFile(target: SnapshotSource, path: string, size?: number) {
+  return "read" in target ? target.read(path, size) : remoteGet(target, path, size);
+}
+
 interface BackupFile { path: string; size: number; sha256: string; mime?: unknown }
 
 export interface SnapshotAttachment {
@@ -43,13 +57,13 @@ function mapBackupFiles(files: unknown[]): Map<string, BackupFile> {
 
 /** Verify manifest and JSON shards. Attachment bodies are read separately, one at a time. */
 export async function readRemoteSnapshotMetadata(
-  target: RemoteTarget, id: string, options: { expectedManifestHash?: string; discardEntries?: boolean } = {},
+  target: SnapshotSource, id: string, options: { expectedManifestHash?: string; discardEntries?: boolean } = {},
 ): Promise<SnapshotMetadata> {
   if (!/^\d{8}T\d{9}Z-[0-9a-f]{8}$/i.test(id)) throw new Error("无效的备份目录名");
   const directory = `${normalizeRemotePath(target.remotePath)}/${id}`;
   const decode = new TextDecoder("utf-8", { fatal: true });
-  const marker = options.expectedManifestHash ?? decode.decode(await remoteGet(target, `${directory}/COMPLETE`)).trim();
-  const manifestBytes = await remoteGet(target, `${directory}/manifest.json`);
+  const marker = options.expectedManifestHash ?? decode.decode(await readFile(target, `${directory}/COMPLETE`)).trim();
+  const manifestBytes = await readFile(target, `${directory}/manifest.json`);
   if (!/^[a-f0-9]{64}$/i.test(marker) || await backupDigest(manifestBytes) !== marker.toLowerCase()) throw new Error("备份清单校验失败");
   const manifest = JSON.parse(decode.decode(manifestBytes)) as {
     format?: unknown; version?: unknown; snapshotId?: unknown;
@@ -62,6 +76,7 @@ export async function readRemoteSnapshotMetadata(
     !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
 
   const files = mapBackupFiles(manifest.files);
+  if ("read" in target && target.snapshotFileCount !== files.size + 2) throw new Error("迁移包文件与清单不符");
   const shardPaths = manifest.shards.map((shard) => `${String(shard?.month)}.json`);
   const attachmentFiles = [...files.values()].filter((file) => file.path.startsWith("attachment-"));
   if (new Set(shardPaths).size !== shardPaths.length || shardPaths.some((path) => !files.has(path)) ||
@@ -102,14 +117,14 @@ export async function readRemoteSnapshotMetadata(
 }
 
 async function readVerifiedFile(
-  target: RemoteTarget, directory: string, file: BackupFile, exactSize?: number,
+  target: SnapshotSource, directory: string, file: BackupFile, exactSize?: number,
 ): Promise<Uint8Array> {
-  const bytes = await remoteGet(target, `${directory}/${file.path}`, exactSize);
+  const bytes = await readFile(target, `${directory}/${file.path}`, exactSize);
   if (bytes.length !== file.size || await backupDigest(bytes) !== file.sha256) throw new Error(`文件校验失败：${file.path}`);
   return bytes;
 }
 
-export async function readVerifiedAttachment(target: RemoteTarget, directory: string, file: SnapshotAttachment): Promise<Uint8Array> {
+export async function readVerifiedAttachment(target: SnapshotSource, directory: string, file: SnapshotAttachment): Promise<Uint8Array> {
   return readVerifiedFile(target, directory, { ...file, path: `attachment-${file.sha256}` }, file.size);
 }
 

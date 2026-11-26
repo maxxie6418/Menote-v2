@@ -5,8 +5,8 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import worker from "../src/index.ts";
-import { D1HttpDatabase } from "./d1.mjs";
-import { R2S3Bucket } from "./r2.mjs";
+import { openStorage } from "./storage.mjs";
+import { readAccountArchive } from "./account-archive.mjs";
 import { configureAi } from "./ai.mjs";
 import { staticResponse } from "./assets.mjs";
 
@@ -26,24 +26,17 @@ function settings(input) {
     if (!value?.trim()) throw new Error(`Missing configuration: ${key}`);
     return value;
   }
-  const accountId = required("CF_ACCOUNT_ID");
-  const databaseId = required("CF_D1_DATABASE_ID");
+  const accountId = input.CF_ACCOUNT_ID?.trim();
   const port = Number(input.PORT ?? "8787");
-  if (!/^[a-f0-9]{32}$/i.test(accountId)) throw new Error("Invalid CF_ACCOUNT_ID");
-  if (!/^[a-f0-9-]{36}$/i.test(databaseId)) throw new Error("Invalid CF_D1_DATABASE_ID");
+  if (input.CF_AI_API_TOKEN?.trim() && !/^[a-f0-9]{32}$/i.test(accountId ?? "")) throw new Error("Workers AI requires CF_ACCOUNT_ID");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PORT");
   return {
     accountId,
-    databaseId,
     port,
     origin: publicOrigin(required("MENOTE_PUBLIC_ORIGIN")),
     assets: resolve(input.MENOTE_ASSETS_PATH ?? "/app/web"),
     state: resolve(input.MENOTE_STATE_PATH ?? "/app/state"),
     pepper: required("AUTH_PEPPER"),
-    d1Token: required("CF_D1_API_TOKEN"),
-    bucket: required("CF_R2_BUCKET"),
-    r2AccessKeyId: required("CF_R2_ACCESS_KEY_ID"),
-    r2SecretAccessKey: required("CF_R2_SECRET_ACCESS_KEY"),
     scheduled: input.MENOTE_SCHEDULED_JOBS === "true",
     aiToken: input.CF_AI_API_TOKEN?.trim(),
   };
@@ -113,11 +106,8 @@ async function main() {
   const config = settings(process.env);
   const env = {
     AUTH_PEPPER: config.pepper,
-    DB: new D1HttpDatabase(config.accountId, config.databaseId, config.d1Token),
-    BUCKET: new R2S3Bucket({
-      accountId: config.accountId, bucket: config.bucket,
-      accessKeyId: config.r2AccessKeyId, secretAccessKey: config.r2SecretAccessKey,
-    }),
+    ...await openStorage(process.env, config.state),
+    READ_ACCOUNT_ARCHIVE: readAccountArchive,
   };
   const ai = await configureAi(env, config, worker);
   const hold = new Set();
@@ -127,7 +117,8 @@ async function main() {
     // bucket access before delegating to the application's schema check.
     if (!checking) {
       checking = (async () => {
-        await env.BUCKET.list({ limit: 1 });
+        if (env.BUCKET.checkAccess) await env.BUCKET.checkAccess();
+        else await env.BUCKET.list({ limit: 1 });
         return worker.fetch(new Request(config.origin + "/api/health/ready"), env, executionContext(hold));
       })().catch(() => Response.json({ status: "unavailable" }, { status: 503 }))
         .then(async (response) => ({ status: response.status, body: await response.json() }))
@@ -137,7 +128,7 @@ async function main() {
       status, headers: { "Cache-Control": "no-store" },
     }));
   }
-  if (!(await ready()).ok) throw new Error("D1, R2 or schema readiness check failed");
+  if (!(await ready()).ok) throw new Error("Database, object storage or schema readiness check failed");
   if (!(await stat(resolve(config.assets, "index.html"))).isFile()) throw new Error("Web build is missing");
 
   const { server, context, drain } = createMenoteServer({ env, origin: config.origin, assets: config.assets, ready });
@@ -163,12 +154,13 @@ async function main() {
     if (timer) clearTimeout(timer);
     server.close(async () => {
       await Promise.allSettled([job, ai?.close(), drain(), ...hold]);
+      env.DB.close?.();
       process.exitCode = 0;
     });
   };
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
-  server.listen(config.port, "0.0.0.0", () => console.log(`Menote listening on port ${config.port}`));
+  server.listen(config.port, process.env.MENOTE_LISTEN_ADDRESS || "0.0.0.0", () => console.log(`Menote listening on port ${config.port}`));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

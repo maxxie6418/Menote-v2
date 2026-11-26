@@ -1,5 +1,6 @@
 // Shared contracts are the only source of types used by web and Worker.
 export const applicationName = "Menote";
+export type { AccountArchiveSummary } from "./contracts/accountArchive";
 export type { Memo } from "./types/memo";
 export type { TopicNode, User } from "./types/identity";
 export type { SchemaMigration, SchemaStatus } from "./types/migration";

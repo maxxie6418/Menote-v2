@@ -1,4 +1,20 @@
-import type { BackupTarget } from "@menote/shared";
+import type { AccountArchiveSummary, BackupTarget } from "@menote/shared";
+
+export async function accountArchiveAvailable(): Promise<boolean> {
+  try {
+    const response = await fetch("/api/backup/archive", { cache: "no-store" });
+    return response.ok && (await response.json()).enabled === true;
+  } catch { return false; }
+}
+
+export async function uploadAccountArchive(file: File, restore: boolean): Promise<AccountArchiveSummary> {
+  const response = await fetch("/api/backup/archive/" + (restore ? "restore" : "verify"), {
+    method: "POST", headers: { "Content-Type": "application/zip" }, body: file,
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok) throw new Error(body?.error ?? `上传失败（HTTP ${response.status}）`);
+  return body.result;
+}
 
 /** 备份目标客户端（G9）：UI 经此访问 /api/backup，禁止直连 fetch。 */
 

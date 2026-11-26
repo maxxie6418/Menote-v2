@@ -1,6 +1,6 @@
 # Menote Docker 部署
 
-容器托管 Web 和业务 API，并直接访问 D1 HTTP API 和 R2 S3 API。现有记录、附件键和登录凭据可沿用。应用从 `MENOTE_PUBLIC_ORIGIN` 确定 HTTPS 入口，原有的 Secure Cookie 与同源校验继续生效。
+全新部署默认使用本地 SQLite 和附件目录。Web、业务 API 和定时任务使用同一个 Docker 镜像。`MENOTE_PUBLIC_ORIGIN` 指定对外的 HTTPS 地址。
 
 ## 本地验证
 
@@ -10,7 +10,7 @@
 kiri build --builder kiri-build --load -t menote:local -f src/worker/docker/Dockerfile .
 ```
 
-复制本目录的 `settings.env.example` 为 `.env`，填隔离的 D1 和 R2 资源。已有域名或本地 HTTPS 反代可填写对应域名，仅回环地址支持 HTTP。运行时从同一个镜像入口启动。
+复制本目录的 `settings.env.example` 为 `.env`，设置随机 `AUTH_PEPPER` 和 `MENOTE_PUBLIC_ORIGIN`。本地验证可使用 `http://127.0.0.1:8787`。Compose 将 SQLite 文件 `menote.sqlite` 和 `objects/` 保存在 `/app/state` 的持久卷中。
 
 ```sh
 kiri compose -f src/worker/docker/compose.yaml up -d --no-build
@@ -18,7 +18,7 @@ kiri compose -f src/worker/docker/compose.yaml up -d --no-build
 
 ## 服务器部署
 
-配置文件中的 `AUTH_PEPPER` 必须与现有部署一致，原封不动地从密钥源注入。D1 使用账号限定的写权限 API 令牌，R2 使用限定到原附件桶的对象读写 S3 凭据。所有凭据只在运行时设置，`.env` 已由仓库忽略。
+新站自行生成并保存 `AUTH_PEPPER`，重建时继续使用同一密钥和数据卷。仅在沿用旧账号凭据、原地接入 D1/R2 时使用原实例密钥。原有云配置继续生效，也可显式设置 `MENOTE_STORAGE=cloudflare`。
 
 保留现有 HTTPS 域名，配置 HTTPS 反向代理到主机 `127.0.0.1:8787`，把该域名写入 `MENOTE_PUBLIC_ORIGIN`。Compose 只在回环地址发布端口。容器启动会检查绑定和 schema，就绪端点为 `/api/health/ready`。
 
@@ -30,7 +30,13 @@ docker compose -f src/worker/docker/compose.yaml up -d --build
 
 D1 HTTP API 受 [Cloudflare API 限流](https://developers.cloudflare.com/fundamentals/api/reference/limits/) 约束。上线前用预计的并发量验证同步和登录。涉及新 schema 迁移时，先按已有流程备份并验证兼容性。
 
-## 生产切换前的全量备份与还原
+## 账号迁移包
+
+新站创建账号后进入「设置 → 备份 → 从迁移包恢复」。选择账号 ZIP，点击「上传并校验」核对数量，再点「恢复到当前账号」。恢复沿用原条目 ID 和版本，写入当前账号。本地模式无需配置云存储。S3 和 WebDAV 仍可在备份页独立配置。
+
+账号包包含 `menote/<快照 ID>/` 下的分片、附件、manifest 和 COMPLETE，以及可选的剪藏模板与 Raindrop 映射。上传上限 256 MiB，入口代理可能另有大小限制。Raindrop 需要在新站重新授权。新建 S3 或 WebDAV 目标默认每日备份，可改为每周或手动。实例级 SQL 备份仍按下面的运维流程处理。
+
+## 原地沿用 D1/R2 的实例备份与还原
 
 「设置 → 备份」按账号恢复内容。切换部署时还要保留登录凭据哈希、账号角色、历史版本、加密包装及附件，应使用实例级备份。工具把 D1 整库 SQL 和 R2 对象整理为一个 ZIP，每个文件都有 SHA-256。原有 `AUTH_PEPPER` 另从密钥源保存和注入，主密码与明文恢复码由使用者自行持有。ZIP 包含正式内容和凭据哈希，应保存在仓库以外的私人目录。
 

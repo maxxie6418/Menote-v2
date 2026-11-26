@@ -5,6 +5,7 @@ import { ensureSchemaReady } from "../services/authService";
 import { deleteRemoteBackup, listRemoteBackups } from "../services/backupService";
 import { verifyRemoteSnapshot } from "../services/backupVerifyService";
 import { restoreRemoteSnapshot } from "../services/remoteRestoreService";
+import { processAccountArchive } from "../services/accountArchiveService";
 import {
   applyTargetPatch, createTargetSealed, deleteTargetForUser, getTargetForUser, listTargetsForUser,
   normalizeTargetInput, openTargetSecret, runTargetPushById, testUnsavedTarget, toRemoteTarget, type TargetInput,
@@ -27,6 +28,24 @@ async function requireReady(c: { env: Env }): Promise<boolean> {
 export const backupRoutes = new Hono<AppEnv>();
 
 backupRoutes.use("/api/backup", resolveSession);
+
+backupRoutes.get("/api/backup/archive", resolveSession, requireSession, (c) =>
+  c.json({ enabled: Boolean(c.env.READ_ACCOUNT_ARCHIVE) }, { headers: { "Cache-Control": "no-store" } }));
+
+backupRoutes.post("/api/backup/archive/:action", resolveSession, sameOriginGuard, requireSession, async (c) => {
+  const read = c.env.READ_ACCOUNT_ARCHIVE;
+  const action = c.req.param("action");
+  if (!read || !["verify", "restore"].includes(action)) return c.json({ error: "not_found" }, 404);
+  if (c.req.header("Content-Type") !== "application/zip") return c.json({ error: "请选择 ZIP 格式的账号迁移包" }, 415);
+  try {
+    const ctx = { db: c.env.DB, bucket: c.env.BUCKET, userId: c.get("authUser")!.id };
+    const result = await read(c.req.raw, source => processAccountArchive(ctx, source, action === "restore"));
+    return c.json({ ok: true, result }, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "";
+    return c.json({ error: /^[\u3400-\u9fff]/.test(reason) ? reason.slice(0, 180) : "迁移包无法读取或数据不兼容，请核对文件后重试" }, 400);
+  }
+});
 
 backupRoutes.get("/api/backup/targets", resolveSession, requireSession, async (c) => {
   if (!(await requireReady(c))) return c.json({ error: "unavailable" }, 503);

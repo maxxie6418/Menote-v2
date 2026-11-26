@@ -3,7 +3,10 @@ import { getCookie } from "hono/cookie";
 import type { Context, MiddlewareHandler } from "hono";
 import { SESSION_COOKIE, resolveSessionUser } from "../services/authService";
 
-export type AppEnv = { Bindings: Env; Variables: { authUser?: AuthUser } };
+import type { UploadedSnapshotSource } from "../services/backupVerifyService";
+
+type AccountArchiveReader = <T>(request: Request, callback: (source: UploadedSnapshotSource) => Promise<T>) => Promise<T>;
+export type AppEnv = { Bindings: Env & { READ_ACCOUNT_ARCHIVE?: AccountArchiveReader }; Variables: { authUser?: AuthUser } };
 
 /** 尽力解析会话（不阻断公开路由；数据库异常按未登录处理）。 */
 export const resolveSession: MiddlewareHandler<AppEnv> = async (c, next) => {

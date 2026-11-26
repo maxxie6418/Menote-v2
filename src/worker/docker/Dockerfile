@@ -1,3 +1,4 @@
+ARG MENOTE_ARTIFACTS=build
 FROM node:24-bookworm-slim AS build
 WORKDIR /build
 ENV PNPM_HOME=/pnpm
@@ -12,11 +13,13 @@ COPY src/web ./src/web
 COPY src/worker ./src/worker
 RUN pnpm --filter @menote/web build && node src/worker/docker/build.mjs
 
+FROM ${MENOTE_ARTIFACTS} AS artifacts
+
 FROM node:24-bookworm-slim AS app
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build --chown=node:node /build/src/worker/dist/docker/server.mjs ./server.mjs
-COPY --from=build --chown=node:node /build/src/web/dist ./web
+COPY --from=artifacts --chown=node:node /build/src/worker/dist/docker/server.mjs ./server.mjs
+COPY --from=artifacts --chown=node:node /build/src/web/dist ./web
 RUN mkdir -p /app/state && chown node:node /app/state
 USER node
 EXPOSE 8787

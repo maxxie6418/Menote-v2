@@ -232,3 +232,7 @@ FR-EDT-16/17 使用 `lib/obsidianMarkdown.ts` 统一解析语法和提取引用�
 ## 2026-11-25 · TP13 Docker 部署适配
 
 `src/worker/docker/` 存放 Node 运行入口、D1 HTTP 和 R2 S3 适配器、AI 本地任务队列及 Docker 构建定义。容器沿用 `src/worker/src/index.ts` 装配的 Hono 路由和同一份迁移，无第二套业务层和数据结构。Web 静态产物由容器同源托管。业务数据沿用现有 D1/R2，部署凭据由运行环境注入。
+
+## 2026-11-26 · TP13 Docker 本地存储
+
+`docker/storage.mjs` 装配本地 SQLite、文件对象存储或已有 D1/R2。`docker/account-archive.mjs` 负责限额接收并读取 ZIP，校验与恢复复用 Worker 快照服务，数据库扩展写入与正文共用事务。Web `features/backup/ArchiveRestorePanel.tsx` 经 `services/backupService.ts` 上传到当前会话。

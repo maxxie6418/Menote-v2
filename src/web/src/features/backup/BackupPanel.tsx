@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
+import { ArchiveRestorePanel } from "./ArchiveRestorePanel";
 import {
   type TargetView, createTarget, deleteRemoteBackup, deleteTarget, listRemoteBackups, listTargets, revealSecret, runTargetOnce, testSavedTarget, testTarget, updateTarget, verifyRemoteBackup, restoreRemoteBackup,
 } from "../../services/backupService";
@@ -16,7 +17,7 @@ function getPushStatus(result: string | null): { label: string; error: string | 
 
 /** 备份目标管理（G9，FR-BAK-1/2/8）：目标 CRUD、凭据复显（C-7）、手动推送一次、运行状态。 */
 export function BackupPanel({ userId }: BackupPanelProps) {
-  void userId;
+
   const [targets, setTargets] = useState<TargetView[] | null>(() => peek<TargetView[]>(SETTINGS_CACHE.targets) ?? null);
   const [kind, setKind] = useState<"webdav" | "s3">("webdav");
   const [name, setName] = useState("");
@@ -24,7 +25,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const [bucket, setBucket] = useState("");
   const [username, setUsername] = useState("");
   const [secret, setSecret] = useState("");
-  const [schedule, setSchedule] = useState<"manual" | "daily" | "weekly">("manual");
+  const [schedule, setSchedule] = useState<"manual" | "daily" | "weekly">("daily");
   const [remotePath, setRemotePath] = useState("menote");
   const [retentionCount, setRetentionCount] = useState("0");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     setMessage(null);
     const ok = await createTarget({ kind, endpoint, bucket: bucket || null, username: username || null, secret, schedule, name: name || undefined, remotePath, retentionCount: Math.max(0, Number.parseInt(retentionCount, 10) || 0) });
     if (ok) {
-      setSecret(""); setEndpoint(""); setBucket(""); setUsername(""); setName(""); setRemotePath("menote"); setRetentionCount("0");
+      setSecret(""); setEndpoint(""); setBucket(""); setUsername(""); setName(""); setRemotePath("menote"); setRetentionCount("0"); setSchedule("daily");
       refresh(true);
     } else {
       setMessage("创建失败：检查端点与凭据。");
@@ -131,6 +132,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   return (
     <section className="status-panel" aria-labelledby="backup-heading">
       <h2 id="backup-heading">备份与恢复</h2>
+      <ArchiveRestorePanel userId={userId} />
       <p className="app-description">将内容保存到远程存储，并检查备份快照的完整性。</p>
       {message && <p className="status-detail" role="status">{message}</p>}
       {targets !== null && targets.length > 0 && (

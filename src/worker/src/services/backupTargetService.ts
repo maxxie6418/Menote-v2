@@ -38,7 +38,7 @@ export function normalizeTargetInput(input: TargetInput): NormalizedTargetInput 
     username: typeof input.username === "string" ? input.username : null,
     secret: input.secret,
     deletePolicy: input.deletePolicy === "sync" ? "sync" : "append_only",
-    schedule: input.schedule === "daily" || input.schedule === "weekly" ? input.schedule : "manual",
+    schedule: input.schedule == null || input.schedule === "daily" ? "daily" : input.schedule === "weekly" ? "weekly" : "manual",
     name: typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 100) : "备份目标",
     remotePath: typeof input.remotePath === "string" && input.remotePath.trim() ? input.remotePath.trim().slice(0, 300) : "menote",
     retentionCount: typeof input.retentionCount === "number" && Number.isInteger(input.retentionCount) ? Math.max(0, Math.min(1000, input.retentionCount)) : 0,
