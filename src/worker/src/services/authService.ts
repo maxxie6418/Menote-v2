@@ -88,8 +88,8 @@ export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-function randomToken(bytes: number): string {
-  const raw = crypto.getRandomValues(new Uint8Array(bytes));
+export function newSessionToken(): string {
+  const raw = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...raw)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -116,19 +116,36 @@ export async function verifyCredentials(
   return toAuthUser(user);
 }
 
+export async function authenticateLogin(env: Env, input: CredentialsInput, now: number): Promise<AuthUser> {
+  if (loginFloodGuard(now) || await loginThrottled(env.DB, input.username, now)) {
+    throw new AuthError(429, "too_many_attempts");
+  }
+  try {
+    const user = await verifyCredentials(env, input.username, input.password);
+    await clearLoginFailures(env.DB, input.username);
+    return user;
+  } catch (error) {
+    if (error instanceof AuthError && error.status === 401) {
+      noteLoginFailureFlood(now);
+      await recordLoginFailure(env.DB, input.username, now);
+    }
+    throw error;
+  }
+}
+
 export interface IssuedSession {
   userId: string;
   cookieValue: string;
   expiresAt: number;
 }
 
-async function sessionStorageId(cookieValue: string): Promise<string> {
+export async function sessionStorageId(cookieValue: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cookieValue));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function issueSession(db: SqlDatabase, userId: string, now: number): Promise<IssuedSession> {
-  const cookieValue = randomToken(32);
+  const cookieValue = newSessionToken();
   const expiresAt = now + SESSION_TTL_MS;
   await createSession(db, await sessionStorageId(cookieValue), userId, now, expiresAt);
   await deleteExpiredSessions(db, userId, now);

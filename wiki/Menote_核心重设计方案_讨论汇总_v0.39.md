@@ -131,12 +131,12 @@ Memo                         ← 独立时间线，不进入上述目录树
 
 ### 2.2 收件箱与草稿箱（双固定入口，v0.7 定稿）
 
-- **收件箱（Inbox）**：外部内容的进站口——未来浏览器剪藏插件、Android App 的采集内容，以及 **AI Agent 新建的 Note**，统一进入收件箱待用户整理确认；与普通主题分开。
+- **收件箱（Inbox）**：浏览器剪藏、Android App 的采集内容，以及 **AI Agent 新建的 Note**，统一进入收件箱待用户整理确认。收件箱与普通主题分开。
 - **草稿箱（Drafts）**：用户自己新建、尚未指定主题的 Note 队列；从未归类入口新建的笔记在归类前出现在草稿箱。位于主题或分组时可直接在该路径创建，不必经过草稿箱。
 - 两个入口都遵循“先收集，后整理”，不隐含自动过期或自动删除。
 - **整理动作 = 归类即出箱**：指定主题/分组（拖拽或属性区设置均可）后自动移出对应入口；支持直接删除；**不做 Note→Memo 转换**（Memo→Note 方向保留）。
 - **剪藏即 Note**：每次剪藏生成一篇 Note 进收件箱，正文为网页正文的 Markdown 化结果；YAML 保存页面标题、来源 URL（`source_url`）、剪藏时间（`clipped_at`），页面能提供时另存作者（`author`）、发布时间（`published_at`）、站点名（`site_name`）、描述（`description`）、规范 URL（`canonical_url`），缺失项省略。
-- 剪藏插件、Android App **属于后续规划**；当前先固定双入口的信息架构位置，不作为本轮核心实施前置条件。
+- 安卓采集按 2026-11-26 的 FR-EXT-4 决定纳入本轮。系统分享的文字与链接离线保存，联网后归入同一账号的收件箱。浏览器剪藏沿用 TP3。
 - AI Agent 新建的 Memo 仍进入 Memo 时间线（Memo 无归属概念）；Agent 内容带来源标记，详见第十一章。
 - **收藏网址**与**剪藏网页正文**是不同动作：收藏网址将 Raindrop 兼容的收藏记录追加到用户指定的记录 Note 或多维表格；表格是后续推送到 Raindrop 的优先来源。网页正文剪藏另生成 Note 并进入收件箱待整理。两者共用浏览器扩展与授权 Token，但数据写入目标和动作不同；详见第七章。
 - **阅读模式与摘录**：浏览器扩展可将页面提取结果以独立、简洁的版式阅读；阅读与剪藏分离，用户可在阅读页按需剪藏。书签转存 Memo 的动作名为「摘录」，Memo 以当前页标题为引文、携带源链接，并写入结构化「摘录」标签。
@@ -502,7 +502,8 @@ Memo 逻辑记录示例（仅示意数据模型，不是最终数据库表结构
 | 备份、导入、版本历史、回收站 | **保留能力，按 V2 格式适配** | JSON 作为恢复数据、Markdown 作为通用导出；避免丢失既有数据与历史 |
 | **MCP 服务端、令牌、工具注册与审计** | **必须保留，优先适配复用** | 继续支持外部 Agent 查询、创建和编辑；按 V2 内容类型、权限边界和版本号规则适配，不让 AI 绕过加密 |
 | **S3/WebDAV 外部备份目标、快照队列与定时推送** | **必须保留，优先复用验证** | 远端目标配置、凭据保护、断点续推与恢复可用性，需适配新数据格式和加密布局 |
-| Raindrop、浏览器收藏、图片瀑布流、Android App | **延后** | 不阻断核心闭环，不为未来扩展提前建设通用框架 |
+| Raindrop、浏览器收藏、图片瀑布流 | **延后** | 不阻断核心闭环，不为未来扩展提前建设通用框架 |
+| Android App 首轮采集 | **TP13，本轮** | 自托管登录、系统分享、离线保存与联网后同步 |
 
 参考现有仓库：[`AGENTS.md`](https://github.com/maxxie6418/Menote/blob/main/AGENTS.md)、[`NoteWorkspace.tsx`](https://github.com/maxxie6418/Menote/blob/main/apps/web/src/features/notes/ui/NoteWorkspace.tsx)、[`sync/engine.ts`](https://github.com/maxxie6418/Menote/blob/main/apps/web/src/data/sync/engine.ts)、[`mdcore/table.ts`](https://github.com/maxxie6418/Menote/blob/main/packages/mdcore/src/table.ts)。当前具体实现可能继续变化；复用前应以迁移时的代码版本为准。
 

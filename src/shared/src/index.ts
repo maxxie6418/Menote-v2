@@ -7,6 +7,10 @@ export type { SchemaMigration, SchemaStatus } from "./types/migration";
 export type { HealthResponse } from "./contracts/health";
 export type { AuthStatus, AuthUser, CredentialsInput } from "./contracts/auth";
 export { USERNAME_MAX, PASSWORD_MIN, validUsername, validPassword } from "./contracts/auth";
+export {
+  MOBILE_API, MOBILE_CAPTURE_MAX_CHARS,
+  type MobileApiInfo, type MobileCaptureRequest, type MobileCaptureResult, type MobileLoginResult,
+} from "./contracts/mobile";
 export { DEFAULT_MONITOR_PREFERENCES } from "./contracts/monitor";
 export {
   AI_SETTING_KEY, AI_MODEL_OPTIONS, DEFAULT_AI_MODEL, AI_FREE_NEURONS_DAILY,

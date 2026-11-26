@@ -41,6 +41,7 @@ import accountRecoveryCode from "./0039_account_recovery_code.sql";
 import attachmentObjectLifecycle from "./0040_attachment_object_lifecycle.sql";
 import recoveryCodeRotation from "./0041_recovery_code_rotation.sql";
 import memory from "./0042_memory.sql";
+import mobileSessions from "./0043_mobile_sessions.sql";
 
 // Published migrations must never be edited: append a new version instead.
 export const migrations = [
@@ -86,4 +87,5 @@ export const migrations = [
   { version: 40, name: "0040_attachment_object_lifecycle", statements: [attachmentObjectLifecycle] },
   { version: 41, name: "0041_recovery_code_rotation", statements: [recoveryCodeRotation] },
   { version: 42, name: "0042_memory", statements: [memory] },
+  { version: 43, name: "0043_mobile_sessions", statements: [mobileSessions] },
 ] as const satisfies readonly SchemaMigration[];

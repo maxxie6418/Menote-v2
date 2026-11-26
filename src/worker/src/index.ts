@@ -5,6 +5,7 @@ import type { AppEnv } from "./middleware/session";
 import { authRoutes } from "./routes/auth";
 import { attachmentRoutes } from "./routes/attachments";
 import { healthRoutes } from "./routes/health";
+import { mobileRoutes } from "./routes/mobile";
 import { monitorRoutes } from "./routes/monitor";
 import { syncRoutes } from "./routes/sync";
 import { trashRoutes } from "./routes/trash";
@@ -25,6 +26,7 @@ import { schemaIsCurrent } from "./services/schemaService";
 const app = new Hono<AppEnv>()
   .route("/", healthRoutes)
   .route("/", authRoutes)
+  .route("/", mobileRoutes)
   .route("/", attachmentRoutes)
   .route("/", syncRoutes)
   .route("/", trashRoutes)

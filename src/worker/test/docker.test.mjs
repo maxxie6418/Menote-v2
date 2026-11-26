@@ -129,6 +129,37 @@ test("Docker HTTP serves the Web app and preserves session and API guards", asyn
   assert.equal((await clean.db.prepare("SELECT title FROM items WHERE id=?").bind(noteId).first()).title, "Docker note");
   assert.equal((await clean.db.prepare("SELECT count(*) AS n FROM clip_templates").first()).n, 1);
 
+  await t.test("mobile shares reach the owner's inbox exactly once", async () => {
+    const body = JSON.stringify({ operationId: crypto.randomUUID(), text: "https://example.org/capture", capturedAt: Date.now() });
+    const capture = (headers) => fetch(url + "/api/mobile/v1/capture", {
+      method: "POST", headers: { "Content-Type": "application/json", ...headers }, body,
+    });
+    assert.equal((await capture({ Cookie: cookie, Origin: origin })).status, 401);
+    const login = await fetch(url + "/api/mobile/v1/login", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: credentials,
+    });
+    assert.equal(login.status, 200);
+    assert.equal(login.headers.get("cache-control"), "no-store");
+    assert.equal(login.headers.get("set-cookie"), null);
+    const { token } = await login.json();
+    const auth = { Authorization: `Bearer ${token}` };
+    assert.equal((await fetch(url + "/api/auth/me", { headers: { Cookie: "mn_session=" + token } })).status, 401);
+    const stored = await db.prepare("SELECT token_hash FROM mobile_sessions").first();
+    assert.match(stored.token_hash, /^[0-9a-f]{64}$/);
+    const responses = await Promise.all([capture(auth), capture(auth)]);
+    assert.deepEqual(responses.map(result => result.status).sort(), [200, 201]);
+    const operationId = JSON.parse(body).operationId;
+    const page = await (await fetch(url + "/api/sync/pull?cursor=0", { headers: { Cookie: cookie } })).json();
+    const items = page.items.filter(item => item.id === operationId);
+    assert.equal(items.length, 1);
+    assert.equal(items[0].type, "note");
+    assert.equal(items[0].source, "mobile");
+    assert.equal(items[0].topicId, null);
+    assert.match(items[0].content.markdown, /<https:\/\/example.org\/capture>/);
+    assert.equal((await fetch(url + "/api/mobile/v1/logout", { method: "POST", headers: auth })).status, 204);
+    assert.equal((await capture(auth)).status, 401);
+  });
+
   await t.test("scheduled S3 and WebDAV snapshots include all account data", async () => {
     const originalFetch = globalThis.fetch;
     const files = new Map();

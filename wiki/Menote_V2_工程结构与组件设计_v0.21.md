@@ -183,6 +183,8 @@ FR-EDT-16/17 使用 `lib/obsidianMarkdown.ts` 统一解析语法和提取引用�
 
 ## 5. 数据契约摘要（M1 细化为 `src/shared` 类型与迁移 SQL）
 
+FR-EXT-4 的 Expo 工程位于 `Menote-clients/mobile/`，使用独立版本的移动采集接口。主仓库由 `src/shared` 产出移动端契约包，由 `routes/mobile.ts`、`services/mobileCaptureService.ts` 和 `db/mobileSessions.ts` 实现认证和写入。采集复用服务端条目事务及同步日志，Web 收件箱按现有未归类外部条目规则呈现。
+
 | 实体 | 关键字段（摘要） | 对应需求 |
 | --- | --- | --- |
 | User | id、username、role(owner/member)、createdAt | FR-USR |

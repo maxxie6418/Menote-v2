@@ -5,9 +5,8 @@ import type { Context } from "hono";
 import type { AppEnv } from "../middleware/session";
 import { requireSession, resolveSession, sameOriginGuard } from "../middleware/session";
 import {
-  AuthError, SESSION_COOKIE, SESSION_TTL_MS, authStatus, bootstrapOwner, clearLoginFailures,
-  destroySession, ensureSchemaReady, issueSession, loginFloodGuard, loginThrottled, noteLoginFailureFlood,
-  parseCredentials, recordLoginFailure, registerMember, setRegistration, verifyCredentials,
+  AuthError, SESSION_COOKIE, SESSION_TTL_MS, authenticateLogin, authStatus, bootstrapOwner,
+  destroySession, ensureSchemaReady, issueSession, parseCredentials, registerMember, setRegistration,
 } from "../services/authService";
 
 function setSessionCookie(c: Context<AppEnv>, value: string): void {
@@ -69,22 +68,10 @@ authRoutes.post("/api/auth/register", sameOriginGuard, authGuard(async (c) => {
 authRoutes.post("/api/auth/login", sameOriginGuard, authGuard(async (c) => {
   const input = routeCredentials(c.env, await c.req.json().catch(() => null));
   const now = Date.now();
-  if (loginFloodGuard(now) || (await loginThrottled(c.env.DB, input.username, now))) {
-    throw new AuthError(429, "too_many_attempts");
-  }
-  try {
-    const user = await verifyCredentials(c.env, input.username, input.password);
-    await clearLoginFailures(c.env.DB, input.username);
-    const session = await issueSession(c.env.DB, user.id, now);
-    setSessionCookie(c, session.cookieValue);
-    return c.json({ user });
-  } catch (error) {
-    if (error instanceof AuthError && error.status === 401) {
-      noteLoginFailureFlood(now);
-      await recordLoginFailure(c.env.DB, input.username, now);
-    }
-    throw error;
-  }
+  const user = await authenticateLogin(c.env, input, now);
+  const session = await issueSession(c.env.DB, user.id, now);
+  setSessionCookie(c, session.cookieValue);
+  return c.json({ user });
 }));
 
 authRoutes.post("/api/auth/logout", resolveSession, sameOriginGuard, requireSession, authGuard(async (c) => {
