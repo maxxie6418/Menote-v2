@@ -4,6 +4,7 @@ import { InfoHint } from "../../components/ui/InfoHint";
 import { itemRoutePath } from "../../app/appRoutes";
 import { useHomeSnapshot } from "../../services/contentHooks";
 import { bindMemoryTable, createMemoryTable, previewMemoryTable, unbindMemoryTable } from "../../services/memoryService";
+import { formatMemoryConnectionPrompt } from "./memoryConnectionPrompt";
 import { SettingsGroup } from "./SettingsGroup";
 
 const issues: Record<string, string> = {
@@ -29,6 +30,7 @@ export function MemoryPluginPanel({ userId, status, onChange }: {
   const [preview, setPreview] = useState<MemoryBindPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState("");
   const binding = status.binding;
   const privateIds = new Set(snapshot.topics.filter((topic) => topic.isEncSpace).map((topic) => topic.id));
   const tables = snapshot.items.filter((item) => item.type === "table" && item.deletedAt === null && item.content.scope === "plain"
@@ -40,6 +42,16 @@ export function MemoryPluginPanel({ userId, status, onChange }: {
     try { await action(); }
     catch (error) { setError(error instanceof Error ? error.message : "请求失败，请重试。"); }
     finally { setBusy(false); }
+  }
+
+  async function copyPrompt() {
+    try {
+      const endpoint = `${window.location.origin}/api/mcp`;
+      await navigator.clipboard.writeText(formatMemoryConnectionPrompt(endpoint));
+      setCopyFeedback("已复制提示词，可与 MCP Token 一起发送给 AI。");
+    } catch {
+      setCopyFeedback("复制失败，请检查浏览器剪贴板权限。");
+    }
   }
 
   return <div className="mn-settings-stack">
@@ -88,6 +100,11 @@ export function MemoryPluginPanel({ userId, status, onChange }: {
       </div>}
     </SettingsGroup>
     <SettingsGroup title="Agent 接入">
+      <div className="mn-setrow">
+        <div><p className="mn-setlabel">记忆库接入提示词</p><p className="mn-sethint">与具有记忆库权限的 MCP Token 一起发给 AI。</p></div>
+        <button type="button" className="mn-textbtn mn-settings-outline" onClick={() => void copyPrompt()}>复制提示词</button>
+      </div>
+      {copyFeedback && <p className="mn-mcp-message" role="status">{copyFeedback}</p>}
       <div className="mn-setrow">
         <div><p className="mn-setlabel">记忆令牌<InfoHint>读权限覆盖绑定库里的个人和全部项目记忆。项目标识仅用于检索。修改记忆需要同时授予读、写权限。</InfoHint></p></div>
         <a className="mn-statuslink" href="/settings/mcp">管理令牌</a>

@@ -1,8 +1,15 @@
 import type { McpTokenView } from "@menote/shared";
 import { revealMcpToken } from "../../services/mcpTokenService";
+import { formatMemoryConnectionPrompt, memoryUsageRules } from "./memoryConnectionPrompt";
 
 function formatPrompt(endpoint: string, secret: string, token: McpTokenView): string {
   const permissions = new Set(token.permissions);
+  const canReadMemory = permissions.has("memory:read");
+  const canWriteMemory = permissions.has("memory:write");
+  const memoryOnly = token.permissions.every((permission) => permission === "memory:read" || permission === "memory:write");
+  if (canReadMemory && memoryOnly) {
+    return formatMemoryConnectionPrompt(endpoint, secret);
+  }
   const canRead = permissions.has("content:read");
   const canCreate = permissions.has("item:create");
   const attachments = permissions.has("attachment:access");
@@ -14,7 +21,7 @@ function formatPrompt(endpoint: string, secret: string, token: McpTokenView): st
   if (attachments && canCreate) abilities.push("为新条目上传附件");
   if (permissions.has("clip:templates:read")) abilities.push("同步剪藏模板");
   if (permissions.has("clip:templates:write")) abilities.push("保存剪藏模板");
-  if (permissions.has("memory:read")) abilities.push(permissions.has("memory:write") ? "查询和维护 AI 记忆库" : "查询 AI 记忆库");
+  if (canReadMemory) abilities.push(canWriteMemory ? "查询和维护 AI 记忆库" : "查询 AI 记忆库");
 
   return [
     "请连接我的 Menote 笔记库。",
@@ -28,6 +35,11 @@ function formatPrompt(endpoint: string, secret: string, token: McpTokenView): st
     "",
     "请先验证连接并发现工具，用中文告诉我可以做什么，再给出一个用法示例。收到我的具体任务后再访问笔记或执行写入。",
     "此 Token 仅用于上述地址的认证。请在回复中隐藏 Token。",
+    ...(canReadMemory ? [
+      "",
+      "如果我要求配置 Menote AI 共享记忆库，请在当前客户端设置这个 MCP 服务，并在支持时保存以下长期规则。令牌存入客户端凭据设置或环境变量。",
+      ...memoryUsageRules.map((rule) => `- ${rule}`),
+    ] : []),
   ].join("\n");
 }
 
