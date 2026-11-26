@@ -11,18 +11,18 @@ import {
 } from "../db/auth";
 import { migrateSchema } from "./schemaService";
 
-/** 认证端点依赖业务 schema；迁移就绪结果按 isolate 记忆，失败后可重试。 */
-let schemaReadyCheck: Promise<boolean> | null = null;
-
-export async function ensureSchemaReady(db: D1Database): Promise<boolean> {
-  if (!schemaReadyCheck) {
-    schemaReadyCheck = migrateSchema(db).then((status) => status === "ready")
-      .catch(() => {
-        schemaReadyCheck = null;
-        return false;
-      });
-  }
-  return schemaReadyCheck;
+/** Share initialization only between requests using the same database. */
+const readyChecks = new WeakMap<SqlDatabase, Promise<boolean>>();
+export function ensureSchemaReady(db: SqlDatabase): Promise<boolean> {
+  if (!db) return Promise.resolve(false);
+  const pending = readyChecks.get(db);
+  if (pending) return pending;
+  const check = migrateSchema(db).then(status => status === "ready", () => false).then(ready => {
+    if (!ready) readyChecks.delete(db);
+    return ready;
+  });
+  readyChecks.set(db, check);
+  return check;
 }
 
 /**
@@ -127,7 +127,7 @@ async function sessionStorageId(cookieValue: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function issueSession(db: D1Database, userId: string, now: number): Promise<IssuedSession> {
+export async function issueSession(db: SqlDatabase, userId: string, now: number): Promise<IssuedSession> {
   const cookieValue = randomToken(32);
   const expiresAt = now + SESSION_TTL_MS;
   await createSession(db, await sessionStorageId(cookieValue), userId, now, expiresAt);
@@ -135,7 +135,7 @@ export async function issueSession(db: D1Database, userId: string, now: number):
   return { userId, cookieValue, expiresAt };
 }
 
-export async function destroySession(db: D1Database, cookieValue: string): Promise<void> {
+export async function destroySession(db: SqlDatabase, cookieValue: string): Promise<void> {
   await deleteSession(db, await sessionStorageId(cookieValue));
   await deleteSession(db, cookieValue);
 }
@@ -144,7 +144,7 @@ export async function destroySession(db: D1Database, cookieValue: string): Promi
  *  touch=false 供采样等只读归属使用，不产生写放大。
  *  库存的是 cookie 的 SHA-256。旧库里的明文 id 在首次访问时迁成摘要，不强制掉线。 */
 export async function resolveSessionUser(
-  db: D1Database, cookieValue: string, now: number, touch = true,
+  db: SqlDatabase, cookieValue: string, now: number, touch = true,
 ): Promise<AuthUser | null> {
   const hashed = await sessionStorageId(cookieValue);
   let session = await readSession(db, hashed);
@@ -168,7 +168,7 @@ export async function resolveSessionUser(
   return user ? toAuthUser(user) : null;
 }
 
-export async function authStatus(db: D1Database, user: AuthUser | null): Promise<AuthStatus> {
+export async function authStatus(db: SqlDatabase, user: AuthUser | null): Promise<AuthStatus> {
   if (user) return { phase: "ready", user, registrationOpen: false };
   if ((await countUsers(db)) === 0) return { phase: "bootstrap", user: null, registrationOpen: false };
   const registration = await readRegistration(db);
@@ -244,7 +244,7 @@ export function noteLoginFailureFlood(now: number): void {
 }
 
 /** D1 持久节流判定；节流基础设施故障时放行（fail-open），如实记录。 */
-export async function loginThrottled(db: D1Database, username: string, now: number): Promise<boolean> {
+export async function loginThrottled(db: SqlDatabase, username: string, now: number): Promise<boolean> {
   try {
     return await dbLoginThrottled(db, username, now, LOGIN_MAX_FAILURES);
   } catch {
@@ -252,22 +252,22 @@ export async function loginThrottled(db: D1Database, username: string, now: numb
   }
 }
 
-export async function recordLoginFailure(db: D1Database, username: string, now: number): Promise<void> {
+export async function recordLoginFailure(db: SqlDatabase, username: string, now: number): Promise<void> {
   await dbRecordLoginFailure(db, username, now, LOGIN_WINDOW_MS).catch(() => {});
 }
 
-export async function clearLoginFailures(db: D1Database, username: string): Promise<void> {
+export async function clearLoginFailures(db: SqlDatabase, username: string): Promise<void> {
   await dbClearLoginThrottle(db, username).catch(() => {});
 }
 
-function dbLoginThrottledLast(db: D1Database, username: string, now: number, maxFailures: number): Promise<boolean> {
+function dbLoginThrottledLast(db: SqlDatabase, username: string, now: number, maxFailures: number): Promise<boolean> {
   return dbLoginThrottledBottom(db, username, now, maxFailures);
 }
 
-function dbLoginThrottledBottom(db: D1Database, username: string, now: number, maxFailures: number): Promise<boolean> {
+function dbLoginThrottledBottom(db: SqlDatabase, username: string, now: number, maxFailures: number): Promise<boolean> {
   return dbLoginThrottledRoot(db, username, now, maxFailures);
 }
 
-function dbLoginThrottledRoot(db: D1Database, username: string, now: number, maxFailures: number): Promise<boolean> {
+function dbLoginThrottledRoot(db: SqlDatabase, username: string, now: number, maxFailures: number): Promise<boolean> {
   return dbLoginThrottled(db, username, now, maxFailures);
 }

@@ -1,30 +1,5 @@
 import { migrations } from "./migrations";
 
-export interface MonitorCloudflareRow {
-  accountId: string;
-  tokenCiphertext: string;
-  scriptName: string;
-  d1DatabaseId: string | null;
-  r2BucketName: string | null;
-}
-
-export async function readCloudflareCredentials(db: D1Database, userId: string): Promise<MonitorCloudflareRow | null> {
-  const row = await db.prepare("SELECT account_id, token_ciphertext, script_name, d1_database_id, r2_bucket_name FROM monitor_cloudflare_credentials WHERE user_id = ?")
-    .bind(userId).first<{ account_id: string; token_ciphertext: string; script_name: string; d1_database_id: string | null; r2_bucket_name: string | null }>();
-  return row ? { accountId: row.account_id, tokenCiphertext: row.token_ciphertext, scriptName: row.script_name, d1DatabaseId: row.d1_database_id, r2BucketName: row.r2_bucket_name } : null;
-}
-
-export async function writeCloudflareCredentials(db: D1Database, userId: string, value: MonitorCloudflareRow, now: number): Promise<void> {
-  await db.prepare(`INSERT INTO monitor_cloudflare_credentials (user_id, account_id, token_ciphertext, script_name, d1_database_id, r2_bucket_name, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET account_id=excluded.account_id, token_ciphertext=excluded.token_ciphertext,
-    script_name=excluded.script_name, d1_database_id=excluded.d1_database_id, r2_bucket_name=excluded.r2_bucket_name, updated_at=excluded.updated_at`)
-    .bind(userId, value.accountId, value.tokenCiphertext, value.scriptName, value.d1DatabaseId, value.r2BucketName, now).run();
-}
-
-export async function deleteCloudflareCredentials(db: D1Database, userId: string): Promise<void> {
-  await db.prepare("DELETE FROM monitor_cloudflare_credentials WHERE user_id = ?").bind(userId).run();
-}
-
 const INSTALLATION_SCOPE = "__m1_installation_test__";
 const METRIC = "api_requests";
 const HOUR_MS = 3_600_000;
@@ -32,7 +7,7 @@ const HOUR_MS = 3_600_000;
 /** The ledger check and sampled write run in one SQLite statement.
  *  G1 起：样本按会话归属写入 user_id，公开流量保留安装级范围；汇总统计仍为应用级（不区分 user_id）。 */
 export async function insertRequestSample(
-  db: D1Database, weight: number, sampledAt: number, userId: string = INSTALLATION_SCOPE,
+  db: SqlDatabase, weight: number, sampledAt: number, userId: string = INSTALLATION_SCOPE,
 ): Promise<void> {
   const bucket = Math.floor(sampledAt / HOUR_MS) * HOUR_MS;
   const identity = JSON.stringify(migrations.map(({ version, name }) => [version, name]));
@@ -48,7 +23,7 @@ export async function insertRequestSample(
 }
 
 /** Ledger and samples are read in one D1 transaction, preventing mixed-version results. */
-export async function readRequestSamples(db: D1Database, since: number, until: number, bucketSize: number) {
+export async function readRequestSamples(db: SqlDatabase, since: number, until: number, bucketSize: number) {
   const results = await db.batch<Record<string, unknown>>([
     db.prepare("SELECT version, name FROM schema_migrations ORDER BY version"),
     db.prepare(`SELECT SUM(estimate) AS estimate, COALESCE(SUM(samples), 0) AS samples,

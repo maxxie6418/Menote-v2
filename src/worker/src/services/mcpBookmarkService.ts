@@ -4,7 +4,7 @@ import { readSyncOperation } from "../db/sync";
 import { appendBookmarkToNote, appendBookmarkToTable } from "./mcpBookmarkFormat";
 
 export interface McpBookmarkContext {
-  db: D1Database; userId: string; tokenId: string; scope: McpTokenScope; now: number;
+  db: SqlDatabase; userId: string; tokenId: string; scope: McpTokenScope; now: number;
 }
 
 function validWebUrl(value: string): boolean {

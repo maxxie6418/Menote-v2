@@ -20,13 +20,13 @@ export function ledgerReady(applied: readonly Pick<SchemaMigration, "version" | 
 }
 
 /** Scheduled work only runs against an initialized schema and must never create tables. */
-export async function schemaIsCurrent(db: D1Database): Promise<boolean> {
+export async function schemaIsCurrent(db: SqlDatabase): Promise<boolean> {
   try { return ledgerReady(await readLedger(db)); }
   catch { return false; }
 }
 
 export async function schemaStatus(
-  db: D1Database, registry: readonly SchemaMigration[] = migrations,
+  db: SqlDatabase, registry: readonly SchemaMigration[] = migrations,
 ): Promise<SchemaStatus> {
   checkRegistry(registry);
   await ensureLedger(db);
@@ -38,7 +38,7 @@ export async function schemaStatus(
 }
 
 export async function migrateSchema(
-  db: D1Database, registry: readonly SchemaMigration[] = migrations,
+  db: SqlDatabase, registry: readonly SchemaMigration[] = migrations,
 ): Promise<SchemaStatus> {
   checkRegistry(registry);
   for (;;) {

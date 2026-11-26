@@ -13,7 +13,7 @@ const recoveryOwners = {
 type RecoveryKind = keyof typeof recoveryOwners;
 type RecoveryWrapRow = Omit<WrapRow, "wrapper"> & { id: string; wrapper: string | null };
 
-export function recoveryCodeReadStatement(db: D1Database, userId: string): D1PreparedStatement {
+export function recoveryCodeReadStatement(db: SqlDatabase, userId: string): SqlStatement {
   return db.prepare("SELECT binding_id, verifier_json, wrap_revision FROM account_recovery_codes WHERE user_id = ?").bind(userId);
 }
 
@@ -22,7 +22,7 @@ export function recoveryBindingFromRow(row?: { binding_id?: unknown; verifier_js
     ? { id: row.binding_id, verifier: JSON.parse(row.verifier_json) } : null;
 }
 
-export async function readRecoveryCode(db: D1Database, userId: string): Promise<RecoveryCodeState> {
+export async function readRecoveryCode(db: SqlDatabase, userId: string): Promise<RecoveryCodeState> {
   const current = await recoveryCodeReadStatement(db, userId).first<RecoveryCodeRow>();
   const binding = recoveryBindingFromRow(current ?? undefined);
   if (binding) return { binding };
@@ -46,8 +46,8 @@ export async function readRecoveryCode(db: D1Database, userId: string): Promise<
 }
 
 export function claimRecoveryCodeStatement(
-  db: D1Database, userId: string, revision: number, binding: RecoveryCodeBinding,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, revision: number, binding: RecoveryCodeBinding,
+): SqlStatement {
   return db.prepare(
     `INSERT INTO account_recovery_codes (user_id, binding_id, verifier_json)
      SELECT ?, ?, ? WHERE COALESCE((SELECT wrap_revision FROM account_recovery_codes WHERE user_id = ?), 0) = ?
@@ -67,7 +67,7 @@ function needsRecoveryWrap(kind: RecoveryKind): string {
   )`;
 }
 
-function readRotationWraps(db: D1Database, userId: string, kind: RecoveryKind): D1PreparedStatement {
+function readRotationWraps(db: SqlDatabase, userId: string, kind: RecoveryKind): SqlStatement {
   const { table, wraps, ownerId } = recoveryOwners[kind];
   return db.prepare(
     `SELECT owner.id, w.wrapper, w.kdf_salt, w.kdf_iterations, w.iv, w.ciphertext, w.generation, w.recovery_code_id
@@ -77,7 +77,7 @@ function readRotationWraps(db: D1Database, userId: string, kind: RecoveryKind): 
   ).bind(userId);
 }
 
-export async function readRecoveryCodeRotation(db: D1Database, userId: string): Promise<RecoveryCodeRotationState | null> {
+export async function readRecoveryCodeRotation(db: SqlDatabase, userId: string): Promise<RecoveryCodeRotationState | null> {
   const [state, items, topics] = await db.batch<RecoveryCodeRow | RecoveryWrapRow>([
     recoveryCodeReadStatement(db, userId), readRotationWraps(db, userId, "item"), readRotationWraps(db, userId, "topic"),
   ]);
@@ -108,7 +108,7 @@ function hex(base64: string): string {
 }
 
 export async function rotateRecoveryCode(
-  db: D1Database, userId: string, previousId: string | null, input: RecoveryCodeRotationRequest, now: number,
+  db: SqlDatabase, userId: string, previousId: string | null, input: RecoveryCodeRotationRequest, now: number,
 ): Promise<boolean> {
   // Every dependent statement must observe our own nonce. A failed compare-and-swap writes nothing,
   // even when a racing request sent the same replacement binding or an earlier response was lost.
@@ -157,7 +157,7 @@ export async function rotateRecoveryCode(
   return result!.results.length > 0;
 }
 
-export function restoreRecoveryCodeStatements(db: D1Database, userId: string, binding: RecoveryCodeBinding) {
+export function restoreRecoveryCodeStatements(db: SqlDatabase, userId: string, binding: RecoveryCodeBinding) {
   // A bound snapshot may initialize an empty account, or merge into the same binding.
   // An unrelated existing verifier or any unverified legacy wrappers require a separate recovery environment.
   return [

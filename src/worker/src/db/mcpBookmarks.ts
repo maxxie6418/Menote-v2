@@ -4,7 +4,7 @@ import { appendSyncLogStatement, recordSyncOperationStatement, rowToItem } from 
 
 /** Load only one owner-scoped bookmark target and its plain-text visibility boundary. */
 export async function readMcpBookmarkTarget(
-  db: D1Database, userId: string, itemId: string, scope: McpTokenScope,
+  db: SqlDatabase, userId: string, itemId: string, scope: McpTokenScope,
 ): Promise<Item | null> {
   const { clauses, bindings } = mcpItemAccess({ userId, scope, includeMemos: false }, true);
   const row = await db.prepare(
@@ -14,7 +14,7 @@ export async function readMcpBookmarkTarget(
 }
 
 export async function writeMcpBookmark(
-  db: D1Database, item: Item, scope: McpTokenScope, tokenId: string, operationId: string,
+  db: SqlDatabase, item: Item, scope: McpTokenScope, tokenId: string, operationId: string,
   markdown: string, contentHash: string, now: number,
 ): Promise<boolean> {
   const { clauses, bindings } = mcpItemAccess({ userId: item.userId, scope, includeMemos: false }, true);

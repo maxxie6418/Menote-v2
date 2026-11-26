@@ -1,3 +1,4 @@
+import { readAiAvailability } from "../../services/aiService";
 import { useCallback, useEffect, useState } from "react";
 import { X } from "../../icons";
 import { BackupPanel } from "../backup";
@@ -30,7 +31,7 @@ export type SettingsSection = "appearance" | "sync" | "style" | "ai" | "backup" 
 const COMMON: Array<{ id: SettingsSection; label: string }> = [
   { id: "appearance", label: "外观" },
   { id: "sync", label: "同步" },
-  { id: "backup", label: "备份" },
+  { id: "backup", label: "备份与恢复" },
 ];
 const CONTENT: Array<{ id: SettingsSection; label: string }> = [
   { id: "style", label: "样式" },
@@ -55,6 +56,12 @@ interface SettingsDialogProps {
 
 /** 设置对话框：外观、远程备份、附件与恢复码。 */
 export function SettingsDialog({ userId, initialSection = "appearance", onClose, onSectionChange }: SettingsDialogProps) {
+  const [aiAvailable, setAiAvailable] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void readAiAvailability(controller.signal).then(value => { if (!controller.signal.aborted) setAiAvailable(value); });
+    return () => controller.abort();
+  }, []);
   const [section, setSection] = useState<SettingsSection>(initialSection);
 
   useEffect(() => {
@@ -87,7 +94,7 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
               </a>
             ))}
             <p className="mn-nav-label">高级</p>
-            {ADVANCED.map((entry) => (
+            {ADVANCED.filter(entry => entry.id !== "ai" || aiAvailable).map((entry) => (
               <a key={entry.id} href="#" className={section === entry.id ? "on" : ""} aria-current={section === entry.id ? "page" : undefined}
                 onClick={(event) => { event.preventDefault(); setSection(entry.id); onSectionChange?.(entry.id); }}>
                 {entry.label}
@@ -98,7 +105,7 @@ export function SettingsDialog({ userId, initialSection = "appearance", onClose,
             {section === "appearance" && <AppearanceSection userId={userId} />}
             {section === "sync" && <SyncSection userId={userId} onOpenLogs={() => { setSection("syncLogs"); onSectionChange?.("syncLogs"); }} />}
             {section === "style" && <StyleSection userId={userId} />}
-            {section === "ai" && <AiSection userId={userId} />}
+            {section === "ai" && aiAvailable && <AiSection userId={userId} />}
             {section === "backup" && <BackupPanel userId={userId} />}
             {section === "attachments" && <><AttachmentPolicySettings userId={userId} /><AttachmentListPanel userId={userId} /></>}
             {section === "syncLogs" && <SyncLogSection userId={userId} />}

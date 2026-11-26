@@ -13,7 +13,7 @@ export interface McpAuditWrite {
 }
 
 /** Append an MCP audit event; payload text and attachment bytes are intentionally excluded. */
-export async function appendMcpAudit(db: D1Database, entry: McpAuditWrite): Promise<void> {
+export async function appendMcpAudit(db: SqlDatabase, entry: McpAuditWrite): Promise<void> {
   await db.prepare(
     `INSERT INTO mcp_audit (id, user_id, token_id, tool, item_id, rev_before, rev_after, result, operation_id, at, resource_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -22,7 +22,7 @@ export async function appendMcpAudit(db: D1Database, entry: McpAuditWrite): Prom
 }
 
 /** Fixed-window counter updated in one SQLite statement to remain consistent across isolates. */
-export async function incrementMcpRateLimit(db: D1Database, tokenId: string, now: number): Promise<number> {
+export async function incrementMcpRateLimit(db: SqlDatabase, tokenId: string, now: number): Promise<number> {
   const windowStart = Math.floor(now / 60_000) * 60_000;
   const row = await db.prepare(
     `INSERT INTO mcp_rate_limits (token_id, window_start, request_count) VALUES (?, ?, 1)
@@ -37,7 +37,7 @@ export async function incrementMcpRateLimit(db: D1Database, tokenId: string, now
 
 /** Only hashes uploaded through this token may be attached by its clip tool. */
 export async function verifyMcpClipAttachments(
-  db: D1Database, tokenId: string, userId: string, hashes: string[], sealedMime: string,
+  db: SqlDatabase, tokenId: string, userId: string, hashes: string[], sealedMime: string,
 ): Promise<boolean> {
   if (!hashes.length) return true;
   const row = await db.prepare(

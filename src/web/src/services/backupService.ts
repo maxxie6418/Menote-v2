@@ -1,10 +1,18 @@
 import type { AccountArchiveSummary, BackupTarget } from "@menote/shared";
 
-export async function accountArchiveAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch("/api/backup/archive", { cache: "no-store" });
-    return response.ok && (await response.json()).enabled === true;
-  } catch { return false; }
+export async function downloadAccountPackage(): Promise<void> {
+  const response = await fetch("/api/backup/archive/download", { method: "POST", cache: "no-store" });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? `下载失败（HTTP ${response.status}）`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = response.headers.get("Content-Disposition")?.match(/filename="(menote-[\w-]+\.zip)"/)?.[1] ?? "menote-backup.zip";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export async function uploadAccountArchive(file: File, restore: boolean): Promise<AccountArchiveSummary> {

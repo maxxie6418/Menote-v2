@@ -6,7 +6,7 @@ import { SESSION_COOKIE, resolveSessionUser } from "../services/authService";
 import type { UploadedSnapshotSource } from "../services/backupVerifyService";
 
 type AccountArchiveReader = <T>(request: Request, callback: (source: UploadedSnapshotSource) => Promise<T>) => Promise<T>;
-export type AppEnv = { Bindings: Env & { READ_ACCOUNT_ARCHIVE?: AccountArchiveReader }; Variables: { authUser?: AuthUser } };
+export type AppEnv = { Bindings: Env & { READ_ACCOUNT_ARCHIVE?: AccountArchiveReader; DOWNLOAD_ACCOUNT_ARCHIVE?: (ctx: { db: SqlDatabase; bucket: AttachmentBucket; userId: string }, signal: AbortSignal) => Promise<Response> }; Variables: { authUser?: AuthUser } };
 
 /** 尽力解析会话（不阻断公开路由；数据库异常按未登录处理）。 */
 export const resolveSession: MiddlewareHandler<AppEnv> = async (c, next) => {

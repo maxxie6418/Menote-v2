@@ -1,4 +1,4 @@
-if (process.env.WORKERS_CI === "1" && process.env.WORKERS_CI_BRANCH === "main") {
-  console.error("Menote main is released through Docker. Stop the legacy Workers Builds trigger for this branch.");
+if (process.env.WORKERS_CI === "1") {
+  console.error("Menote is released through Docker. Disable the legacy Workers Builds trigger.");
   process.exitCode = 1;
 }

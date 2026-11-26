@@ -7,7 +7,7 @@ export interface RestoredMapping {
   rows: [string, string, string, string, string, number][];
 }
 
-export function archiveExtraStatements(db: D1Database, userId: string, templates: ClipTemplateV1[], mapping: RestoredMapping | null, now: number) {
+export function archiveExtraStatements(db: SqlDatabase, userId: string, templates: ClipTemplateV1[], mapping: RestoredMapping | null, now: number) {
   const statements = templates.map(template => db.prepare(
     "INSERT INTO clip_templates (id,user_id,template_json,version,created_at,updated_at) VALUES (?,?,?,1,?,?) ON CONFLICT(user_id,id) DO NOTHING",
   ).bind(template.id, userId, JSON.stringify(template), now, now));

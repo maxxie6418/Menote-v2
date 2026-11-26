@@ -33,7 +33,7 @@ export function SystemStatusPage({ onBack }: SystemStatusPageProps) {
     </header>
     <section className="mn-status-content" aria-labelledby="status-heading">
       <div className="mn-status-heading">
-        <div><p className="app-eyebrow">MENOTE · SYSTEM</p><h1 id="status-heading">资源概览</h1><p className="app-description">查看当前项目在 Cloudflare 上的实际使用情况。</p></div>
+        <div><p className="app-eyebrow">MENOTE · SYSTEM</p><h1 id="status-heading">资源概览</h1><p className="app-description">查看本地实例的服务状态和请求统计。</p></div>
         <div className={`mn-health-chip ${health === "ready" ? "is-ready" : health === "checking" ? "is-loading" : "is-error"}`}>
           <HealthIcon aria-hidden="true" /><span>{healthLabel}</span>
           <button type="button" onClick={() => setHealthAttempt((value) => value + 1)} disabled={health === "checking"}>重新检查</button>
@@ -41,7 +41,6 @@ export function SystemStatusPage({ onBack }: SystemStatusPageProps) {
       </div>
       <div className="mn-status-subrow"><span>内容同步</span><SyncBadge /></div>
       <MonitorPanel />
-      <p className="mn-status-footnote">官方指标由 Cloudflare Analytics API 返回，可能存在采集延迟；各资源分别按配置的项目标识筛选。费用以 Cloudflare 账单为准。</p>
     </section>
     <footer className="app-footer">{APP_VERSION_FULL_LABEL}</footer>
   </main>;

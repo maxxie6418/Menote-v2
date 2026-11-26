@@ -11,7 +11,7 @@ export interface LogEntry {
   op: "upsert" | "delete";
 }
 
-export async function readLogPage(db: D1Database, userId: string, cursor: number, limit: number): Promise<{ entries: LogEntry[]; hasMore: boolean; oldestSeq: number | null }> {
+export async function readLogPage(db: SqlDatabase, userId: string, cursor: number, limit: number): Promise<{ entries: LogEntry[]; hasMore: boolean; oldestSeq: number | null }> {
   const rows = await db.prepare(
     "SELECT seq, entity, entity_id, op FROM sync_log WHERE user_id = ? AND seq > ? ORDER BY seq LIMIT ?",
   ).bind(userId, cursor, limit + 1).all<{ seq: number; entity: string; entity_id: string; op: string }>();
@@ -72,7 +72,7 @@ export function rowToItem(row: Record<string, unknown>): Item {
 /** D1 单查询绑定参数上限 100：id 分块查询后内存合并（一页日志可达 200 条）。 */
 export const QUERY_CHUNK_SIZE = 90;
 
-export async function readItems(db: D1Database, userId: string, ids: string[]): Promise<Item[]> {
+export async function readItems(db: SqlDatabase, userId: string, ids: string[]): Promise<Item[]> {
   if (ids.length === 0) return [];
   const results: Item[] = [];
   for (let index = 0; index < ids.length; index += QUERY_CHUNK_SIZE) {
@@ -85,7 +85,7 @@ export async function readItems(db: D1Database, userId: string, ids: string[]): 
   return results;
 }
 
-export async function readTopics(db: D1Database, userId: string, ids: string[]): Promise<TopicNode[]> {
+export async function readTopics(db: SqlDatabase, userId: string, ids: string[]): Promise<TopicNode[]> {
   if (ids.length === 0) return [];
   const results: TopicNode[] = [];
   for (let index = 0; index < ids.length; index += QUERY_CHUNK_SIZE) {
@@ -111,19 +111,19 @@ export function toTombstone(entry: LogEntry, userId: string, deletedAt: number):
 }
 
 /** 全量重同步：按当前表状态分页（不经 sync_log）。 */
-export async function readAllItemsPage(db: D1Database, userId: string, offset: number, limit: number): Promise<Item[]> {
+export async function readAllItemsPage(db: SqlDatabase, userId: string, offset: number, limit: number): Promise<Item[]> {
   const rows = await db.prepare(
     "SELECT * FROM items WHERE user_id = ? ORDER BY created_at LIMIT ? OFFSET ?",
   ).bind(userId, limit, offset).all<Record<string, unknown>>();
   return rows.results.map(rowToItem);
 }
 
-export async function readAllTopics(db: D1Database, userId: string): Promise<TopicNode[]> {
+export async function readAllTopics(db: SqlDatabase, userId: string): Promise<TopicNode[]> {
   return readTopics(db, userId,
     (await db.prepare("SELECT id FROM topic_nodes WHERE user_id = ?").bind(userId).all<{ id: string }>()).results.map((row) => row.id));
 }
 
-export async function readSettings(db: D1Database, userId: string): Promise<UserSetting[]> {
+export async function readSettings(db: SqlDatabase, userId: string): Promise<UserSetting[]> {
   const rows = await db.prepare(
     "SELECT user_id, key, is_secret, value_json, value_ciphertext, rev FROM user_settings WHERE user_id = ?",
   ).bind(userId).all<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number; updated_at: number | null }>();
@@ -138,7 +138,7 @@ export async function readSettings(db: D1Database, userId: string): Promise<User
   }));
 }
 
-export async function readSettingState(db: D1Database, userId: string, key: string): Promise<UserSetting | null> {
+export async function readSettingState(db: SqlDatabase, userId: string, key: string): Promise<UserSetting | null> {
   const row = await db.prepare(
     "SELECT user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at FROM user_settings WHERE user_id = ? AND key = ?",
   ).bind(userId, key).first<{ user_id: string; key: string; is_secret: number; value_json: string | null; value_ciphertext: Uint8Array | ArrayBuffer | null; rev: number; updated_at: number | null }>();
@@ -151,7 +151,7 @@ export async function readSettingState(db: D1Database, userId: string, key: stri
   };
 }
 
-export async function writeSetting(db: D1Database, setting: UserSetting, baseRev: number, operationId: string, now: number): Promise<number> {
+export async function writeSetting(db: SqlDatabase, setting: UserSetting, baseRev: number, operationId: string, now: number): Promise<number> {
   const isSecret = setting.sensitivity === "secret";
   const write = db.prepare(
     `INSERT INTO user_settings (user_id, key, is_secret, value_json, value_ciphertext, rev, updated_at)
@@ -178,7 +178,7 @@ export interface ItemState {
   updatedAt: number; deletedAt: number | null; type: string; encrypted: boolean; attachmentHashesJson: string;
 }
 
-export async function readItemState(db: D1Database, userId: string, id: string): Promise<ItemState | null> {
+export async function readItemState(db: SqlDatabase, userId: string, id: string): Promise<ItemState | null> {
   const row = await db.prepare(
     `SELECT rev, meta_rev, content_hash, updated_at, deleted_at, type,
        (enc_self OR in_enc_space OR content_ciphertext IS NOT NULL) AS encrypted, attachment_hashes_json
@@ -194,8 +194,8 @@ const itemSyncStateChanged = "menote_item_sync_state_changed";
 
 /** Verify the read snapshot and operation ID inside the batch that publishes the write. */
 export function guardItemSyncWrite(
-  db: D1Database, userId: string, itemId: string, operationId: string, expected: ItemState | null,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, itemId: string, operationId: string, expected: ItemState | null,
+): SqlStatement {
   return db.prepare(
     `SELECT CASE WHEN NOT EXISTS (
        SELECT 1 FROM sync_operations WHERE user_id = ? AND operation_id = ?
@@ -216,16 +216,16 @@ export function isItemSyncGuardFailure(error: unknown): boolean {
   return error instanceof Error && error.message.includes(itemSyncStateChanged);
 }
 
-export async function readTopicDeletedAt(db: D1Database, userId: string, id: string): Promise<number | null | undefined> {
+export async function readTopicDeletedAt(db: SqlDatabase, userId: string, id: string): Promise<number | null | undefined> {
   const row = await db.prepare("SELECT deleted_at FROM topic_nodes WHERE id = ? AND user_id = ?")
     .bind(id, userId).first<{ deleted_at: number | null }>();
   return row ? row.deleted_at : undefined;
 }
 
 export function appendSyncLogStatement(
-  db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
+  db: SqlDatabase, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
   op: "upsert" | "delete", rev: number, metaRev: number, now: number, afterChange = false,
-): D1PreparedStatement {
+): SqlStatement {
   return db.prepare(
     `INSERT INTO sync_log (user_id, entity, entity_id, op, rev, meta_rev, created_at)
      ${afterChange ? "SELECT ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?)"}`,
@@ -233,7 +233,7 @@ export function appendSyncLogStatement(
 }
 
 export async function appendSyncLog(
-  db: D1Database, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
+  db: SqlDatabase, userId: string, entity: "item" | "topic" | "memo_comment", entityId: string,
   op: "upsert" | "delete", rev: number, metaRev: number, now: number,
 ): Promise<void> {
   await appendSyncLogStatement(db, userId, entity, entityId, op, rev, metaRev, now).run();
@@ -243,7 +243,7 @@ export interface SyncOperationRecord {
   entity: string; entityId: string; result: string; rev: number; metaRev: number; contentHash: string | null;
 }
 
-export async function readSyncOperation(db: D1Database, userId: string, operationId: string): Promise<SyncOperationRecord | null> {
+export async function readSyncOperation(db: SqlDatabase, userId: string, operationId: string): Promise<SyncOperationRecord | null> {
   const row = await db.prepare(
     "SELECT entity, entity_id, result, rev, meta_rev, content_hash FROM sync_operations WHERE user_id = ? AND operation_id = ?",
   ).bind(userId, operationId).first<{ entity: string; entity_id: string; result: string; rev: number; meta_rev: number; content_hash: string | null }>();
@@ -251,10 +251,10 @@ export async function readSyncOperation(db: D1Database, userId: string, operatio
 }
 
 export function recordSyncOperationStatement(
-  db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
+  db: SqlDatabase, userId: string, operationId: string, entity: string, entityId: string,
   result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
   mode: "default" | "after_change" | "strict_insert" = "default",
-): D1PreparedStatement {
+): SqlStatement {
   return db.prepare(
     `INSERT INTO sync_operations (user_id, operation_id, entity, entity_id, result, rev, meta_rev, content_hash, created_at)
      ${mode === "after_change" ? "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1" : "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"}
@@ -263,19 +263,19 @@ export function recordSyncOperationStatement(
 }
 
 export async function recordSyncOperation(
-  db: D1Database, userId: string, operationId: string, entity: string, entityId: string,
+  db: SqlDatabase, userId: string, operationId: string, entity: string, entityId: string,
   result: string, rev: number, metaRev: number, contentHash: string | null, now: number,
 ): Promise<void> {
   await recordSyncOperationStatement(db, userId, operationId, entity, entityId, result, rev, metaRev, contentHash, now).run();
 }
 
-export async function commitWrites(db: D1Database, statements: D1PreparedStatement[]): Promise<void> {
+export async function commitWrites(db: SqlDatabase, statements: SqlStatement[]): Promise<void> {
   if (statements.length === 0) return;
   await db.batch(statements);
 }
 
 /** 撤销一条已知操作记录（G2 §6 幂等只覆盖已应用；rejected 记录重推前删除以重新判定）。 */
-export async function deleteSyncOperation(db: D1Database, userId: string, operationId: string): Promise<void> {
+export async function deleteSyncOperation(db: SqlDatabase, userId: string, operationId: string): Promise<void> {
   await db.prepare(
     "DELETE FROM sync_operations WHERE user_id = ? AND operation_id = ? AND result = 'rejected'",
   ).bind(userId, operationId).run();
@@ -322,23 +322,23 @@ function itemBindings(userId: string, deviceId: string, item: Item, rev: number,
 const itemValues = `VALUES (${Array<string>(27).fill("?").join(", ")})`;
 
 export function upsertItemRowStatement(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
+): SqlStatement {
   return db.prepare(itemUpsertSql(itemValues))
     .bind(...itemBindings(userId, deviceId, item, rev, metaRev));
 }
 
-export function insertItemRowStatement(db: D1Database, userId: string, deviceId: string, item: Item): D1PreparedStatement {
+export function insertItemRowStatement(db: SqlDatabase, userId: string, deviceId: string, item: Item): SqlStatement {
   return db.prepare(itemInsertSql(itemValues))
     .bind(...itemBindings(userId, deviceId, item, item.rev, item.metaRev));
 }
 
 /** Restoring thousands of individual statements would exceed the D1 batch time budget. */
-export function restoreItemRowStatements(db: D1Database, userId: string, items: Item[]): D1PreparedStatement[] {
+export function restoreItemRowStatements(db: SqlDatabase, userId: string, items: Item[]): SqlStatement[] {
   const projection = Array.from({ length: 27 }, (_, index) => `json_extract(value, '$[${index}]')`).join(", ");
   const bulk = itemUpsertSql(`SELECT ${projection} FROM json_each(?) WHERE 1`);
   const single = itemUpsertSql(itemValues);
-  const result: D1PreparedStatement[] = [];
+  const result: SqlStatement[] = [];
   let rows: string[] = [];
   let chars = 0;
   const flush = () => {
@@ -361,8 +361,8 @@ export function restoreItemRowStatements(db: D1Database, userId: string, items: 
   return result;
 }
 
-export function appendRestoredItemLogs(db: D1Database, userId: string, items: Item[], now: number): D1PreparedStatement[] {
-  const statements: D1PreparedStatement[] = [];
+export function appendRestoredItemLogs(db: SqlDatabase, userId: string, items: Item[], now: number): SqlStatement[] {
+  const statements: SqlStatement[] = [];
   for (let i = 0; i < items.length; i += 500) {
     const rows = items.slice(i, i + 500).map((item) => [item.id, item.rev, item.metaRev]);
     statements.push(db.prepare(
@@ -375,7 +375,7 @@ export function appendRestoredItemLogs(db: D1Database, userId: string, items: It
 }
 
 export async function upsertItemRow(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, rev: number, metaRev: number,
 ): Promise<void> {
   await upsertItemRowStatement(db, userId, deviceId, item, rev, metaRev).run();
 }
@@ -387,8 +387,8 @@ export async function upsertItemRow(
  * 正文照常落地，不连带覆盖服务端更新的元数据。
  */
 export function updateItemContentStatement(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number, noteTagsMetaRev?: number,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, rev: number, noteTagsMetaRev?: number,
+): SqlStatement {
   return db.prepare(
     `UPDATE items SET content_markdown = ?, content_ciphertext = ?, content_hash = ?,
        attachment_hashes_json = ?, rev = MAX(rev, ?), updated_at = ?, deleted_at = ?, last_device = ?,
@@ -407,7 +407,7 @@ export function updateItemContentStatement(
 }
 
 export async function updateItemContent(
-  db: D1Database, userId: string, deviceId: string, item: Item, rev: number,
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, rev: number,
 ): Promise<void> {
   await updateItemContentStatement(db, userId, deviceId, item, rev).run();
 }
@@ -417,8 +417,8 @@ export async function updateItemContent(
  * 正文列与正文版本 rev 一律不动（G2 §1：两个版本通道互不推进）。
  */
 export function updateItemMetaStatement(
-  db: D1Database, userId: string, deviceId: string, item: Item, metaRev: number,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, metaRev: number,
+): SqlStatement {
   return db.prepare(
     `UPDATE items SET type = ?, topic_id = ?, group_id = ?, title = ?, tags_json = ?, status = ?, source = ?,
        pinned = ?, starred = ?, memo_quote_source_id = ?, memo_quote_source_created_at = ?, memo_quote_snapshot = ?,
@@ -437,19 +437,19 @@ export function updateItemMetaStatement(
 }
 
 export async function updateItemMeta(
-  db: D1Database, userId: string, deviceId: string, item: Item, metaRev: number,
+  db: SqlDatabase, userId: string, deviceId: string, item: Item, metaRev: number,
 ): Promise<void> {
   await updateItemMetaStatement(db, userId, deviceId, item, metaRev).run();
 }
 
 export function markItemDeletedStatement(
-  db: D1Database, userId: string, deviceId: string, id: string, deletedAt: number,
-): D1PreparedStatement {
+  db: SqlDatabase, userId: string, deviceId: string, id: string, deletedAt: number,
+): SqlStatement {
   return db.prepare("UPDATE items SET deleted_at = ?, last_device = ? WHERE id = ? AND user_id = ?")
     .bind(deletedAt, deviceId, id, userId);
 }
 
-export function upsertTopicRowStatement(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): D1PreparedStatement {
+export function upsertTopicRowStatement(db: SqlDatabase, userId: string, topic: TopicNode, deletedAt: number | null): SqlStatement {
   return db.prepare(
     `INSERT INTO topic_nodes (id, user_id, parent_id, name, depth, is_enc_space, deleted_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -459,11 +459,11 @@ export function upsertTopicRowStatement(db: D1Database, userId: string, topic: T
   ).bind(topic.id, userId, topic.parentId, topic.name, topic.depth, topic.isEncSpace ? 1 : 0, deletedAt);
 }
 
-export async function upsertTopicRow(db: D1Database, userId: string, topic: TopicNode, deletedAt: number | null): Promise<void> {
+export async function upsertTopicRow(db: SqlDatabase, userId: string, topic: TopicNode, deletedAt: number | null): Promise<void> {
   await upsertTopicRowStatement(db, userId, topic, deletedAt).run();
 }
 
-export async function countItemReferences(db: D1Database, userId: string, sha256: string): Promise<number> {
+export async function countItemReferences(db: SqlDatabase, userId: string, sha256: string): Promise<number> {
   const row = await db.prepare(
     `SELECT COUNT(*) AS n FROM items WHERE user_id = ? AND deleted_at IS NULL
      AND EXISTS (SELECT 1 FROM json_each(items.attachment_hashes_json) WHERE json_each.value = ?)`,
@@ -471,6 +471,6 @@ export async function countItemReferences(db: D1Database, userId: string, sha256
   return row?.n ?? 0;
 }
 
-export async function purgeSyncOperations(db: D1Database, userId: string, before: number): Promise<void> {
+export async function purgeSyncOperations(db: SqlDatabase, userId: string, before: number): Promise<void> {
   await db.prepare("DELETE FROM sync_operations WHERE user_id = ? AND created_at < ?").bind(userId, before).run();
 }

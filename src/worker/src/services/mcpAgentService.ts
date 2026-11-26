@@ -8,15 +8,15 @@ function pageOf<T extends { id: string }>(rows: T[], limit: number) {
   return { rows: rows.slice(0, limit), next_cursor: rows.length > limit ? rows[limit - 1]!.id : null };
 }
 
-export async function queryAgentItems(db: D1Database, token: McpToken, input: McpItemQuery & { limit: number }) {
+export async function queryAgentItems(db: SqlDatabase, token: McpToken, input: McpItemQuery & { limit: number }) {
   return pageOf(await findMcpItems(db, token, input, input.cursor ?? "", input.limit + 1), input.limit);
 }
 
-export async function getAgentFolders(db: D1Database, token: McpToken, cursor: string | undefined, limit: number) {
+export async function getAgentFolders(db: SqlDatabase, token: McpToken, cursor: string | undefined, limit: number) {
   return pageOf(await listMcpFolders(db, token, cursor ?? "", limit + 1), limit);
 }
 
-export async function getAgentItem(db: D1Database, token: McpToken, id: string, cursor: string | undefined, maxChars: number) {
+export async function getAgentItem(db: SqlDatabase, token: McpToken, id: string, cursor: string | undefined, maxChars: number) {
   const [revision, start] = cursor?.split(":").map(Number) ?? [undefined, 0];
   const offset = start ?? 0;
   const item = await readMcpItem(db, token, resolveItemId(id), offset, maxChars + 1, token.permissions.includes("attachment:access"));
@@ -28,7 +28,7 @@ export async function getAgentItem(db: D1Database, token: McpToken, id: string, 
   return { value: { ...item, content: chars.slice(0, maxChars).join(""), next_cursor: next } };
 }
 
-export async function getAgentVersions(db: D1Database, token: McpToken, id: string, cursor: string | undefined, limit: number) {
+export async function getAgentVersions(db: SqlDatabase, token: McpToken, id: string, cursor: string | undefined, limit: number) {
   const itemId = resolveItemId(id);
   const item = await readMcpItem(db, token, itemId, 0, 0, false);
   if (!item || item.encrypted) return null;
@@ -58,7 +58,7 @@ async function decodeSnapshot(snapshot: unknown, codec: "identity" | "gzip"): Pr
 }
 
 export async function getAgentVersion(
-  db: D1Database, token: McpToken, id: string, versionId: string, cursor: string | undefined, maxChars: number,
+  db: SqlDatabase, token: McpToken, id: string, versionId: string, cursor: string | undefined, maxChars: number,
 ) {
   const itemId = resolveItemId(id);
   const row = await readMcpVersion(db, token, itemId, versionId);
@@ -74,7 +74,7 @@ export async function getAgentVersion(
   }
 }
 
-async function createAgentItem(db: D1Database, token: McpToken, input: McpCreateItemRequest, now: number) {
+async function createAgentItem(db: SqlDatabase, token: McpToken, input: McpCreateItemRequest, now: number) {
   const markdown = input.content.trim();
   const title = input.title?.trim();
   if (!markdown || (input.type === "memo" ? Boolean(title) : !title) ||
@@ -96,7 +96,7 @@ async function createAgentItem(db: D1Database, token: McpToken, input: McpCreate
   return insertServerItem({ db, userId: token.userId, deviceId: `mcp:${token.id}`, now }, item, input.operation_id);
 }
 
-export async function createAuditedAgentItem(db: D1Database, token: McpToken, input: McpCreateItemRequest, now: number) {
+export async function createAuditedAgentItem(db: SqlDatabase, token: McpToken, input: McpCreateItemRequest, now: number) {
   const audit = { id: crypto.randomUUID(), userId: token.userId, tokenId: token.id, tool: "create_item",
     operationId: input.operation_id, revBefore: null, at: now };
   let created;

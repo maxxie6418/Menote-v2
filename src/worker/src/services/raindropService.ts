@@ -45,7 +45,7 @@ function canonicalFields(fields: RaindropMappedFields): string {
   });
 }
 
-export async function readRaindropSettings(db: D1Database, userId: string): Promise<RaindropSettings> {
+export async function readRaindropSettings(db: SqlDatabase, userId: string): Promise<RaindropSettings> {
   const setting = await readSettingState(db, userId, RAINDROP_SETTING_KEY);
   return normalizeRaindropSettings(setting?.sensitivity === "ordinary" ? setting.value : undefined);
 }
@@ -63,7 +63,7 @@ function bindingView(row: {
   };
 }
 
-export async function readStatus(db: D1Database, userId: string): Promise<RaindropStatusView> {
+export async function readStatus(db: SqlDatabase, userId: string): Promise<RaindropStatusView> {
   const [settings, binding, token, runs] = await Promise.all([
     readRaindropSettings(db, userId), readBinding(db, userId), readAccountTokenCipher(db, userId),
     listSyncRuns(db, userId),
@@ -116,7 +116,7 @@ export async function readCollections(env: Env, userId: string): Promise<Raindro
   }
 }
 
-export async function clearToken(db: D1Database, userId: string): Promise<void> {
+export async function clearToken(db: SqlDatabase, userId: string): Promise<void> {
   await deleteAccountToken(db, userId);
 }
 
@@ -157,7 +157,7 @@ export async function bindTable(env: Env, userId: string, input: RaindropBindInp
   }, true);
 }
 
-export async function unbindTable(db: D1Database, userId: string): Promise<void> {
+export async function unbindTable(db: SqlDatabase, userId: string): Promise<void> {
   await deleteBinding(db, userId);
 }
 
@@ -293,7 +293,7 @@ async function writeSnapshot(
   env: Env, userId: string, binding: { last_snapshot_hash: string | null; last_snapshot_key: string | null; last_snapshot_at: number | null },
   collectionId: number, rawItems: unknown[], now: number,
 ): Promise<{ key: string | null; hash: string | null; at: number | null }> {
-  const bucket = Reflect.get(env, "BUCKET") as R2Bucket | undefined;
+  const bucket = Reflect.get(env, "BUCKET") as AttachmentBucket | undefined;
   if (!bucket || typeof bucket.put !== "function") return { key: null, hash: null, at: null };
   const payload = JSON.stringify({ pulledAt: new Date(now).toISOString(), collectionId, items: rawItems });
   const hash = await sha256Hex(payload);

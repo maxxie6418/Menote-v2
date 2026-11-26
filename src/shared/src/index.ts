@@ -15,7 +15,7 @@ export {
 export type {
   AiModelOption, AiSettings, AiTaskKind, AiTaskStatus, AiTaskResult, AiTaskView, AiUsageSummary,
 } from "./contracts/ai";
-export type { MonitorSummary, MonitorPoint, MonitorPreferences, CloudflareMonitorSetup, CloudflareMonitorConnection, CloudflareMonitorMetrics } from "./contracts/monitor";
+export type { MonitorSummary, MonitorPoint, MonitorPreferences } from "./contracts/monitor";
 export type { Item, StoredContent, Attachment, AttachmentPage, MemoComment, MemoQuote } from "./types/item";
 export type {
   SyncTombstone, SyncPage, OutboxOperation, SyncEntity, SyncPushRequest,

@@ -27,13 +27,13 @@ export interface RaindropSyncRowRow {
   updated_at: number;
 }
 
-export async function readAccountTokenCipher(db: D1Database, userId: string): Promise<string | null> {
+export async function readAccountTokenCipher(db: SqlDatabase, userId: string): Promise<string | null> {
   const row = await db.prepare("SELECT token_ciphertext FROM raindrop_accounts WHERE user_id = ?")
     .bind(userId).first<{ token_ciphertext: string }>();
   return row?.token_ciphertext ?? null;
 }
 
-export async function upsertAccountToken(db: D1Database, userId: string, cipher: string, now: number): Promise<void> {
+export async function upsertAccountToken(db: SqlDatabase, userId: string, cipher: string, now: number): Promise<void> {
   await db.prepare(
     `INSERT INTO raindrop_accounts (user_id, token_ciphertext, created_at, updated_at)
      VALUES (?, ?, ?, ?)
@@ -41,22 +41,22 @@ export async function upsertAccountToken(db: D1Database, userId: string, cipher:
   ).bind(userId, cipher, now, now).run();
 }
 
-export async function deleteAccountToken(db: D1Database, userId: string): Promise<void> {
+export async function deleteAccountToken(db: SqlDatabase, userId: string): Promise<void> {
   await db.prepare("DELETE FROM raindrop_accounts WHERE user_id = ?").bind(userId).run();
 }
 
-export async function readBinding(db: D1Database, userId: string): Promise<RaindropBindingRow | null> {
+export async function readBinding(db: SqlDatabase, userId: string): Promise<RaindropBindingRow | null> {
   return await db.prepare("SELECT * FROM raindrop_bindings WHERE user_id = ?")
     .bind(userId).first<RaindropBindingRow>();
 }
 
-export async function listBindings(db: D1Database): Promise<RaindropBindingRow[]> {
+export async function listBindings(db: SqlDatabase): Promise<RaindropBindingRow[]> {
   const result = await db.prepare("SELECT * FROM raindrop_bindings").all<RaindropBindingRow>();
   return result.results;
 }
 
 export async function upsertBinding(
-  db: D1Database, userId: string,
+  db: SqlDatabase, userId: string,
   config: { tableItemId: string; collectionId: number; pullIntervalHours: number }, now: number,
 ): Promise<void> {
   await db.prepare(
@@ -68,7 +68,7 @@ export async function upsertBinding(
   ).bind(userId, config.tableItemId, config.collectionId, config.pullIntervalHours, now, now).run();
 }
 
-export async function deleteBinding(db: D1Database, userId: string): Promise<void> {
+export async function deleteBinding(db: SqlDatabase, userId: string): Promise<void> {
   await db.batch([
     db.prepare("DELETE FROM raindrop_bindings WHERE user_id = ?").bind(userId),
     db.prepare("DELETE FROM raindrop_sync_rows WHERE user_id = ?").bind(userId),
@@ -76,7 +76,7 @@ export async function deleteBinding(db: D1Database, userId: string): Promise<voi
 }
 
 export async function markPullDone(
-  db: D1Database, userId: string,
+  db: SqlDatabase, userId: string,
   snapshot: { key: string | null; hash: string | null; at: number | null }, now: number,
 ): Promise<void> {
   await db.prepare(
@@ -85,18 +85,18 @@ export async function markPullDone(
   ).bind(now, snapshot.key, snapshot.hash, snapshot.at, now, userId).run();
 }
 
-export async function markPushDone(db: D1Database, userId: string, now: number): Promise<void> {
+export async function markPushDone(db: SqlDatabase, userId: string, now: number): Promise<void> {
   await db.prepare("UPDATE raindrop_bindings SET last_push_at = ?, updated_at = ? WHERE user_id = ?")
     .bind(now, now, userId).run();
 }
 
-export async function listSyncRows(db: D1Database, userId: string): Promise<RaindropSyncRowRow[]> {
+export async function listSyncRows(db: SqlDatabase, userId: string): Promise<RaindropSyncRowRow[]> {
   const result = await db.prepare("SELECT * FROM raindrop_sync_rows WHERE user_id = ?").bind(userId).all<RaindropSyncRowRow>();
   return result.results;
 }
 
 /** 批量写入账本行（拉取成功的基线刷新与新行登记；同键覆盖）。 */
-export async function upsertSyncRows(db: D1Database, userId: string, rows: RaindropSyncRowRow[]): Promise<void> {
+export async function upsertSyncRows(db: SqlDatabase, userId: string, rows: RaindropSyncRowRow[]): Promise<void> {
   if (!rows.length) return;
   await db.batch(rows.map((row) => db.prepare(
     `INSERT INTO raindrop_sync_rows (user_id, menote_row_id, raindrop_id, baseline_json, baseline_hash, status, updated_at)
@@ -108,7 +108,7 @@ export async function upsertSyncRows(db: D1Database, userId: string, rows: Raind
 }
 
 export async function updateSyncRowStatuses(
-  db: D1Database, userId: string, statuses: Array<{ menoteRowId: string; status: RaindropSyncRowRow["status"] }>, now: number,
+  db: SqlDatabase, userId: string, statuses: Array<{ menoteRowId: string; status: RaindropSyncRowRow["status"] }>, now: number,
 ): Promise<void> {
   if (!statuses.length) return;
   await db.batch(statuses.map((entry) => db.prepare(
@@ -133,7 +133,7 @@ export interface SyncRunInput {
   detail: string | null;
 }
 
-export async function insertSyncRun(db: D1Database, userId: string, run: SyncRunInput): Promise<void> {
+export async function insertSyncRun(db: SqlDatabase, userId: string, run: SyncRunInput): Promise<void> {
   await db.prepare(
     `INSERT INTO raindrop_sync_runs (user_id, direction, source, started_at, finished_at, status,
        pulled_new, pulled_updated, conflicts, remote_missing, orphans, push_created, push_updated, push_failed, detail)
@@ -143,7 +143,7 @@ export async function insertSyncRun(db: D1Database, userId: string, run: SyncRun
     run.pushCreated, run.pushUpdated, run.pushFailed, run.detail).run();
 }
 
-export async function listSyncRuns(db: D1Database, userId: string, limit = 20): Promise<RaindropSyncRunView[]> {
+export async function listSyncRuns(db: SqlDatabase, userId: string, limit = 20): Promise<RaindropSyncRunView[]> {
   const result = await db.prepare(
     `SELECT id, direction, source, started_at, finished_at, status, pulled_new, pulled_updated,
             conflicts, remote_missing, orphans, push_created, push_updated, push_failed, detail
@@ -162,7 +162,7 @@ export async function listSyncRuns(db: D1Database, userId: string, limit = 20): 
 }
 
 /** 绑定目标必须是用户本人的明文表格文档（与 MCP 收藏目标同一加密/软删边界，但不做范围裁剪）。 */
-export async function readRaindropTarget(db: D1Database, userId: string, itemId: string): Promise<Item | null> {
+export async function readRaindropTarget(db: SqlDatabase, userId: string, itemId: string): Promise<Item | null> {
   const row = await db.prepare(
     `SELECT i.* FROM items i
        LEFT JOIN topic_nodes topic ON topic.user_id = i.user_id AND topic.id = i.topic_id

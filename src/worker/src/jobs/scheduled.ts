@@ -6,7 +6,7 @@ export interface ScheduledJob {
   name: string;
   description: string;
   enabled: boolean;
-  run: (env: Env, ctx: ExecutionContext, now: number) => Promise<void> | void;
+  run: (env: Env, ctx: TaskContext, now: number) => Promise<void> | void;
 }
 
 export const scheduledJobs: ScheduledJob[] = [
@@ -17,16 +17,20 @@ export const scheduledJobs: ScheduledJob[] = [
     run: async (env) => {
       const { listDueTargets } = await import("../db/backup");
       const { runTargetPushById } = await import("../services/backupTargetService");
+      let failed = 0;
       for (const target of await listDueTargets(env.DB, Date.now())) {
         try {
-          await runTargetPushById(
+          const result = await runTargetPushById(
             { db: env.DB, userId: target.user_id, bucket: env.BUCKET }, target.id, Reflect.get(env, "AUTH_PEPPER") as string,
           );
+          if ("ok" in result ? !result.ok : result.status === "unavailable") failed++;
         } catch (error) {
+          failed++;
           // 单目标失败不阻断其余目标（推送结果已尽量由服务层落库）。
           console.error("backup_push target failed:", target.id, error);
         }
       }
+      if (failed) throw new Error(`${failed} 个备份目标推送失败`);
     },
   },
   {
@@ -69,7 +73,7 @@ export const scheduledJobs: ScheduledJob[] = [
 
 /** 逐任务执行：失败互不影响、逐条落 job_runs；记录失败只吞掉，不影响调度 outcome。 */
 export async function dispatchScheduled(
-  env: Env, ctx: ExecutionContext, now = Date.now(), jobs: readonly ScheduledJob[] = scheduledJobs,
+  env: Env, ctx: TaskContext, now = Date.now(), jobs: readonly ScheduledJob[] = scheduledJobs,
 ): Promise<void> {
   if (!env.DB) return;
   for (const job of jobs) {

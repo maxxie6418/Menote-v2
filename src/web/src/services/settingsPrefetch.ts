@@ -1,14 +1,5 @@
-import { listAttachments, listAttachmentReferences } from "./attachmentService";
-import { readAiUsage } from "./aiService";
-import { readAiSettings } from "./aiSettingsService";
-import { listTargets } from "./backupService";
-import { listClipTemplates } from "./clipTemplateService";
-import { listMcpScopeTopics, listMcpTokens } from "./mcpTokenService";
-import { readRaindropStatus } from "./raindropService";
-import { readRaindropSettings } from "./raindropSettingsService";
-
 /**
- * 设置常用数据的会话缓存。主界面打开时预取，设置弹层先用已有结果，再静默刷新。
+ * 设置常用数据的会话缓存。按设置分区读取，设置弹层先用已有结果，再静默刷新。
  * 只缓存列表和开关，不预取 Token 明文或备份凭据。
  */
 
@@ -17,7 +8,7 @@ const inflight = new Map<string, Promise<unknown>>();
 const generation = new Map<string, number>();
 
 export const SETTINGS_CACHE = {
-  targets: "backup.targets",
+  targets: (userId: string) => `backup.targets:${userId}`,
   tokens: "mcp.tokens",
   topics: "mcp.topics",
   ai: (userId: string) => `ai.settings:${userId}`,
@@ -52,18 +43,4 @@ export function loadShared<T>(key: string, load: () => Promise<T>, fresh = false
   });
   inflight.set(key, task);
   return task;
-}
-
-/** 登录进主界面后调用。失败留空，打开设置时再取。 */
-export function prefetchSettings(userId: string): void {
-  void loadShared(SETTINGS_CACHE.targets, listTargets).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.tokens, listMcpTokens).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.topics, listMcpScopeTopics).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.ai(userId), () => readAiSettings(userId)).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.usage, () => readAiUsage()).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.raindrop(userId), () => readRaindropSettings(userId)).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.raindropStatus, () => readRaindropStatus()).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.attachments(userId), listAttachments).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.attachmentRefs(userId), () => listAttachmentReferences(userId)).catch(() => undefined);
-  void loadShared(SETTINGS_CACHE.clipTemplates, listClipTemplates).catch(() => undefined);
 }

@@ -22,7 +22,7 @@ function toSummary(row: SummaryRow): McpItemSummary {
     status: row.status, folder_id: row.folder_id, rev: row.rev, meta_rev: row.meta_rev, updated_at: row.updated_at };
 }
 
-export async function findMcpItems(db: D1Database, token: McpToken, query: McpItemQuery, after: string, limit: number) {
+export async function findMcpItems(db: SqlDatabase, token: McpToken, query: McpItemQuery, after: string, limit: number) {
   const { clauses, bindings } = mcpItemAccess(token, false);
   clauses.push("i.id > ?");
   bindings.push(after);
@@ -57,7 +57,7 @@ export async function findMcpItems(db: D1Database, token: McpToken, query: McpIt
   return results.map(toSummary);
 }
 
-export async function listMcpFolders(db: D1Database, token: McpToken, after: string, limit: number) {
+export async function listMcpFolders(db: SqlDatabase, token: McpToken, after: string, limit: number) {
   const { clauses, bindings } = mcpItemAccess(token, true);
   const selected = token.scope.mode === "selected";
   const topics = JSON.stringify(token.scope.topicIds);
@@ -84,7 +84,7 @@ export async function listMcpFolders(db: D1Database, token: McpToken, after: str
   return results;
 }
 
-export async function readMcpItem(db: D1Database, token: McpToken, id: string, start: number, count: number, attachmentAccess: boolean) {
+export async function readMcpItem(db: SqlDatabase, token: McpToken, id: string, start: number, count: number, attachmentAccess: boolean) {
   const { clauses, bindings } = mcpItemAccess(token, false);
   const row = await db.prepare(
     `SELECT ${summaryProjection}, SUBSTR(i.content_markdown, ?, ?) AS content,
@@ -98,7 +98,7 @@ export async function readMcpItem(db: D1Database, token: McpToken, id: string, s
     ...(row.attachments !== null ? { attachment_hashes: JSON.parse(row.attachments) as string[] } : {}) };
 }
 
-export async function listMcpVersions(db: D1Database, token: McpToken, itemId: string, after: string, limit: number) {
+export async function listMcpVersions(db: SqlDatabase, token: McpToken, itemId: string, after: string, limit: number) {
   const { clauses, bindings } = mcpItemAccess(token, true);
   const { results } = await db.prepare(
     `SELECT v.id, v.reason, v.created_at
@@ -109,7 +109,7 @@ export async function listMcpVersions(db: D1Database, token: McpToken, itemId: s
   return results;
 }
 
-export async function readMcpVersion(db: D1Database, token: McpToken, itemId: string, versionId: string) {
+export async function readMcpVersion(db: SqlDatabase, token: McpToken, itemId: string, versionId: string) {
   const { clauses, bindings } = mcpItemAccess(token, true);
   return db.prepare(
     `SELECT v.id, v.codec, v.snapshot_plain

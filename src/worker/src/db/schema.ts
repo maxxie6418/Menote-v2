@@ -1,7 +1,7 @@
 import type { SchemaMigration } from "@menote/shared";
 
 /** Create only the version ledger. No business schema is changed here. */
-export async function ensureLedger(db: D1Database): Promise<void> {
+export async function ensureLedger(db: SqlDatabase): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY CHECK (version > 0),
     name TEXT NOT NULL UNIQUE,
@@ -9,7 +9,7 @@ export async function ensureLedger(db: D1Database): Promise<void> {
   )`).run();
 }
 
-export async function readLedger(db: D1Database) {
+export async function readLedger(db: SqlDatabase) {
   const result = await db.prepare(
     "SELECT version, name FROM schema_migrations ORDER BY version",
   ).all<{ version: number; name: string }>();
@@ -17,7 +17,7 @@ export async function readLedger(db: D1Database) {
 }
 
 /** Claim and apply a version in one D1 transaction. */
-export async function applyMigration(db: D1Database, migration: SchemaMigration): Promise<void> {
+export async function applyMigration(db: SqlDatabase, migration: SchemaMigration): Promise<void> {
   const claim = db.prepare(`INSERT INTO schema_migrations (version, name)
     SELECT ?, CASE WHEN COUNT(*) = ? AND COALESCE(MAX(version), 0) = ?
       THEN ? ELSE NULL END FROM schema_migrations`)

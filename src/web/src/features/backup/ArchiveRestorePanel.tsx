@@ -1,20 +1,27 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AccountArchiveSummary } from "@menote/shared";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
-import { accountArchiveAvailable, uploadAccountArchive } from "../../services/backupService";
+import { downloadAccountPackage, uploadAccountArchive } from "../../services/backupService";
 import { requestSyncNow } from "../../services/syncEngine";
 
 export function ArchiveRestorePanel({ userId }: { userId: string }) {
-  const [available, setAvailable] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<AccountArchiveSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  useEffect(() => {
-    let active = true;
-    void accountArchiveAvailable().then(value => { if (active) setAvailable(value); });
-    return () => { active = false; };
-  }, []);
+  async function download() {
+    if (busy) return;
+    setBusy(true);
+    setMessage("正在同步本机改动…");
+    try {
+      if (!await requestSyncNow(userId)) throw new Error("本机改动尚未确认同步，请检查同步状态后重试。");
+      setMessage("正在打包笔记和附件…");
+      await downloadAccountPackage();
+      setMessage("备份包已生成，请查看浏览器下载记录。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "下载失败，请重试。");
+    } finally { setBusy(false); }
+  }
 
   async function submit(restore: boolean) {
     if (!file || busy) return;
@@ -37,11 +44,12 @@ export function ArchiveRestorePanel({ userId }: { userId: string }) {
       setMessage(error instanceof Error ? error.message : "迁移包处理失败，请重试。");
     } finally { setBusy(false); }
   }
-  if (!available) return null;
   return <section aria-labelledby="account-archive-heading">
-    <h3 id="account-archive-heading">从迁移包恢复</h3>
+    <h3 id="account-archive-heading">本地备份包</h3>
+    <p className="mn-sethint">下载当前账号的完整快照，或选择已有的备份、迁移 ZIP 校验后恢复。加密内容需原隐私密码或恢复码解锁。</p>
+    <button type="button" className="mn-textbtn" disabled={busy} onClick={() => void download()}>下载备份包 ZIP</button>
     <div className="mn-backupactions">
-      <input type="file" aria-label="选择账号迁移包" accept=".zip,application/zip" disabled={busy} onChange={event => {
+      <input type="file" aria-label="选择备份或迁移 ZIP" accept=".zip,application/zip" disabled={busy} onChange={event => {
         setFile(event.target.files?.[0] ?? null); setPreview(null); setMessage("");
       }} />
       <button type="button" className="mn-textbtn" disabled={!file || busy} onClick={() => void submit(Boolean(preview))}>

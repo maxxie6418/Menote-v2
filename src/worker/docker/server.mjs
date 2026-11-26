@@ -6,7 +6,7 @@ import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import worker from "../src/index.ts";
 import { openStorage } from "./storage.mjs";
-import { readAccountArchive } from "./account-archive.mjs";
+import { downloadAccountArchive, readAccountArchive } from "./account-archive.mjs";
 import { configureAi } from "./ai.mjs";
 import { staticResponse } from "./assets.mjs";
 
@@ -107,14 +107,14 @@ async function main() {
   const env = {
     AUTH_PEPPER: config.pepper,
     ...await openStorage(process.env, config.state),
+    DOWNLOAD_ACCOUNT_ARCHIVE: downloadAccountArchive,
     READ_ACCOUNT_ARCHIVE: readAccountArchive,
   };
   const ai = await configureAi(env, config, worker);
   const hold = new Set();
   let checking;
   function ready() {
-    // Cloudflare's object HEAD returns 404 for an unknown bucket too. Confirm
-    // bucket access before delegating to the application's schema check.
+    // Check the attachment directory and schema before accepting requests.
     if (!checking) {
       checking = (async () => {
         if (env.BUCKET.checkAccess) await env.BUCKET.checkAccess();

@@ -32,6 +32,17 @@ backupRoutes.use("/api/backup", resolveSession);
 backupRoutes.get("/api/backup/archive", resolveSession, requireSession, (c) =>
   c.json({ enabled: Boolean(c.env.READ_ACCOUNT_ARCHIVE) }, { headers: { "Cache-Control": "no-store" } }));
 
+backupRoutes.post("/api/backup/archive/download", resolveSession, sameOriginGuard, requireSession, async (c) => {
+  const download = c.env.DOWNLOAD_ACCOUNT_ARCHIVE;
+  if (!download) return c.body(null, 404);
+  try {
+    return await download({ db: c.env.DB, bucket: c.env.BUCKET, userId: c.get("authUser")!.id }, c.req.raw.signal);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    return c.json({ error: /^[\u3400-\u9fff]/.test(reason) ? reason : "无法生成备份包，请重试。" }, 400);
+  }
+});
+
 backupRoutes.post("/api/backup/archive/:action", resolveSession, sameOriginGuard, requireSession, async (c) => {
   const read = c.env.READ_ACCOUNT_ARCHIVE;
   const action = c.req.param("action");
@@ -82,6 +93,9 @@ backupRoutes.post("/api/backup/targets", resolveSession, sameOriginGuard, requir
     const normalized = input ? normalizeTargetInput(input) : null;
     if (!normalized) return c.json({ error: "invalid_request" }, 400);
     const id = await createTargetSealed(c.env.DB, c.get("authUser")!.id, pepper(c.env), normalized);
+    if (normalized.schedule !== "manual") {
+      c.executionCtx.waitUntil(runTargetPushById({ db: c.env.DB, userId: c.get("authUser")!.id, bucket: c.env.BUCKET }, id, pepper(c.env)));
+    }
     return c.json({ id }, 201);
   } catch (error) {
     console.error("backup target create failed:", error);

@@ -65,3 +65,10 @@ export async function readAiUsage(signal?: AbortSignal): Promise<AiUsageSummary 
   const usage = typeof body === "object" && body !== null ? Reflect.get(body, "usage") : undefined;
   return validUsage(usage) ? usage : null;
 }
+
+export async function readAiAvailability(signal: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch("/api/ai/available", { signal, cache: "no-store" });
+    return response.ok && (await response.json()).available === true;
+  } catch { return false; }
+}

@@ -22,7 +22,7 @@ function fail(code: string) {
   return { isError: true, content: [{ type: "text" as const, text: code }] };
 }
 
-export function registerAgentTools(server: McpServer, db: D1Database, token: McpToken, now: number): void {
+export function registerAgentTools(server: McpServer, db: SqlDatabase, token: McpToken, now: number): void {
   if (token.permissions.includes("content:read")) {
     server.registerTool("search", {
       description: "Find authorized items by literal keyword in title or Markdown. Use read_item with a returned ID to read the content.",

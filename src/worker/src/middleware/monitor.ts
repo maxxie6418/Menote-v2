@@ -4,7 +4,7 @@ import { sampleRequest } from "../services/monitorService";
 
 /** Monitoring must never change the result of the underlying request.
  *  G1 起：能解析出会话时样本归属该用户，否则保留安装级范围。 */
-export function observeRequest(env: Env, ctx: ExecutionContext, request: Request): void {
+export function observeRequest(env: Env, ctx: TaskContext, request: Request): void {
   const pepper: unknown = Reflect.get(env, "AUTH_PEPPER");
   if (typeof pepper !== "string" || !pepper.trim() || !env.DB) return;
   ctx.waitUntil((async () => {

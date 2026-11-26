@@ -216,7 +216,7 @@ export function MobileMe({ userId, username, role, onSettings, onOpenPrivate, on
       <button type="button" className="m-mi" onClick={() => { const tag = tags[0]; if (tag) onOpenSection(memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag }); }}><Tag />标签<em>{tags.length}</em><ChevronRight className="chev" /></button>
       <div className="m-msec"><b>设置</b></div>
       <button type="button" className="m-mi" onClick={() => onSettings("appearance")}><Settings />外观与账户<ChevronRight className="chev" /></button>
-      <button type="button" className="m-mi" onClick={() => onSettings("backup")}><Archive />同步与备份<ChevronRight className="chev" /></button>
+      <button type="button" className="m-mi" onClick={() => onSettings("backup")}><Archive />备份与恢复<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={() => onSettings("recovery")}><LockKeyhole />加密与恢复<ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={onStatus}><Clock3 />资源状态<em>查看</em><ChevronRight className="chev" /></button>
       <button type="button" className="m-mi" onClick={onLogout}><UserRound />退出登录<ChevronRight className="chev" /></button>

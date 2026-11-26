@@ -22,7 +22,7 @@ export function toAuthUser(row: { id: string; username: string; role: string }):
   return { id: row.id, username: row.username, role: row.role === "owner" ? "owner" : "member" };
 }
 
-export async function countUsers(db: D1Database): Promise<number> {
+export async function countUsers(db: SqlDatabase): Promise<number> {
   const row = await db.prepare("SELECT COUNT(*) AS n FROM users").first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -31,7 +31,7 @@ export async function countUsers(db: D1Database): Promise<number> {
  *  凭据与设置以「本批插入的用户行存在（EXISTS id）」为守卫，并发抢注只有 insertUser
  *  的唯一赢家会连带写入，输家的三条语句全部插零行且不触发主键冲突。 */
 export async function createFirstOwner(
-  db: D1Database,
+  db: SqlDatabase,
   user: { id: string; username: string },
   credential: { algo: string; iterations: number; salt: Uint8Array; hash: Uint8Array; now: number },
 ): Promise<boolean> {
@@ -51,17 +51,17 @@ export async function createFirstOwner(
   return (results[0].meta.changes ?? 0) === 1;
 }
 
-export async function findUserByUsername(db: D1Database, username: string) {
+export async function findUserByUsername(db: SqlDatabase, username: string) {
   return db.prepare("SELECT id, username, role FROM users WHERE username = ?")
     .bind(username).first<{ id: string; username: string; role: string }>();
 }
 
-export async function findUserById(db: D1Database, userId: string) {
+export async function findUserById(db: SqlDatabase, userId: string) {
   return db.prepare("SELECT id, username, role FROM users WHERE id = ?")
     .bind(userId).first<{ id: string; username: string; role: string }>();
 }
 
-export async function findCredential(db: D1Database, userId: string): Promise<CredentialRow | null> {
+export async function findCredential(db: SqlDatabase, userId: string): Promise<CredentialRow | null> {
   const row = await db.prepare(
     "SELECT user_id, algo, iterations, salt, hash FROM user_credentials WHERE user_id = ?",
   ).bind(userId).first<{ user_id: string; algo: string; iterations: number; salt: unknown; hash: unknown }>();
@@ -72,7 +72,7 @@ export async function findCredential(db: D1Database, userId: string): Promise<Cr
 }
 
 /** 注册开关与有效期（owner 控制）。缺失视为关闭。 */
-export async function readRegistration(db: D1Database): Promise<{ open: boolean; openUntil: number | null }> {
+export async function readRegistration(db: SqlDatabase): Promise<{ open: boolean; openUntil: number | null }> {
   const row = await db.prepare("SELECT value_json FROM app_settings WHERE key = 'registration'").first<{
     value_json: string;
   }>();
@@ -90,7 +90,7 @@ export async function readRegistration(db: D1Database): Promise<{ open: boolean;
 
 /** owner 开启注册：写入开关与有效期。库中无 owner（bootstrap 未完成）时拒绝。 */
 export async function writeRegistration(
-  db: D1Database, open: boolean, openUntil: number | null, now: number,
+  db: SqlDatabase, open: boolean, openUntil: number | null, now: number,
 ): Promise<boolean> {
   if ((await countUsers(db)) === 0) return false;
   await db.prepare(
@@ -103,7 +103,7 @@ export async function writeRegistration(
 
 /** 注册开放时创建 member 用户；users.username UNIQUE 冲突向上抛出。 */
 export async function createMember(
-  db: D1Database,
+  db: SqlDatabase,
   user: { id: string; username: string; now: number },
   credential: { algo: string; iterations: number; salt: Uint8Array; hash: Uint8Array },
 ): Promise<void> {
@@ -117,7 +117,7 @@ export async function createMember(
 }
 
 export async function createSession(
-  db: D1Database, id: string, userId: string, now: number, expiresAt: number,
+  db: SqlDatabase, id: string, userId: string, now: number, expiresAt: number,
 ): Promise<void> {
   await db.prepare(
     "INSERT INTO sessions (id, user_id, created_at, expires_at, last_active_at) VALUES (?, ?, ?, ?, ?)",
@@ -131,7 +131,7 @@ export interface SessionRow {
   lastActiveAt: number;
 }
 
-export async function readSession(db: D1Database, id: string): Promise<SessionRow | null> {
+export async function readSession(db: SqlDatabase, id: string): Promise<SessionRow | null> {
   const row = await db.prepare(
     "SELECT id, user_id, expires_at, last_active_at FROM sessions WHERE id = ?",
   ).bind(id).first<{ id: string; user_id: string; expires_at: number; last_active_at: number }>();
@@ -141,29 +141,29 @@ export async function readSession(db: D1Database, id: string): Promise<SessionRo
 }
 
 /** 滑动续期：距到期超过一半周期时顺延，避免每请求一次写。 */
-export async function touchSession(db: D1Database, id: string, expiresAt: number, now: number): Promise<void> {
+export async function touchSession(db: SqlDatabase, id: string, expiresAt: number, now: number): Promise<void> {
   await db.prepare("UPDATE sessions SET expires_at = ?, last_active_at = ? WHERE id = ?")
     .bind(expiresAt, now, id).run();
 }
 
-export async function deleteSession(db: D1Database, id: string): Promise<void> {
+export async function deleteSession(db: SqlDatabase, id: string): Promise<void> {
   await db.prepare("DELETE FROM sessions WHERE id = ?").bind(id).run();
 }
 
 /** 登录成功后清理同用户过期会话，抑制垃圾行。 */
-export async function deleteExpiredSessions(db: D1Database, userId: string, now: number): Promise<void> {
+export async function deleteExpiredSessions(db: SqlDatabase, userId: string, now: number): Promise<void> {
   await db.prepare("DELETE FROM sessions WHERE user_id = ? AND expires_at <= ?").bind(userId, now).run();
 }
 
 /** 登录失败节流（持久，跨实例生效）。达到上限后仅读判定，不再产生写放大。 */
-export async function loginThrottled(db: D1Database, username: string, now: number, maxFailures: number): Promise<boolean> {
+export async function loginThrottled(db: SqlDatabase, username: string, now: number, maxFailures: number): Promise<boolean> {
   const row = await db.prepare("SELECT failures, window_until FROM login_throttle WHERE username = ?")
     .bind(username).first<{ failures: number; window_until: number }>();
   return row !== null && row.window_until > now && row.failures >= maxFailures;
 }
 
 /** 记录一次失败：窗口内累加，窗口过期则重开新窗口。 */
-export async function recordLoginFailure(db: D1Database, username: string, now: number, windowMs: number): Promise<void> {
+export async function recordLoginFailure(db: SqlDatabase, username: string, now: number, windowMs: number): Promise<void> {
   await db.prepare(
     `INSERT INTO login_throttle (username, failures, window_until) VALUES (?, 1, ?)
      ON CONFLICT (username) DO UPDATE SET
@@ -172,6 +172,6 @@ export async function recordLoginFailure(db: D1Database, username: string, now: 
   ).bind(username, now + windowMs, now, now, now + windowMs).run();
 }
 
-export async function clearLoginThrottle(db: D1Database, username: string): Promise<void> {
+export async function clearLoginThrottle(db: SqlDatabase, username: string): Promise<void> {
   await db.prepare("DELETE FROM login_throttle WHERE username = ?").bind(username).run();
 }

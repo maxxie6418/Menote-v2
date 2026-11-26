@@ -9,7 +9,7 @@ import {
 } from "../db/ai";
 import { readSettingState } from "../db/sync";
 
-/** 队列消费失败重试上限；与 wrangler.jsonc consumers[].max_retries 保持一致。 */
+/** 队列消费失败重试上限；由 Docker 后台任务队列使用。 */
 export const AI_TASK_MAX_RETRIES = 3;
 /** 提交正文上限（字符）：中文按 UTF-8 约 3 字节计，32k 字符在最坏情形下仍在队列 128KB 消息限制内。 */
 const CONTENT_LIMIT = Math.min(AI_MAX_CONTENT_CHARS, 32_000);
@@ -37,19 +37,19 @@ export async function sha256Hex(text: string): Promise<string> {
 }
 
 /** AI 设置随 user_settings 同步（key 见 AI_SETTING_KEY）；缺记录或非法值回退默认。 */
-export async function readAiSettings(db: D1Database, userId: string): Promise<AiSettings> {
+export async function readAiSettings(db: SqlDatabase, userId: string): Promise<AiSettings> {
   const setting = await readSettingState(db, userId, AI_SETTING_KEY);
   return normalizeAiSettings(setting?.sensitivity === "ordinary" ? setting.value : undefined);
 }
 
-export function aiBinding(env: Env): Ai | null {
+export function aiBinding(env: Env): AiProvider | null {
   const value: unknown = Reflect.get(env, "AI");
-  return value && typeof (value as Ai).run === "function" ? value as Ai : null;
+  return value && typeof (value as AiProvider).run === "function" ? value as AiProvider : null;
 }
 
-export function aiQueue(env: Env): Queue | null {
+export function aiQueue(env: Env): AiQueue | null {
   const value: unknown = Reflect.get(env, "AI_TASKS_QUEUE");
-  return value && typeof (value as Queue).send === "function" ? value as Queue : null;
+  return value && typeof (value as AiQueue).send === "function" ? value as AiQueue : null;
 }
 
 export interface AiSubmitInput { itemId: string; kind: AiTaskKind; title: string; tags: string[]; content: string; force?: boolean }
@@ -107,12 +107,12 @@ function toView(row: { id: string; itemId: string; kind: AiTaskKind; status: AiT
   return { id: row.id, itemId: row.itemId, kind: row.kind, status: row.status, result, error: row.error, reused, createdAt: row.createdAt, updatedAt: row.updatedAt };
 }
 
-export async function readAiTaskView(db: D1Database, userId: string, id: string): Promise<AiTaskView | null> {
+export async function readAiTaskView(db: SqlDatabase, userId: string, id: string): Promise<AiTaskView | null> {
   const row = await readAiTask(db, userId, id);
   return row ? toView(row, false) : null;
 }
 
-export async function readAiUsageSummary(db: D1Database, userId: string, now: number): Promise<AiUsageSummary> {
+export async function readAiUsageSummary(db: SqlDatabase, userId: string, now: number): Promise<AiUsageSummary> {
   const [settings, usage] = await Promise.all([readAiSettings(db, userId), readAiUsage(db, userId, dayKey(now))]);
   return { day: dayKey(now), calls: usage.calls, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, dailyCallLimit: settings.dailyCallLimit, freeNeuronsDaily: AI_FREE_NEURONS_DAILY };
 }
@@ -138,7 +138,7 @@ function answerText(raw: string): string {
   return raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-async function callModel(ai: Ai, model: string, messages: Array<{ role: string; content: string }>): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+async function callModel(ai: AiProvider, model: string, messages: Array<{ role: string; content: string }>): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const option = AI_MODEL_OPTIONS.find((entry) => entry.id === model);
   const maxTokens = option?.maxOutputTokens ?? 512;
   // GLM 默认 enable_thinking=true，512 token 会被思考占满、正文为空，概述和标签一起失败。
@@ -214,7 +214,7 @@ export async function runAiTask(env: Env, message: AiQueueMessage, attempts: num
 }
 
 /** 队列入口：逐条显式 ack/retry（抛错不整批重试）；终态失败由 runAiTask 落库后正常 ack。 */
-export async function dispatchAiQueue(env: Env, batch: MessageBatch<unknown>): Promise<void> {
+export async function dispatchAiQueue(env: Env, batch: AiMessageBatch): Promise<void> {
   if (!env.DB) return;
   for (const message of batch.messages) {
     const body = message.body as Partial<AiQueueMessage>;

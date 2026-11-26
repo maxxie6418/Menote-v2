@@ -4,7 +4,7 @@ import { claimRecoveryCodeStatement, readRecoveryCode, readRecoveryCodeRotation,
 export const getRecoveryCodeState = readRecoveryCode;
 export const getRecoveryCodeRotation = readRecoveryCodeRotation;
 
-export async function claimRecoveryCode(db: D1Database, userId: string, value: unknown): Promise<RecoveryCodeState | null> {
+export async function claimRecoveryCode(db: SqlDatabase, userId: string, value: unknown): Promise<RecoveryCodeState | null> {
   const input = value as { revision?: unknown; binding?: unknown } | null;
   const binding = parseRecoveryCodeBinding(input?.binding);
   const revision = input?.revision;
@@ -13,7 +13,7 @@ export async function claimRecoveryCode(db: D1Database, userId: string, value: u
   return claimed ? { binding } : await readRecoveryCode(db, userId);
 }
 
-export async function commitRecoveryCodeRotation(db: D1Database, userId: string, value: unknown, now: number) {
+export async function commitRecoveryCodeRotation(db: SqlDatabase, userId: string, value: unknown, now: number) {
   const input = parseRecoveryCodeRotation(value);
   if (!input) return { error: "invalid_recovery_rotation" } as const;
   const current = await readRecoveryCodeRotation(db, userId);

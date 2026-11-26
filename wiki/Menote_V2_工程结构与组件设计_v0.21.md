@@ -236,3 +236,7 @@ FR-EDT-16/17 使用 `lib/obsidianMarkdown.ts` 统一解析语法和提取引用�
 ## 2026-11-26 · TP13 Docker 本地存储
 
 `docker/storage.mjs` 装配本地 SQLite、文件对象存储或已有 D1/R2。`docker/account-archive.mjs` 负责限额接收并读取 ZIP，校验与恢复复用 Worker 快照服务，数据库扩展写入与正文共用事务。Web `features/backup/ArchiveRestorePanel.tsx` 经 `services/backupService.ts` 上传到当前会话。
+
+## 2026-11-26 · Docker 单主存与备份（TP13，0.3.26）
+
+`src/worker/src/runtime.d.ts` 描述 SQLite、附件和任务执行契约。`services/backupService.ts` 为 ZIP 和远端生成同一快照；`backupExtras.ts` 校验剪藏和映射数据。Docker 将本地 ZIP 写入私有临时文件，逐件校验后下载；导入与远端共用事务恢复。`web/src/startup.ts` 提前检查会话，已认证的 `app/Workspace.tsx`、设置和编辑器分块加载。

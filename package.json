@@ -1,24 +1,16 @@
 {
   "name": "menote-v2",
-  "version": "0.3.25",
+  "version": "0.3.26",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "build": "node src/worker/docker/check-build-target.mjs && pnpm --filter @menote/shared build && pnpm --filter @menote/web build && pnpm --filter @menote/worker build",
     "typecheck": "pnpm -r typecheck",
     "dev:web": "pnpm --filter @menote/web dev",
-    "dev:worker": "pnpm --filter @menote/worker dev",
     "test": "pnpm -r --if-present test",
-    "deploy": "pnpm --filter @menote/worker exec wrangler deploy --config ../../wrangler.jsonc"
+    "dev:server": "docker compose -f src/worker/docker/compose.yaml up --build"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
-  },
-  "cloudflare": {
-    "bindings": {
-      "AUTH_PEPPER": {
-        "description": "Menote 登录安全密钥。通过 Cloudflare Secret 设置；不要公开或提交。"
-      }
-    }
   }
 }

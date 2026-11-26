@@ -6,11 +6,11 @@ type SettingState = { key: string; rev: number };
 
 /** Only read the state needed for the merge, in one D1 batch rather than one request per row. */
 export async function readRestoreState(
-  db: D1Database, userId: string, itemIds: Set<string>, commentIds: Set<string>, settingKeys: Set<string>,
+  db: SqlDatabase, userId: string, itemIds: Set<string>, commentIds: Set<string>, settingKeys: Set<string>,
 ) {
   const reads = (prefix: string, ids: Set<string>) => {
     const values = [...ids];
-    const statements: D1PreparedStatement[] = [];
+    const statements: SqlStatement[] = [];
     for (let i = 0; i < values.length; i += 500) {
       statements.push(db.prepare(prefix + " IN (SELECT value FROM json_each(?))").bind(userId, JSON.stringify(values.slice(i, i + 500))));
     }
@@ -31,9 +31,9 @@ export async function readRestoreState(
 
 /** Abort the entire transaction if sync changed the selected revision after the preflight read. */
 export function guardRestoreItems(
-  db: D1Database, userId: string, ids: string[], current: Map<string, ItemState>,
-): D1PreparedStatement[] {
-  const statements: D1PreparedStatement[] = [];
+  db: SqlDatabase, userId: string, ids: string[], current: Map<string, ItemState>,
+): SqlStatement[] {
+  const statements: SqlStatement[] = [];
   for (let i = 0; i < ids.length; i += 500) {
     const expected = ids.slice(i, i + 500).map((id) => {
       const row = current.get(id);
@@ -52,7 +52,7 @@ export function guardRestoreItems(
 }
 
 /** A topic has no version counter. Refuse to replace an existing, different wrapping key. */
-export function guardRestoreTopicWrap(db: D1Database, userId: string, id: string, wrap: KeyWrap): D1PreparedStatement {
+export function guardRestoreTopicWrap(db: SqlDatabase, userId: string, id: string, wrap: KeyWrap): SqlStatement {
   return db.prepare(
     `SELECT CASE WHEN NOT EXISTS (
        SELECT 1 FROM topic_key_wraps WHERE user_id = ? AND topic_id = ? AND wrapper = ?

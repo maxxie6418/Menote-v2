@@ -2,7 +2,7 @@ import type { ClipTemplateV1 } from "@menote/shared";
 
 interface TemplateRow { template_json: string; version: number; created_at: number; updated_at: number }
 
-export async function listClipTemplates(db: D1Database, userId: string, enabledOnly = false) {
+export async function listClipTemplates(db: SqlDatabase, userId: string, enabledOnly = false) {
   const rows = await db.prepare(`SELECT template_json, version, created_at, updated_at FROM clip_templates WHERE user_id = ?${enabledOnly ? " AND json_extract(template_json, '$.enabled') = 1" : ""} ORDER BY updated_at DESC`)
     .bind(userId).all<TemplateRow>();
   return rows.results.flatMap((row) => {
@@ -11,7 +11,7 @@ export async function listClipTemplates(db: D1Database, userId: string, enabledO
   });
 }
 
-export async function saveClipTemplate(db: D1Database, userId: string, template: ClipTemplateV1, now: number, expectedVersion?: number | null): Promise<boolean> {
+export async function saveClipTemplate(db: SqlDatabase, userId: string, template: ClipTemplateV1, now: number, expectedVersion?: number | null): Promise<boolean> {
   const payload = JSON.stringify(template);
   if (expectedVersion === null) {
     const result = await db.prepare(`INSERT OR IGNORE INTO clip_templates (id, user_id, template_json, version, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`)
@@ -29,7 +29,7 @@ export async function saveClipTemplate(db: D1Database, userId: string, template:
   return true;
 }
 
-export async function deleteClipTemplate(db: D1Database, userId: string, id: string) {
+export async function deleteClipTemplate(db: SqlDatabase, userId: string, id: string) {
   const result = await db.prepare("DELETE FROM clip_templates WHERE user_id = ? AND id = ?").bind(userId, id).run();
   return (result.meta.changes ?? 0) > 0;
 }

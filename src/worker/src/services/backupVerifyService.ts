@@ -1,3 +1,4 @@
+import { parseAccountExtras } from "./backupExtras";
 import { parseRecoveryCodeBinding, type RecoveryCodeBinding } from "@menote/shared";
 import { MAX_STORED_ATTACHMENT_BYTES } from "./attachmentService";
 import { normalizeRemotePath, remoteGet, type RemoteTarget } from "./backupRemote";
@@ -34,6 +35,7 @@ interface SnapshotMetadata {
   topicKeyWraps: unknown[];
   settings: unknown[];
   recoveryCodeBinding: RecoveryCodeBinding | null;
+  accountExtras: ReturnType<typeof parseAccountExtras> | null;
   attachments: SnapshotAttachment[];
 }
 
@@ -70,7 +72,7 @@ export async function readRemoteSnapshotMetadata(
     files?: unknown[];
     shards?: Array<{ month?: unknown }>;
     counts?: { attachments?: unknown };
-    extra?: { itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown; recoveryCodeBinding?: unknown };
+    extra?: { accountExtras?: unknown; itemKeyWraps?: unknown; topicKeyWraps?: unknown; settings?: unknown; recoveryCodeBinding?: unknown };
   } | null;
   if (!manifest || manifest.format !== "menote-backup" || manifest.version !== 1 || manifest.snapshotId !== id ||
     !Array.isArray(manifest.files) || !Array.isArray(manifest.shards)) throw new Error("不支持或无效的备份清单");
@@ -88,6 +90,7 @@ export async function readRemoteSnapshotMetadata(
   if (extra.recoveryCodeBinding !== undefined && !recoveryCodeBinding) throw new Error("备份恢复码绑定无效");
 
   const entries: unknown[] = [];
+  const tables = new Set<string>();
   const references = new Set<string>();
   for (const path of shardPaths) {
     const bytes = await readVerifiedFile(target, directory, files.get(path)!);
@@ -96,6 +99,7 @@ export async function readRemoteSnapshotMetadata(
     for (const entry of shard) {
       if (!options.discardEntries) entries.push(entry);
       if (entry?.kind !== "item") continue;
+      if (entry.data?.type === "table") tables.add(entry.data.id);
       const raw: unknown = entry.data?.attachment_hashes_json;
       const hashes: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
       if (!Array.isArray(hashes) || hashes.some((hash) => typeof hash !== "string" || !sha256Pattern.test(hash))) {
@@ -106,6 +110,7 @@ export async function readRemoteSnapshotMetadata(
   }
   for (const hash of references) if (!files.has(`attachment-${hash}`)) throw new Error("快照缺少笔记引用的附件");
   return {
+    accountExtras: extra.accountExtras === undefined ? null : parseAccountExtras(extra.accountExtras, tables),
     directory, files: files.size, shards: shardPaths.length, entries,
     itemKeyWraps: extra.itemKeyWraps, topicKeyWraps: extra.topicKeyWraps, settings: extra.settings, recoveryCodeBinding,
     attachments: attachmentFiles.map(({ mime, sha256, size }) => ({

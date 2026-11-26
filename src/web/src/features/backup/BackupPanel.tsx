@@ -1,3 +1,4 @@
+import { requestSyncNow } from "../../services/syncEngine";
 import { useCallback, useEffect, useState } from "react";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { ArchiveRestorePanel } from "./ArchiveRestorePanel";
@@ -18,7 +19,7 @@ function getPushStatus(result: string | null): { label: string; error: string | 
 /** 备份目标管理（G9，FR-BAK-1/2/8）：目标 CRUD、凭据复显（C-7）、手动推送一次、运行状态。 */
 export function BackupPanel({ userId }: BackupPanelProps) {
 
-  const [targets, setTargets] = useState<TargetView[] | null>(() => peek<TargetView[]>(SETTINGS_CACHE.targets) ?? null);
+  const [targets, setTargets] = useState<TargetView[] | null>(() => peek<TargetView[]>(SETTINGS_CACHE.targets(userId)) ?? null);
   const [kind, setKind] = useState<"webdav" | "s3">("webdav");
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
@@ -37,14 +38,15 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
 
   const refresh = useCallback((fresh = false) => {
-    void loadShared(SETTINGS_CACHE.targets, listTargets, fresh).then(setTargets);
-  }, []);
+    void loadShared(SETTINGS_CACHE.targets(userId), listTargets, fresh).then(setTargets);
+  }, [userId]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const create = async () => {
     setMessage(null);
     const ok = await createTarget({ kind, endpoint, bucket: bucket || null, username: username || null, secret, schedule, name: name || undefined, remotePath, retentionCount: Math.max(0, Number.parseInt(retentionCount, 10) || 0) });
     if (ok) {
+      setMessage(schedule === "manual" ? "备份目标已添加。" : "备份目标已添加，首次备份已安排。");
       setSecret(""); setEndpoint(""); setBucket(""); setUsername(""); setName(""); setRemotePath("menote"); setRetentionCount("0"); setSchedule("daily");
       refresh(true);
     } else {
@@ -91,6 +93,7 @@ export function BackupPanel({ userId }: BackupPanelProps) {
   };
 
   const reveal = async (id: string) => {
+    if (revealed[id]) { setRevealed(previous => ({ ...previous, [id]: "" })); return; }
     const secret = await revealSecret(id);
     if (secret !== null) setRevealed((previous) => ({ ...previous, [id]: secret }));
   };
@@ -118,8 +121,9 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     setVerifying(id); setMessage("正在校验并恢复快照…");
     const result = await restoreRemoteBackup(target.id, id);
     setMessage(result.ok
-      ? `恢复完成：${result.items} 条内容、${result.topics} 个主题、${result.attachments ?? 0} 个附件；跳过 ${result.skipped} 项。重新载入页面以同步显示。`
+      ? `恢复完成：${result.items} 条内容、${result.topics} 个主题、${result.attachments ?? 0} 个附件；跳过 ${result.skipped} 项。`
       : `恢复失败：${result.error ?? "未知错误"}`);
+    if (result.ok && !await requestSyncNow(userId)) setMessage(previous => previous + " 请稍后同步本机。");
     setVerifying(null);
   };
 
@@ -133,7 +137,8 @@ export function BackupPanel({ userId }: BackupPanelProps) {
     <section className="status-panel" aria-labelledby="backup-heading">
       <h2 id="backup-heading">备份与恢复</h2>
       <ArchiveRestorePanel userId={userId} />
-      <p className="app-description">将内容保存到远程存储，并检查备份快照的完整性。</p>
+      <h3>远程自动备份</h3>
+      <p className="mn-sethint">分别添加 S3 或 WebDAV 目标，可设置频率、查看快照并恢复到当前账号。</p>
       {message && <p className="status-detail" role="status">{message}</p>}
       {targets !== null && targets.length > 0 && (
         <ul className="mn-backuplist">

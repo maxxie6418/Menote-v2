@@ -38,15 +38,15 @@ const app = new Hono<AppEnv>()
   .route("/", raindropRoutes);
 
 export default {
-  async scheduled(_controller, env, ctx) {
+  async scheduled(_controller: unknown, env: Env, ctx: TaskContext) {
     try { pepperKeyMaterial(env); } catch { return; }
     if (env.DB && env.BUCKET && await schemaIsCurrent(env.DB)) await dispatchScheduled(env, ctx);
   },
-  queue(batch, env, ctx) {
+  queue(batch: AiMessageBatch, env: Env) {
     return dispatchAiQueue(env, batch);
   },
-  fetch(request, env, ctx) {
+  fetch(request: Request, env: Env, ctx: TaskContext) {
     observeRequest(env, ctx, request);
     return app.fetch(request, env, ctx);
   },
-} satisfies ExportedHandler<Env>;
+};

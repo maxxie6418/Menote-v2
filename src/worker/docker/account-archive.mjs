@@ -1,10 +1,14 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { mkdtemp, open, rm } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { crc32 } from "node:zlib";
+import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
+import { collectBackup, writeSnapshotFiles } from "../src/services/backupService.ts";
+import { processAccountArchive } from "../src/services/accountArchiveService.ts";
+import { newSnapshotId } from "../src/services/backupRemote.ts";
 import yauzl from "yauzl";
 
 const MiB = 1024 * 1024;
@@ -76,5 +80,63 @@ export async function readAccountArchive(request, callback) {
       if (zip) zip.close();
       if (dir) await rm(dir, { recursive: true, force: true, maxRetries: 3 });
     } finally { busy = false; }
+  }
+}
+
+// Finish and validate the shape of the ZIP before sending any download headers.
+export async function downloadAccountArchive({ db, bucket, userId }, signal) {
+  const snapshot = await collectBackup(db, userId, bucket);
+  if (snapshot.missingAttachments.length) throw new Error("附件缺失，请先检查附件存储，再下载备份。");
+  const id = newSnapshotId();
+  const dir = await mkdtemp(join(tmpdir(), "menote-export-"));
+  const file = join(dir, "account.zip");
+  let handle;
+  try {
+    handle = await open(file, "wx", 0o600);
+    let chunks = [], written = 0, count = 0, total = 0, metadata = 0;
+    const zip = new Zip((error, chunk) => {
+      if (error) throw error;
+      chunks.push(chunk);
+    });
+    async function flush() {
+      for (const chunk of chunks) {
+        written += chunk.length;
+        if (written > archiveLimit) throw new Error("压缩包超过 256 MiB，请使用远程备份。");
+        await handle.writeFile(chunk);
+      }
+      chunks = [];
+    }
+    async function append(path, bytes) {
+      signal.throwIfAborted();
+      const isAttachment = path.startsWith("attachment-");
+      total += bytes.length;
+      if (!isAttachment) metadata += bytes.length;
+      if (++count > 35000 || bytes.length > 32 * MiB || total > 1024 * MiB || metadata > 32 * MiB) throw new Error("内容超过本地恢复包容量，请使用远程备份。");
+      const name = `menote/${id}/${path}`;
+      const entry = isAttachment ? new ZipPassThrough(name) : new ZipDeflate(name, { level: 3 });
+      zip.add(entry);
+      entry.push(bytes, true);
+      await flush();
+    }
+    const hash = await writeSnapshotFiles(bucket, snapshot, id, append);
+    await append("COMPLETE", new TextEncoder().encode(hash));
+    zip.end();
+    await flush();
+    await handle.close();
+    handle = undefined;
+    const check = await yauzl.openPromise(file, { lazyEntries: true, autoClose: false, strictFileNames: true });
+    try {
+      await processAccountArchive({ db, bucket, userId }, await indexArchive(check), false);
+    } finally { check.close(); }
+    const stream = createReadStream(file, { signal });
+    stream.once("close", () => { void rm(dir, { recursive: true, force: true, maxRetries: 3 }).catch(() => {}); });
+    return new Response(Readable.toWeb(stream), { headers: {
+      "Content-Type": "application/zip", "Content-Length": String(written), "Cache-Control": "private, no-store",
+      "Content-Disposition": `attachment; filename="menote-${id}.zip"`,
+    } });
+  } catch (error) {
+    await handle?.close();
+    await rm(dir, { recursive: true, force: true, maxRetries: 3 });
+    throw error;
   }
 }

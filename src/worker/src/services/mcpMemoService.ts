@@ -5,7 +5,7 @@ import { insertServerItem } from "./syncService";
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_SOURCE_TITLE_LENGTH = 500;
 
-export interface McpMemoContext { db: D1Database; userId: string; tokenId: string; now: number }
+export interface McpMemoContext { db: SqlDatabase; userId: string; tokenId: string; now: number }
 
 function isWebUrl(value: string): boolean {
   try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; }

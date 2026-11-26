@@ -78,3 +78,7 @@ Worker：`routes → services → db` 三层；业务逻辑只在 services；SQL
 - **版本记账**：字母版本仅用于仓库内；Chrome manifest / wrangler 等只认 `x.y.z` 的工具链撞号时跳至下一个未用数字并在开发记录写映射。同一次提交内版本号必须自洽。
 - **合并双门禁**：测试全绿 + 外来提交清点。
 - 环境允许时以 `git worktree` 分工作区隔离，优先于纪律。
+
+## 12. 2026-11-26 部署与恢复基线
+
+0.3.26 起正式服务仅使用 Docker、SQLite 和本机附件目录。§1、§3、§9 中 Workers 部署及 D1/R2 绑定的描述为历史基线。后端沿用 routes → services → db 分层，旧账号 ZIP 可以继续导入。旧环境的导出工具和部署设置保存在提交 `86bfdbb`。服务器保留同一 `AUTH_PEPPER`。

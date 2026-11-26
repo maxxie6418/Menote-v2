@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser, Item } from "@menote/shared";
 import { alertDialog, confirmDialog } from "../components/ui/ConfirmDialog";
 import { Sidebar } from "./Sidebar";
@@ -13,12 +13,11 @@ import { subscribeLocalChanges } from "../lib/broadcast";
 import { useLockVersion, useSectionItems, useTopics } from "../services/contentHooks";
 import { createNote, saveItemContent, saveItemMeta, setItemForm, softDeleteItem, sweepBlankDrafts } from "../services/contentService";
 import { createNoteForPlace } from "../services/privateSpaceService";
-import { prefetchSettings } from "../services/settingsPrefetch";
 import { requestSync } from "../services/syncEngine";
 import { bindLocalAccount } from "../services/authService";
 import { isTopicUnlocked, lockIfIdle, touchActivity } from "../services/keyringService";
 import { PrivateSpaceDialog } from "../features/encryption";
-import { SettingsDialog, type SettingsSection } from "../features/settings";
+import type { SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
 import { ListNavigation } from "./ListNavigation";
@@ -30,6 +29,8 @@ import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type View
 import { getDensityScale, subscribeDensity } from "../lib/density";
 export type { LayoutMode, MainView, MobilePane, ViewMode };
 export { BREAKPOINTS };
+
+const SettingsDialog = lazy(() => import("../features/settings").then(module => ({ default: module.SettingsDialog })));
 
 function detectLayoutMode(): LayoutMode {
   if (typeof window === "undefined") return "full";
@@ -288,7 +289,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   // FR-VER-7 启动兜底：回收超期空白草稿种子（三道闸在服务内实现）。
   useEffect(() => { void bindLocalAccount(userId); }, [userId]);
   useEffect(() => { void sweepBlankDrafts(userId); }, [userId]);
-  useEffect(() => { prefetchSettings(userId); }, [userId]);
   useEffect(() => {
     const refresh = () => { void readAppearance(userId).then((value) => {
       if (!value) return;
@@ -393,13 +393,13 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     />
   );
   const settingsDialog = settingsOpen ? (
-    <SettingsDialog
+    <Suspense fallback={null}><SettingsDialog
       key={`settings-${settingsSection}`}
       userId={userId}
       initialSection={settingsSection}
       onClose={() => { setSettingsOpen(false); goBack(settingsReturn.current); }}
       onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
-    />
+    /></Suspense>
   ) : null;
   const privateDialog = privateGate ? (
     <PrivateSpaceDialog

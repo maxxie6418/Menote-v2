@@ -45,49 +45,28 @@ Menote V2 是一款通过浏览器使用的本地优先笔记应用，将随手�
 
 - 开启「读取内容」后，可用 `search`、`list_items`、`list_folders` 和 `read_item` 检索、列举及读取授权范围内的内容。传入返回的 `next_cursor` 翻页。私人空间不可见，单篇加密笔记只显示标题和加密状态。
 - 开启「创建条目」后，可用 `create_item` 创建明文 Note、Markdown 表格或 Memo。前两类进入收件箱，Memo 还需开启「包含 Memo」。同一次操作重试时复用原 UUID `operation_id`。
-- `list_versions` 和 `read_item(version_id)` 只读取 D1 中已有的明文历史快照。浏览器本地保存的版本历史尚无法由远程 Agent 读取。通用编辑、归属调整、表格行修改、软删除和令牌审计分页仍列在 M4。
+- `list_versions` 和 `read_item(version_id)` 只读取服务器 SQLite 中已有的明文历史快照。浏览器本地保存的版本历史尚无法由远程 Agent 读取。通用编辑、归属调整、表格行修改、软删除和令牌审计分页仍列在 M4。
 
 ## 本地开发
 
-需要 Node.js 22 和 pnpm 11；项目声明的包管理器版本为 `pnpm@11.9.0`。
+需要 Node.js 24 和 pnpm 11。生产和开发后端共用 Docker 服务器入口。先在独立数据卷启动开发实例，再使用 Vite 热更新前端。 [Docker 配置与启动说明](src/worker/docker/README.md)
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm dev:worker
-```
-
-在另一个终端启动前端：
-
-```bash
+docker compose -f src/worker/docker/compose.yaml up -d --build
 pnpm dev:web
 ```
 
-前端开发服务器会将 `/api` 代理到本地 Worker（`127.0.0.1:8787`）。本地 Worker 需要 `AUTH_PEPPER`；可在仓库根目录的 `.dev.vars` 中配置本地专用值，该文件已被 Git 忽略。缺少该密钥时就绪检查不可用。
+Vite 把 API 代理到本机 8787 端口。工作区验证使用 `pnpm typecheck`、`pnpm test` 和 `pnpm build`。
 
-```bash
-pnpm typecheck  # 类型检查
-pnpm test       # 运行工作区测试
-pnpm build      # 构建前端并检查 Worker 部署包
-```
+## 部署与备份
 
-## 部署
-
-从 `main` 构建服务器 Docker 镜像，沿用原 D1、R2 和 `AUTH_PEPPER`。首次切换前按部署说明制作实例备份并演练还原。 [Docker 部署与 Kiri 本地验证](src/worker/docker/README.md)。
-
-### Cloudflare 隔离验证
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmaxxie6418%2FMenote-v2)
-
-该入口使用仓库默认分支 `dev`，目前仅用于隔离测试，一键导入尚未完成验收。测试和预览资源使用隔离 D1/R2。旧 Workers Builds 若仍跟踪 `main`，会在构建步骤退出。
-
-应用使用 Cloudflare Workers、D1、R2、Workers AI 和 Queues。构建命令为 `pnpm install --frozen-lockfile && pnpm build`，部署命令为 `pnpm run deploy`。应用唯一必填 Secret 是 `AUTH_PEPPER`，应在 Worker 的 Secrets 中安全设置，不要提交或设为公开变量；R2 可能需要先在账号级开通。
-
-仓库配置关闭了版本 URL；Workers Builds 的分支预览是独立开关，启用前须验证资源隔离。`AUTH_PEPPER` 遗失或轮换涉及安全迁移，兼容轮换方案完成前不要将重置密钥当作普通恢复步骤。
+Docker 容器将 SQLite 与附件保存在持久卷中。升级时复用数据卷与原 `AUTH_PEPPER`。账号备份位于「设置 → 备份与恢复」，支持本地 ZIP 下载与导入、S3 和 WebDAV 定时快照，以及从指定远程快照恢复。 [部署与恢复说明](src/worker/docker/README.md)
 
 ## 项目结构与文档
 
 - `src/web`：React 前端及本地数据库。
-- `src/worker`：Cloudflare Worker API、数据库访问与后台任务。
+- `src/worker`：Docker HTTP API、数据库访问与后台任务。
 - `src/shared`：前后端共享类型与契约。
 - `wiki`：需求、工程结构与产品设计文档。
 - `todo`：开发计划、记录与进度总表。

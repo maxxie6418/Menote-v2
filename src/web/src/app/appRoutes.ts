@@ -21,7 +21,7 @@ export function toggleGlobalTagSection(current: BrowseSection, tag: string, memo
   return memoTags.has(tag) ? { kind: "memos", tag } : { kind: "tag", tag };
 }
 
-const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "style", "backup", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
+const SETTINGS_SECTIONS: SettingsSection[] = ["appearance", "sync", "style", "ai", "plugins", "backup", "attachments", "syncLogs", "recovery", "mcp", "clipTemplates", "propertyTemplates"];
 
 function decodeSegment(segment: string | undefined): string | null {
   if (!segment) return null;

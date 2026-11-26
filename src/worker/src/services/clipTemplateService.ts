@@ -2,7 +2,7 @@ import { isClipTemplateV1, type ClipTemplateV1 } from "@menote/shared";
 import { deleteClipTemplate, listClipTemplates, saveClipTemplate } from "../db/clipTemplates";
 
 export { deleteClipTemplate, listClipTemplates };
-export async function persistClipTemplate(db: D1Database, userId: string, value: unknown, now = Date.now(), expectedVersion?: number | null): Promise<ClipTemplateV1 | null | "version_conflict"> {
+export async function persistClipTemplate(db: SqlDatabase, userId: string, value: unknown, now = Date.now(), expectedVersion?: number | null): Promise<ClipTemplateV1 | null | "version_conflict"> {
   if (!isClipTemplateV1(value)) return null;
   if (!(await saveClipTemplate(db, userId, value, now, expectedVersion))) return "version_conflict";
   return value;
@@ -21,7 +21,7 @@ export interface AdapterRegistration {
  * 仅在版本/名称/匹配站点变化时写库（避免每次同步都抬 version）；下线的适配器条目予以清理。
  */
 export async function registerCaptureAdapters(
-  db: D1Database, userId: string, registrations: AdapterRegistration[], now = Date.now(),
+  db: SqlDatabase, userId: string, registrations: AdapterRegistration[], now = Date.now(),
 ): Promise<{ registered: number; pruned: number }> {
   const existing = await listClipTemplates(db, userId);
   const wantedIds = new Set<string>();

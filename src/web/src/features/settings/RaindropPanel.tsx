@@ -273,7 +273,7 @@ export function RaindropPanel({ userId }: { userId: string }) {
                 表格 {bound?.title || binding.tableItemId} · 收藏范围 {binding.collectionId === 0 ? "全部" : `收藏夹 ${binding.collectionId}`}
                 · 频率 {INTERVAL_LABELS[binding.pullIntervalHours] ?? `${binding.pullIntervalHours} 小时`}
                 · 上次拉取 {formatTime(binding.lastPullAt)} · 上次推送 {formatTime(binding.lastPushAt)}
-                · 最新快照 {formatTime(binding.lastSnapshotAt)}（远端原始 JSON 留存 R2，作风险兜底）
+                · 最新快照 {formatTime(binding.lastSnapshotAt)}（远端原始 JSON 保存在实例附件目录，作风险兜底）
               </p>
             </div>
           </div>

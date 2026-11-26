@@ -33,7 +33,7 @@ function rowToTask(row: AiTaskSqlRow): AiTaskRow {
 
 const TASK_COLUMNS = "id, user_id, item_id, kind, content_hash, model, status, result_json, error, input_tokens, output_tokens, created_at, updated_at";
 
-export async function insertAiTask(db: D1Database, row: AiTaskRow): Promise<void> {
+export async function insertAiTask(db: SqlDatabase, row: AiTaskRow): Promise<void> {
   await db.prepare(
     `INSERT INTO ai_tasks (id, user_id, item_id, kind, content_hash, model, status, result_json, error, input_tokens, output_tokens, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -41,13 +41,13 @@ export async function insertAiTask(db: D1Database, row: AiTaskRow): Promise<void
     row.resultJson, row.error, row.inputTokens, row.outputTokens, row.createdAt, row.updatedAt).run();
 }
 
-export async function readAiTask(db: D1Database, userId: string, id: string): Promise<AiTaskRow | null> {
+export async function readAiTask(db: SqlDatabase, userId: string, id: string): Promise<AiTaskRow | null> {
   const row = await db.prepare(`SELECT ${TASK_COLUMNS} FROM ai_tasks WHERE id = ? AND user_id = ?`)
     .bind(id, userId).first<AiTaskSqlRow>();
   return row ? rowToTask(row) : null;
 }
 
-export async function findReusableAiTask(db: D1Database, userId: string, itemId: string, kind: string, contentHash: string): Promise<AiTaskRow | null> {
+export async function findReusableAiTask(db: SqlDatabase, userId: string, itemId: string, kind: string, contentHash: string): Promise<AiTaskRow | null> {
   const row = await db.prepare(
     `SELECT ${TASK_COLUMNS} FROM ai_tasks WHERE user_id = ? AND item_id = ? AND kind = ? AND content_hash = ? AND status = 'done'
      ORDER BY updated_at DESC LIMIT 1`,
@@ -55,7 +55,7 @@ export async function findReusableAiTask(db: D1Database, userId: string, itemId:
   return row ? rowToTask(row) : null;
 }
 
-export async function findActiveAiTask(db: D1Database, userId: string, itemId: string, kind: string, contentHash: string): Promise<AiTaskRow | null> {
+export async function findActiveAiTask(db: SqlDatabase, userId: string, itemId: string, kind: string, contentHash: string): Promise<AiTaskRow | null> {
   const row = await db.prepare(
     `SELECT ${TASK_COLUMNS} FROM ai_tasks WHERE user_id = ? AND item_id = ? AND kind = ? AND content_hash = ? AND status IN ('queued', 'running')
      ORDER BY created_at DESC LIMIT 1`,
@@ -64,7 +64,7 @@ export async function findActiveAiTask(db: D1Database, userId: string, itemId: s
 }
 
 export async function updateAiTaskOutcome(
-  db: D1Database, id: string, status: AiTaskStatus,
+  db: SqlDatabase, id: string, status: AiTaskStatus,
   patch: { resultJson?: string; error?: string; inputTokens?: number; outputTokens?: number }, now: number,
 ): Promise<void> {
   await db.prepare(
@@ -73,21 +73,21 @@ export async function updateAiTaskOutcome(
 }
 
 /** 提交前的条目守卫：归属与加密排除在 SQL 侧一次判定（加密条目不进入云端 AI）。 */
-export async function readAiEligibleItem(db: D1Database, userId: string, itemId: string): Promise<{ type: string } | null> {
+export async function readAiEligibleItem(db: SqlDatabase, userId: string, itemId: string): Promise<{ type: string } | null> {
   const row = await db.prepare(
     "SELECT type FROM items WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND enc_self = 0 AND in_enc_space = 0",
   ).bind(itemId, userId).first<{ type: string }>();
   return row ?? null;
 }
 
-export async function readAiUsage(db: D1Database, userId: string, day: string): Promise<{ calls: number; inputTokens: number; outputTokens: number }> {
+export async function readAiUsage(db: SqlDatabase, userId: string, day: string): Promise<{ calls: number; inputTokens: number; outputTokens: number }> {
   const row = await db.prepare("SELECT calls, input_tokens, output_tokens FROM ai_usage_daily WHERE user_id = ? AND day = ?")
     .bind(userId, day).first<{ calls: number; input_tokens: number; output_tokens: number }>();
   return row ? { calls: row.calls, inputTokens: row.input_tokens, outputTokens: row.output_tokens } : { calls: 0, inputTokens: 0, outputTokens: 0 };
 }
 
 export async function addAiUsage(
-  db: D1Database, userId: string, day: string, usage: { calls: number; inputTokens: number; outputTokens: number },
+  db: SqlDatabase, userId: string, day: string, usage: { calls: number; inputTokens: number; outputTokens: number },
 ): Promise<void> {
   await db.prepare(
     `INSERT INTO ai_usage_daily (user_id, day, calls, input_tokens, output_tokens) VALUES (?, ?, ?, ?, ?)
@@ -97,12 +97,12 @@ export async function addAiUsage(
 }
 
 /** 任务留痕清理（随 cleanup 任务调用）：done/failed 记录保留 30 天，进行中的不清理。 */
-export async function deleteStaleAiTasks(db: D1Database, before: number): Promise<void> {
+export async function deleteStaleAiTasks(db: SqlDatabase, before: number): Promise<void> {
   await db.prepare("DELETE FROM ai_tasks WHERE updated_at < ? AND status IN ('done', 'failed')").bind(before).run();
 }
 
 /** 队列消息丢失时的兜底：超时仍 queued/running 的任务置为失败，避免前端无限轮询。 */
-export async function failStaleAiTasks(db: D1Database, before: number, now: number): Promise<void> {
+export async function failStaleAiTasks(db: SqlDatabase, before: number, now: number): Promise<void> {
   await db.prepare(
     "UPDATE ai_tasks SET status = 'failed', error = '任务超时未完成', updated_at = ? WHERE updated_at < ? AND status IN ('queued', 'running')",
   ).bind(now, before).run();

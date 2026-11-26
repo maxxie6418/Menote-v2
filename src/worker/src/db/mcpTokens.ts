@@ -52,25 +52,25 @@ const SELECT_TOKEN = `SELECT id, user_id, name, token_prefix, token_hash, token_
   permissions_json, scope_json, include_memos, allow_url, rate_per_minute, expires_at,
   revoked_at, created_at, last_used_at FROM mcp_tokens`;
 
-export async function listMcpTokens(db: D1Database, userId: string): Promise<McpTokenView[]> {
+export async function listMcpTokens(db: SqlDatabase, userId: string): Promise<McpTokenView[]> {
   const rows = await db.prepare(`${SELECT_TOKEN} WHERE user_id = ? ORDER BY created_at DESC, id`)
     .bind(userId).all<McpTokenRow>();
   return rows.results.map((row) => toView(fromRow(row)));
 }
 
-export async function getMcpToken(db: D1Database, userId: string, id: string): Promise<McpToken | null> {
+export async function getMcpToken(db: SqlDatabase, userId: string, id: string): Promise<McpToken | null> {
   const row = await db.prepare(`${SELECT_TOKEN} WHERE user_id = ? AND id = ?`)
     .bind(userId, id).first<McpTokenRow>();
   return row ? fromRow(row) : null;
 }
 
-export async function findMcpTokenByHash(db: D1Database, tokenHash: string): Promise<McpToken | null> {
+export async function findMcpTokenByHash(db: SqlDatabase, tokenHash: string): Promise<McpToken | null> {
   const row = await db.prepare(`${SELECT_TOKEN} WHERE token_hash = ?`)
     .bind(tokenHash).first<McpTokenRow>();
   return row ? fromRow(row) : null;
 }
 
-export async function listMcpScopeNodes(db: D1Database, userId: string) {
+export async function listMcpScopeNodes(db: SqlDatabase, userId: string) {
   const rows = await db.prepare(
     `SELECT id, parent_id, name, depth FROM topic_nodes
       WHERE user_id = ? AND deleted_at IS NULL AND is_enc_space = 0 ORDER BY depth, name, id`,
@@ -81,7 +81,7 @@ export async function listMcpScopeNodes(db: D1Database, userId: string) {
 }
 
 export async function insertMcpToken(
-  db: D1Database,
+  db: SqlDatabase,
   userId: string,
   values: McpTokenConfig & { id: string; name: string | null; tokenPrefix: string; tokenHash: string; tokenCiphertext: string; createdAt: number },
 ): Promise<string> {
@@ -108,7 +108,7 @@ export async function insertMcpToken(
 }
 
 export async function updateMcpTokenConfig(
-  db: D1Database, userId: string, id: string, name: string, config: McpTokenConfig,
+  db: SqlDatabase, userId: string, id: string, name: string, config: McpTokenConfig,
 ): Promise<boolean> {
   const result = await db.prepare(
     `UPDATE mcp_tokens SET name = ?, permissions_json = ?, scope_json = ?, include_memos = ?, allow_url = ?,
@@ -119,14 +119,14 @@ export async function updateMcpTokenConfig(
   return (result.meta.changes ?? 0) === 1;
 }
 
-export async function revokeMcpToken(db: D1Database, userId: string, id: string, now: number): Promise<boolean> {
+export async function revokeMcpToken(db: SqlDatabase, userId: string, id: string, now: number): Promise<boolean> {
   const result = await db.prepare(
     "UPDATE mcp_tokens SET revoked_at = ? WHERE user_id = ? AND id = ? AND revoked_at IS NULL",
   ).bind(now, userId, id).run();
   return (result.meta.changes ?? 0) === 1;
 }
 
-export async function touchMcpToken(db: D1Database, id: string, now: number): Promise<boolean> {
+export async function touchMcpToken(db: SqlDatabase, id: string, now: number): Promise<boolean> {
   const result = await db.prepare(
     "UPDATE mcp_tokens SET last_used_at = ? WHERE id = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
   ).bind(now, id, now).run();

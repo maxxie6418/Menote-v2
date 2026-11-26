@@ -4,66 +4,36 @@
 
 ## 本地验证
 
-从仓库根目录构建。Kiri 所用构建器以 `kiri buildx ls` 中指向 Kiri 的条目为准。
+从仓库根目录构建镜像。
 
 ```sh
-kiri build --builder kiri-build --load -t menote:local -f src/worker/docker/Dockerfile .
+docker build -t menote:local -f src/worker/docker/Dockerfile .
 ```
 
 复制本目录的 `settings.env.example` 为 `.env`，设置随机 `AUTH_PEPPER` 和 `MENOTE_PUBLIC_ORIGIN`。本地验证可使用 `http://127.0.0.1:8787`。Compose 将 SQLite 文件 `menote.sqlite` 和 `objects/` 保存在 `/app/state` 的持久卷中。
 
 ```sh
-kiri compose -f src/worker/docker/compose.yaml up -d --no-build
+docker compose -f src/worker/docker/compose.yaml up -d --no-build
 ```
 
 ## 服务器部署
 
-新站自行生成并保存 `AUTH_PEPPER`，重建时继续使用同一密钥和数据卷。仅在沿用旧账号凭据、原地接入 D1/R2 时使用原实例密钥。原有云配置继续生效，也可显式设置 `MENOTE_STORAGE=cloudflare`。
+使用 Node 24 构建镜像。把随机生成的实例密钥保存在服务器专用的 `.env` 中，由 Compose 的 `env_file` 注入。
+`AUTH_PEPPER` 参与校验登录密码、MCP 令牌和解密远端备份等服务凭据。重启、更新或搬移整个实例时继续使用同一值，单独保管。按账号导入 ZIP 时，新实例使用自己的密钥。加密笔记仍使用用户原有的隐私密码或恢复码。
 
-保留现有 HTTPS 域名，配置 HTTPS 反向代理到主机 `127.0.0.1:8787`，把该域名写入 `MENOTE_PUBLIC_ORIGIN`。Compose 只在回环地址发布端口。容器启动会检查绑定和 schema，就绪端点为 `/api/health/ready`。
+把对外地址写入 `MENOTE_PUBLIC_ORIGIN`，让 HTTPS 反向代理指向 `127.0.0.1:8787`。Compose 将 SQLite 与附件持久化在同一个数据卷。就绪端点为 `/api/health/ready`。
 
 ```sh
 docker compose -f src/worker/docker/compose.yaml up -d --build
 ```
 
-容器首次指向已有实例时，先确认资源与备份，保持 `MENOTE_SCHEDULED_JOBS=false`。完成切流并确认只有一个实例负责调度后，在该实例设为 `true`，启用清理、定时备份和 Raindrop 拉取。切流前确认旧部署中待处理的 AI 任务已完成。需要 AI 时单独设置 `CF_AI_API_TOKEN`，待处理任务保存在该实例的 `state` 卷。发布流程保留该卷。
+单实例启用 `MENOTE_SCHEDULED_JOBS=true` 执行定时备份、清理和 Raindrop 拉取。可选 Workers AI 使用 `CF_ACCOUNT_ID` 和 `CF_AI_API_TOKEN`，任务队列保存在数据卷。主数据库和附件使用本地存储。尚在旧 D1/R2 上的实例先用旧版导出数据，再创建新站并导入；旧工具和操作说明可在版本 `86bfdbb` 查看。
 
-D1 HTTP API 受 [Cloudflare API 限流](https://developers.cloudflare.com/fundamentals/api/reference/limits/) 约束。上线前用预计的并发量验证同步和登录。涉及新 schema 迁移时，先按已有流程备份并验证兼容性。
+## 账号备份与恢复
 
-## 账号迁移包
+进入「设置 → 备份与恢复」。
 
-新站创建账号后进入「设置 → 备份 → 从迁移包恢复」。选择账号 ZIP，点击「上传并校验」核对数量，再点「恢复到当前账号」。恢复沿用原条目 ID 和版本，写入当前账号。本地模式无需配置云存储。S3 和 WebDAV 仍可在备份页独立配置。
-
-账号包包含 `menote/<快照 ID>/` 下的分片、附件、manifest 和 COMPLETE，以及可选的剪藏模板与 Raindrop 映射。上传上限 256 MiB，入口代理可能另有大小限制。Raindrop 需要在新站重新授权。新建 S3 或 WebDAV 目标默认每日备份，可改为每周或手动。实例级 SQL 备份仍按下面的运维流程处理。
-
-## 原地沿用 D1/R2 的实例备份与还原
-
-「设置 → 备份」按账号恢复内容。切换部署时还要保留登录凭据哈希、账号角色、历史版本、加密包装及附件，应使用实例级备份。工具把 D1 整库 SQL 和 R2 对象整理为一个 ZIP，每个文件都有 SHA-256。原有 `AUTH_PEPPER` 另从密钥源保存和注入，主密码与明文恢复码由使用者自行持有。ZIP 包含正式内容和凭据哈希，应保存在仓库以外的私人目录。
-
-### 备份到本地
-
-1. 确认需要切换的设备已经完成同步，约定写入暂停窗口。暂停旧入口、剪藏以及调度产生的写入，直到 D1 和 R2 的快照都写完。
-2. 用生产 D1 的实际名称或 ID 导出整库 SQL。用 R2 对象读权限，把生产桶完整镜像到空的本地目录。保存 SQL 与对象时沿用真实对象键，备份目录放在仓库外。下面的 `$WORK` 和资源变量由操作者设置。
-
-```sh
-pnpm --filter @menote/worker exec wrangler d1 export "$D1_DATABASE" --remote --config "$REPO/wrangler.jsonc" --output "$WORK/database.sql"
-AWS_DEFAULT_REGION=auto aws s3 sync "s3://$R2_BUCKET" "$WORK/objects" --endpoint-url "$R2_ENDPOINT"
-python "$REPO/src/worker/docker/instance-backup.py" pack --sql "$WORK/database.sql" --objects "$WORK/objects" --output "$WORK/menote-instance.zip"
-python "$REPO/src/worker/docker/instance-backup.py" verify "$WORK/menote-instance.zip"
-```
-
-D1 导出会在执行期间暂时挡住该数据库的其他查询，大小需要在维护窗口评估。 [D1 导出与导入](https://developers.cloudflare.com/d1/best-practices/import-export-data/) · [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/)
-
-### 恢复演练和正式切换
-
-1. 在隔离账号或同账号的隔离资源中创建空 D1 和空 R2 桶。解包会校验文件清单、大小和哈希。导入工具应明确指向新资源。
-
-```sh
-python "$REPO/src/worker/docker/instance-backup.py" unpack "$WORK/menote-instance.zip" "$WORK/restored"
-pnpm --filter @menote/worker exec wrangler d1 execute "$RESTORE_D1" --remote --config "$REPO/wrangler.jsonc" --file "$WORK/restored/database.sql"
-AWS_DEFAULT_REGION=auto aws s3 sync "$WORK/restored/objects" "s3://$RESTORE_R2" --endpoint-url "$R2_ENDPOINT"
-```
-
-2. 验证 D1 表和账号数量，按账号检查 Memo、Note、回收站和历史版本，抽样比对附件字节。用原有效账号和原 `AUTH_PEPPER` 登录，抽查加密笔记和恢复码包装能在客户端正常解锁。隔离演练使用受控入口。
-3. 正式 Docker 配置仍然绑定原生产 D1、R2 和原 `AUTH_PEPPER`。先从受控入口验证就绪及既有账号，再协调 Workers Builds 和正式域名入口。用同一个 HTTPS 域名切流以延续浏览器本地库。旧部署保留至正式域名上的登录、笔记和附件核验完成，切流异常时恢复旧入口。
-4. 完成切换后只启用一个调度入口。新写入继续落在同一对生产资源，回切时也能读取这些写入。若要从 ZIP 灾难恢复，在新资源验收后再切绑定，避免直接覆盖线上对象。
+- **本地备份包**会先同步当前设备的更改，再从服务器生成并校验 ZIP。下载后可在当前站点或新部署的账号选择 ZIP，上传预检、核对数量，再确认合并恢复。支持早期账号迁移包。
+- **远程自动备份**支持分别添加 S3 兼容存储和 WebDAV。选每日或每周后，保存目标会启动首份备份；服务每小时检查到期目标，失败时在下一轮重试。手动模式按需推送。可按目标设置保留份数，默认 0 表示不限。只在新快照校验成功后清理超额旧快照。
+- 两种备份共用月度分片、附件清单和 SHA-256 校验。包括笔记、回收站、主题、评论、账号设置、加密密钥包装、已存附件、剪藏模板和 Raindrop 行映射。内容合并到已登录的账号，第三方凭据由用户重新配置。账号包不包含服务端账号密码、会话、令牌或笔记版本历史。
+- 单个本地 ZIP 的上传上限为 256 MiB，公开域名还受反向代理的请求体上限约束。大包可通过同源的直连部署入口恢复，或使用远程快照。

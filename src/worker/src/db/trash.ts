@@ -3,7 +3,7 @@
 const canPurgeItem = "id = ? AND user_id = ? AND deleted_at IS NOT NULL AND deleted_at <= ?";
 
 /** Recheck trash state in the write transaction before clearing versions, wraps or references. */
-export function purgeDeletedItemStatements(db: D1Database, userId: string, id: string, cutoff: number) {
+export function purgeDeletedItemStatements(db: SqlDatabase, userId: string, id: string, cutoff: number) {
   return [
     db.prepare(`DELETE FROM item_versions WHERE user_id = ? AND item_id = ?
       AND EXISTS (SELECT 1 FROM items WHERE ${canPurgeItem})`).bind(userId, id, id, userId, cutoff),
@@ -13,7 +13,7 @@ export function purgeDeletedItemStatements(db: D1Database, userId: string, id: s
   ];
 }
 
-export async function purgeDeletedItems(db: D1Database, userId: string, ids: string[]): Promise<number> {
+export async function purgeDeletedItems(db: SqlDatabase, userId: string, ids: string[]): Promise<number> {
   let purged = 0;
   for (const id of ids) {
     const now = Date.now();

@@ -50,7 +50,7 @@ function s3Url(target: RemoteTarget, key: string): string {
 }
 
 async function s3(target: RemoteTarget, url: string, init: RequestInit): Promise<Response> {
-  return new AwsClient({ accessKeyId: target.username ?? "", secretAccessKey: target.secret }).fetch(url, init);
+  return new AwsClient({ service: "s3", accessKeyId: target.username ?? "", secretAccessKey: target.secret }).fetch(url, init);
 }
 
 export async function remotePut(target: RemoteTarget, path: string, body: Uint8Array | string, contentType: string): Promise<void> {

@@ -17,7 +17,7 @@ const DEFAULT_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "pdf", "txt", "
 
 export interface AttachmentPolicy { maxBytes: number; allowedExtensions: string[] }
 
-export async function readAttachmentPolicy(db: D1Database, userId: string): Promise<AttachmentPolicy> {
+export async function readAttachmentPolicy(db: SqlDatabase, userId: string): Promise<AttachmentPolicy> {
   const setting = await readSettingState(db, userId, "attachmentPolicy");
   const raw = setting?.sensitivity === "ordinary" && typeof setting.value === "object" && setting.value !== null
     ? setting.value as Partial<AttachmentPolicy> : {};
@@ -29,14 +29,14 @@ export async function readAttachmentPolicy(db: D1Database, userId: string): Prom
   };
 }
 
-export interface AttachmentStoreContext { db: D1Database; bucket: R2Bucket }
+export interface AttachmentStoreContext { db: SqlDatabase; bucket: AttachmentBucket }
 
-export async function listUserAttachments(db: D1Database, userId: string, cursor: string) {
+export async function listUserAttachments(db: SqlDatabase, userId: string, cursor: string) {
   return listAttachments(db, userId, cursor);
 }
 
 /** A durable reservation lets scheduled cleanup recover staging objects after a failed write. */
-export async function reserveAttachmentStage(db: D1Database, userId: string, hashes: string[]): Promise<Map<string, string>> {
+export async function reserveAttachmentStage(db: SqlDatabase, userId: string, hashes: string[]): Promise<Map<string, string>> {
   const keys = new Map(hashes.map((sha256) => [sha256, `${userId}/${sha256}/${crypto.randomUUID()}`]));
   if (keys.size) await reserveAttachmentObjects(db, [...keys.values()], Date.now());
   return keys;

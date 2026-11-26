@@ -14,7 +14,7 @@ import { restoreRecoveryCodeStatements } from "../db/recoveryCode";
  * 包装块非法编码直接拒绝，不把对象转成垃圾字节。
  */
 
-export interface ImportContext { db: D1Database; userId: string }
+export interface ImportContext { db: SqlDatabase; userId: string }
 
 export interface ImportResult {
   items: number;
@@ -34,8 +34,8 @@ export async function importBackupEntries(
   settings: unknown[] | null,
   now: number,
   options: {
-    attachmentPublications?: D1PreparedStatement[];
-    attachmentStatements?: D1PreparedStatement[];
+    attachmentPublications?: SqlStatement[];
+    attachmentStatements?: SqlStatement[];
     recoveryCodeBinding?: RecoveryCodeBinding | null;
   } = {},
 ): Promise<ImportResult> {
@@ -49,7 +49,7 @@ export async function importBackupEntries(
   }
   // Parse/validate the entire import before the first write. All resulting SQL statements
   // are submitted in one D1 batch, whose transaction guarantees rollback on any failure.
-  const statements: D1PreparedStatement[] = [];
+  const statements: SqlStatement[] = [];
   const binding = options.recoveryCodeBinding;
   if (binding) statements.push(...restoreRecoveryCodeStatements(ctx.db, ctx.userId, binding));
   let items = 0;
@@ -89,7 +89,7 @@ export async function importBackupEntries(
   const state = await readRestoreState(ctx.db, ctx.userId, itemIds, commentIds, new Set(settingRows.map((row) => String(row.key))));
   const wrapsByItem = groupWraps(itemWrapRows, "item_id", binding?.id);
   const restoredItems: Item[] = [];
-  const itemWrapWrites: D1PreparedStatement[] = [];
+  const itemWrapWrites: SqlStatement[] = [];
 
   for (const topic of [...topicRows.values()].sort((a, b) => a.depth - b.depth)) {
     statements.push(upsertTopicRowStatement(ctx.db, ctx.userId, topic, topic.deletedAt));

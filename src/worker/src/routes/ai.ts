@@ -11,6 +11,9 @@ export const aiRoutes = new Hono<AppEnv>();
 
 aiRoutes.use("/api/ai/*", resolveSession);
 
+aiRoutes.get("/api/ai/available", requireSession, c =>
+  c.json({ available: Boolean(c.env.AI && c.env.AI_TASKS_QUEUE) }, { headers: { "Cache-Control": "no-store" } }));
+
 aiRoutes.post("/api/ai/tasks", requireSession, sameOriginGuard, async (c) => {
   if (!(await ensureSchemaReady(c.env.DB))) return c.json({ error: "unavailable" }, 503);
   const body: unknown = await c.req.json().catch(() => null);

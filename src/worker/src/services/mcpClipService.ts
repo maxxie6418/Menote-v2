@@ -7,7 +7,7 @@ const MAX_TITLE_LENGTH = 500;
 const MAX_MARKDOWN_LENGTH = 900_000;
 const META_KEYS = ["author", "publishedAt", "siteName", "description", "canonicalUrl"] as const;
 
-export interface McpClipContext { db: D1Database; userId: string; tokenId: string; now: number }
+export interface McpClipContext { db: SqlDatabase; userId: string; tokenId: string; now: number }
 
 function isWebUrl(value: string): boolean {
   try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; }

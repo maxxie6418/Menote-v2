@@ -41,7 +41,7 @@ export function AiSection({ userId }: { userId: string }) {
     <div>
       <div className="mn-setrow">
         <div>
-          <p className="mn-setlabel">启用 AI 助手<InfoHint>手动触发：为笔记生成摘要、推荐标签。推理经 Cloudflare Workers AI（原生绑定，无需额外密钥）；结果确认后才写入。加密内容不会提交云端 AI。关闭后不影响任何编辑功能。</InfoHint></p>
+          <p className="mn-setlabel">启用 AI 助手<InfoHint>手动触发：为笔记生成摘要、推荐标签。推理经 Cloudflare Workers AI（由实例管理员配置）；结果确认后才写入。加密内容不会提交云端 AI。关闭后不影响任何编辑功能。</InfoHint></p>
         </div>
         <input type="checkbox" aria-label="启用 AI 助手" checked={settings.enabled}
           onChange={(event) => void updateAiSettings(userId, { enabled: event.target.checked }).then(setSettings)} />

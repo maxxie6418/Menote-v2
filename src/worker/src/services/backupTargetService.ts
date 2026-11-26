@@ -46,7 +46,7 @@ export function normalizeTargetInput(input: TargetInput): NormalizedTargetInput 
 }
 
 /** 创建目标（凭据密封入库）；密封或写库失败向上抛出（路由映射 503）。 */
-export async function createTargetSealed(db: D1Database, userId: string, pepper: string, input: NormalizedTargetInput): Promise<string> {
+export async function createTargetSealed(db: SqlDatabase, userId: string, pepper: string, input: NormalizedTargetInput): Promise<string> {
   return createTarget(db, userId, {
     kind: input.kind, endpoint: input.endpoint, bucket: input.bucket, username: input.username,
     secretCiphertext: await sealSecret(pepper, input.secret), deletePolicy: input.deletePolicy,
@@ -70,7 +70,7 @@ function normalizeTargetPatch(patch: TargetInput): Partial<Omit<NormalizedTarget
 }
 
 /** 更新目标（secret 出现时重新密封）；失败向上抛出（路由映射 503）。 */
-export async function applyTargetPatch(db: D1Database, userId: string, pepper: string, id: string, patch: TargetInput): Promise<void> {
+export async function applyTargetPatch(db: SqlDatabase, userId: string, pepper: string, id: string, patch: TargetInput): Promise<void> {
   const { secret, ...fields } = normalizeTargetPatch(patch);
   await updateTarget(db, userId, id, {
     ...fields,
@@ -78,15 +78,15 @@ export async function applyTargetPatch(db: D1Database, userId: string, pepper: s
   });
 }
 
-export async function getTargetForUser(db: D1Database, userId: string, id: string): Promise<Target | null> {
+export async function getTargetForUser(db: SqlDatabase, userId: string, id: string): Promise<Target | null> {
   return getTarget(db, userId, id);
 }
 
-export async function listTargetsForUser(db: D1Database, userId: string) {
+export async function listTargetsForUser(db: SqlDatabase, userId: string) {
   return listTargets(db, userId);
 }
 
-export async function deleteTargetForUser(db: D1Database, userId: string, id: string): Promise<void> {
+export async function deleteTargetForUser(db: SqlDatabase, userId: string, id: string): Promise<void> {
   await deleteTarget(db, userId, id);
 }
 
@@ -122,14 +122,27 @@ export type TargetPushResult =
   | { status: "target_missing_or_disabled" }
   | { status: "unavailable" };
 
-/** 推送一次（FR-BAK-2，手动与定时同一流程）：解封 → 快照推送 → 落推送结果。
- *  目标缺失/停用与解封失败同样落结果记录后返回，由调用方映射 HTTP 状态：
- *  pushBackup 的远端失败 = ok:false（502）；未预期异常 = unavailable（503）。 */
+const activePushes = new Map<string, Promise<TargetPushResult>>();
+
 export async function runTargetPushById(
-  ctx: { db: D1Database; userId: string; bucket: R2Bucket }, id: string, pepper: string,
+  ctx: { db: SqlDatabase; userId: string; bucket: AttachmentBucket }, id: string, pepper: string,
 ): Promise<TargetPushResult> {
   const target = await getTarget(ctx.db, ctx.userId, id);
   if (!target || !target.enabled) return { status: "target_missing_or_disabled" };
+  const key = ctx.userId + "/" + id;
+  const active = activePushes.get(key);
+  if (active) return active;
+  const task = pushTarget(ctx, target, pepper).finally(() => activePushes.delete(key));
+  activePushes.set(key, task);
+  return task;
+}
+
+/** 推送一次（FR-BAK-2，手动与定时同一流程）：解封 → 快照推送 → 落推送结果。
+ *  目标缺失/停用与解封失败同样落结果记录后返回，由调用方映射 HTTP 状态：
+ *  pushBackup 的远端失败 = ok:false（502）；未预期异常 = unavailable（503）。 */
+async function pushTarget(
+  ctx: { db: SqlDatabase; userId: string; bucket: AttachmentBucket }, target: Target, pepper: string,
+): Promise<TargetPushResult> {
   try {
     const secret = await openSecret(pepper, target.secretCiphertext ?? "");
     const result = await pushBackup({ db: ctx.db, userId: ctx.userId, bucket: ctx.bucket }, toRemoteTarget(target, secret));

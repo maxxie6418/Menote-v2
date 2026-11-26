@@ -26,7 +26,7 @@ export function mcpItemAccess({ userId, includeMemos, scope }: ItemAccess, plain
 }
 
 export async function findVisibleAttachmentOwner(
-  db: D1Database, userId: string, sha256: string, includeMemos: boolean, scope: McpTokenScope,
+  db: SqlDatabase, userId: string, sha256: string, includeMemos: boolean, scope: McpTokenScope,
 ): Promise<string | null> {
   const { clauses, bindings } = mcpItemAccess({ userId, includeMemos, scope }, true);
   const row = await db.prepare(

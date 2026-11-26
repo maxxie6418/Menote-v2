@@ -98,7 +98,7 @@ test("monitor distinguishes missing samples and a controlled application estimat
     let summary = await response.json();
     assert.equal(summary.source, "sampled_application_estimate");
     assert.equal(summary.estimatedRequests, summary.sampleCount === 0 ? null : summary.sampleCount * 100);
-    assert.equal(summary.quotaSharedAcrossAccount, true);
+    assert.equal(summary.metric, "api_requests");
     const database = await mf.getD1Database("DB");
     const now = Date.now();
     await database.prepare("INSERT INTO monitor_samples (user_id, service, metric, value, sampled_at) VALUES (?, ?, ?, ?, ?)")
@@ -107,7 +107,6 @@ test("monitor distinguishes missing samples and a controlled application estimat
     summary = await response.json();
     assert.ok(summary.estimatedRequests >= 100);
     assert.ok(summary.sampleCount >= 1);
-    assert.equal(summary.quota, 100000);
     assert.equal(summary.period, "utc_day");
     const month = await (await req(mf, "/api/monitor?period=utc_month", { headers: { cookie } })).json();
     assert.equal(month.period, "utc_month");

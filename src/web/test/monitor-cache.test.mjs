@@ -15,9 +15,9 @@ test("monitor queries are cached per period for at most one minute", async () =>
   globalThis.fetch = async (url) => {
     calls++;
     const period = new URL(url, "http://localhost").searchParams.get("period");
-    return Response.json({ metric: "worker_api_requests", source: "sampled_application_estimate", period,
+    return Response.json({ metric: "api_requests", source: "sampled_application_estimate", period,
       estimatedRequests: null, sampleCount: 0, sampledAt: null, sampleRate: 0.01,
-      quota: 100000, quotaSource: "cloudflare_free_plan_reference", quotaSharedAcrossAccount: true, points: [] });
+      points: [] });
   };
   try {
     const signal = new AbortController().signal;
@@ -30,7 +30,7 @@ test("monitor queries are cached per period for at most one minute", async () =>
     await service.getMonitorSummary("utc_day", signal);
     assert.equal(calls, 3);
     now += 60000;
-    globalThis.fetch = async () => { calls++; return Response.json({ metric: "worker_api_requests", source: "sampled_application_estimate", period: "utc_day" }); };
+    globalThis.fetch = async () => { calls++; return Response.json({ metric: "api_requests", source: "sampled_application_estimate", period: "utc_day" }); };
     assert.equal(await service.getMonitorSummary("utc_day", signal), null);
     assert.equal(await service.getMonitorSummary("utc_day", signal), null);
     assert.equal(calls, 5);
@@ -48,9 +48,9 @@ test("UTC day and month boundaries invalidate cached results and in-flight respo
     calls++;
     const period = new URL(url, "http://localhost").searchParams.get("period");
     if (crossBoundary) now += 20_000;
-    return Response.json({ metric: "worker_api_requests", source: "sampled_application_estimate", period,
+    return Response.json({ metric: "api_requests", source: "sampled_application_estimate", period,
       estimatedRequests: null, sampleCount: 0, sampledAt: null, sampleRate: 0.01,
-      quota: 100000, quotaSource: "cloudflare_free_plan_reference", quotaSharedAcrossAccount: true, points: [] });
+      points: [] });
   };
   try {
     const signal = new AbortController().signal;
@@ -81,9 +81,9 @@ test("cache lifetime starts with the request and aborted responses are not reuse
     calls++;
     now += 5_000;
     if (abortDuringFetch) controller.abort();
-    return Response.json({ metric: "worker_api_requests", source: "sampled_application_estimate", period: "utc_day",
+    return Response.json({ metric: "api_requests", source: "sampled_application_estimate", period: "utc_day",
       estimatedRequests: null, sampleCount: 0, sampledAt: null, sampleRate: 0.01,
-      quota: 100000, quotaSource: "cloudflare_free_plan_reference", quotaSharedAcrossAccount: true, points: [] });
+      points: [] });
   };
   try {
     await service.getMonitorSummary("utc_day", controller.signal);

@@ -10,7 +10,7 @@ export interface JobRunRow {
 }
 
 export async function recordJobRun(
-  db: D1Database, name: string, startedAt: number, finishedAt: number,
+  db: SqlDatabase, name: string, startedAt: number, finishedAt: number,
   status: "ok" | "failed", detail: string | null,
 ): Promise<void> {
   await db.prepare(
@@ -18,7 +18,7 @@ export async function recordJobRun(
   ).bind(name, startedAt, finishedAt, status, detail).run();
 }
 
-export async function readRecentJobRuns(db: D1Database, limit: number): Promise<JobRunRow[]> {
+export async function readRecentJobRuns(db: SqlDatabase, limit: number): Promise<JobRunRow[]> {
   const rows = await db.prepare(
     "SELECT id, name, started_at, finished_at, status, detail FROM job_runs ORDER BY id DESC LIMIT ?",
   ).bind(Math.max(1, Math.min(limit, 200))).all<{

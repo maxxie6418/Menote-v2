@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "../../icons";
 import type { EditorAdapter } from "./EditorAdapter";
 import { TextareaSourceAdapter } from "./textareaAdapter";
-import { MilkdownWysiwygAdapter } from "./milkdownAdapter";
+import type { MilkdownWysiwygAdapter } from "./milkdownAdapter";
 import { fromEditorMarkdown, toEditorMarkdown } from "./attachmentRefs";
 import { EDITOR_FONT_DEFAULT, FormatBar, type TextColorId } from "./FormatBar";
 import { EditorChoiceMenu, SlashMenu } from "./SlashMenu";
@@ -71,6 +71,10 @@ interface NoteEditorProps {
   onHostElement?: (host: HTMLDivElement | null) => void;
   registerCursor?: (cursor: EditorCursor | null) => void;
   attachmentItemId?: string;
+}
+
+function isWysiwyg(adapter: EditorAdapter | null): adapter is MilkdownWysiwygAdapter {
+  return adapter !== null && "applyFormat" in adapter;
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
@@ -174,11 +178,12 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
     } else {
       // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
       // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
-      void MilkdownWysiwygAdapter.create(host, {
+      void import("./milkdownAdapter").then(({ MilkdownWysiwygAdapter }) => cancelled ? null : MilkdownWysiwygAdapter.create(host, {
         initialMarkdown: initial,
         onInput: emit,
         attachmentItemId,
-      }).then((adapter) => {
+      })).then((adapter) => {
+        if (!adapter) return;
         if (cancelled) { void adapter.destroy(); return; }
         adapterRef.current = adapter;
         registerGetMarkdown(() => persistedMarkdown(adapter));
@@ -233,14 +238,14 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
     const adapter = adapterRef.current;
     if (!adapter) return;
     if (action.id === "image") {
-      if (fromSlash && kind === "wysiwyg" && slash && adapter instanceof MilkdownWysiwygAdapter) {
+      if (fromSlash && kind === "wysiwyg" && slash && isWysiwyg(adapter)) {
         adapter.applyFormat("image", slash.query.length + 1);
       }
       setSlash(null);
       fileInputRef.current?.click();
       return;
     }
-    if (kind === "wysiwyg" && adapter instanceof MilkdownWysiwygAdapter) {
+    if (kind === "wysiwyg" && isWysiwyg(adapter)) {
       // 所见即所得走编辑器原生选区，**不取整篇正文**（FR-EDT-10）。
       const applied = adapter.applyFormat(action.id as Parameters<MilkdownWysiwygAdapter["applyFormat"]>[0], fromSlash && slash ? slash.query.length + 1 : 0);
       setSlash(null);
@@ -310,10 +315,10 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
     }
     // 所见即所得：用编辑器原生选区算「/」过滤词与行内格式按下态，**不整篇序列化**（FR-EDT-10）。
     // 空选区的 storedMarks（按下 B 还没输入）只有编辑器自己知道，所以按下态仍走 activeMarks()。
-    const marks = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeMarks() : [];
+    const marks = isWysiwyg(adapter) ? adapter.activeMarks() : [];
     setActive((previous) => (sameActions(previous, marks) ? previous : marks));
     refreshTextStyles(adapter);
-    const wikiContext = userId && adapter instanceof MilkdownWysiwygAdapter ? adapter.getWikiLinkContext() : null;
+    const wikiContext = userId && isWysiwyg(adapter) ? adapter.getWikiLinkContext() : null;
     if (wikiContext) {
       const host = hostRef.current;
       const caret = adapter.caretRect();
@@ -344,7 +349,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
   const pickWiki = (index: number) => {
     const choice = wikiChoices[index];
     const adapter = adapterRef.current;
-    if (choice && adapter instanceof MilkdownWysiwygAdapter && adapter.insertWikiLink(choice.path, choice.label)) setWiki(null);
+    if (choice && isWysiwyg(adapter) && adapter.insertWikiLink(choice.path, choice.label)) setWiki(null);
   };
 
   const refreshSelectionBar = () => {
@@ -362,7 +367,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
     const next = { x: rect.left + rect.width / 2, y: rect.top - 6 };
     setSelectionBar((previous) => previous?.x === next.x && previous.y === next.y ? previous : next);
     const adapter = adapterRef.current;
-    if (adapter instanceof MilkdownWysiwygAdapter) {
+    if (isWysiwyg(adapter)) {
       const marks = adapter.activeMarks();
       setActive((previous) => sameActions(previous, marks) ? previous : marks);
       refreshTextStyles(adapter);
@@ -393,13 +398,13 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
   };
 
   const refreshTextStyles = (adapter: EditorAdapter) => {
-    const next = adapter instanceof MilkdownWysiwygAdapter ? adapter.activeTextStyles() : [];
+    const next = isWysiwyg(adapter) ? adapter.activeTextStyles() : [];
     setActiveTextStyles((previous) => sameActions(previous, next) ? previous : next);
   };
 
   const toggleTextStyle = (style: NoteTextStyle) => {
     const adapter = adapterRef.current;
-    if (!(adapter instanceof MilkdownWysiwygAdapter)) return;
+    if (!(isWysiwyg(adapter))) return;
     dismissSelectionBar();
     setSelectionMenu(null);
     adapter.toggleTextStyle(style);

@@ -6,98 +6,42 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { Miniflare } from "miniflare";
 import { dockerBundleOptions } from "../docker/build.mjs";
-import { D1HttpDatabase } from "../docker/d1.mjs";
-import { R2S3Bucket } from "../docker/r2.mjs";
-
-test("Docker D1 converts blobs and keeps a batch in a single request", async () => {
-  const calls = [];
-  const db = new D1HttpDatabase("test-account", "test-database", "test-token", async (_url, init) => {
-    calls.push(JSON.parse(init.body));
-    return Response.json({ success: true, result: [
-      { success: true, results: [], meta: { changes: 0 } },
-      { success: true, results: [], meta: { changes: 1 } },
-      { success: true, results: [{ content: [0, 255], previous_changes: 1 }], meta: { changes: 0 } },
-    ] });
-  });
-  const seed = Uint8Array.from([4, 0, 255, 9]);
-  const result = await db.batch([
-    db.prepare("CREATE TABLE first (v BLOB); CREATE TABLE second (v BLOB)"),
-    db.prepare("SELECT ?, ?, ?").bind(seed.subarray(1, 3), null, 42),
-  ]);
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].batch[1].params, [[0, 255], null, 42]);
-  assert.deepEqual(result[2].results[0].content, Uint8Array.from([0, 255]));
-  assert.equal(result[2].results[0].previous_changes, 1);
-});
-
-test("Docker D1 surfaces a failed batch without retrying writes", async () => {
-  let calls = 0;
-  const db = new D1HttpDatabase("test-account", "test-database", "test-token", async () => {
-    calls++;
-    return Response.json({ success: false, result: [] });
-  });
-  await assert.rejects(db.batch([db.prepare("UPDATE example SET value = ?").bind(1)]), /D1 query failed/);
-  assert.equal(calls, 1);
-});
-
-test("Docker R2 keeps existing object keys and reads encoded list results", async () => {
-  const calls = [];
-  const bucket = new R2S3Bucket({ accountId: "test-account", bucket: "test-bucket" }, {
-    async fetch(url, init) {
-      calls.push([new URL(url), init.method]);
-      if (new URL(url).searchParams.has("list-type")) {
-        return new Response("<ListBucketResult><IsTruncated>false</IsTruncated><Contents>" +
-          "<Key>user%2Ffile%20%26%20name</Key><Size>4</Size></Contents></ListBucketResult>");
-      }
-      return new Response(init.method === "GET" ? "test" : null, { headers: { "Content-Length": "4" } });
-    },
-  });
-  const key = "user/file & name";
-  assert.equal((await bucket.head(key)).size, 4);
-  assert.equal(await new Response((await bucket.get(key)).body).text(), "test");
-  assert.deepEqual((await bucket.list({ prefix: "user/" })).objects, [{ key, size: 4 }]);
-  await bucket.put(key, new Uint8Array([1]));
-  await bucket.delete([key]);
-  assert.equal(decodeURIComponent(calls[0][0].pathname), "/test-bucket/user/file & name");
-  assert.equal(calls[2][0].searchParams.get("prefix"), "user/");
-  assert.deepEqual(calls.map(([, method]) => method), ["HEAD", "GET", "GET", "PUT", "DELETE"]);
-});
 
 test("Docker HTTP serves the Web app and preserves session and API guards", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "menote-docker-test-"));
-  const mf = new Miniflare({ workers: [{ config: {
-    name: "docker-test", compatibilityDate: "2026-10-30",
-    env: { DB: { type: "d1", id: "test-docker-db" }, BUCKET: { type: "r2", name: "test-docker-bucket" } },
-    manifest: { mainModule: "main.mjs", modules: {
-      "main.mjs": { type: "esm", contents: "export default { fetch() { return new Response('test'); } }" },
-    } },
-  } }] });
-  let runtime;
+  const instances = [];
   t.after(async () => {
-    if (runtime) {
+    for (const { runtime, env } of instances) {
       await new Promise((done) => runtime.server.close(done));
       await runtime.drain();
+      env.DB.close();
     }
-    await mf.dispose();
     await rm(directory, { recursive: true, force: true });
   });
   await writeFile(join(directory, "index.html"), "<h1>Menote fixture</h1>");
-  const { outputFiles } = await build({ ...dockerBundleOptions, write: false });
+  const { outputFiles } = await build({ ...dockerBundleOptions, entryPoints: undefined, write: false,
+    stdin: { resolveDir: dockerBundleOptions.absWorkingDir, contents: [
+      'export { createMenoteServer } from "./server.mjs";',
+      'export { scheduledJobs } from "../src/jobs/scheduled.ts";',
+      'export { openStorage } from "./storage.mjs";',
+      'export { readAccountArchive, downloadAccountArchive } from "./account-archive.mjs";',
+    ].join("\n") } });
   const bundle = join(directory, "server.mjs");
   await writeFile(bundle, outputFiles[0].contents);
-  const { createMenoteServer } = await import(pathToFileURL(bundle));
+  const { scheduledJobs, createMenoteServer, openStorage, readAccountArchive, downloadAccountArchive } = await import(pathToFileURL(bundle));
   const origin = "https://menote.example.test";
-  runtime = createMenoteServer({
-    origin, assets: directory, ready: () => Response.json({ status: "ready" }),
-    env: { AUTH_PEPPER: "isolated-docker-fixture", DB: await mf.getD1Database("DB"), BUCKET: await mf.getR2Bucket("BUCKET") },
-  });
-  const { server } = runtime;
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-
-  const url = "http://127.0.0.1:" + server.address().port;
+  async function start(name) {
+    const env = { ...await openStorage({}, join(directory, name)), AUTH_PEPPER: "test-pepper-" + name,
+      READ_ACCOUNT_ARCHIVE: readAccountArchive, DOWNLOAD_ACCOUNT_ARCHIVE: downloadAccountArchive };
+    const runtime = createMenoteServer({ origin, assets: directory, ready: () => Response.json({ status: "ready" }), env });
+    instances.push({ runtime, env });
+    runtime.server.listen(0, "127.0.0.1");
+    await once(runtime.server, "listening");
+    return { url: "http://127.0.0.1:" + runtime.server.address().port, db: env.DB, env };
+  }
+  await assert.rejects(openStorage({ CF_D1_DATABASE_ID: "legacy" }, directory), /retired/);
+  const { url, db, env: sourceEnv } = await start("source");
   assert.match(await (await fetch(url + "/notes")).text(), /Menote fixture/);
   assert.equal((await fetch(url + "/api/unknown")).status, 404);
   assert.equal((await fetch(url + "/api/health/live")).status, 200);
@@ -147,4 +91,89 @@ test("Docker HTTP serves the Web app and preserves session and API guards", asyn
   assert.equal((await push.json()).results[0].result, "applied");
   const pull = await fetch(url + "/api/sync/pull?cursor=0", { headers: { Cookie: cookie } });
   assert.ok((await pull.json()).items.some((item) => item.id === noteId));
+
+  const user = await db.prepare("SELECT id FROM users LIMIT 1").first();
+  const template = { schemaVersion: 1, id: "example", name: "Article", enabled: true, exclude: [],
+    match: { hosts: ["example.com"], paths: [] }, selectors: { title: { selector: "h1", value: "text" }, content: { selector: "article", value: "html" } } };
+  await db.prepare("INSERT INTO clip_templates VALUES (?, ?, ?, 1, 1, 1)").bind(template.id, user.id, JSON.stringify(template)).run();
+  const tableId = crypto.randomUUID();
+  await db.prepare("INSERT INTO items (id,user_id,type,title,content_markdown,tags_json,attachment_hashes_json,source,rev,meta_rev,content_hash,created_at,updated_at) VALUES (?,?,'table','Bookmarks','Rows','[]','[]','manual',1,1,'hash',1,1)").bind(tableId, user.id).run();
+  await db.prepare("INSERT INTO raindrop_bindings (user_id,table_item_id,collection_id,created_at,updated_at) VALUES (?,?,21,1,1)").bind(user.id, tableId).run();
+  await db.prepare("INSERT INTO raindrop_sync_rows VALUES (?, 'row-one', '123', '{}', 'hash', 'synced', 1)").bind(user.id).run();
+  const extraUpload = await fetch(url + "/api/attachments", { method: "POST", headers: {
+    Origin: origin, Cookie: cookie, "Content-Type": "text/plain", "X-File-Extension": ".txt",
+  }, body: "unreferenced attachment" });
+  assert.equal(extraUpload.status, 201);
+  const extraHash = (await extraUpload.json()).sha256;
+  const download = await fetch(url + "/api/backup/archive/download", { method: "POST", headers: { Origin: origin, Cookie: cookie } });
+  assert.equal(download.status, 200);
+  assert.equal(download.headers.get("content-type"), "application/zip");
+  const zip = await download.arrayBuffer();
+  const clean = await start("destination");
+  const owner = await fetch(clean.url + "/api/auth/bootstrap", { method: "POST", headers: {
+    Origin: origin, "Content-Type": "application/json",
+  }, body: JSON.stringify({ username: "new-owner", password: "SeparateFixture!" }) });
+  assert.equal(owner.status, 201, await owner.text());
+  const restoreCookie = owner.headers.getSetCookie()[0].split(";")[0];
+  for (const action of ["verify", "restore", "restore"]) {
+    const result = await fetch(clean.url + "/api/backup/archive/" + action, { method: "POST",
+      headers: { Origin: origin, Cookie: restoreCookie, "Content-Type": "application/zip" }, body: zip });
+    const body = await result.json();
+    assert.equal(result.status, 200, JSON.stringify(body));
+    assert.equal(body.result.attachments, 2);
+    assert.equal(body.result.templates, 1);
+  }
+  assert.equal((await clean.db.prepare("SELECT collection_id FROM raindrop_bindings").first()).collection_id, 21);
+  assert.equal((await clean.db.prepare("SELECT raindrop_id FROM raindrop_sync_rows").first()).raindrop_id, "123");
+  assert.equal(await (await fetch(clean.url + "/api/attachments/" + extraHash, { headers: { Cookie: restoreCookie } })).text(), "unreferenced attachment");
+  assert.equal((await clean.db.prepare("SELECT title FROM items WHERE id=?").bind(noteId).first()).title, "Docker note");
+  assert.equal((await clean.db.prepare("SELECT count(*) AS n FROM clip_templates").first()).n, 1);
+
+  await t.test("scheduled S3 and WebDAV snapshots include all account data", async () => {
+    const originalFetch = globalThis.fetch;
+    const files = new Map();
+    const targets = [];
+    globalThis.fetch = async (url, options) => {
+      const req = new Request(url, options);
+      const address = new URL(req.url);
+      if (!address.hostname.endsWith(".backup.test")) return originalFetch(url, options);
+      if (address.hostname === "s3.backup.test") assert.match(req.headers.get("authorization"), /\/s3\/aws4_request/);
+      const key = req.url;
+      if (req.method === "MKCOL") return new Response(null, { status: 201 });
+      if (req.method === "PUT") { files.set(key, await req.arrayBuffer()); return new Response(null); }
+      if (req.method === "GET") return new Response(files.get(key), { status: files.has(key) ? 200 : 404 });
+      throw new Error("unexpected backup request");
+    };
+    try {
+      for (const kind of ["s3", "webdav"]) {
+        const created = await fetch(url + "/api/backup/targets", { method: "POST",
+          headers: { Origin: origin, Cookie: cookie, "Content-Type": "application/json" },
+          body: JSON.stringify({ kind, endpoint: "https://" + kind + ".backup.test", bucket: "backup", username: "fixture", secret: "fixture", schedule: "manual" }) });
+        assert.equal(created.status, 201);
+        const { id } = await created.json();
+        targets.push(id);
+        await db.prepare("UPDATE backup_targets SET schedule='daily' WHERE id=?").bind(id).run();
+      }
+      const job = scheduledJobs.find(job => job.name === "backup_push");
+      await job.run(sourceEnv);
+      const pushed = await db.prepare("SELECT last_pushed_at FROM backup_targets").all();
+      assert.ok(pushed.results.every(row => row.last_pushed_at > 0));
+      for (const [index, kind] of ["s3", "webdav"].entries()) {
+        const marker = [...files.keys()].find(path => new URL(path).hostname === kind + ".backup.test" && path.endsWith("/COMPLETE"));
+        assert.ok(marker);
+        const id = marker.split("/").at(-2);
+        const response = await fetch(url + "/api/backup/targets/" + targets[index] + "/backups/" + id + "/restore", {
+          method: "POST", headers: { Origin: origin, Cookie: cookie },
+        });
+        assert.equal(response.status, 200);
+        assert.equal((await response.json()).attachments, 2);
+        const manifest = JSON.parse(new TextDecoder().decode(files.get(marker.replace("COMPLETE", "manifest.json"))));
+        assert.equal(manifest.extra.accountExtras.clipTemplates[0].id, template.id);
+        assert.equal(manifest.extra.accountExtras.raindrop.rows[0].raindrop_id, "123");
+      }
+      const count = files.size;
+      await job.run(sourceEnv);
+      assert.equal(files.size, count);
+    } finally { globalThis.fetch = originalFetch; }
+  });
 });

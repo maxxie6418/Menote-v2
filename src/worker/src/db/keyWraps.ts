@@ -28,7 +28,7 @@ function fromB64(value: string): Uint8Array {
   return base64ToBytes(value);
 }
 
-export function itemWrapStatements(db: D1Database, userId: string, itemId: string, wraps: KeyWrap[], now: number): D1PreparedStatement[] {
+export function itemWrapStatements(db: SqlDatabase, userId: string, itemId: string, wraps: KeyWrap[], now: number): SqlStatement[] {
   return wraps.map((wrap) => db.prepare(
     `INSERT INTO item_key_wraps (user_id, item_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at, recovery_code_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -40,12 +40,12 @@ export function itemWrapStatements(db: D1Database, userId: string, itemId: strin
     wrap.wrapper === "recovery" ? wrap.recoveryCodeId ?? null : null));
 }
 
-export async function putItemWraps(db: D1Database, userId: string, itemId: string, wraps: KeyWrap[], now: number): Promise<void> {
+export async function putItemWraps(db: SqlDatabase, userId: string, itemId: string, wraps: KeyWrap[], now: number): Promise<void> {
   const statements = itemWrapStatements(db, userId, itemId, wraps, now);
   if (statements.length > 0) await db.batch(statements);
 }
 
-export async function readItemWrapGroups(db: D1Database, userId: string, itemIds: string[]): Promise<Array<{ itemId: string; wraps: KeyWrap[] }>> {
+export async function readItemWrapGroups(db: SqlDatabase, userId: string, itemIds: string[]): Promise<Array<{ itemId: string; wraps: KeyWrap[] }>> {
   if (itemIds.length === 0) return [];
   const groups = new Map<string, KeyWrap[]>();
   for (let index = 0; index < itemIds.length; index += 90) {
@@ -64,7 +64,7 @@ export async function readItemWrapGroups(db: D1Database, userId: string, itemIds
   return [...groups.entries()].map(([itemId, wraps]) => ({ itemId, wraps }));
 }
 
-export function topicWrapStatements(db: D1Database, userId: string, topicId: string, wraps: KeyWrap[], now: number): D1PreparedStatement[] {
+export function topicWrapStatements(db: SqlDatabase, userId: string, topicId: string, wraps: KeyWrap[], now: number): SqlStatement[] {
   return wraps.filter((wrap) => wrap.wrapper === "password" || wrap.wrapper === "recovery").map((wrap) => db.prepare(
     `INSERT INTO topic_key_wraps (user_id, topic_id, wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, created_at, recovery_code_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -76,12 +76,12 @@ export function topicWrapStatements(db: D1Database, userId: string, topicId: str
     wrap.wrapper === "recovery" ? wrap.recoveryCodeId ?? null : null));
 }
 
-export async function putTopicWraps(db: D1Database, userId: string, topicId: string, wraps: KeyWrap[], now: number): Promise<void> {
+export async function putTopicWraps(db: SqlDatabase, userId: string, topicId: string, wraps: KeyWrap[], now: number): Promise<void> {
   const statements = topicWrapStatements(db, userId, topicId, wraps, now);
   if (statements.length > 0) await db.batch(statements);
 }
 
-export async function readTopicWrapGroups(db: D1Database, userId: string, topicIds: string[]): Promise<Array<{ topicId: string; wraps: KeyWrap[] }>> {
+export async function readTopicWrapGroups(db: SqlDatabase, userId: string, topicIds: string[]): Promise<Array<{ topicId: string; wraps: KeyWrap[] }>> {
   if (topicIds.length === 0) return [];
   const groups = new Map<string, KeyWrap[]>();
   for (let index = 0; index < topicIds.length; index += 90) {
@@ -101,7 +101,7 @@ export async function readTopicWrapGroups(db: D1Database, userId: string, topicI
   return [...groups.entries()].map(([topicId, wraps]) => ({ topicId, wraps }));
 }
 
-export async function readTopicWraps(db: D1Database, userId: string, topicId: string): Promise<KeyWrap[]> {
+export async function readTopicWraps(db: SqlDatabase, userId: string, topicId: string): Promise<KeyWrap[]> {
   const rows = await db.prepare(
     "SELECT wrapper, kdf_salt, kdf_iterations, iv, ciphertext, generation, recovery_code_id FROM topic_key_wraps WHERE user_id = ? AND topic_id = ?",
   ).bind(userId, topicId).all<WrapRow>();
@@ -109,10 +109,10 @@ export async function readTopicWraps(db: D1Database, userId: string, topicId: st
 }
 
 /** 移除条目全部包装块（永久删除/表格降级清理时随行）。 */
-export function deleteItemWrapsStatement(db: D1Database, userId: string, itemId: string): D1PreparedStatement {
+export function deleteItemWrapsStatement(db: SqlDatabase, userId: string, itemId: string): SqlStatement {
   return db.prepare("DELETE FROM item_key_wraps WHERE user_id = ? AND item_id = ?").bind(userId, itemId);
 }
 
-export async function deleteItemWraps(db: D1Database, userId: string, itemId: string): Promise<void> {
+export async function deleteItemWraps(db: SqlDatabase, userId: string, itemId: string): Promise<void> {
   await deleteItemWrapsStatement(db, userId, itemId).run();
 }

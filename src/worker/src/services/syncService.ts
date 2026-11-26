@@ -28,7 +28,7 @@ import {
  */
 
 export interface ApplyContext {
-  db: D1Database;
+  db: SqlDatabase;
   userId: string;
   deviceId: string;
   now: number;
@@ -73,7 +73,7 @@ function conflictResult(operationId: string, state: { rev: number; metaRev: numb
   return { operationId, result: "conflict", detail };
 }
 
-function attachmentWrites(ctx: ApplyContext, hashes: string[]): D1PreparedStatement[] {
+function attachmentWrites(ctx: ApplyContext, hashes: string[]): SqlStatement[] {
   return [...new Set(hashes)].filter((sha256) => /^[0-9a-f]{64}$/.test(sha256))
     .flatMap((sha256) => realignAttachmentStatements(ctx.db, ctx.userId, sha256, ctx.now));
 }
@@ -83,7 +83,7 @@ function itemAttachmentHashes(current: ItemState | null): string[] {
 }
 
 function commitItemWrites(
-  ctx: ApplyContext, operation: OutboxOperation, current: ItemState | null, statements: D1PreparedStatement[],
+  ctx: ApplyContext, operation: OutboxOperation, current: ItemState | null, statements: SqlStatement[],
 ): Promise<void> {
   return commitWrites(ctx.db, [
     guardItemSyncWrite(ctx.db, ctx.userId, operation.entityId, operation.operationId, current),
@@ -142,7 +142,7 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
     : Math.max(item.metaRev, 1);
   // 客户端的元数据版本落后（他端改过元数据）时，正文照落、元数据保持服务端值（G2 §5-3 服务端胜出）。
   const metadataStale = current ? operation.baseMetaRev !== current.metaRev : false;
-  const statements: D1PreparedStatement[] = [];
+  const statements: SqlStatement[] = [];
   if (current && !contentOp) {
     // 元数据写只落元数据列：正文与正文版本号保持服务端原值（避免把尚未上传的正文提前写进服务端）。
     statements.push(updateItemMetaStatement(ctx.db, ctx.userId, ctx.deviceId, item, metaRev));
@@ -256,7 +256,7 @@ async function applyMemoComment(ctx: ApplyContext, operation: OutboxOperation): 
     const deletedAt = incoming.deletedAt ?? ctx.now;
     // 删除根评论时同批级联墓碑其全部回复（G8：删父不留活子）；回复墓碑随 sync_log 下发，
     // 其他设备据此清理本地线程。单 batch 保证根与回复的删除原子生效。
-    const statements: D1PreparedStatement[] = [
+    const statements: SqlStatement[] = [
       upsertMemoCommentStatement(ctx.db, { ...incoming, userId: ctx.userId, rev: current.rev + 1, updatedAt: deletedAt, deletedAt }),
       appendSyncLogStatement(ctx.db, ctx.userId, "memo_comment", incoming.id, "delete", current.rev + 1, 0, ctx.now),
     ];
@@ -406,7 +406,7 @@ const PULL_PAGE_LIMIT = 200;
 const FULL_RESYNC_CURSOR = /^full:(\d+)$/;
 
 /** 全量重同步单独分页。续页游标是 `full:<offset>`，最后一页才回到日志游标。主题/评论/设置只在第一页给全量。 */
-async function buildFullResyncPage(db: D1Database, userId: string, offset: number): Promise<SyncPage> {
+async function buildFullResyncPage(db: SqlDatabase, userId: string, offset: number): Promise<SyncPage> {
   const probe = await readLogPage(db, userId, 0, 1);
   const items = await readAllItemsPage(db, userId, offset, PULL_PAGE_LIMIT);
   const hasMore = items.length === PULL_PAGE_LIMIT;
@@ -429,7 +429,7 @@ async function buildFullResyncPage(db: D1Database, userId: string, offset: numbe
 /** 拉取一页（G2 §4）：游标早于保留窗口 → 全量重同步（fullResync，cursor=0 同样适用）；
  *  否则按 sync_log.seq 增量返回条目与墓碑；加密条目附带包装块（G7）。
  *  cursor 可以是数字日志游标，或全量续页 `full:<offset>`。 */
-export async function buildSyncPage(db: D1Database, userId: string, cursorRaw: string, now: number): Promise<SyncPage> {
+export async function buildSyncPage(db: SqlDatabase, userId: string, cursorRaw: string, now: number): Promise<SyncPage> {
   const full = FULL_RESYNC_CURSOR.exec(cursorRaw);
   if (full) return buildFullResyncPage(db, userId, Number(full[1]));
   const cursor = Number.parseInt(cursorRaw, 10);
@@ -464,6 +464,6 @@ export async function buildSyncPage(db: D1Database, userId: string, cursorRaw: s
 }
 
 /** 回收站永久删除（G8，FR-VER-6）：仅已软删行；墓碑在软删时已传播；包装块随行清除。 */
-export async function purgeTrashItems(db: D1Database, userId: string, ids: string[]): Promise<number> {
+export async function purgeTrashItems(db: SqlDatabase, userId: string, ids: string[]): Promise<number> {
   return purgeDeletedItems(db, userId, ids);
 }

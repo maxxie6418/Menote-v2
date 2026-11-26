@@ -51,7 +51,7 @@ export function normalizeMcpTokenName(value: unknown, optional: boolean): string
   return name.length > 0 && name.length <= 80 ? name : undefined;
 }
 
-async function validateScope(db: D1Database, userId: string, scope: McpTokenScope): Promise<boolean> {
+async function validateScope(db: SqlDatabase, userId: string, scope: McpTokenScope): Promise<boolean> {
   if (scope.mode === "all") return true;
   const nodes = await listMcpScopeNodes(db, userId);
   const topics = new Set(nodes.filter((node) => node.depth === 0).map((node) => node.id));
@@ -59,16 +59,16 @@ async function validateScope(db: D1Database, userId: string, scope: McpTokenScop
   return scope.topicIds.every((id) => topics.has(id)) && scope.groupIds.every((id) => groups.has(id));
 }
 
-export async function listTokens(db: D1Database, userId: string): Promise<McpTokenView[]> {
+export async function listTokens(db: SqlDatabase, userId: string): Promise<McpTokenView[]> {
   return listMcpTokens(db, userId);
 }
 
-export async function listScopeOptions(db: D1Database, userId: string) {
+export async function listScopeOptions(db: SqlDatabase, userId: string) {
   return listMcpScopeNodes(db, userId);
 }
 
 export async function createToken(
-  db: D1Database, userId: string, pepper: string, rawConfig: unknown, name: string | null, now = Date.now(),
+  db: SqlDatabase, userId: string, pepper: string, rawConfig: unknown, name: string | null, now = Date.now(),
 ): Promise<{ token: McpTokenView; secret: string } | null> {
   const config = rawConfig === undefined || rawConfig === null ? DEFAULT_CONFIG : normalizeMcpTokenConfig(rawConfig, now);
   if (!config || !(await validateScope(db, userId, config.scope))) return null;
@@ -90,7 +90,7 @@ export async function createToken(
 }
 
 export async function updateToken(
-  db: D1Database, userId: string, id: string, name: string, rawConfig: unknown, now = Date.now(),
+  db: SqlDatabase, userId: string, id: string, name: string, rawConfig: unknown, now = Date.now(),
 ): Promise<boolean | null> {
   const config = normalizeMcpTokenConfig(rawConfig, now);
   if (!config) return null;
@@ -98,17 +98,17 @@ export async function updateToken(
   return updateMcpTokenConfig(db, userId, id, name, config);
 }
 
-export async function revealToken(db: D1Database, userId: string, pepper: string, id: string): Promise<string | null> {
+export async function revealToken(db: SqlDatabase, userId: string, pepper: string, id: string): Promise<string | null> {
   const token = await getMcpToken(db, userId, id);
   if (!token || token.revokedAt !== null) return null;
   return openMcpToken(pepper, token.tokenEnc.ciphertext);
 }
 
-export async function revokeToken(db: D1Database, userId: string, id: string, now = Date.now()): Promise<boolean> {
+export async function revokeToken(db: SqlDatabase, userId: string, id: string, now = Date.now()): Promise<boolean> {
   return revokeMcpToken(db, userId, id, now);
 }
 
-export async function authenticateMcpToken(db: D1Database, secret: string, pepper: string, now = Date.now()): Promise<McpToken | null> {
+export async function authenticateMcpToken(db: SqlDatabase, secret: string, pepper: string, now = Date.now()): Promise<McpToken | null> {
   if (!pepper.trim() || !secret.startsWith("mn_") || secret.length > 100) return null;
   const token = await findMcpTokenByHash(db, await hashMcpToken(secret));
   if (!token || token.revokedAt !== null || (token.expiresAt !== null && token.expiresAt <= now)) return null;
