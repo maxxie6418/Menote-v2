@@ -43,7 +43,7 @@ function sourceMarkerTops(source: HTMLTextAreaElement, offsets: number[]): numbe
 }
 
 function renderedBlocks(scroller: HTMLElement, view: NoteView): HTMLElement[] | null {
-  const root = scroller.querySelector(view === "preview" ? ".mn-doc-preview" : ".mn-editor-host .ProseMirror");
+  const root = scroller.querySelector(view === "preview" ? ".mn-doc-preview" : ".mn-editor-host:not([hidden]) .ProseMirror");
   if (!root) return null;
   if (root.querySelector(".md-lite-text")) return [];
   return Array.from(root.children).filter((element): element is HTMLElement =>
@@ -126,7 +126,7 @@ export function useNoteViewPosition(userId: string, itemId: string, view: NoteVi
       // Use the newly requested view. During a switch, React can commit the parent
       // layout effect before NoteEditor disposes the outgoing adapter.
       if (view !== "preview" && cursor?.requestedKind !== view) return null;
-      const source = cursor?.kind === "source" ? scroller.querySelector<HTMLTextAreaElement>(".mn-editor-host textarea") : null;
+      const source = cursor?.kind === "source" ? scroller.querySelector<HTMLTextAreaElement>(".mn-editor-host:not([hidden]) textarea") : null;
       if (cursor?.kind === "source") return source ? { cursor, source, blocks: null } : null;
       const blocks = renderedBlocks(scroller, view);
       return blocks ? { cursor, source: null, blocks } : null;

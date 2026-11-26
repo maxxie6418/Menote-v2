@@ -543,6 +543,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
 
   const plain = item.content;
   const isTableDoc = item.type === "table";
+  const documentPreview = <MarkdownView ref={previewHostRef} markdown={docSplit.body} className="md-body markdown-content mn-doc-preview"
+    obsidian={{ userId, itemId: item.id }} />;
   const marginalia = docMarginalia;
   const contentCharacters = docSplit.body.length;
   const itemPlace = item.topicId ? topics.find((row) => row.id === item.topicId)?.name : item.source === "manual" ? "草稿箱" : "收件箱";
@@ -742,10 +744,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         )}
           {showFormChooser && <TemplatePicker templates={TEMPLATES} onPick={pickTemplate} onDropFiles={(files) => void importMarkdownFiles(files)} />}
           {(importing || importMessage) && <p className="mn-import-feedback" role="status">{importing ? "正在导入 Markdown 文档…" : importMessage}</p>}
-        {plain && mode === "preview" && !isTableDoc && (
-          <MarkdownView ref={previewHostRef} markdown={splitFrontmatter(draft ?? plain.markdown).body} className="md-body markdown-content mn-doc-preview"
-            obsidian={{ userId, itemId: item.id }} />
-        )}
+        {!isTableDoc && (mode === "preview" || !modeReady) && documentPreview}
         {plain && isTableDoc && (
           <TableDocument
             userId={userId}
@@ -759,7 +758,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             addColumnSignal={tableAddColumnSignal}
           />
         )}
-        {plain && mode === "edit" && !isTableDoc && (
+        {plain && modeReady && mode === "edit" && !isTableDoc && (
           <NoteEditor
             mode="edit"
             userId={userId}
@@ -767,7 +766,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
             formatDock={formatDock}
             externalMarkdown={editorKind === "source"
               ? draft ?? plain.markdown
-              : splitFrontmatter(draft ?? plain.markdown).body}
+              : docSplit.body}
+            loadingPreview={documentPreview}
             onInput={() => setDirtyTick((n) => n + 1)}
             registerGetMarkdown={(get) => { getMarkdownRef.current = get; }}
             uploadFile={(file, onProgress) => uploadAttachment(userId, file, onProgress)}

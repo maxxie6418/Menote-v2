@@ -61,6 +61,11 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
   const conflictSource = useItem(userId, item.conflictOf ?? null);
   const inSpace = item.content.scope === "private_space";
   const plainFlow = plain !== null && unlocked;
+  const documentBody = plainFlow && item.type !== "table" ? splitFrontmatter(plain).body : "";
+  const documentPreview = plainFlow && item.type !== "table" && (
+    <MarkdownView markdown={documentBody} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview"
+      obsidian={{ userId, itemId: item.id }} />
+  );
   const notePosition = useNoteViewPosition(userId, item.id, mode === "preview" ? "preview" : editorKind,
     plainFlow && item.type === "note", true);
 
@@ -338,8 +343,7 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             passwordPlaceholder={inSpace ? "空间密码" : undefined}
           />
         )}
-        {plainFlow && mode === "preview" && item.type !== "table" && <MarkdownView markdown={splitFrontmatter(plain).body} attachmentItemId={item.id} className="md-body markdown-content mn-doc-preview"
-          obsidian={{ userId, itemId: item.id }} />}
+        {mode === "preview" && documentPreview}
         {plainFlow && item.type === "table" && (
           <TableDocument
             userId={userId}
@@ -358,7 +362,8 @@ export function EncryptedNoteView({ userId, item, crumb, showBack, onBack }: Enc
             mode="edit"
             userId={userId}
             kind={editorKind}
-            externalMarkdown={editorKind === "source" ? plain : splitFrontmatter(plain).body}
+            externalMarkdown={editorKind === "source" ? plain : documentBody}
+            loadingPreview={documentPreview}
             onInput={() => setDirtyTick((n) => n + 1)}
             attachmentItemId={item.id}
             uploadFile={(file, onProgress) => uploadSealedAttachment(userId, item.id, file, onProgress)}

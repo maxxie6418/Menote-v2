@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "../../icons";
 import type { EditorAdapter } from "./EditorAdapter";
@@ -54,6 +54,7 @@ interface NoteEditorProps {
   kind: EditorKind;
   /** 本地库回声（保存回声/他端变更）：与编辑器当前值一致时静默；有未保存输入时不覆盖。 */
   externalMarkdown: string;
+  loadingPreview: ReactNode;
   /** 脏信号：只表示「正文变了」，**不带正文**（FR-EDT-10）。
    *  键入路径不再整篇序列化；落盘/导出/切模式/离开文档前的全量正文统一走 registerGetMarkdown。 */
   onInput: () => void;
@@ -78,13 +79,16 @@ function isWysiwyg(adapter: EditorAdapter | null): adapter is MilkdownWysiwygAda
 }
 
 /** 编辑器宿主（工程设计 3.2）：Milkdown 所见即所得（默认）/ 源码 textarea（高级入口）。 */
-export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId, registerCursor }: NoteEditorProps) {
+export function NoteEditor({ mode, userId, kind, externalMarkdown, loadingPreview, onInput, registerGetMarkdown, registerApplyExternal, uploadFile, onUploadStateChange, formatDock = null, inspectorOutline = false, onHostElement, attachmentItemId, registerCursor }: NoteEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const bindHost = useCallback((host: HTMLDivElement | null) => {
     hostRef.current = host;
     onHostElement?.(host);
   }, [onHostElement]);
   const adapterRef = useRef<EditorAdapter | null>(null);
+  const [readyKind, setReadyKind] = useState<EditorKind | null>(null);
+  const preparingEditor = mode === "edit" && kind === "wysiwyg" && readyKind !== kind;
+  const readExternalMarkdown = useEffectEvent(() => externalMarkdown);
   const dirtyRef = useRef(false);
   const namesRef = useRef(new Map<string, string>());
   const [active, setActive] = useState<InlineAction[]>([]);
@@ -148,7 +152,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
     if (mode !== "edit" || !hostRef.current) return;
     let cancelled = false;
     const host = hostRef.current;
-    const initial = toVisibleMarkdown(externalMarkdown);
+    setReadyKind(null);
 
     const exposeCursor = (adapter: EditorAdapter, editorKind: EditorKind) => {
       registerCursor?.({
@@ -165,7 +169,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
 
     if (kind === "source") {
       const adapter = new TextareaSourceAdapter(host, {
-        initialMarkdown: initial,
+        initialMarkdown: externalMarkdown,
         onInput: emit,
       });
       adapterRef.current = adapter;
@@ -175,16 +179,21 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
         adapter.loadMarkdown(markdown);
       }));
       exposeCursor(adapter, "source");
+      setReadyKind("source");
     } else {
-      // Milkdown 异步创建；竞态以 cancelled 标记兜底（快速切型/卸载）。
-      // 创建失败（如运行环境异常）回退源码适配器，编辑不中断。
-      void import("./milkdownAdapter").then(({ MilkdownWysiwygAdapter }) => cancelled ? null : MilkdownWysiwygAdapter.create(host, {
-        initialMarkdown: initial,
-        onInput: emit,
-        attachmentItemId,
-      })).then((adapter) => {
-        if (!adapter) return;
+      let initializingAdapter: MilkdownWysiwygAdapter | undefined;
+      void import("./milkdownAdapter").then(async ({ MilkdownWysiwygAdapter }) => {
+        if (cancelled) return;
+        const initial = readExternalMarkdown();
+        const adapter = await MilkdownWysiwygAdapter.create(host, {
+          initialMarkdown: toVisibleMarkdown(initial),
+          onInput: () => { if (!cancelled && adapterRef.current) emit(); },
+          attachmentItemId,
+        });
+        initializingAdapter = adapter;
         if (cancelled) { void adapter.destroy(); return; }
+        const latest = readExternalMarkdown();
+        if (latest !== initial) adapter.loadMarkdown(toVisibleMarkdown(latest));
         adapterRef.current = adapter;
         registerGetMarkdown(() => persistedMarkdown(adapter));
         registerApplyExternal((markdown) => keepScroll(() => {
@@ -192,13 +201,15 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
           adapter.loadMarkdown(toVisibleMarkdown(markdown));
         }));
         exposeCursor(adapter, "wysiwyg");
+        setReadyKind("wysiwyg");
       }).catch((cause) => {
+        void initializingAdapter?.destroy();
+        if (cancelled) return;
         console.error("WYSIWYG 创建失败，回退源码编辑：", cause);
         const fallback = new TextareaSourceAdapter(host, {
-          initialMarkdown: initial,
+          initialMarkdown: toVisibleMarkdown(readExternalMarkdown()),
           onInput: emit,
         });
-        if (cancelled) { fallback.destroy(); return; }
         adapterRef.current = fallback;
         registerGetMarkdown(() => readMarkdown(fallback.getMarkdown()));
         registerApplyExternal((markdown) => {
@@ -206,6 +217,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
           fallback.loadMarkdown(toVisibleMarkdown(markdown));
         });
         exposeCursor(fallback, "source");
+        setReadyKind("wysiwyg");
       });
     }
 
@@ -430,7 +442,7 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
   const colors = { current: textColor, apply: setTextColor };
   const textStyles = { active: activeTextStyles, toggle: toggleTextStyle };
   const formatBar = mode === "edit"
-    ? <FormatBar active={active} disabled={false} onAction={runAction}
+    ? <FormatBar active={active} disabled={preparingEditor} onAction={runAction}
         actions={kind === "source" ? [] : undefined} colors={kind === "wysiwyg" ? colors : undefined}
         textStyles={kind === "wysiwyg" ? textStyles : undefined}
         fontSize={{ percent: fontSize, onChange: setFontSize }} />
@@ -449,9 +461,10 @@ export function NoteEditor({ mode, userId, kind, externalMarkdown, onInput, regi
       {mode === "edit" && kind === "wysiwyg" && (
         <TableBlockToolbar getAdapter={() => adapterRef.current} hostRef={hostRef} />
       )}
+      {preparingEditor && loadingPreview}
       <div
         ref={bindHost} className="mn-editor-host" data-mode={mode} data-kind={kind}
-        data-font-size={fontSize}
+        data-font-size={fontSize} hidden={preparingEditor}
         onInput={(event) => { if (userId && kind === "wysiwyg" && !(event.nativeEvent as InputEvent).isComposing) refreshSlash(); }}
         onKeyUp={(event) => {
           if (event.key !== "Escape" && !event.nativeEvent.isComposing) refreshSlash();
