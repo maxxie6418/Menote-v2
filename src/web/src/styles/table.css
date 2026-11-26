@@ -190,6 +190,12 @@
 .mn-tcell-open:hover, .mn-tcell-open:focus-visible { background: var(--app-accent-subtle); }
 .mn-tcell-open svg, .mn-tcell-url-hint svg, .mn-tcell-temporal svg, .mn-ftmenu-item svg, .mn-tcell-pickrow svg { flex: none; width: var(--app-icon-sm); height: var(--app-icon-sm); }
 .mn-tcell-url .mn-tcell-input:focus { flex: 1; width: var(--app-full-size); min-width: var(--app-zero); }
+.mn-tcell-cover-thumb { width: var(--app-tabledoc-attach-thumb-size); height: var(--app-tabledoc-attach-thumb-size); overflow: hidden; background: var(--app-surface-sunken); }
+.mn-tcell-cover-thumb img { display: block; width: var(--app-full-size); height: var(--app-full-size); object-fit: cover; }
+.mn-tcell-cover-edit { flex: none; display: grid; place-items: center; width: var(--app-minibtn-size); height: var(--app-minibtn-size); padding: var(--app-zero); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg-muted); cursor: pointer; }
+.mn-tcell-cover-edit:hover, .mn-tcell-cover-edit:focus-visible { background: var(--app-hover); color: var(--app-fg); }
+.mn-tcell-cover-edit svg { width: var(--app-icon-sm); height: var(--app-icon-sm); }
+.mn-tcell-url[data-editing-cover="true"] { min-height: var(--app-tabledoc-attach-thumb-size); }
 .mn-tcell-number, .mn-tcell-input[data-numeric] { display: block; width: var(--app-full-size); text-align: right; font-variant-numeric: tabular-nums; }
 .mn-tcell-temporal { display: inline-flex; align-items: center; gap: var(--app-space-4); min-width: var(--app-zero); max-width: var(--app-full-size); min-height: var(--app-prop-height); padding-inline: var(--app-space-4); border: var(--app-zero); border-radius: var(--app-radius-sm); background: transparent; color: var(--app-fg); font: inherit; font-size: var(--app-size-chip); text-align: left; font-variant-numeric: tabular-nums; }
 button.mn-tcell-temporal { cursor: pointer; }
@@ -207,6 +213,7 @@ button.mn-tcell-temporal:hover { background: var(--app-hover); }
 @media (pointer: coarse) {
   .mn-tcell-open, button.mn-tcell-temporal, .mn-tcell-choice-panel .mn-tcell-pickrow { min-height: var(--app-touch-target); }
   .mn-tcell-open { min-width: var(--app-touch-target); }
+  .mn-tcell-cover-edit { width: var(--app-touch-target); height: var(--app-touch-target); }
 }
 .mn-tcell-link { color: var(--app-link); text-decoration: none; }
 .mn-tcell-link:hover, .mn-tcell-link:focus-visible { text-decoration: underline; }

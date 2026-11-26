@@ -1,6 +1,10 @@
 import { FIELDS_KEY, OPTION_COLORS, parseOptionList, replaceMarkdownBody, splitFrontmatter, writeDef, type PropertyDef } from "../../lib/frontmatter";
 import { joinMultiCell, replaceTable, splitMultiCell, type ParsedTable } from "../../lib/gfmTable";
 
+export function isCoverColumn(name: string): boolean {
+  return /^(cover|封面)$/i.test(name.trim());
+}
+
 export function withChoiceOptions(def: PropertyDef, values: Iterable<string>): PropertyDef {
   const options = new Set(def.options);
   const colors = new Map(Object.entries(def.optionColors ?? {}));

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2, X } from "../../icons";
 import type { PropertyDef } from "../../lib/frontmatter";
 import { CellContent } from "./TableCellEditor";
+import { isCoverColumn } from "./tableFieldValues";
 import { safeWebUrl } from "../../lib/safeUrl";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
 import { UnlockedAttachment } from "../attachments";
@@ -64,7 +65,7 @@ export function TableRowDetailsPanel({ rowNumber, visiblePosition, visibleCount,
     if (panelRef.current) panelRef.current.scrollTop = 0;
     move();
   };
-  const coverIndex = columns.findIndex((column) => /^(cover|封面)$/i.test(column.trim()));
+  const coverIndex = columns.findIndex(isCoverColumn);
   const coverUrl = coverIndex >= 0 ? safeWebUrl(cells[coverIndex] ?? "") : null;
   const pageIndex = columns.findIndex((column) => /^(网址|链接|url|source|source_url)$/i.test(column.trim()));
   const pageUrl = pageIndex >= 0 ? safeWebUrl(cells[pageIndex] ?? "") : null;
