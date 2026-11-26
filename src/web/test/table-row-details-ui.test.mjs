@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
@@ -28,6 +28,11 @@ const bundle = await build({
 });
 const { createElement, act, createRoot, TableDocument, localDb } =
   await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`);
+
+after(() => {
+  localDb.close();
+  dom.window.close();
+});
 
 const original = "| 标题 | 标签 |\n| --- | --- |\n| D | 展示 |\n| B | 隐藏 |\n| A | 展示 |\n| C | 展示 |";
 const button = (label) => document.querySelector(`button[aria-label="${label}"]`);
@@ -121,7 +126,79 @@ test("行详情按排序和筛选后的顺序浏览，保留网格滚动和打�
     assert.equal(markdown.includes("| D | 展示 |"), false);
   } finally {
     await act(async () => root.unmount());
-    localDb.close();
-    dom.window.close();
+  }
+});
+
+test("收藏封面在表格中显示图片、回退到链接并保留原有编辑路径", async () => {
+  const cover = "https://images.example/cover?size=small";
+  const newCover = "https://images.example/another";
+  const page = "https://example.com/article";
+  let markdown = [
+    "---", "fields:", "  封面: { type: link }", "  网址: { type: link }", "  cover: { type: link }", "---", "",
+    "| 标题 | 封面 | 网址 | cover |",
+    "| --- | --- | --- | --- |",
+    "| 收藏一 | " + cover + " | " + page + " | " + cover + " |",
+    "| 收藏二 |  |  | javascript:void(0) |",
+  ].join("\n");
+  const originalMarkdown = markdown;
+  const root = createRoot(document.getElementById("root"));
+  const render = (readOnly = false, sealedAttachments = false) => root.render(createElement(TableDocument, {
+    userId: "table-cover-user", itemId: "table-cover-note", markdown, readOnly, sealedAttachments,
+    onChangeMarkdown: (next) => { markdown = next; render(); },
+    onDegrade: () => {}, onSwitchToNote: () => {},
+  }));
+  const cell = (row, col) => document.querySelector('[data-row-index="' + row + '"][data-col-index="' + col + '"]');
+  const image = () => cell(0, 1).querySelector("img");
+  const updateInput = (input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  try {
+    await act(async () => render());
+    assert.equal(image().src, cover);
+    assert.equal(image().getAttribute("loading"), "lazy");
+    assert.equal(image().getAttribute("referrerpolicy"), "no-referrer");
+    assert.equal(image().closest("a").href, cover);
+    assert.equal(cell(0, 2).querySelector("img"), null);
+    assert.equal(cell(0, 3).querySelector("img").src, cover);
+    assert.equal(cell(1, 1).querySelector("img"), null);
+    assert.equal(cell(1, 3).querySelector("a"), null);
+    assert.equal(markdown, originalMarkdown);
+
+    await act(async () => image().dispatchEvent(new Event("error")));
+    assert.equal(image(), null);
+    assert.equal(cell(0, 1).querySelector("[aria-label='打开封面链接']").href, cover);
+
+    await act(async () => cell(0, 1).querySelector("button").click());
+    const input = cell(0, 1).querySelector("input");
+    assert.equal(document.activeElement, input);
+    await act(async () => updateInput(input, "https://"));
+    assert.equal(document.activeElement, input);
+    await act(async () => updateInput(input, newCover));
+    assert.equal(document.activeElement, input);
+    await act(async () => press(input, "Escape"));
+    assert.equal(markdown, originalMarkdown);
+    assert.equal(image().src, cover);
+
+    await act(async () => cell(0, 1).querySelector("button").click());
+    await act(async () => {
+      const editor = cell(0, 1).querySelector("input");
+      updateInput(editor, newCover);
+      press(editor, "Tab");
+    });
+    assert.equal(document.activeElement, cell(0, 2).querySelector("input"));
+    assert.equal(image().src, newCover);
+    assert.ok(markdown.includes("| 收藏一 | " + newCover + " | " + page + " |"));
+
+    await act(async () => render(true));
+    assert.equal(image().src, newCover);
+    assert.equal(cell(0, 1).querySelector("button,input"), null);
+    await act(async () => image().dispatchEvent(new Event("error")));
+    assert.equal(cell(0, 1).querySelector("[aria-label='打开封面链接']").href, newCover);
+    await act(async () => render(true, true));
+    assert.equal(image(), null);
+    assert.equal(cell(0, 1).querySelector("a").href, newCover);
+  } finally {
+    await act(async () => root.unmount());
   }
 });

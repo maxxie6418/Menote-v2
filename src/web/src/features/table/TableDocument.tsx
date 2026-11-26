@@ -6,7 +6,7 @@ import {
   type OptionColor, type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, joinMultiCell, renderTable, replaceTable, splitMultiCell, type ParsedTable } from "../../lib/gfmTable";
-import { convertChoiceColumn, displayFieldDefs, withChoiceOptions } from "./tableFieldValues";
+import { convertChoiceColumn, displayFieldDefs, isCoverColumn, withChoiceOptions } from "./tableFieldValues";
 import { TableCellEditor } from "./TableCellEditor";
 import { AddColumnForm, AddColumnSpacer, ColumnHeaderCell } from "./ColumnHeaderCell";
 import {
@@ -904,6 +904,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                       allowAttachments={allowAttachments}
                       attachmentItemId={sealedAttachments ? itemId : undefined}
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
+                      showCover={!sealedAttachments && isCoverColumn(name)}
                       onChange={(value, option) => setCell(row, col, value, option)}
                     />
                   </div>

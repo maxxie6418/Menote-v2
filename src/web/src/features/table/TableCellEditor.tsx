@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { normalizeCellValue, splitMultiCell } from "../../lib/gfmTable";
 import type { PropertyDef, PropertyType } from "../../lib/frontmatter";
 import { safeWebUrl } from "../../lib/safeUrl";
-import { ArrowUpRight, Link, Paperclip, X } from "../../icons";
+import { ArrowUpRight, Link, Paperclip, Pencil, X } from "../../icons";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
 import { attachmentUrl, fetchAttachmentBlob, uploadAttachment } from "../../services/attachmentService";
 import { readAttachmentPolicy } from "../../services/attachmentPolicyService";
@@ -25,11 +25,19 @@ interface TableCellEditorProps {
   readOnly?: boolean;
   /** 该列开启自动换行：文本类单元格换成多行控件，行高随内容长高。 */
   wrap?: boolean;
+  showCover?: boolean;
 }
 
 /** 类型化单元格控件（FR-TBL-7）：表格文档与 Note 内表格弹窗（双轨 FR-TBL-2）共用。
  *  写回契约见 lib/gfmTable（FR-TBL-6）；历史值不静默修正，编辑时才按类型覆盖（FR-TBL-4 精神）。 */
-export function TableCellEditor({ userId, allowAttachments = true, attachmentItemId, value, type, def, onChange, readOnly = false, wrap = false }: TableCellEditorProps) {
+export function TableCellEditor({ userId, allowAttachments = true, attachmentItemId, value, type, def, onChange, readOnly = false, wrap = false, showCover = false }: TableCellEditorProps) {
+  if (showCover && type === "link") {
+    const href = safeWebUrl(value);
+    if (readOnly && href) return <CoverThumbnail key={href} href={href} />;
+    if (!readOnly) return <CellEditorShell value={value} onRestore={onChange}>
+      <CoverLinkEditor href={href} value={value} onChange={onChange} wrap={wrap} />
+    </CellEditorShell>;
+  }
   if (readOnly) return <CellContent value={value} type={type} def={def} wrap={wrap} attachmentItemId={attachmentItemId} />;
   let editor: ReactNode;
   if (type === "attachment") {
@@ -51,8 +59,8 @@ export function TableCellEditor({ userId, allowAttachments = true, attachmentIte
 }
 
 /** 文本类单元格：默认单行输入（与历史行为一致），列开启换行时改用自增高多行控件。 */
-function TextCell({ value, onChange, wrap, numeric, "aria-label": ariaLabel }: {
-  value: string; onChange: (value: string) => void; wrap: boolean; numeric?: boolean; "aria-label": string;
+function TextCell({ value, onChange, wrap, numeric, autoFocus, "aria-label": ariaLabel }: {
+  value: string; onChange: (value: string) => void; wrap: boolean; numeric?: boolean; autoFocus?: boolean; "aria-label": string;
 }) {
   // 保存仍逐键进行，保留正在输入的末尾空格；外部粘贴或撤销改值后立即采用新值。
   const [draft, setDraft] = useState<string | null>(null);
@@ -62,8 +70,8 @@ function TextCell({ value, onChange, wrap, numeric, "aria-label": ariaLabel }: {
   if (!wrap || numeric) return <input className="mn-tcell-input" data-numeric={numeric || undefined}
     type={numeric && !legacyNumber ? "number" : "text"} step={numeric ? "any" : undefined}
     size={Math.max(12, Math.min(80, value.length || 12))} value={displayed} title={value} aria-label={ariaLabel}
-    onChange={event => change(event.target.value)} onBlur={() => setDraft(null)} />;
-  return <GrowingTextarea value={displayed} ariaLabel={ariaLabel} onChange={change} onCommit={() => setDraft(null)} />;
+    autoFocus={autoFocus} onChange={event => change(event.target.value)} onBlur={() => setDraft(null)} />;
+  return <GrowingTextarea value={displayed} ariaLabel={ariaLabel} autoFocus={autoFocus} onChange={change} onCommit={() => setDraft(null)} />;
 }
 
 function OpenUrl({ value }: { value: string }) {
@@ -73,12 +81,41 @@ function OpenUrl({ value }: { value: string }) {
     : <span className="mn-tcell-url-hint" aria-hidden="true"><Link /></span>;
 }
 
+function CoverThumbnail({ href }: { href: string }) {
+  const [failed, setFailed] = useState(false);
+  return <a className="mn-tcell-open mn-tcell-cover-thumb" href={href} target="_blank" rel="noopener noreferrer"
+    aria-label={failed ? "打开封面链接" : "打开封面原图"} title={failed ? "封面无法加载，打开链接" : "打开封面原图"}>
+    {failed ? <ArrowUpRight aria-hidden="true" /> : <img src={href} alt="" loading="lazy" decoding="async"
+      referrerPolicy="no-referrer" onError={() => setFailed(true)} />}
+  </a>;
+}
+
+function CoverLinkEditor({ href, value, onChange, wrap }: {
+  href: string | null; value: string; onChange: (value: string) => void; wrap: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  if (href && !editing) return <div className="mn-tcell-url">
+    <CoverThumbnail key={href} href={href} />
+    <button type="button" className="mn-tcell-cover-edit" aria-label="编辑封面链接" title="编辑封面链接"
+      onClick={() => setEditing(true)}><Pencil aria-hidden="true" /></button>
+  </div>;
+
+  return <div className="mn-tcell-url" data-editing-cover={editing || undefined} onFocus={() => setEditing(true)}
+    onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEditing(false);
+    }}>
+    <OpenUrl value={value} />
+    <TextCell value={value} onChange={onChange} wrap={wrap} autoFocus={editing} aria-label="封面链接" />
+  </div>;
+}
+
 /** 自增高多行输入：高度跟着内容走，行高随之长高（换行列的「显示全部内容」语义）。 */
-function GrowingTextarea({ value, onChange, onCommit, ariaLabel }: {
+function GrowingTextarea({ value, onChange, onCommit, ariaLabel, autoFocus }: {
   value: string;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
   ariaLabel: string;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const fit = () => {
@@ -108,7 +145,7 @@ function GrowingTextarea({ value, onChange, onCommit, ariaLabel }: {
     return () => window.removeEventListener("resize", fit);
   }, []);
   return (
-    <textarea ref={ref} className="mn-tcell-textarea" rows={1} value={value} aria-label={ariaLabel} title={value}
+    <textarea ref={ref} className="mn-tcell-textarea" rows={1} value={value} aria-label={ariaLabel} title={value} autoFocus={autoFocus}
       onChange={(e) => onChange(e.target.value)} onBlur={(e) => onCommit(e.currentTarget.value)} />
   );
 }
