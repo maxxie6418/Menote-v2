@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FileText, MessageCircle, Table2 } from "../../icons";
 import type { Item } from "@menote/shared";
 import { NoteEmptyState } from "./NoteEmptyState";
-import { formatItemMeta, noteSnippet } from "./format";
+import { formatItemUpdatedAt, noteSnippet } from "./format";
 import { ContextMenu, type ContextMenuAction } from "../../components/ui/ContextMenu";
 
 interface NoteListProps {
@@ -77,7 +77,7 @@ export function NoteList({ items, selectedId, onSelect, emptyTitle, emptyDetail,
             : item.type === "memo" ? <MessageCircle className="mn-note-row-icon" aria-hidden="true" />
               : <FileText className="mn-note-row-icon" aria-hidden="true" />}
           <span className="mn-note-row-title">{item.title ?? (item.type === "memo" ? noteSnippet(item).slice(0, 36) || "无标题" : "无标题")}</span>
-          <span className="mn-note-row-meta">{formatItemMeta(item)}</span>
+          <span className="mn-note-row-meta">{formatItemUpdatedAt(item)}</span>
           <span className="mn-note-row-desc">{noteSnippet(item) || "（空白）"}</span>
         </button>
         </div>

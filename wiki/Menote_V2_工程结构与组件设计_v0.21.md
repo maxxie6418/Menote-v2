@@ -39,7 +39,7 @@ Menote-v2/
     │   ├── vite.config.ts / tailwind 配置
     │   └── src/
     │       ├── main.tsx / App.tsx        # 应用装配（路由、Provider），禁业务逻辑
-    │       ├── app/                      # 全局布局壳：侧栏、appRoutes 路径契约与路由出口、布局（列表/网格）
+    │       ├── app/                      # 全局布局壳：侧栏、appRoutes 路径契约与路由出口、笔记清单与文章区
     │       ├── features/                 # ★ 功能模块（边界见第 3 章）
     │       ├── components/ui/            # shadcn/ui 基础控件（生成后进 here，可改造）
     │       ├── components/               # 跨 feature 业务组件（少量，需公共才放）
@@ -132,7 +132,7 @@ EditorHost（宿主：加载/保存/字数/滚动容器）
 
 ### 3.3 组件清单（目录级，一句话职责；详细 props 开发时定）
 
-**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/系统状态/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（列表/网格双布局壳）、`SystemStatusPage`（健康/同步/资源监控，在主界面右侧内容区显示，M2）。
+**app/**：`AppShell`（断点装配与布局状态，M1.2）、`Sidebar`（导航顺序按 FR-IA-4；品牌旁版本号 + 脚部账户菜单，负责人 2026-11-01）、`AccountMenu`（脚部用户名弹出菜单：主题切换/系统状态/设置/退出登录；配套 `lib/theme.ts` 主题模式管理 + index.html 引导脚本，data-theme 驱动深色令牌）、`MainLayout`（笔记清单与右侧文章区，主题或分组的文章总览复用 `NoteGrid`）、`SystemStatusPage`（健康/同步/资源监控，在主界面右侧内容区显示，M2）。
 **tree/**：`TopicTree`（仅主题+分组，支持节点拖动排序、分组跨主题移动及笔记拖入目录）、`TreeNode`、`LockBadge`。树顺序与侧栏宽度经 `workspaceSettingsService` 按账号同步；笔记路径通过 `contentService.saveItemMeta` 持久化。
 **notes/**：`NoteList`（穿透聚合清单）、`NoteGrid`、`NoteListItem/Card`、`NoteDocumentView`、`OrganizeDialog`（归类出箱）；`NoteEmptyState`（共享空态，M1.2 已实现基础件，`NoteList`/`NoteGrid`/`NoteDocument` 当前为空态骨架）；`BlankFormChooser`（空白种子期形态选择条，FR-TBL-9，TP2）。
 **inbox/**：`InboxPage`、`DraftsPage`、`CollectBar`（预留剪藏入口）。

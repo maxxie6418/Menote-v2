@@ -14,7 +14,7 @@ interface NoteGridProps {
   onTogglePicked?: (id: string, extend: boolean) => void;
 }
 
-/** 网格视图（FR-IA-7），卡片进入独立阅读区。 */
+/** 主题或分组的文章总览（FR-IA-7），点击卡片打开正文。 */
 export function NoteGrid({ items, selectedId, onSelect, emptyTitle, emptyDetail, picking = false, pickedIds, onTogglePicked }: NoteGridProps) {
   if (!items) return <div className="mn-empty" role="status" aria-busy="true" />;
   if (items.length === 0) return <NoteEmptyState title={emptyTitle} detail={emptyDetail} />;

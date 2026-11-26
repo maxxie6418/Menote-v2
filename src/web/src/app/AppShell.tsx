@@ -25,9 +25,9 @@ import { appRoutePath, parseAppRoute, type AppRoute, type RouteSection } from ".
 import { readAppearance } from "../services/appearanceSettingsService";
 
 /* 断点常量（DESIGN §8.1）在 lib/layout；CSS 不写媒体查询：由这里检测后输出 data-layout。 */
-import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane, type ViewMode } from "../lib/layout";
+import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane } from "../lib/layout";
 import { getDensityScale, subscribeDensity } from "../lib/density";
-export type { LayoutMode, MainView, MobilePane, ViewMode };
+export type { LayoutMode, MainView, MobilePane };
 export { BREAKPOINTS };
 
 const SettingsDialog = lazy(() => import("../features/settings").then(module => ({ default: module.SettingsDialog })));
@@ -118,7 +118,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const [view, setView] = useState<MainView>(() => route.kind === "status" ? "status" : "main");
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [section, setSection] = useState<BrowseSection>(() => routeSection(route));
   const [noteId, setNoteId] = useState<string | null>(() => route.kind === "notes" ? route.itemId ?? null : null);
   const [organizingItem, setOrganizingItem] = useState<Item | null>(null);
@@ -512,8 +511,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
         {sidebar}
         <MainLayout
           layout={layout}
-          viewMode={viewMode}
-          onViewMode={setViewMode}
           title="回收站"
           items={items}
           selectedNoteId={noteId}
@@ -570,8 +567,6 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       <MainLayout
         key={isTopic ? section.id : undefined}
         layout={layout}
-        viewMode={viewMode}
-        onViewMode={setViewMode}
         title={title}
         headerExtra={section.kind === "inbox" ? <InboxRefresh userId={userId} /> : undefined}
         items={items}
