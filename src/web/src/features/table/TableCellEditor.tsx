@@ -31,19 +31,19 @@ interface TableCellEditorProps {
 /** 类型化单元格控件（FR-TBL-7）：表格文档与 Note 内表格弹窗（双轨 FR-TBL-2）共用。
  *  写回契约见 lib/gfmTable（FR-TBL-6）；历史值不静默修正，编辑时才按类型覆盖（FR-TBL-4 精神）。 */
 export function TableCellEditor({ userId, allowAttachments = true, attachmentItemId, value, type, def, onChange, readOnly = false, wrap = false, showCover = false }: TableCellEditorProps) {
-  if (showCover && type === "link") {
-    const href = safeWebUrl(value);
-    if (readOnly && href) return <CoverThumbnail key={href} href={href} />;
-    if (!readOnly) return <CellEditorShell value={value} onRestore={onChange}>
-      <CoverLinkEditor href={href} value={value} onChange={onChange} wrap={wrap} />
-    </CellEditorShell>;
-  }
+  const coverColumn = showCover && (type === "attachment" || type === "link");
+  // 附件格只有原值为单条网址时才按外链封面展示。带附件引用的组合值仍走附件控件。
+  const coverHref = coverColumn && (type === "link" || /^https?:\/\/\S+$/i.test(value.trim())) ? safeWebUrl(value) : null;
+  if (readOnly && coverHref) return <CoverThumbnail key={coverHref} href={coverHref} />;
   if (readOnly) return <CellContent value={value} type={type} def={def} wrap={wrap} attachmentItemId={attachmentItemId} />;
   let editor: ReactNode;
   if (type === "attachment") {
-    editor = allowAttachments && userId
-      ? <AttachmentCell userId={userId} value={value} onChange={onChange} attachmentItemId={attachmentItemId} />
+    const attachments = coverHref
+      ? <CoverThumbnail key={coverHref} href={coverHref} />
       : <AttachmentList value={value} attachmentItemId={attachmentItemId} />;
+    editor = allowAttachments && userId
+      ? <AttachmentCell userId={userId} value={value} onChange={onChange} attachmentItemId={attachmentItemId}>{attachments}</AttachmentCell>
+      : attachments;
   } else if (type === "checkbox") {
     editor = <CheckboxCell value={value} onChange={onChange} />;
   } else if (type === "select" || type === "multiselect") {
@@ -51,7 +51,9 @@ export function TableCellEditor({ userId, allowAttachments = true, attachmentIte
   } else if (type === "date" || type === "datetime") {
     return <TableDateCell value={value} dateTime={type === "datetime"} onChange={onChange} />;
   } else if (type === "link") {
-    editor = <div className="mn-tcell-url"><OpenUrl value={value} /><TextCell value={value} onChange={onChange} wrap={wrap} aria-label="链接单元格" /></div>;
+    editor = coverColumn
+      ? <CoverLinkEditor href={coverHref} value={value} onChange={onChange} wrap={wrap} />
+      : <div className="mn-tcell-url"><OpenUrl value={value} /><TextCell value={value} onChange={onChange} wrap={wrap} aria-label="链接单元格" /></div>;
   } else {
     editor = <TextCell value={value} onChange={onChange} wrap={wrap} aria-label={type === "number" ? "数字单元格" : "单元格"} numeric={type === "number"} />;
   }
@@ -314,7 +316,9 @@ function AttachmentThumbnail({ refItem, onOpen }: { refItem: { sha256: string; n
   );
 }
 
-function AttachmentCell({ userId, value, onChange, attachmentItemId }: { userId: string; value: string; onChange: (value: string) => void; attachmentItemId?: string }) {
+function AttachmentCell({ userId, value, onChange, attachmentItemId, children }: {
+  userId: string; value: string; onChange: (value: string) => void; attachmentItemId?: string; children: ReactNode;
+}) {
   const [accept, setAccept] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -341,7 +345,7 @@ function AttachmentCell({ userId, value, onChange, attachmentItemId }: { userId:
     finally { setBusy(false); if (inputRef.current) inputRef.current.value = ""; }
   };
   return <div className="mn-tcell-attachment-editor">
-    <AttachmentList value={value} attachmentItemId={attachmentItemId} />
+    {children}
     <button type="button" className="mn-tcell-attach-button" disabled={busy} aria-label={busy ? "正在上传附件" : "上传附件"} title={busy ? "正在上传…" : "上传附件"} onClick={() => inputRef.current?.click()}><Paperclip aria-hidden="true" /></button>
     <input ref={inputRef} type="file" multiple hidden accept={accept} onChange={(event) => void upload(event.currentTarget.files)} />
     {error && <span className="mn-tcell-attachment-error" role="alert">{error}</span>}
