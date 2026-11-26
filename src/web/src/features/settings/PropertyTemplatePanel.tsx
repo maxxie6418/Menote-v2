@@ -7,7 +7,6 @@ import {
 } from "../../services/propertyTemplateService";
 import { ContextMenu } from "../../components/ui/ContextMenu";
 import { groupTemplates, TYPE_LABELS } from "../props";
-import { InfoHint } from "../../components/ui/InfoHint";
 
 interface Draft {
   name: string;
@@ -33,8 +32,7 @@ function draftOf(template: PropertyTemplate): Draft {
  * 默认属性设置（FR-PROP-9）：这里配的预设是「添加属性」的模板库，随账号同步。
  * 预设改动只影响之后添加的属性；已经加进文档的属性就是该文档自己的设定，不受影响。
  *
- * 版式按表来：列头 + 同一套栅格，行内 ⋯ 编辑/删除，新建是列表末行的一张同款表单，
- * 底部操作条常驻；「恢复出厂」是破坏性操作，先出确认再覆盖。
+ * 新建表单在清单上方，编辑保留在所属行。恢复出厂前需确认。
  */
 export function PropertyTemplatePanel({ userId }: { userId: string }) {
   const [templates, setTemplates] = useState<PropertyTemplate[] | null>(null);
@@ -148,20 +146,14 @@ export function PropertyTemplatePanel({ userId }: { userId: string }) {
   };
 
   return (
-    <div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">默认属性预设<InfoHint>添加属性时可直接选用；改动只影响之后添加的属性，已经加进文档的不受影响。</InfoHint></p>
-          {/* 键名口径是可展开的独立说明，不塞进 ⓘ：浮层里放 <details> 点不到。 */}
-          <details className="mn-setdetails">
-            <summary>为什么键名用英文？</summary>
-            <p>
-              键名是可互通的机器名：Raindrop 组沿用连接器写死的标准列名，其余沿用 Obsidian 社区惯例。
-              中文只作显示名，导出到 Obsidian 不用改键。
-            </p>
-          </details>
-        </div>
+    <div className="mn-settings-stack">
+      <div className="mn-settings-heading">
+        <p className="mn-sethint">预设供笔记添加属性时选用，修改会应用到后续添加的属性。</p>
+        {!creating && <button type="button" className="mn-textbtn mn-settings-primary" onClick={startCreate}>
+          <Plus aria-hidden />新建预设
+        </button>}
       </div>
+      {creating && <section className="mn-settings-card"><h3>新建预设</h3>{form(true)}</section>}
 
       <div className="mn-tpl">
         <div className="mn-tpl-thead">
@@ -178,7 +170,7 @@ export function PropertyTemplatePanel({ userId }: { userId: string }) {
                   <code className="mn-tpl-key">{template.name}</code>
                   <span className="mn-tpl-type">{TYPE_LABELS[template.type]}</span>
                   <span className="mn-tpl-options" title={template.options?.join(" / ")}>
-                    {template.options?.length ? template.options.join(" / ") : "—"}
+                    {template.options?.join(" / ")}
                   </span>
                   <button
                     type="button" className="mn-tpl-more" aria-label={`预设操作：${template.name}`} title="更多"
@@ -200,14 +192,12 @@ export function PropertyTemplatePanel({ userId }: { userId: string }) {
         {templates.length === 0 && (
           <p className="mn-sethint mn-tpl-empty">还没有预设。新建一条，或恢复出厂预设。</p>
         )}
-        {creating && form(true)}
 
         <div className="mn-tpl-foot">
-          {!creating && (
-            <button type="button" className="mn-propbtn" onClick={startCreate}>
-              <Plus aria-hidden />新建预设
-            </button>
-          )}
+          <details className="mn-setdetails">
+            <summary>键名说明</summary>
+            <p>键名用于 Obsidian 互通和 Raindrop 字段映射。中文名称可填在「显示名」。</p>
+          </details>
           <span className="mn-tpl-footright">
             {confirmReset ? (
               <span className="mn-tpl-confirm">

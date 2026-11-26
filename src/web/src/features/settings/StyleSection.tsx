@@ -1,7 +1,7 @@
+import { ChevronDown } from "../../icons";
 import { useEffect, useState } from "react";
 import { updateAppearance } from "../../services/appearanceSettingsService";
 import { DOC_STYLE_DEFAULTS, effectiveDocStyle, resetDocStyle, updateDocStyle, type DocStyleVars } from "../../lib/docStyle";
-import { InfoHint } from "../../components/ui/InfoHint";
 
 /**
  * 设置·样式（FR-STYLE-2）：只改正文渲染的 `--md-*` 变量，不动外壳配色。
@@ -171,131 +171,134 @@ export function StyleSection({ userId }: { userId: string }) {
   };
 
   return (
-    <div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">文档样式<InfoHint>
-            只影响正文渲染，不改界面配色；即时生效、不进 Markdown，数字可手填，留空即继承正文。
-          </InfoHint></p>
-        </div>
-        <button type="button" className="mn-textbtn" onClick={reset}>恢复默认</button>
+    <div className="mn-settings-stack">
+      <div className="mn-settings-heading">
+        <p className="mn-sethint">调整会立即应用到预览与阅读。字号留空可继承正文。</p>
+        <button type="button" className="mn-textbtn mn-settings-outline" onClick={reset}>恢复默认</button>
       </div>
+      <section className="mn-settings-card mn-settings-style-preview">
+        <h3>实时预览</h3>
+        <div className="mn-stylepreview markdown-content" aria-label="样式预览">
+          <h1>一级标题</h1>
+          <h2>二级标题</h2>
+          <h3>三级标题</h3>
+          <p>正文示例：这里有一段<strong>加粗文字</strong>，用来看字号、字重、颜色与下划线。</p>
+        </div>
+      </section>
+      <div className="mn-settings-style-controls">
+        {ROWS.map((row) => {
+          const weightKey = `--md-${row.id}-weight`;
+          const colorKey = `--md-${row.id}-color`;
+          const ruleKey = row.kind === "strong" ? "--md-strong-rule" : `--md-${row.id}-rule`;
+          const color = read(colorKey);
+          const preset = COLOR_PRESETS.some((entry) => entry.value === color);
+          const inherits = row.allowInherit && read(`--md-${row.id}-size`) === "1em";
+          return (
+            <details className="mn-settings-fold" open={row.kind === "body" ? true : undefined} key={row.id}>
+              <summary>{row.label} <ChevronDown /></summary>
+              <div className="mn-stylerow mn-settings-style-fields">
+                <label className="mn-stylefield">字号
+                  <input
+                    type="number" min={row.min} max={row.max} step={1}
+                    aria-label={`${row.label}字号`}
+                    value={sizeText(row)}
+                    placeholder={row.allowInherit ? "继承" : undefined}
+                    onChange={(event) => changeSize(row, event.target.value)}
+                    onBlur={(event) => commitSize(row, event.target.value)}
+                  />
+                </label>
+                {row.allowInherit && !inherits && (
+                  <button type="button" className="mn-styleinherit"
+                    onClick={() => { clearDraft(`${row.id}-size`); update({ [`--md-${row.id}-size`]: "1em" }); }}>
+                    继承正文
+                  </button>
+                )}
+                {row.kind === "body" && (
+                  <label className="mn-stylefield">行高
+                    <input
+                      type="number" min={1.2} max={2.4} step={0.02}
+                      aria-label="正文行高"
+                      value={drafts["body-leading"] ?? read("--md-body-leading")}
+                      onChange={(event) => {
+                        const text = event.target.value;
+                        setDraft("body-leading", text);
+                        const value = Number(text);
+                        if (Number.isFinite(value) && value >= 1.2 && value <= 2.4) update({ "--md-body-leading": text });
+                      }}
+                      onBlur={(event) => {
+                        clearDraft("body-leading");
+                        const value = Number(event.target.value);
+                        if (!Number.isFinite(value)) return;
+                        update({ "--md-body-leading": String(Math.min(2.4, Math.max(1.2, value))) });
+                      }}
+                    />
+                  </label>
+                )}
+                <label className="mn-stylefield">字重
+                  <select aria-label={`${row.label}字重`} value={read(weightKey) || "400"} onChange={(event) => update({ [weightKey]: event.target.value })}>
+                    {WEIGHTS.map((weight) => <option key={weight.value} value={weight.value}>{weight.label}</option>)}
+                  </select>
+                </label>
+                <label className="mn-stylefield">颜色
+                  <select
+                    aria-label={`${row.label}颜色`}
+                    value={preset ? color : "custom"}
+                    onChange={(event) => update({ [colorKey]: event.target.value === "custom" ? themeDefaultColor() : event.target.value })}
+                  >
+                    {COLOR_PRESETS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
+                    <option value="custom">自定义</option>
+                  </select>
+                </label>
+                {!preset && (
+                  <input
+                    type="color" className="mn-stylecolor" aria-label={`${row.label}自定义颜色`}
+                    value={color} onChange={(event) => update({ [colorKey]: event.target.value })}
+                  />
+                )}
+                {row.kind !== "body" && (
+                  <label className="mn-stylecheck">
+                    <input
+                      type="checkbox"
+                      checked={read(ruleKey) !== "none"}
+                      onChange={(event) => setUnderline(row, event.target.checked)}
+                    />
+                    下划线
+                  </label>
+                )}
+              </div>
+            </details>
+          );
+        })}
 
-      {ROWS.map((row) => {
-        const weightKey = `--md-${row.id}-weight`;
-        const colorKey = `--md-${row.id}-color`;
-        const ruleKey = row.kind === "strong" ? "--md-strong-rule" : `--md-${row.id}-rule`;
-        const color = read(colorKey);
-        const preset = COLOR_PRESETS.some((entry) => entry.value === color);
-        const inherits = row.allowInherit && read(`--md-${row.id}-size`) === "1em";
-        return (
-          <div className="mn-stylerow" key={row.id}>
-            <span className="mn-styllabel">{row.label}</span>
-            <label className="mn-stylefield">字号
-              <input
-                type="number" min={row.min} max={row.max} step={1}
-                aria-label={`${row.label}字号`}
-                value={sizeText(row)}
-                placeholder={row.allowInherit ? "继承" : undefined}
-                onChange={(event) => changeSize(row, event.target.value)}
-                onBlur={(event) => commitSize(row, event.target.value)}
-              />
+        <details className="mn-settings-fold">
+          <summary>装饰线 <ChevronDown /></summary>
+          <div className="mn-stylerule mn-settings-style-fields">
+            <label className="mn-stylefield">粗细
+              <select aria-label="装饰线粗细" value={read("--md-heading-rule-width")} onChange={(event) => update({ "--md-heading-rule-width": event.target.value })}>
+                {RULE_WIDTHS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
+              </select>
             </label>
-            {row.allowInherit && !inherits && (
-              <button type="button" className="mn-styleinherit"
-                onClick={() => { clearDraft(`${row.id}-size`); update({ [`--md-${row.id}-size`]: "1em" }); }}>
-                继承正文
-              </button>
-            )}
-            {row.kind === "body" && (
-              <label className="mn-stylefield">行高
-                <input
-                  type="number" min={1.2} max={2.4} step={0.02}
-                  aria-label="正文行高"
-                  value={drafts["body-leading"] ?? read("--md-body-leading")}
-                  onChange={(event) => {
-                    const text = event.target.value;
-                    setDraft("body-leading", text);
-                    const value = Number(text);
-                    if (Number.isFinite(value) && value >= 1.2 && value <= 2.4) update({ "--md-body-leading": text });
-                  }}
-                  onBlur={(event) => {
-                    clearDraft("body-leading");
-                    const value = Number(event.target.value);
-                    if (!Number.isFinite(value)) return;
-                    update({ "--md-body-leading": String(Math.min(2.4, Math.max(1.2, value))) });
-                  }}
-                />
-              </label>
-            )}
-            <label className="mn-stylefield">字重
-              <select aria-label={`${row.label}字重`} value={read(weightKey) || "400"} onChange={(event) => update({ [weightKey]: event.target.value })}>
-                {WEIGHTS.map((weight) => <option key={weight.value} value={weight.value}>{weight.label}</option>)}
+            <label className="mn-stylefield">长度
+              <select aria-label="装饰线长度" value={read("--md-heading-rule-extra")} onChange={(event) => update({ "--md-heading-rule-extra": event.target.value })}>
+                {RULE_LENGTHS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
+              </select>
+            </label>
+            <label className="mn-stylefield">透明度
+              <select aria-label="装饰线透明度" value={read("--md-heading-rule-opacity")} onChange={(event) => update({ "--md-heading-rule-opacity": event.target.value })}>
+                {RULE_OPACITIES.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
               </select>
             </label>
             <label className="mn-stylefield">颜色
-              <select
-                aria-label={`${row.label}颜色`}
-                value={preset ? color : "custom"}
-                onChange={(event) => update({ [colorKey]: event.target.value === "custom" ? themeDefaultColor() : event.target.value })}
-              >
-                {COLOR_PRESETS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-                <option value="custom">自定义</option>
+              <select aria-label="装饰线颜色" value={read("--md-heading-rule-color")} onChange={(event) => update({ "--md-heading-rule-color": event.target.value })}>
+                {RULE_COLORS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
               </select>
             </label>
-            {!preset && (
-              <input
-                type="color" className="mn-stylecolor" aria-label={`${row.label}自定义颜色`}
-                value={color} onChange={(event) => update({ [colorKey]: event.target.value })}
-              />
-            )}
-            {row.kind !== "body" && (
-              <label className="mn-stylecheck">
-                <input
-                  type="checkbox"
-                  checked={read(ruleKey) !== "none"}
-                  onChange={(event) => setUnderline(row, event.target.checked)}
-                />
-                下划线
-              </label>
-            )}
           </div>
-        );
-      })}
+        </details>
 
-      <div className="mn-stylerule">
-        <span>装饰线</span>
-        <label className="mn-stylefield">粗细
-          <select aria-label="装饰线粗细" value={read("--md-heading-rule-width")} onChange={(event) => update({ "--md-heading-rule-width": event.target.value })}>
-            {RULE_WIDTHS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-          </select>
-        </label>
-        <label className="mn-stylefield">长度
-          <select aria-label="装饰线长度" value={read("--md-heading-rule-extra")} onChange={(event) => update({ "--md-heading-rule-extra": event.target.value })}>
-            {RULE_LENGTHS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-          </select>
-        </label>
-        <label className="mn-stylefield">透明度
-          <select aria-label="装饰线透明度" value={read("--md-heading-rule-opacity")} onChange={(event) => update({ "--md-heading-rule-opacity": event.target.value })}>
-            {RULE_OPACITIES.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-          </select>
-        </label>
-        <label className="mn-stylefield">颜色
-          <select aria-label="装饰线颜色" value={read("--md-heading-rule-color")} onChange={(event) => update({ "--md-heading-rule-color": event.target.value })}>
-            {RULE_COLORS.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <datalist id="mn-body-leadings">
-        {BODY_LEADINGS.map((value) => <option key={value} value={value} />)}
-      </datalist>
-
-      <div className="mn-stylepreview markdown-content" aria-label="样式预览">
-        <h1>一级标题</h1>
-        <h2>二级标题</h2>
-        <h3>三级标题</h3>
-        <p>正文示例：这里有一段<strong>加粗文字</strong>，用来看字号、字重、颜色与下划线。</p>
+        <datalist id="mn-body-leadings">
+          {BODY_LEADINGS.map((value) => <option key={value} value={value} />)}
+        </datalist>
       </div>
     </div>
   );

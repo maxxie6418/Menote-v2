@@ -99,9 +99,6 @@
 :root .mn-shell[data-layout="mobile"] .mn-home-actions > button + button { padding-left: var(--app-space-xs); }
 :root .mn-shell[data-layout="mobile"] .mn-home-actions small { display: none; }
 
-.mn-appearance-preview { display: grid; gap: var(--app-space-xs); margin-top: var(--app-space-md); padding-top: var(--app-space-sm); border-top: var(--app-line) solid var(--app-border-subtle); }
-.mn-appearance-preview-head { display: flex; align-items: baseline; gap: var(--app-space-sm); color: var(--app-fg); font-size: var(--app-size-chip); }
-.mn-appearance-preview-head span { color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 .mn-appearance-preview-frame { position: relative; display: flex; height: var(--app-appearance-preview-height); flex-direction: column; overflow: hidden; border: var(--app-line) solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-sunken); }
 .mn-appearance-preview-top { display: flex; height: var(--app-space-md); flex: none; align-items: center; gap: var(--app-space-xs); padding: 0 var(--app-space-xs); border-bottom: var(--app-line) solid var(--app-border-subtle); background: var(--app-surface); }
 .mn-appearance-preview-top i { width: var(--app-space-xl); height: var(--app-appearance-preview-bar); border-radius: var(--app-radius-pill); background: var(--app-border); }
@@ -127,8 +124,6 @@
 .mn-appearance-preview-frame[data-measure="narrow"] .mn-appearance-preview-paper { max-width: var(--app-half-size); }
 .mn-appearance-preview-frame[data-measure="wide"] .mn-appearance-preview-paper { max-width: var(--app-doc-measure-wide); }
 .mn-appearance-preview-frame[data-measure="full"] .mn-appearance-preview-paper { width: var(--app-full-size); max-width: var(--app-full-size); }
-.mn-appearance-preview-chips { display: flex; flex-wrap: wrap; gap: var(--app-space-2); }
-.mn-appearance-preview-chips span { padding: var(--app-space-1) var(--app-space-4); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 
 /* Note 正文和检查器同处一行；类型标识已移至文档栏。 */
 .mn-doc[data-form="note"] .mn-docbody { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) var(--app-doc-inspector-width); grid-template-rows: minmax(var(--app-zero), 1fr); align-items: start; gap: var(--app-doc-side-gap); }

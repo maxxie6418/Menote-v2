@@ -1,6 +1,9 @@
+import { ChevronDown } from "../../icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import { clearSyncDiagnostics, listSyncDiagnostics, subscribeSyncDiagnostics, type SyncDiagnosticRow } from "../../services/syncDiagnosticsService";
+
+const LOG_PAGE_SIZE = 30;
 
 type CategoryFilter = "all" | SyncDiagnosticRow["category"];
 
@@ -16,6 +19,7 @@ export function SyncLogSection({ userId }: { userId: string }) {
   const [rows, setRows] = useState<SyncDiagnosticRow[]>([]);
   const [filter, setFilter] = useState<CategoryFilter>("all");
   const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(LOG_PAGE_SIZE);
   const [notice, setNotice] = useState("");
 
   const refresh = useCallback(() => {
@@ -67,42 +71,43 @@ export function SyncLogSection({ userId }: { userId: string }) {
 
   return (
     <section className="mn-sync-log" aria-label="同步诊断日志">
-      <div className="mn-setrow">
-        <div><div className="mn-setlabel">同步诊断日志</div><p className="mn-sethint">日志保存在此浏览器本机，最多保留 2,000 条。仅记录同步操作、版本号和回执，不记录笔记正文、标题或密钥。</p></div>
-      </div>
-      <div className="mn-sync-log-tools">
-        <label>类型
-          <select className="app-select" value={filter} onChange={(event) => setFilter(event.target.value as CategoryFilter)}>
-            <option value="all">全部</option>
-            {Object.entries(CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label className="mn-sync-log-search">查询
-          <input className="app-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="笔记 ID、操作 ID、错误码" />
-        </label>
-        <span className="mn-sync-log-count">{filtered.length} / {rows.length}</span>
-      </div>
-      <div className="mn-sync-log-actions">
-        <button type="button" className="app-button" onClick={() => void copyLogs()} disabled={!filtered.length}>复制筛选结果</button>
-        <button type="button" className="app-button" onClick={exportLogs} disabled={!filtered.length}>导出 JSON</button>
-        <button type="button" className="app-button" onClick={() => void clearLogs()} disabled={!rows.length}>清除日志</button>
-        {notice && <span role="status" className="mn-sethint">{notice}</span>}
+      <div className="mn-settings-card mn-sync-log-controls">
+        <p className="mn-sethint">此浏览器保留最近 2,000 条同步记录。导出仅包含同步操作、版本和回执等诊断信息。</p>
+        <div className="mn-sync-log-tools">
+          <label>类型
+            <select className="app-select" value={filter} onChange={(event) => { setFilter(event.target.value as CategoryFilter); setLimit(LOG_PAGE_SIZE); }}>
+              <option value="all">全部</option>
+              {Object.entries(CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="mn-sync-log-search">查询
+            <input className="app-input" value={query} onChange={(event) => { setQuery(event.target.value); setLimit(LOG_PAGE_SIZE); }} placeholder="笔记 ID、操作 ID、错误码" />
+          </label>
+          <span className="mn-sync-log-count" role="status">匹配 {filtered.length} / {rows.length} 条</span>
+        </div>
+        <div className="mn-sync-log-actions">
+          <button type="button" className="mn-textbtn mn-settings-outline" onClick={() => void copyLogs()} disabled={!filtered.length}>复制筛选结果</button>
+          <button type="button" className="mn-textbtn mn-settings-outline" onClick={exportLogs} disabled={!filtered.length}>导出 JSON</button>
+          <button type="button" className="mn-textbtn mn-settings-danger" onClick={() => void clearLogs()} disabled={!rows.length}>清除日志</button>
+          {notice && <span role="status" className="mn-sethint">{notice}</span>}
+        </div>
       </div>
       <div className="mn-sync-log-list">
         {filtered.length === 0
           ? <p className="mn-sethint">{rows.length ? "没有匹配的日志" : "还没有同步日志。新建或保存笔记后，这里会记录本地保存、上传和云端回执。"}</p>
-          : filtered.map((row) => (
+          : filtered.slice(0, limit).map((row) => (
             <details className="mn-sync-log-entry" key={row.id}>
               <summary>
-                <time>{formatTime(row.at)}</time>
+                <time dateTime={new Date(row.at).toISOString()}>{formatTime(row.at)}</time>
                 <strong className={`is-${row.category}`}>{CATEGORY_LABEL[row.category]}</strong>
                 <span>{row.event}</span>
-                {row.entityId && <code>{row.entityId}</code>}
                 {row.result && <em>{row.result}</em>}
+                <ChevronDown />
               </summary>
               <pre>{JSON.stringify(row, null, 2)}</pre>
             </details>
           ))}
+        {filtered.length > limit && <button type="button" className="mn-textbtn mn-settings-more" onClick={() => setLimit(limit + LOG_PAGE_SIZE)}>显示更多日志（剩余 {filtered.length - limit} 条）</button>}
       </div>
     </section>
   );

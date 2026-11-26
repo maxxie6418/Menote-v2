@@ -442,6 +442,7 @@
   --app-diff-min: 12rem;           /* 版本历史：行级对比区最小可视高度 */
   --app-note-grid-min: 11rem;      /* E2 网格卡片最小列宽 */
   --app-todopanel-width: 14.5rem;  /* E2 todo 侧板（design 232px） */
+  --app-settings-control-width: 11rem;
   --app-settings-dialog: 52rem;    /* 设置对话框 832px（增加横向空间） */
   --app-lock-card: 21.625rem;      /* 锁定卡 346px */
   --app-settings-height: 42rem;    /* 设置对话框 672px（增加可视内容高度） */

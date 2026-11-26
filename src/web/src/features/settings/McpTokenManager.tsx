@@ -133,8 +133,8 @@ export function McpTokenManager() {
 
   return (
     <section className="mn-mcp-manager" aria-label="MCP 接入管理">
-      <div className="mn-mcp-connection">
-        <h4 className="mn-mcp-title">MCP 服务地址</h4>
+      <div className="mn-settings-card mn-mcp-connection">
+        <h3 className="mn-mcp-title">服务地址</h3>
         <div className="mn-mcp-endpoint">
           <code className="mn-mcp-address">{endpoint}</code>
           <button type="button" className="mn-textbtn" onClick={() => void copyEndpoint()}>复制地址</button>
@@ -142,8 +142,8 @@ export function McpTokenManager() {
       </div>
 
       <div className="mn-mcp-heading">
-        <h4 className="mn-mcp-title">访问 Token</h4>
-        {!creating && <button type="button" className="app-button" onClick={() => {
+        <h3 className="mn-mcp-title">访问 Token</h3>
+        {!creating && <button type="button" className="mn-textbtn mn-settings-primary" onClick={() => {
           setCreating(true);
           setDetailsId(null);
           setEditingId(null);
@@ -154,7 +154,7 @@ export function McpTokenManager() {
       {message && <p className="mn-mcp-message" role="status">{message}</p>}
       {creating && <TokenEditor topics={topics} onCancel={() => setCreating(false)} onSave={create} />}
       {loading && <p className="mn-mcp-empty">正在读取 Token…</p>}
-      {!loading && tokens.length === 0 && !creating && <p className="mn-mcp-empty">还没有访问 Token。</p>}
+      {!loading && tokens.length === 0 && !creating && <p className="mn-settings-empty">还没有访问 Token。创建后可以复制该 Token 的 AI 接入提示词。</p>}
       {!loading && tokens.length > 0 && <div className="mn-mcp-token-list">
         {tokens.map((token) => {
           const expanded = detailsId === token.id;
@@ -176,6 +176,7 @@ export function McpTokenManager() {
                   </button>
                   <button type="button" className="mn-textbtn" aria-expanded={expanded} aria-controls={panelId} onClick={() => {
                     setDetailsId(expanded ? null : token.id);
+                    setVisibleTokens({});
                     setEditingId(null);
                     setCreating(false);
                   }}>

@@ -394,9 +394,8 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
   );
   const settingsDialog = settingsOpen ? (
     <Suspense fallback={null}><SettingsDialog
-      key={`settings-${settingsSection}`}
       userId={userId}
-      initialSection={settingsSection}
+      section={settingsSection}
       onClose={() => { setSettingsOpen(false); goBack(settingsReturn.current); }}
       onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
     /></Suspense>

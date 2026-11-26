@@ -13,7 +13,7 @@ const ERRORS: Record<string, string> = {
   recovery_lock_unavailable: "此浏览器暂不支持安全换码，请使用支持 Web Locks 的浏览器。",
 };
 
-export function RecoveryCodeSettings({ userId }: { userId: string }) {
+export function RecoveryCodeSettings({ userId, encryptedCount }: { userId: string; encryptedCount: number }) {
   const [next, setNext] = useState<{ id: string; code: string } | null>(null);
   const [codes, setCodes] = useState<string[]>([""]);
   const [confirmed, setConfirmed] = useState(false);
@@ -46,17 +46,18 @@ export function RecoveryCodeSettings({ userId }: { userId: string }) {
     }
   };
 
-  return <section className="mn-settings-section" aria-label="账户恢复码">
-    <div className="mn-setrow">
+  return <section className="mn-settings-card mn-settings-status" aria-label="账户恢复码">
+    <div className="mn-settings-heading">
       <div>
-        <p className="mn-setlabel">恢复码</p>
+        <h3>账户恢复码</h3>
         <p className="mn-sethint">恢复码可解锁账户内的全部加密内容，请保存在安全的位置。已生成的恢复码无法从账户找回。</p>
       </div>
-      {!next && <button className="mn-auth-submit" type="button" onClick={() => {
+      {!next && <button className="mn-textbtn mn-settings-outline" type="button" onClick={() => {
         setNotice("");
         setNext(createRecoveryCodeRotation());
       }}>更换恢复码</button>}
     </div>
+    <p className="mn-sethint">已加密 {encryptedCount} 篇。首次启用加密时生成恢复码。</p>
     {next && <form className="mn-recovery-rotation" autoComplete="off" onSubmit={(event) => {
       event.preventDefault();
       void rotate();

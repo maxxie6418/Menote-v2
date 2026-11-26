@@ -1,3 +1,4 @@
+import { ChevronDown } from "../../icons";
 import { useEffect, useState } from "react";
 import { isClipTemplateV1, type ClipTemplateV1, type StoredClipTemplate } from "@menote/shared";
 import { emptyClipTemplateDraft, listClipTemplates, removeClipTemplate, saveClipTemplate } from "../../services/clipTemplateService";
@@ -164,43 +165,43 @@ export function ClipTemplateManager() {
     } finally { setBusy(false); }
   }
 
-  return <section className="mn-setsection">
-    <h4 className="mn-setlabel">剪藏模板</h4>
-
-    <section className="mn-cliptemplate-section" aria-labelledby="mn-cliptemplate-new-heading">
-      <h4 className="mn-setlabel" id="mn-cliptemplate-new-heading">新增规则</h4>
-      <div className="mn-cliptemplate-import">
-        <label className="mn-setlabel" htmlFor="mn-clip-template-import">导入模板 JSON</label>
-        <input id="mn-clip-template-import" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "template"); event.currentTarget.value = ""; }} />
-        <label className="mn-setlabel" htmlFor="mn-clip-template-report">导入转译报告（可选）</label>
-        <input id="mn-clip-template-report" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "report"); event.currentTarget.value = ""; }} />
-        {imported && <div className="mn-cliptemplate-preview" role="region" aria-label="新规则导入预览">
-          <p><strong>{imported.name}</strong> · {imported.match.hosts.join("、")} · {imported.enabled ? "启用" : "停用"}</p>
-          <p>来源：{imported.source?.repository ?? imported.source?.kind ?? "未注明"} · {imported.source?.commit ?? "无固定 commit"} · {imported.source?.path ?? ""}</p>
-          {importReport && <><p>报告：{String(importReport.result ?? "转译结果待审核")} {importReport.upstream?.platform ? `· ${String(importReport.upstream.platform)}` : ""} {importReport.upstream?.commit ? `· ${String(importReport.upstream.commit)}` : ""}</p>
-            <ul>{importReport.unsupported!.map((item, index) => <li key={index}>{String(item)}</li>)}</ul></>}
-          <button type="button" className="mn-btn" disabled={busy} onClick={loadImportIntoNewRule}>载入新增规则</button>
-        </div>}
+  return <div className="mn-settings-stack">
+    {message && <p className="mn-settings-notice" role="status">{message}</p>}
+    <details className="mn-settings-fold">
+      <summary>新增或导入规则 <ChevronDown /></summary>
+      <div className="mn-settings-fold-body">
+        <div className="mn-cliptemplate-import">
+          <label className="mn-setlabel" htmlFor="mn-clip-template-import">导入模板 JSON</label>
+          <input id="mn-clip-template-import" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "template"); event.currentTarget.value = ""; }} />
+          <label className="mn-setlabel" htmlFor="mn-clip-template-report">导入转译报告（可选）</label>
+          <input id="mn-clip-template-report" type="file" accept=".json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadImportFile(file, "report"); event.currentTarget.value = ""; }} />
+          {imported && <div className="mn-cliptemplate-preview" role="region" aria-label="新规则导入预览">
+            <p><strong>{imported.name}</strong> · {imported.match.hosts.join("、")} · {imported.enabled ? "启用" : "停用"}</p>
+            <p>来源：{imported.source?.repository ?? imported.source?.kind ?? "未注明"} · {imported.source?.commit ?? "无固定 commit"} · {imported.source?.path ?? ""}</p>
+            {importReport && <><p>报告：{String(importReport.result ?? "转译结果待审核")} {importReport.upstream?.platform ? `· ${String(importReport.upstream.platform)}` : ""} {importReport.upstream?.commit ? `· ${String(importReport.upstream.commit)}` : ""}</p>
+              <ul>{importReport.unsupported!.map((item, index) => <li key={index}>{String(item)}</li>)}</ul></>}
+            <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={loadImportIntoNewRule}>载入新增规则</button>
+          </div>}
+        </div>
+        <label className="mn-setlabel" htmlFor="mn-clip-template-new-json">新增规则 JSON</label>
+        <textarea id="mn-clip-template-new-json" className="mn-cliptemplate-json" rows={9} value={newDraft} onChange={(event) => setNewDraft(event.target.value)} />
+        <div className="mn-cliptemplate-actions">
+          <button type="button" className="mn-textbtn mn-settings-primary" disabled={busy} onClick={() => void createRule()}>创建规则</button>
+          <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={() => { setNewDraft(emptyClipTemplateDraft()); setImported(null); setMessage("已重置新增规则草稿。"); }}>新建空白规则</button>
+        </div>
       </div>
-      <label className="mn-setlabel" htmlFor="mn-clip-template-new-json">新增规则 JSON</label>
-      <textarea id="mn-clip-template-new-json" className="mn-cliptemplate-json" rows={14} value={newDraft} onChange={(event) => setNewDraft(event.target.value)} />
-      <div className="mn-cliptemplate-actions">
-        <button type="button" className="mn-btn" disabled={busy} onClick={() => void createRule()}>创建规则</button>
-        <button type="button" className="mn-btn" disabled={busy} onClick={() => { setNewDraft(emptyClipTemplateDraft()); setImported(null); setMessage("已重置新增规则草稿。"); }}>新建空白规则</button>
-      </div>
-    </section>
+    </details>
 
     <section className="mn-cliptemplate-section" aria-labelledby="mn-cliptemplate-existing-heading">
       <div className="mn-cliptemplate-heading">
         <h4 className="mn-setlabel" id="mn-cliptemplate-existing-heading">已有规则</h4>
-        <button type="button" className="mn-btn" disabled={busy || listState === "loading"} onClick={() => void refresh(true).catch(() => undefined)}>刷新列表</button>
+        <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy || listState === "loading"} onClick={() => void refresh(true).catch(() => undefined)}>刷新列表</button>
       </div>
       {listState === "loading" && <p className="mn-sethint" role="status">正在读取账号规则…</p>}
       {listState === "error" && <p className="mn-sethint" role="alert">规则列表读取失败：{listError}</p>}
       {listState === "ready" && templates.length === 0 && (
         <p className="mn-sethint" role="status">
-          当前账号还没有剪藏规则。声明式模板可在下方新增或导入；四平台（推特 / 小红书 / 知乎 / GitHub / 微信公众号）
-          的专用管线条目由剪藏扩展自动登记，规则同下。
+          还没有剪藏规则。可新增或导入模板，扩展专用规则由浏览器扩展登记。
         </p>
       )}
       {listState === "ready" && templates.length > 0 && !templates.some(({ template }) => template.pipeline === "capture-clip") && (
@@ -248,23 +249,22 @@ export function ClipTemplateManager() {
               <p className="mn-sethint">命令式规则的提取逻辑随插件版本更新；此处仅可启停，无需编辑。</p>
             ) : (
               <>
-                <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing({ id: template.id, version, draft: JSON.stringify(template, null, 2) })}>编辑</button>
-                <button type="button" className="mn-btn" disabled={busy} onClick={() => exportRule(template)}>导出</button>
-                <button type="button" className="mn-btn" disabled={busy} onClick={() => void deleteRule(template.id)}>删除</button>
+                <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={() => setEditing({ id: template.id, version, draft: JSON.stringify(template, null, 2) })}>编辑</button>
+                <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={() => exportRule(template)}>导出</button>
+                <button type="button" className="mn-textbtn mn-settings-danger" disabled={busy} onClick={() => void deleteRule(template.id)}>删除</button>
               </>
             )}
           </div>
           {editing?.id === template.id && <div className="mn-cliptemplate-edit">
             <label className="mn-setlabel" htmlFor={`mn-clip-template-edit-${template.id}`}>编辑规则 JSON</label>
-            <textarea id={`mn-clip-template-edit-${template.id}`} className="mn-cliptemplate-json" rows={14} value={editing.draft} onChange={(event) => setEditing({ ...editing, draft: event.target.value })} />
+            <textarea id={`mn-clip-template-edit-${template.id}`} className="mn-cliptemplate-json" rows={9} value={editing.draft} onChange={(event) => setEditing({ ...editing, draft: event.target.value })} />
             <div className="mn-cliptemplate-actions">
-              <button type="button" className="mn-btn" disabled={busy} onClick={() => void saveExistingRule()}>保存修改</button>
-              <button type="button" className="mn-btn" disabled={busy} onClick={() => setEditing(null)}>取消</button>
+              <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={() => void saveExistingRule()}>保存修改</button>
+              <button type="button" className="mn-textbtn mn-settings-outline" disabled={busy} onClick={() => setEditing(null)}>取消</button>
             </div>
           </div>}
         </article>;
       })}
     </section>
-    {message && <p className="mn-sethint" role="status">{message}</p>}
-  </section>;
+  </div>;
 }

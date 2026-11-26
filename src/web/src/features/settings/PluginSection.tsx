@@ -3,7 +3,6 @@ import { DEFAULT_RAINDROP_SETTINGS, normalizeRaindropSettings, type RaindropSett
 import { readRaindropSettings, updateRaindropSettings } from "../../services/raindropSettingsService";
 import { loadShared, peek, SETTINGS_CACHE } from "../../services/settingsPrefetch";
 import { RaindropPanel } from "./RaindropPanel";
-import { InfoHint } from "../../components/ui/InfoHint";
 
 /** 插件设置节（FR-EXT-3，TP9）：默认关闭；启用才渲染 Raindrop 面板。开关不影响应用其余功能。 */
 export function PluginSection({ userId }: { userId: string }) {
@@ -28,22 +27,15 @@ export function PluginSection({ userId }: { userId: string }) {
   }, [userId]);
 
   const enabled = settings?.enabled ?? false;
-
-  return (
-    <div>
-      <div className="mn-setrow">
-        <div>
-          <p className="mn-setlabel">启用插件<InfoHint>
-            首个内置插件为 Raindrop 连接器：把指定表格作为网页收藏中间件，自动定时拉取远端收藏，
-            并支持手动预览确认后反推远端作为云端备份。关闭后设置页隐藏、定时拉取跳过，应用其余功能不受影响。
-          </InfoHint></p>
-        </div>
-        <input type="checkbox" aria-label="启用插件" checked={enabled} disabled={!settings}
+  return <div className="mn-settings-stack">
+    <section className="mn-settings-card mn-settings-status" aria-label="Raindrop 连接器">
+      <div className="mn-settings-heading">
+        <div><h3>Raindrop 连接器</h3><p className="mn-sethint">定时拉取收藏到多维表格，也可预览本地改动后手动推送。</p></div>
+        <label className="mn-settings-toggle"><input type="checkbox" aria-label="启用插件" checked={enabled} disabled={!settings}
           onChange={(event) => void updateRaindropSettings(userId, { enabled: event.target.checked }).then(setSettings)} />
+          {settings ? enabled ? "已启用" : "已停用" : "正在读取…"}</label>
       </div>
-      {!settings
-        ? <p className="mn-sethint">设置加载中…</p>
-        : enabled ? <RaindropPanel userId={userId} /> : null}
-    </div>
-  );
+    </section>
+    {enabled && <RaindropPanel userId={userId} />}
+  </div>;
 }

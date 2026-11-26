@@ -1,3 +1,4 @@
+import { ChevronDown } from "../../icons";
 import { useEffect, useState } from "react";
 import { DEFAULT_ATTACHMENT_POLICY, readAttachmentPolicy, updateAttachmentPolicy } from "../../services/attachmentPolicyService";
 
@@ -33,16 +34,19 @@ export function AttachmentPolicySettings({ userId }: { userId: string }) {
     } finally { setSaving(false); }
   };
 
-  return <section className="mn-settings-section mn-attachment-policy" aria-label="附件上传限制">
-    <div className="mn-attachment-section-head"><div><h4>上传限制</h4><p className="mn-sethint">随账号同步并由服务端执行；单文件上限为 20 MiB。</p></div></div>
-    <label className="mn-setrow"><span>单文件上限（MiB）</span>
-      <input className="mn-attach-policy-input" type="number" min="0.01" max="20" step="0.01" value={sizeMiB} onChange={(event) => setSizeMiB(event.target.value)} />
-    </label>
-    <label className="mn-setrow"><span>允许的扩展名</span>
-      <input className="mn-attach-policy-input" value={extensions} onChange={(event) => setExtensions(event.target.value)} placeholder="png, jpg, pdf, md" />
-    </label>
-    <p className="mn-sethint mn-attachment-policy-hint">用逗号或空格分隔，例如 png、jpg、pdf、md。空列表将禁用所有新附件上传。</p>
-    <div className="mn-set-actions"><button type="button" className="mn-auth-submit" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "保存上传限制"}</button>
-      <span role="status">{message}</span></div>
-  </section>;
+  return <details className="mn-settings-fold">
+    <summary>上传限制 <ChevronDown /></summary>
+    <div className="mn-settings-fold-body">
+      <p className="mn-sethint">上传限制随账号同步，单文件最大可设为 20 MiB。</p>
+      <label className="mn-setrow"><span>单文件上限（MiB）</span>
+        <input className="mn-attach-policy-input" type="number" min="0.01" max="20" step="0.01" value={sizeMiB} onChange={(event) => setSizeMiB(event.target.value)} />
+      </label>
+      <label className="mn-setrow"><span>允许的扩展名</span>
+        <input className="mn-attach-policy-input" value={extensions} onChange={(event) => setExtensions(event.target.value)} placeholder="png, jpg, pdf, md" />
+      </label>
+      <p className="mn-sethint mn-attachment-policy-hint">用逗号或空格分隔，例如 png、jpg、pdf、md。空列表将禁用所有新附件上传。</p>
+      <div className="mn-set-actions"><button type="button" className="mn-auth-submit" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "保存上传限制"}</button>
+        <span role="status">{message}</span></div>
+    </div>
+  </details>;
 }

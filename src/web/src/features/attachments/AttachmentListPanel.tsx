@@ -91,18 +91,19 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
   }
 
   return (
-    <section className="status-panel" aria-labelledby="attachments-heading">
-      <h2 id="attachments-heading">附件管理</h2>
-      <p className="app-description">附件在最后一条引用移除 30 天后可清理，回收站中的笔记仍计入引用。</p>
-      <div className="mn-attach-toolbar">
-        <button type="button" className="mn-textbtn" disabled={loading || cleaning || !eligible.size}
-          onClick={() => void clean([...eligible])}>{cleaning ? "处理中…" : "清理本页到期附件"}</button>
-        <div className="mn-attach-view" role="group" aria-label="附件显示方式">
-          <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>列表</button>
-          <button type="button" aria-pressed={view === "gallery"} className={view === "gallery" ? "on" : ""} onClick={() => setView("gallery")}>图册</button>
+    <section className="mn-settings-stack" aria-label="附件管理">
+      <div className="mn-attach-controls">
+        <div className="mn-attach-toolbar">
+          <div className="mn-attach-view" role="group" aria-label="附件显示方式">
+            <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>列表</button>
+            <button type="button" aria-pressed={view === "gallery"} className={view === "gallery" ? "on" : ""} onClick={() => setView("gallery")}>图册</button>
+          </div>
+          <button type="button" className="mn-textbtn mn-settings-outline" disabled={loading || cleaning || !eligible.size}
+            onClick={() => void clean([...eligible])}>{cleaning ? "处理中…" : "清理本页到期附件"}</button>
         </div>
+        {attachments !== null && <p className="mn-sethint">本页 {attachments.length} 个附件 · 未引用 {orphaned.length} 个 · 可清理 {eligible.size} 个</p>}
+        <p className="mn-sethint">移除最后一条引用 30 天后可清理。回收站内的引用仍然有效。</p>
       </div>
-      {attachments !== null && <div className="mn-attach-overview" aria-label="附件统计"><span>本页 {attachments.length} 个附件</span><span>未引用 {orphaned.length} 个</span><span>可清理 {eligible.size} 个</span></div>}
       {(cursors.length > 1 || page?.nextCursor) && <nav className="mn-attach-toolbar" aria-label="附件分页">
         <button type="button" className="mn-textbtn" disabled={loading || cleaning || cursors.length <= 1}
           onClick={() => navigate(cursors.slice(0, -1))}>上一页</button>
@@ -111,9 +112,9 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
           onClick={() => { if (page?.nextCursor) navigate([...cursors, page.nextCursor]); }}>下一页</button>
       </nav>}
       {cleanupMessage && <p className="status-detail" role="status">{cleanupMessage}</p>}
-      {error && <p className="status-detail">附件列表暂不可用。</p>}
+      {error && <p className="mn-settings-notice is-error" role="alert">附件列表暂不可用。</p>}
       {!error && attachments === null && <p className="status-detail">加载中…</p>}
-      {attachments !== null && attachments.length === 0 && <p className="status-detail">本页暂无附件。</p>}
+      {attachments !== null && attachments.length === 0 && <p className="mn-settings-empty">本页暂无附件。</p>}
       {view === "gallery" && attachments?.some((attachment) => attachment.mime.startsWith("image/")) && <div className="mn-attach-gallery" aria-label="图片附件图册">
         {attachments.filter((attachment) => attachment.mime.startsWith("image/")).map((attachment) => {
           const detail = references[attachment.sha256];
@@ -124,7 +125,7 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
           </a>;
         })}
       </div>}
-      {view === "gallery" && attachments && !attachments.some((attachment) => attachment.mime.startsWith("image/")) && <p className="status-detail">暂无图片附件；其他文件可在列表模式查看。</p>}
+      {view === "gallery" && attachments && attachments.length > 0 && !attachments.some((attachment) => attachment.mime.startsWith("image/")) && <p className="mn-settings-empty">本页没有图片附件。可切换到列表查看其他文件。</p>}
       {view === "list" && attachments !== null && attachments.length > 0 && (
         <ul className="mn-attachlist" aria-label="附件列表">
           {attachments.map((attachment) => {
@@ -141,7 +142,7 @@ export function AttachmentListPanel({ userId }: AttachmentListPanelProps) {
                     : <a className="mn-attachname" href={attachmentUrl(attachment.sha256)} target="_blank" rel="noreferrer">{name}</a>}
                   <span className="mn-attachmeta">{sealed ? "密文" : attachment.mime} · {formatSize(attachment.size)} · 引用 {attachment.refCount}</span>
                   {sealed ? <span className="mn-attachmeta">在所属笔记解锁后打开</span>
-                    : detail?.references.length ? <div className="mn-attachrefs">引用文章：{detail.references.map((ref, index) => <span key={ref.id}>{index > 0 && "、"}<a href={ref.href}>{ref.title}</a></span>)}</div> : null}
+                    : detail?.references.length ? <details className="mn-attachrefs"><summary>查看引用</summary>{detail.references.map((ref, index) => <span key={ref.id}>{index > 0 && "、"}<a href={ref.href}>{ref.title}</a></span>)}</details> : null}
                 </div>
                 {eligible.has(attachment.sha256) && <button type="button" className="mn-textbtn" disabled={loading || cleaning}
                   aria-label={`清理附件 ${name}`} onClick={() => void clean([attachment.sha256])}>清理</button>}
