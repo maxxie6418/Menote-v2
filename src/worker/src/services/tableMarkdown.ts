@@ -1,3 +1,6 @@
+import { Document, isMap, parseDocument, YAMLMap } from "yaml";
+import { BOOKMARK_COLUMNS } from "@menote/shared";
+
 /** GFM 表格 Markdown 的纯解析/序列化工具（TP3 收藏写入与 TP9 连接器共用）。
  *  仅处理「首张可解析表格」；转义规则与 Menote 表格文档的序列化保持一致。 */
 
@@ -65,4 +68,26 @@ export function generateRowId(): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+export function bookmarkFieldDefinitions(yamlSource: string | null): string {
+  const document = yamlSource === null ? new Document({}) : parseDocument(yamlSource);
+  if (document.errors.length) throw new Error("bookmark_target_invalid");
+  const fields = document.get("fields", true);
+  if (fields !== undefined && !isMap(fields)) throw new Error("bookmark_target_invalid");
+  let map: YAMLMap;
+  if (isMap(fields)) map = fields as YAMLMap;
+  else {
+    map = document.createNode({}) as YAMLMap;
+    document.set("fields", map);
+  }
+  if (yamlSource !== null && BOOKMARK_COLUMNS.every(column => map.has(column.name))) return yamlSource;
+  for (const column of BOOKMARK_COLUMNS) {
+    if (map.has(column.name)) continue;
+    const definition = column.options
+      ? { type: column.type, options: [...column.options] }
+      : { type: column.type };
+    map.set(column.name, document.createNode(definition));
+  }
+  return String(document).trimEnd();
 }

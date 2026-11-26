@@ -27,7 +27,7 @@ export const BOOKMARK_ROW_ID_COLUMN = "行 ID";
 
 export interface BookmarkColumnDef {
   name: string;
-  type: "text" | "link" | "multiselect" | "select" | "date" | "checkbox";
+  type: "text" | "link" | "multiselect" | "select" | "date" | "datetime" | "checkbox";
   options?: readonly string[];
 }
 
@@ -40,7 +40,7 @@ export const BOOKMARK_COLUMNS: readonly BookmarkColumnDef[] = [
   { name: "标签", type: "multiselect" },
   { name: "类型", type: "select", options: ["link", "article", "image", "video", "document", "audio"] },
   { name: "封面", type: "link" },
-  { name: "采集时间", type: "date" },
+  { name: "采集时间", type: "datetime" },
   { name: "重要", type: "checkbox" },
 ];
 

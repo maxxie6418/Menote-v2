@@ -50,6 +50,8 @@ export function ColumnHeaderCell({
 }: ColumnHeaderCellProps) {
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const options = (def?.options ?? []).join("\n");
+  const [optionsDraft, setOptionsDraft] = useState<string | null>(null);
+  const [colorTarget, setColorTarget] = useState<string | null>(null);
   return (
     <div className={`mn-tabledoc-hcell mn-tabledoc-colw-${widthLevel}${dragging ? " dragging" : ""}${readOnly ? " readonly" : ""}`}
       role="columnheader" ref={setAnchor} data-column-index={index} data-wrap={wrap ? "true" : "false"}
@@ -107,22 +109,28 @@ export function ColumnHeaderCell({
             <>
               <label className="mn-tabledoc-optedit">
                 候选值（每行一个，禁含逗号）
-                <textarea rows={4} value={options} onChange={(event) => onOptions(event.target.value)} />
+                <textarea rows={4} value={optionsDraft ?? options} onChange={(event) => {
+                  const raw = event.target.value;
+                  setOptionsDraft(raw);
+                  onOptions(raw);
+                }} onBlur={() => setOptionsDraft(null)} />
               </label>
               {(def.options ?? []).length > 0 && (
                 <div className="mn-tabledoc-colors">
                   <span className="mn-tabledoc-colors-title">候选值颜色</span>
                   {(def.options ?? []).map((option, optionIndex) => (
                     <div className="mn-tabledoc-color-row" key={`${option}-${optionIndex}`}>
-                      <span className="mn-tcell-pill" data-tone={optionColors[option] ?? "neutral"}>{option}</span>
-                      <div className="mn-tabledoc-color-palette" role="group" aria-label={`${option} 的颜色`}>
+                      <button type="button" className="mn-tcell-pill" data-tone={optionColors[option] ?? "neutral"}
+                        aria-label={"设置标签颜色：" + option} aria-expanded={colorTarget === option}
+                        onClick={() => setColorTarget(colorTarget === option ? null : option)}>{option}</button>
+                      {colorTarget === option && <div className="mn-tabledoc-color-palette" role="group" aria-label={`${option} 的颜色`}>
                         {OPTION_COLORS.map((color) => (
                           <button key={color} type="button" className="mn-tabledoc-colorswatch"
                             data-tone={color} aria-label={`${option}：${OPTION_COLOR_LABELS[color]}`}
                             aria-pressed={(optionColors[option] ?? "neutral") === color}
                             onClick={() => onColor(option, color === "neutral" ? null : color)} />
                         ))}
-                      </div>
+                      </div>}
                     </div>
                   ))}
                 </div>

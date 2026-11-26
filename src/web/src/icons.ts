@@ -31,6 +31,8 @@ export { default as CircleCheck } from "lucide-react/icons/circle-check";
 export { default as CircleHelp } from "lucide-react/icons/circle-help";
 export { default as CircleX } from "lucide-react/icons/circle-x";
 export { default as Clock } from "lucide-react/icons/clock";
+export { default as Calendar } from "lucide-react/icons/calendar";
+export { default as Hash } from "lucide-react/icons/hash";
 export { default as Clock3 } from "lucide-react/icons/clock-3";
 export { default as Code } from "lucide-react/icons/code";
 export { default as Copy } from "lucide-react/icons/copy";

@@ -14,6 +14,39 @@ const tableBundle = await build({
 });
 const table = await import(`data:text/javascript;base64,${Buffer.from(tableBundle.outputFiles[0].text).toString("base64")}`);
 
+const fieldBundle = await build({
+  entryPoints: [fileURLToPath(new URL("../src/features/table/tableFieldValues.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "browser",
+});
+const fields = await import(`data:text/javascript;base64,${Buffer.from(fieldBundle.outputFiles[0].text).toString("base64")}`);
+
+test("主动转多选扫描全列，保留含空格的标签、空行和其他字段", () => {
+  const raw = "| 名称 | 分类 |\n| --- | --- |\n| A | 原画，设计；原画 |\n| B | In Progress, 设计 |\n| C |  |";
+  const converted = fields.convertChoiceColumn(raw, "分类", 1, table.findTables(raw)[0], "multiselect");
+  const parsed = table.findTables(fm.splitFrontmatter(converted).body)[0];
+  const def = fm.readDefs(converted, fm.FIELDS_KEY)["分类"];
+  assert.deepEqual(def.options, ["原画", "设计", "In Progress"]);
+  assert.deepEqual(parsed.rows, [["A", "原画, 设计"], ["B", "In Progress, 设计"], ["C", ""]]);
+  assert.equal(fields.convertChoiceColumn(converted, "分类", 1, parsed, "multiselect", def), converted);
+  const implicit = { 分类: { type: "multiselect" } };
+  assert.deepEqual(fields.displayFieldDefs(implicit, parsed).分类.options, def.options);
+  assert.equal(implicit.分类.options, undefined);
+  const known = { type: "select", options: ["研发；设计"], optionColors: { "研发；设计": "blue" } };
+  const original = "| 分类 |\n| --- |\n| 研发；设计 |";
+  const migrated = fields.convertChoiceColumn(original, "分类", 0, table.findTables(original)[0], "multiselect", known);
+  assert.deepEqual(fm.readDefs(migrated, fm.FIELDS_KEY).分类.options, known.options);
+});
+
+test("表格日期识别有效日历日、原始时区和秒精度，历史非日期值保留为文本", () => {
+  assert.deepEqual(fields.parseTableDate("2024-02-29T09:02:00.125000+08:00"), {
+    day: "2024-02-29", time: "09:02", seconds: ":00.125000", zone: "+08:00",
+  });
+  assert.equal(fields.parseTableDate("2026-02-29"), null);
+  assert.equal(fields.parseTableDate("初冬"), null);
+  const doc = fm.writeDef("", fm.FIELDS_KEY, "采集时间", { type: "datetime" });
+  assert.equal(fm.readDefs(doc, fm.FIELDS_KEY).采集时间.type, "datetime");
+});
+
 test("frontmatter round-trip preserves untouched keys verbatim (FR-PROP-7)", () => {
   const source = `---\ntitle: 笔记\n'quoted key': "保持 原样 # 引号"\n# 注释也保留\nstatus: high\n---\n\n# 正文\n`;
   const next = fm.writeValue(source, "status", "low");

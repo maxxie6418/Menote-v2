@@ -1,5 +1,5 @@
 import { BOOKMARK_COLUMNS, BOOKMARK_ROW_ID_COLUMN, type RaindropMappedFields } from "@menote/shared";
-import { findTable, generateRowId, renderTable, splitFrontmatter, toTableCell } from "./tableMarkdown";
+import { bookmarkFieldDefinitions, findTable, generateRowId, renderTable, splitFrontmatter, toTableCell } from "./tableMarkdown";
 
 /** 绑定表格的行级读写（TP9）：以「行 ID」列为本地行锚点；保留用户自建列与未知列，不重排列序。 */
 
@@ -115,5 +115,6 @@ export function fieldsFromCells(cells: Record<string, string>): RaindropMappedFi
 }
 
 function joinFrontmatter(yaml: string | null, body: string): string {
-  return yaml === null ? body : `---\n${yaml}\n---\n\n${body.trimStart()}`;
+  const fields = bookmarkFieldDefinitions(yaml);
+  return `---\n${fields}\n---\n\n${body.trimStart()}`;
 }

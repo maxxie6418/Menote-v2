@@ -44,6 +44,10 @@ async function digest(fields) {
 test("backfillRowIds adds the row-id column once and is idempotent", () => {
   const doc = "---\nfields:\n  标题:\n    type: text\n---\n\n| 标题 |\n| --- |\n| 甲 |\n| 乙 |\n";
   const first = table.backfillRowIds(doc);
+  assert.match(first.markdown, /标签:\s+type: multiselect/);
+  assert.match(first.markdown, /采集时间:\s+type: datetime/);
+  const typed = table.backfillRowIds("---\nfields:\n  网址: {type: text}\n---\n\n" + doc);
+  assert.match(typed.markdown, /网址: \{\s*type: text\s*\}/);
   assert.equal(first.rowIds.length, 2);
   assert.ok(first.markdown.includes("| 行 ID |"));
   assert.ok(first.markdown.startsWith("---\n"));

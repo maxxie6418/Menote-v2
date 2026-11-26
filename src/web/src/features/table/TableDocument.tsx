@@ -6,6 +6,7 @@ import {
   type OptionColor, type PropertyDef, type PropertyType,
 } from "../../lib/frontmatter";
 import { findTables, joinMultiCell, renderTable, replaceTable, splitMultiCell, type ParsedTable } from "../../lib/gfmTable";
+import { convertChoiceColumn, displayFieldDefs, withChoiceOptions } from "./tableFieldValues";
 import { TableCellEditor } from "./TableCellEditor";
 import { AddColumnForm, AddColumnSpacer, ColumnHeaderCell } from "./ColumnHeaderCell";
 import {
@@ -63,8 +64,9 @@ function removeFirstTable(body: string): string {
  *  编辑与预览共用这一份网格（FR-TBL-20）：预览只关掉输入入口，不换排版。 */
 export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDegrade, onSwitchToNote, readOnly = false, showSource = false, addColumnSignal = 0, allowAttachments = true, sealedAttachments = false }: TableDocumentProps) {
   const { frontText, body } = useMemo(() => splitFrontmatter(markdown), [markdown]);
-  const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
+  const storedDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
+  const fieldDefs = useMemo(() => displayFieldDefs(storedDefs, table), [storedDefs, table]);
   const blank = !/\S/.test(body);
 
   const [menuCol, setMenuCol] = useState<number | null>(null);
@@ -421,7 +423,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   };
 
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (readOnly) return;
+    if (readOnly || event.nativeEvent.isComposing || !event.currentTarget.contains(event.target as Node)) return;
     const target = event.target as HTMLElement;
     const cell = target.closest<HTMLElement>("[data-row-index][data-col-index]");
     if (!cell || !table) return;
@@ -430,6 +432,12 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     const visibleIndex = visibleRows.findIndex((entry) => entry.rowIndex === row);
     const visibleColIndex = visibleColumnIndices.indexOf(col);
     if (visibleColIndex < 0) return;
+    const openUrl = cell.querySelector<HTMLAnchorElement>("a.mn-tcell-open");
+    if (openUrl && event.key === "Tab") {
+      if (target === openUrl && !event.shiftKey) return;
+      if (event.shiftKey && target !== openUrl) { event.preventDefault(); openUrl.focus(); return; }
+    }
+    if (openUrl && event.altKey && event.key === "Enter") { event.preventDefault(); openUrl.click(); return; }
     const focusCell = (rowIndex: number, colIndex: number) => {
       const next = document.querySelector<HTMLElement>(`.mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] input, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] textarea, .mn-tabledoc-cell[data-row-index="${rowIndex}"][data-col-index="${colIndex}"] button`);
       next?.focus();
@@ -456,12 +464,20 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   /* ---------- 单元格与行 ---------- */
 
-  const setCell = (row: number, col: number, value: string) => {
-    if (!table || readOnly) return;
+  const setCell = (row: number, col: number, value: string, newOption?: string) => {
+    if (!table || readOnly || (!newOption && (table.rows[row]?.[col] ?? "") === value)) return;
     clearUndo();
     setSortCol(null);
-    const rows = table.rows.map((cells, r) => (r === row ? cells.map((cell, c) => (c === col ? value : cell)) : cells));
-    applyGrid(table.header, rows);
+    const rows = [...table.rows];
+    const cells = [...(rows[row] ?? [])];
+    cells[col] = value;
+    rows[row] = cells;
+    if (!newOption) { applyGrid(table.header, rows); return; }
+    const name = table.header[col]!.trim();
+    const def = fieldDefs[name];
+    if (!def) return;
+    const next = writeDef(markdown, FIELDS_KEY, name, withChoiceOptions(def, [newOption]));
+    onChangeMarkdown(joinDoc(splitFrontmatter(next).frontText, replaceTable(body, 0, { ...table, rows })));
   };
 
   const addRow = () => {
@@ -583,34 +599,34 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const changeColumnType = (col: number, type: PropertyType) => {
     const name = (table?.header[col] ?? scaffoldHeader?.[col] ?? "").trim();
     if (!name) return;
-    clearUndo();
-    const existing = fieldDefs[name];
-    const def: PropertyDef = {
-      type,
-      ...(existing?.label ? { label: existing.label } : {}),
-      ...(existing?.options ? { options: existing.options } : {}),
-      ...(existing?.optionColors && (type === "select" || type === "multiselect") ? { optionColors: existing.optionColors } : {}),
-    };
-    // 类型是增强信息：不迁移既有值（FR-TBL-4 精神），仅影响后续编辑控件。
-    // 单选/多选留着菜单，方便接着改候选；其余类型选完即关。
-    onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, def));
-    if (type !== "select" && type !== "multiselect") setMenuCol(null);
+    const previous = fieldDefs[name];
+    const choice = type === "select" || type === "multiselect";
+    const next = choice ? convertChoiceColumn(markdown, name, col, table, type, previous)
+      : writeDef(markdown, FIELDS_KEY, name, { ...previous, type });
+    if (next !== markdown) {
+      saveUndoPoint("字段类型转换");
+      onChangeMarkdown(next);
+      if (filterCol === col) setFilterValue("");
+      setSortCol(null);
+    }
+    if (!choice) setMenuCol(null);
   };
 
   const setColumnOptions = (col: number, raw: string) => {
     const name = (table?.header[col] ?? scaffoldHeader?.[col] ?? "").trim();
     const existing = fieldDefs[name];
     if (!existing || (existing.type !== "select" && existing.type !== "multiselect")) return;
-    clearUndo();
-    const options = raw.split("\n").map((item) => item.trim()).filter(Boolean);
+    const options = [...new Set(raw.split("\n").map((item) => item.trim()).filter(Boolean))];
     if (options.some((option) => option.includes(","))) {
       setError("候选值不能包含逗号（FR-TBL-6）");
       return;
     }
     setError(null);
+    if (options.join("\n") === (existing.options ?? []).join("\n")) return;
+    clearUndo();
     const optionColors = Object.fromEntries(Object.entries(existing.optionColors ?? {}).filter(([option]) => options.includes(option)));
     onChangeMarkdown(writeDef(markdown, FIELDS_KEY, name, {
-      type: existing.type, options, ...(Object.keys(optionColors).length ? { optionColors } : {}),
+      ...existing, options, optionColors,
     }));
   };
 
@@ -718,11 +734,11 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
             const next = Number(event.target.value);
             setFilterCol(next);
             setFilterValue("");
-            setFilterOperator(["number", "date"].includes(fieldAt(next).type) ? "eq" : ["select", "multiselect"].includes(fieldAt(next).type) ? "eq" : "contains");
+            setFilterOperator(["number", "date", "datetime"].includes(fieldAt(next).type) ? "eq" : ["select", "multiselect"].includes(fieldAt(next).type) ? "eq" : "contains");
           }}>
             {header.map((name, index) => <option key={`${name}-${index}`} value={index}>{name}</option>)}
           </select></label>
-          {(columnType(filterCol) === "number" || columnType(filterCol) === "date") && (
+          {["number", "date", "datetime"].includes(columnType(filterCol)) && (
             <label>条件<select value={filterOperator} onChange={(event) => setFilterOperator(event.target.value)}>
               <option value="eq">等于</option><option value="gt">大于</option><option value="lt">小于</option>
             </select></label>
@@ -732,8 +748,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
           ) : ["select", "multiselect"].includes(columnType(filterCol)) && (fieldAt(filterCol).def?.options?.length ?? 0) > 0 ? (
             <label>候选值<select value={filterValue} onChange={(event) => setFilterValue(event.target.value)}><option value="">全部</option>{fieldAt(filterCol).def!.options!.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
           ) : (
-            <label>{columnType(filterCol) === "date" ? "日期" : columnType(filterCol) === "number" ? "数值" : "包含"}
-              <input type={columnType(filterCol) === "date" ? "date" : columnType(filterCol) === "number" ? "number" : "search"}
+            <label>{columnType(filterCol) === "datetime" ? "日期时间" : columnType(filterCol) === "date" ? "日期" : columnType(filterCol) === "number" ? "数值" : "包含"}
+              <input type={columnType(filterCol) === "datetime" ? "datetime-local" : columnType(filterCol) === "date" ? "date" : columnType(filterCol) === "number" ? "number" : "search"}
                 value={filterValue} onChange={(event) => setFilterValue(event.target.value)} placeholder="筛选值" />
             </label>
           )}
@@ -886,7 +902,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                       allowAttachments={allowAttachments}
                       attachmentItemId={sealedAttachments ? itemId : undefined}
                       value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
-                      onChange={(value) => setCell(row, col, value)}
+                      onChange={(value, option) => setCell(row, col, value, option)}
                     />
                   </div>
                   );
@@ -912,6 +928,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
             visiblePosition={detailIndex + 1}
             visibleCount={visibleRows.length}
             columns={table.header}
+            fieldDefs={fieldDefs}
             cells={detailRow.cells}
             attachmentItemId={sealedAttachments ? itemId : undefined}
             onPrevious={previousDetail && (() => setDetailSelection({ ...detailSelection, rowIndex: previousDetail.rowIndex }))}

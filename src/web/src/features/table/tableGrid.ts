@@ -1,3 +1,4 @@
+import { parseTableDate } from "./tableFieldValues";
 import { splitMultiCell } from "../../lib/gfmTable";
 import type { PropertyDef, PropertyType } from "../../lib/frontmatter";
 
@@ -31,7 +32,10 @@ export function validateGridPaste(rows: string[][], start: GridCellAddress, fiel
       const label = `第 ${start.row + r + 1} 行「${field.name || field.def?.label || "字段"}」`;
       if (!value) continue;
       if (field.type === "number" && (!Number.isFinite(Number(value)) || value.length === 0)) return `${label}不是有效数字：${value}`;
-      if (field.type === "date" && !isIsoDate(value)) return `${label}不是有效日期（YYYY-MM-DD）：${value}`;
+      if (field.type === "date" || field.type === "datetime") {
+        const parsed = parseTableDate(value);
+        if (!parsed || (field.type === "datetime" && !parsed.time)) return `${label}不是有效${field.type === "date" ? "日期" : "日期时间"}：${value}`;
+      }
       if (field.type === "checkbox" && value !== "true" && value !== "false") return `${label}只接受 true 或 false：${value}`;
       if (field.type === "select" && (field.def?.options?.length ?? 0) > 0 && !field.def!.options!.includes(value)) {
         return `${label}不在候选值中：${value}`;
@@ -47,14 +51,10 @@ export function validateGridPaste(rows: string[][], start: GridCellAddress, fiel
   return null;
 }
 
-function isIsoDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const [, yearText, monthText, dayText] = match;
-  const date = new Date(Date.UTC(Number(yearText), Number(monthText) - 1, Number(dayText)));
-  return date.getUTCFullYear() === Number(yearText)
-    && date.getUTCMonth() + 1 === Number(monthText)
-    && date.getUTCDate() === Number(dayText);
+function compareTableDates(left: string, right: string): number {
+  const a = Date.parse(left.replace(" ", "T"));
+  const b = Date.parse(right.replace(" ", "T"));
+  return Number.isFinite(a) && Number.isFinite(b) ? a - b : left.localeCompare(right);
 }
 
 export function compareGridValues(left: string, right: string, field: GridField): number {
@@ -68,7 +68,7 @@ export function compareGridValues(left: string, right: string, field: GridField)
     if (!Number.isFinite(a) && !Number.isFinite(b)) return left.localeCompare(right, undefined, { numeric: true });
     return Number.isFinite(a) ? -1 : 1;
   }
-  if (field.type === "date") return left.localeCompare(right);
+  if (field.type === "date" || field.type === "datetime") return compareTableDates(left, right);
   if (field.type === "checkbox") return (left === "true" ? 1 : 0) - (right === "true" ? 1 : 0);
   if (field.type === "select") {
     const options = field.def?.options ?? [];
@@ -103,9 +103,12 @@ export function matchesGridFilter(value: string, query: string, operator: string
     if (operator === "lt") return a < b;
     return a === b;
   }
-  if (field.type === "date") {
-    if (!value) return false;
-    const comparison = value.localeCompare(query);
+  if (field.type === "date" || field.type === "datetime") {
+    const parsed = parseTableDate(value);
+    if (!parsed) return false;
+    // 筛选器输入到分钟，按表格显示的源时区日历值匹配；排序仍按实际时间点比较。
+    const displayed = field.type === "date" ? parsed.day : parsed.day + "T" + (parsed.time || "00:00");
+    const comparison = displayed.localeCompare(query);
     if (operator === "gt") return comparison > 0;
     if (operator === "lt") return comparison < 0;
     return comparison === 0;

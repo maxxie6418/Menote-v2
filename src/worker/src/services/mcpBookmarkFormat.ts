@@ -1,6 +1,6 @@
-import { Document, isMap, parseDocument, YAMLMap } from "yaml";
+import { Document } from "yaml";
 import { BOOKMARK_COLUMNS, BOOKMARK_ROW_ID_COLUMN, type McpBookmarkRequest } from "@menote/shared";
-import { findTable, generateRowId, renderTable, splitFrontmatter, toTableCell } from "./tableMarkdown";
+import { bookmarkFieldDefinitions, findTable, generateRowId, renderTable, splitFrontmatter, toTableCell } from "./tableMarkdown";
 
 function appendToTable(body: string, bookmark: McpBookmarkRequest): string {
   const parsed = findTable(body);
@@ -37,33 +37,12 @@ function appendToTable(body: string, bookmark: McpBookmarkRequest): string {
   return lines.join("\n");
 }
 
-function addFieldDefinitions(yamlSource: string | null): string {
-  const document = yamlSource === null ? new Document({}) : parseDocument(yamlSource);
-  if (document.errors.length) throw new Error("bookmark_target_invalid");
-  const fields = document.get("fields", true);
-  if (fields !== undefined && !isMap(fields)) throw new Error("bookmark_target_invalid");
-  let map: YAMLMap;
-  if (isMap(fields)) map = fields as YAMLMap;
-  else {
-    map = document.createNode({}) as YAMLMap;
-    document.set("fields", map);
-  }
-  for (const column of BOOKMARK_COLUMNS) {
-    if (map.has(column.name)) continue;
-    const definition = column.options
-      ? { type: column.type, options: [...column.options] }
-      : { type: column.type };
-    map.set(column.name, document.createNode(definition));
-  }
-  return String(document).trimEnd();
-}
-
 export function appendBookmarkToTable(markdown: string, bookmark: McpBookmarkRequest): string {
   const { yaml, body } = splitFrontmatter(markdown);
   if (body.trim() && !body.split(/\r?\n/).some((line) => line.trim().startsWith("|"))) {
     throw new Error("bookmark_target_invalid");
   }
-  const nextYaml = addFieldDefinitions(yaml);
+  const nextYaml = bookmarkFieldDefinitions(yaml);
   const nextBody = appendToTable(body, bookmark);
   return `---\n${nextYaml}\n---\n\n${nextBody.trimStart()}`;
 }

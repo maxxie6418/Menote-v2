@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import {
   type ParsedTable, findTables, replaceTable, extractTableDoc,
 } from "../../lib/gfmTable";
-import { FIELDS_KEY, type PropertyType, readDefs, TABLE_FIELD_TYPES } from "../../lib/frontmatter";
+import { FIELDS_KEY, type PropertyDef, type PropertyType, readDefs, TABLE_FIELD_TYPES, writeDef } from "../../lib/frontmatter";
+import { displayFieldDefs, withChoiceOptions } from "./tableFieldValues";
 import { TableCellEditor } from "./TableCellEditor";
 
 interface TableBlockDialogProps {
@@ -27,7 +28,8 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
   const tables = useMemo(() => findTables(body), [body]);
   const [tableIndex, setTableIndex] = useState(0);
   const table: ParsedTable | undefined = tables[tableIndex];
-  const fieldDefs = useMemo(() => readDefs(markdown, FIELDS_KEY), [markdown]);
+  const [choiceEdits, setChoiceEdits] = useState<Record<string, PropertyDef>>({});
+  const fieldDefs = useMemo(() => displayFieldDefs({ ...readDefs(markdown, FIELDS_KEY), ...choiceEdits }, table), [markdown, choiceEdits, table]);
   const [grid, setGrid] = useState<CellGrid | null>(null);
 
   if (tables.length === 0) {
@@ -60,7 +62,9 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
   const apply = () => {
     const [header, ...rows] = current;
     const next: ParsedTable = { ...table!, header, rows };
-    onSave(`${frontText}${replaceTable(body, tableIndex, next)}`);
+    let nextMarkdown = frontText + replaceTable(body, tableIndex, next);
+    for (const [name, def] of Object.entries(choiceEdits)) nextMarkdown = writeDef(nextMarkdown, FIELDS_KEY, name, def);
+    onSave(nextMarkdown);
     setGrid(null);
   };
 
@@ -74,7 +78,7 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
         <div className="mn-dialog-body">
           {tables.length > 1 && (
             <select className="mn-propselect" value={tableIndex} aria-label="选择表格"
-              onChange={(event) => { setTableIndex(Number(event.target.value)); setGrid(null); }}>
+              onChange={(event) => { setTableIndex(Number(event.target.value)); setGrid(null); setChoiceEdits({}); }}>
               {tables.map((_, index) => <option key={index} value={index}>表格 {index + 1}</option>)}
             </select>
           )}
@@ -93,7 +97,12 @@ export function TableBlockDialog({ markdown, onSave, onClose, onExtract }: Table
                       <TableCellEditor
                         value={cell} type={columnType(columnIndex)}
                         def={fieldDefs[table!.header[columnIndex]?.trim() ?? ""]}
-                        onChange={(value) => setCell(rowIndex, columnIndex, value)}
+                        onChange={(value, option) => {
+                          setCell(rowIndex, columnIndex, value);
+                          const name = table!.header[columnIndex]?.trim() ?? "";
+                          const def = fieldDefs[name];
+                          if (option && def) setChoiceEdits(previous => ({ ...previous, [name]: withChoiceOptions(def, [option]) }));
+                        }}
                       />
                     )}
                   </div>

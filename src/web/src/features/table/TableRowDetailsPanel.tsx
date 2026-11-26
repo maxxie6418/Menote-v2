@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2, X } from "../../icons";
+import type { PropertyDef } from "../../lib/frontmatter";
+import { CellContent } from "./TableCellEditor";
 import { safeWebUrl } from "../../lib/safeUrl";
 import { extractAttachmentRefs } from "../../lib/attachmentRefs";
 import { UnlockedAttachment } from "../attachments";
@@ -9,6 +11,7 @@ interface TableRowDetailsPanelProps {
   visiblePosition: number;
   visibleCount: number;
   columns: string[];
+  fieldDefs: Record<string, PropertyDef>;
   cells: string[];
   onPrevious?: () => void;
   onNext?: () => void;
@@ -26,7 +29,7 @@ function CoverPreview({ src, alt }: { src: string; alt: string }) {
 }
 
 /** Row detail side panel, with a large preview for Raindrop cover URLs. */
-export function TableRowDetailsPanel({ rowNumber, visiblePosition, visibleCount, columns, cells, onPrevious, onNext, onClose, restoreFocus, onDelete, attachmentItemId }: TableRowDetailsPanelProps) {
+export function TableRowDetailsPanel({ rowNumber, visiblePosition, visibleCount, columns, fieldDefs, cells, onPrevious, onNext, onClose, restoreFocus, onDelete, attachmentItemId }: TableRowDetailsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   // onClose 走 ref：父组件传内联闭包时，表格数据刷新重渲染会让陷阱 effect 反复重跑、
@@ -97,12 +100,14 @@ export function TableRowDetailsPanel({ rowNumber, visiblePosition, visibleCount,
         <dl className="mn-tabledoc-detail-fields">
           {columns.map((column, index) => {
             const value = cells[index] ?? "";
+            const def = fieldDefs[column.trim()];
             const url = safeWebUrl(value);
             const attachments = attachmentItemId ? extractAttachmentRefs(value) : [];
             return (
               <div key={`${column}-${index}`}>
                 <dt>{column || `字段 ${index + 1}`}</dt>
-                <dd>{attachmentItemId && attachments.length ? attachments.map((ref, i) =>
+                <dd>{def && def.type !== "text" ? <CellContent value={value} type={def.type} def={def} wrap attachmentItemId={attachmentItemId} />
+                  : attachmentItemId && attachments.length ? attachments.map((ref, i) =>
                   <UnlockedAttachment key={`${ref.sha256}-${i}`} itemId={attachmentItemId} {...ref} />)
                   : url ? <a href={url} target="_blank" rel="noreferrer">{value}</a> : value || <span>—</span>}</dd>
               </div>

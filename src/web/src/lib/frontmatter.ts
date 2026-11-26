@@ -22,7 +22,7 @@ export const PROPERTY_TYPES: readonly PropertyType[] =
 
 /** 表格侧不提供多行文本（FR-PROP-4）。 */
 export const TABLE_FIELD_TYPES: readonly PropertyType[] =
-  ["text", "number", "date", "select", "multiselect", "checkbox", "link", "attachment"];
+  ["text", "number", "date", "datetime", "select", "multiselect", "checkbox", "link", "attachment"];
 
 export interface PropertyDef {
   type: PropertyType;
