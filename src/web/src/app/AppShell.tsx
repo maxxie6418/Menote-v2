@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthUser, Item } from "@menote/shared";
 import { alertDialog, confirmDialog } from "../components/ui/ConfirmDialog";
 import { Sidebar } from "./Sidebar";
@@ -17,7 +17,7 @@ import { requestSync } from "../services/syncEngine";
 import { bindLocalAccount } from "../services/authService";
 import { isTopicUnlocked, lockIfIdle, touchActivity } from "../services/keyringService";
 import { PrivateSpaceDialog } from "../features/encryption";
-import type { SettingsSection } from "../features/settings";
+import { SettingsDialog, type SettingsSection } from "../features/settings";
 import { HomePage } from "./HomePage";
 import { MobileApp } from "./MobileApp";
 import { ListNavigation } from "./ListNavigation";
@@ -29,8 +29,6 @@ import { BREAKPOINTS, type LayoutMode, type MainView, type MobilePane } from "..
 import { getDensityScale, subscribeDensity } from "../lib/density";
 export type { LayoutMode, MainView, MobilePane };
 export { BREAKPOINTS };
-
-const SettingsDialog = lazy(() => import("../features/settings").then(module => ({ default: module.SettingsDialog })));
 
 function detectLayoutMode(): LayoutMode {
   if (typeof window === "undefined") return "full";
@@ -392,7 +390,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
     />
   );
   const settingsDialog = settingsOpen ? (
-    <Suspense fallback={null}><SettingsDialog
+    <SettingsDialog
       key={userId}
       userId={userId}
       section={settingsSection}
@@ -400,7 +398,7 @@ export function AppShell({ user, onLogout }: { user: AuthUser; onLogout: () => v
       onClose={() => { setSettingsOpen(false); goBack(settingsReturn.current); }}
       onSectionChange={(next) => { setSettingsSection(next); navigate({ kind: "settings", section: next }, true); }}
       onOpenTrash={() => { setSettingsOpen(false); navigate({ kind: "notes", section: { kind: "trash" } }, true); }}
-    /></Suspense>
+    />
   ) : null;
   const privateDialog = privateGate ? (
     <PrivateSpaceDialog
