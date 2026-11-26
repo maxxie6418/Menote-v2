@@ -8,7 +8,8 @@ export async function readMcpBookmarkTarget(
 ): Promise<Item | null> {
   const { clauses, bindings } = mcpItemAccess({ userId, scope, includeMemos: false }, true);
   const row = await db.prepare(
-    `SELECT i.* ${MCP_ITEM_FROM} WHERE ${clauses.join(" AND ")} AND i.id = ?`,
+    `SELECT i.* ${MCP_ITEM_FROM} WHERE ${clauses.join(" AND ")} AND i.id = ?
+      AND NOT EXISTS (SELECT 1 FROM memory_bindings m WHERE m.user_id = i.user_id AND m.table_item_id = i.id)`,
   ).bind(...bindings, itemId).first<Record<string, unknown>>();
   return row ? rowToItem(row) : null;
 }
@@ -22,6 +23,7 @@ export async function writeMcpBookmark(
   const [write] = await db.batch([
     db.prepare(`UPDATE items SET content_markdown = ?, content_hash = ?, rev = ?, updated_at = ?, last_device = ?
       WHERE user_id = ? AND id = ? AND rev = ? AND meta_rev = ?
+        AND NOT EXISTS (SELECT 1 FROM memory_bindings m WHERE m.user_id = items.user_id AND m.table_item_id = items.id)
         AND id IN (SELECT i.id ${MCP_ITEM_FROM} WHERE ${clauses.join(" AND ")} AND i.id = ?)
         AND NOT EXISTS (SELECT 1 FROM sync_operations WHERE user_id = ? AND operation_id = ?)`)
       .bind(markdown, contentHash, rev, now, `mcp:${tokenId}`, item.userId, item.id, item.rev, item.metaRev,

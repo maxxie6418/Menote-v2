@@ -59,3 +59,5 @@ export type {
   RaindropPullOutcome, RaindropPushOutcome, RaindropPushPreview, RaindropPushPreviewCreate,
   RaindropPushPreviewUpdate, RaindropPushPreviewMissing,
 } from "./contracts/raindrop";
+export * from "./contracts/memory";
+export { decodeGfmTableRow, escapeGfmTablePipes } from "./gfmTableRow";

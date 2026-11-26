@@ -17,10 +17,11 @@ export function enqueueWrite<T>(write: () => Promise<T>): Promise<T> {
   return next;
 }
 
-export function outboxUpsert(item: Item, baseRev: number, baseMetaRev: number, contentHash?: string, noteTagsFromContent?: true): OutboxRow {
+export function outboxUpsert(item: Item, baseRev: number, baseMetaRev: number, contentHash?: string, noteTagsFromContent?: true, memoryBaseMarkdown?: string): OutboxRow {
   return toOutboxRow({
     operationId: newId(), userId: item.userId, entityId: item.id, entity: "item",
-    action: "upsert", baseRev, baseMetaRev, contentHash, noteTagsFromContent, payload: { item },
+    action: "upsert", baseRev, baseMetaRev, contentHash, noteTagsFromContent,
+    payload: memoryBaseMarkdown === undefined ? { item } : { item, memoryBaseMarkdown },
   }, Date.now());
 }
 

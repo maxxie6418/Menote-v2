@@ -240,3 +240,7 @@ FR-EDT-16/17 使用 `lib/obsidianMarkdown.ts` 统一解析语法和提取引用�
 ## 2026-11-26 · Docker 单主存与备份（TP13，0.3.26）
 
 `src/worker/src/runtime.d.ts` 描述 SQLite、附件和任务执行契约。`services/backupService.ts` 为 ZIP 和远端生成同一快照；`backupExtras.ts` 校验剪藏和映射数据。Docker 将本地 ZIP 写入私有临时文件，逐件校验后下载；导入与远端共用事务恢复。`web/src/startup.ts` 提前检查会话，已认证的 `app/Workspace.tsx`、设置和编辑器分块加载。
+
+## 2026-11-26 · TP20 AI 共享记忆库（FR-EXT-11）
+
+共享契约登记在 `src/shared/src/contracts/memory.ts`。设置复用插件列表及配置窗口，经 `memoryService` 读取账号绑定。后端 `routes/memory.ts` 装配会话接口，MCP 在既有服务注册工具。`services/memoryService.ts` 编排绑定与记忆操作，表格校验与改写使用 `memoryTable.ts`，`db/memory.ts` 管理账号唯一的绑定、操作回执和写入审计。正文、行身份和版本沿用表格 Markdown，事务同时提交正文与同步日志。网页同步接入现有 `syncEngine` 和 `syncService`。

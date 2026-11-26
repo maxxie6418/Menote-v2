@@ -21,6 +21,7 @@ export interface McpToken {
 
 export const MCP_PERMISSION_KEYS = [
   "content:read", "item:create", "item:edit", "trash:move", "attachment:access", "clip:templates:read", "clip:templates:write", "bookmark:write",
+  "memory:read", "memory:write",
 ] as const;
 export type McpPermission = (typeof MCP_PERMISSION_KEYS)[number];
 

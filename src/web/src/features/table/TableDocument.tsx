@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent as ReactDragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { isMemoryMarkdown, MEMORY_FIELDS, MEMORY_SYSTEM_COLUMNS } from "@menote/shared";
 import { Copy, Filter, GripVertical, Plus, RotateCcw, Trash2 } from "../../icons";
 import { confirmDialog } from "../../components/ui/ConfirmDialog";
 import {
@@ -19,6 +20,7 @@ import {
 import { readHiddenColumnsSetting, updateHiddenColumnsSetting } from "../../services/tableViewSettingsService";
 import { TableColumnVisibility } from "./TableColumnVisibility";
 import { TableRowDetailsPanel } from "./TableRowDetailsPanel";
+import { MemoryRowForm } from "./MemoryRowForm";
 
 interface TableDocumentProps {
   userId: string;
@@ -50,6 +52,8 @@ interface RowDetailsSelection {
 }
 
 const joinDoc = (frontText: string | null, body: string): string => (frontText ? `${frontText}\n\n${body}` : body);
+const memoryLockedCells = new Set<string>([MEMORY_FIELDS.scope.name, MEMORY_FIELDS.project_id.name, MEMORY_FIELDS.key.name, ...MEMORY_SYSTEM_COLUMNS]);
+const memoryFixedFields = new Set<string>(Object.values(MEMORY_FIELDS).map((field) => field.name));
 
 function removeFirstTable(body: string): string {
   const table = findTables(body)[0];
@@ -68,6 +72,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
   const table: ParsedTable | undefined = useMemo(() => findTables(body)[0], [body]);
   const fieldDefs = useMemo(() => displayFieldDefs(storedDefs, table), [storedDefs, table]);
   const blank = !/\S/.test(body);
+  const memoryTable = isMemoryMarkdown(markdown);
+  const [addingMemory, setAddingMemory] = useState(false);
 
   const [menuCol, setMenuCol] = useState<number | null>(null);
   const [addingCol, setAddingCol] = useState(false);
@@ -409,6 +415,8 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
     const fields = table.header.map((name, col) => ({ ...fieldAt(col), name }));
     const issue = validateGridPaste(pasted, start, fields);
     if (issue) { setError(issue); return; }
+    if (memoryTable && (start.row + pasted.length > table.rows.length || pasted.some((row) => row.some((_, index) =>
+      memoryLockedCells.has(fields[start.col + index]!.name))))) { setError("请通过添加行新建记忆。已建立的记忆身份和系统字段只能查看。"); return; }
     const rows = table.rows.map((row) => [...row]);
     const required = start.row + pasted.length;
     while (rows.length < required) rows.push(table.header.map(() => ""));
@@ -468,6 +476,11 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   const setCell = (row: number, col: number, value: string, newOption?: string) => {
     if (!table || readOnly || (!newOption && (table.rows[row]?.[col] ?? "") === value)) return;
+    if (memoryTable && memoryLockedCells.has(table.header[col]!)) return;
+    if (memoryTable && memoryFixedFields.has(table.header[col]!) && (!value.trim() || newOption)) {
+      setError("记忆必填字段需要有效值。");
+      return;
+    }
     clearUndo();
     setSortCol(null);
     const rows = [...table.rows];
@@ -484,6 +497,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   const addRow = () => {
     if (readOnly) return;
+    if (memoryTable) { setAddingMemory(true); return; }
     const header = table?.header ?? scaffoldHeader ?? [];
     if (header.length === 0) return;
     clearUndo();
@@ -705,6 +719,10 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
 
   return (
     <div className="mn-tabledoc" aria-label="多维表格" data-readonly={readOnly ? "true" : undefined}>
+      {table && memoryTable && !readOnly && addingMemory && <MemoryRowForm key={itemId} onClose={() => setAddingMemory(false)} onSave={(values) => {
+        applyGrid(table.header, [...table.rows, table.header.map((name) => values[name] ?? "")]);
+        setAddingMemory(false);
+      }} />}
       {error && !addingCol && menuCol === null && <p className="mn-tabledoc-error" role="alert">{error}</p>}
       {header.length > 0 && (
         <div className="mn-tabledoc-bar">
@@ -726,7 +744,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                 <Plus aria-hidden="true" /> 添加字段
               </button>
             )}
-            {!readOnly && !hasData && <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>}
+            {!readOnly && !hasData && !memoryTable && <button type="button" className="mn-textbtn" onClick={onSwitchToNote}>切换为普通笔记</button>}
           </div>
         </div>
       )}
@@ -803,6 +821,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                   index={col}
                   dragging={draggingColumn === col}
                   readOnly={readOnly}
+                  fixedField={memoryTable && memoryFixedFields.has(name)}
                   onColumnDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-menote-column", String(col)); setDraggingColumn(col); }}
                   onTouchColumnDragStart={(event) => {
                     if (event.pointerType !== "touch") return;
@@ -903,7 +922,7 @@ export function TableDocument({ userId, itemId, markdown, onChangeMarkdown, onDe
                       userId={userId}
                       allowAttachments={allowAttachments}
                       attachmentItemId={sealedAttachments ? itemId : undefined}
-                      value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly}
+                      value={cells[col] ?? ""} type={columnType(col)} def={fieldDefs[name.trim()]} wrap={wrap} readOnly={readOnly || (memoryTable && memoryLockedCells.has(name))}
                       onChange={(value, option) => setCell(row, col, value, option)}
                     />
                   </div>

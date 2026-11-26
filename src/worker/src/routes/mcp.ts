@@ -15,6 +15,7 @@ import { readUserAttachment, storeAttachment } from "../services/attachmentServi
 import { ensureSchemaReady } from "../services/authService";
 import { listClipTemplates, persistClipTemplate, registerCaptureAdapters } from "../services/clipTemplateService";
 import { registerAgentTools } from "./mcpAgentTools";
+import { registerMemoryTools } from "./mcpMemoryTools";
 
 export const mcpRoutes = new Hono<AppEnv>();
 
@@ -294,6 +295,7 @@ mcpRoutes.post("/api/mcp", bodyLimit({ maxSize: 8_000_000 }), async (c) => {
       });
     }
     registerAgentTools(server, c.env.DB, token, now);
+    registerMemoryTools(server, c.env.DB, token, now);
     return server;
   }, { responseMode: "json" });
   const response = await handler.fetch(c.req.raw);

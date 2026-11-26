@@ -295,3 +295,7 @@ button.mn-tcell-temporal:hover { background: var(--app-hover); }
 [data-layout="compact"] .mn-tabledoc-detail,
 [data-layout="tablet"] .mn-tabledoc-detail,
 [data-layout="mobile"] .mn-tabledoc-detail { position: fixed; z-index: var(--app-mobile-z-settings-dialog); inset-block: var(--app-space-10); inset-inline-end: var(--app-space-10); width: min(var(--app-table-detail-width), calc(var(--app-full-size) - var(--app-space-xl))); max-width: var(--app-full-size); }
+.mn-memory-row-form { display: grid; gap: var(--app-space-8); max-width: var(--app-main-width); }
+.mn-memory-row-form label { display: grid; min-width: var(--app-zero); gap: var(--app-space-4); }
+.mn-memory-row-form :is(input, textarea, select) { box-sizing: border-box; width: var(--app-full-size); }
+.mn-memory-row-form textarea { resize: vertical; }

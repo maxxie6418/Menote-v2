@@ -14,11 +14,15 @@ export interface McpAuditWrite {
 
 /** Append an MCP audit event; payload text and attachment bytes are intentionally excluded. */
 export async function appendMcpAudit(db: SqlDatabase, entry: McpAuditWrite): Promise<void> {
-  await db.prepare(
+  await mcpAuditStatement(db, entry).run();
+}
+
+export function mcpAuditStatement(db: SqlDatabase, entry: McpAuditWrite): SqlStatement {
+  return db.prepare(
     `INSERT INTO mcp_audit (id, user_id, token_id, tool, item_id, rev_before, rev_after, result, operation_id, at, resource_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(entry.id, entry.userId, entry.tokenId, entry.tool, entry.itemId, entry.revBefore,
-    entry.revAfter, entry.result, entry.operationId, entry.at, entry.resourceId ?? null).run();
+    entry.revAfter, entry.result, entry.operationId, entry.at, entry.resourceId ?? null);
 }
 
 /** Fixed-window counter updated in one SQLite statement to remain consistent across isolates. */

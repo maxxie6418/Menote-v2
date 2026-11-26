@@ -12,6 +12,8 @@ import {
 } from "../db/memoComments";
 import { itemWrapStatements, topicWrapStatements, readItemWrapGroups, readTopicWrapGroups } from "../db/keyWraps";
 import { purgeDeletedItems } from "../db/trash";
+import { guardMemoryOwnerBinding, isMemoryStateChanged, readMemoryBinding, readMemoryTable } from "../db/memory";
+import { MemoryTableError, mergeOwnerMemoryEdit } from "./memoryTable";
 import {
   appendSyncLog, appendSyncLogStatement, commitWrites, deleteSyncOperation, guardItemSyncWrite, insertItemRowStatement,
   isItemSyncGuardFailure, markItemDeletedStatement, purgeSyncOperations, readAllItemsPage, readAllTopics,
@@ -91,6 +93,55 @@ function commitItemWrites(
   ]);
 }
 
+async function applyMemoryOwnerSave(ctx: ApplyContext, operation: OutboxOperation, item: Item, current: ItemState): Promise<SyncOperationResult | null> {
+  const binding = await readMemoryBinding(ctx.db, ctx.userId);
+  if (!binding.bindingId || binding.tableId !== item.id || item.content.scope !== "plain") return null;
+  if (ctx.requireLivePlainItem) throw new SyncRejected("memory_table_bound");
+  const target = await readMemoryTable(ctx.db, ctx.userId, item.id);
+  if (!target || target.item.content.scope !== "plain") throw new SyncRejected("memory_unavailable");
+  if (target.item.rev !== current.rev || target.item.metaRev !== current.metaRev || target.item.contentHash !== current.contentHash) throw new MemoryTableError("snapshot_retry");
+
+  const serverMarkdown = target.item.content.markdown;
+  const base = (operation.payload as { memoryBaseMarkdown?: unknown }).memoryBaseMarkdown;
+  if (typeof base !== "string" && current.rev !== operation.baseRev) {
+    await recordConflict(ctx, operation, current);
+    return conflictResult(operation.operationId, current);
+  }
+  let merged: ReturnType<typeof mergeOwnerMemoryEdit>;
+  try {
+    merged = mergeOwnerMemoryEdit(typeof base === "string" ? base : serverMarkdown, serverMarkdown, item.content.markdown, ctx.now);
+  } catch (error) {
+    if (!(error instanceof MemoryTableError)) throw error;
+    if (error.code !== "row_conflict") throw new SyncRejected(`memory_${error.code}`);
+    await recordConflict(ctx, operation, current);
+    return conflictResult(operation.operationId, current);
+  }
+  const { markdown, conflict } = merged;
+  const guard = guardMemoryOwnerBinding(ctx.db, ctx.userId, binding.bindingId, item.id);
+  if (markdown === serverMarkdown) {
+    await commitItemWrites(ctx, operation, current, [guard,
+      recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, conflict ? "conflict" : "duplicate",
+        current.rev, current.metaRev, current.contentHash, ctx.now, "strict_insert"),
+      ...(conflict ? [appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", current.rev, current.metaRev, ctx.now)] : []),
+    ]);
+    return conflict ? conflictResult(operation.operationId, current)
+      : { operationId: operation.operationId, result: "duplicate", rev: current.rev, metaRev: current.metaRev, contentHash: current.contentHash };
+  }
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markdown));
+  const contentHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const rev = current.rev + 1;
+  const attachmentHashes = [...new Set([...item.attachmentHashes, ...itemAttachmentHashes(current)])].filter((hash) => markdown.includes(hash));
+  const updated = { ...target.item, rev, contentHash, updatedAt: ctx.now, attachmentHashes, content: { scope: "plain" as const, markdown } };
+  await commitItemWrites(ctx, operation, current, [guard,
+    updateItemContentStatement(ctx.db, ctx.userId, ctx.deviceId, updated, rev),
+    appendSyncLogStatement(ctx.db, ctx.userId, "item", item.id, "upsert", rev, current.metaRev, ctx.now),
+    recordSyncOperationStatement(ctx.db, ctx.userId, operation.operationId, "item", item.id, conflict ? "conflict" : "applied", rev,
+      current.metaRev, contentHash, ctx.now, "strict_insert"),
+    ...attachmentWrites(ctx, [...itemAttachmentHashes(current), ...attachmentHashes]),
+  ]);
+  return conflict ? conflictResult(operation.operationId, updated) : { operationId: operation.operationId, result: "applied", rev, metaRev: current.metaRev };
+}
+
 /**
  * 条目 upsert（G2 §1 版本通道 / §5 冲突裁决）：
  * 正文操作（操作层带 contentHash）与元数据操作各走各的版本通道——
@@ -108,6 +159,10 @@ async function applyItemUpsert(ctx: ApplyContext, operation: OutboxOperation): P
   }
   // 正文操作必带 contentHash（G2 §3 推送协议）；缺省即元数据操作。
   const contentOp = operation.contentHash !== undefined;
+  if (contentOp && current?.type === "table" && item.type === "table" && current.deletedAt === null && !current.encrypted) {
+    const result = await applyMemoryOwnerSave(ctx, operation, item, current);
+    if (result) return result;
+  }
   const noteTagsFromContent = contentOp && operation.noteTagsFromContent === true
     && current?.type === "note" && !current.encrypted && item.type === "note" && item.content.scope === "plain";
   if (current && contentOp) {
@@ -327,7 +382,7 @@ export async function applyOperation(ctx: ApplyContext, operation: OutboxOperati
     try {
       return await applyOperationOnce(ctx, operation);
     } catch (error) {
-      if (!isItemSyncGuardFailure(error)) throw error;
+      if (!isItemSyncGuardFailure(error) && !isMemoryStateChanged(error) && !(error instanceof MemoryTableError && error.code === "snapshot_retry")) throw error;
     }
   }
   throw new Error("item_sync_busy");

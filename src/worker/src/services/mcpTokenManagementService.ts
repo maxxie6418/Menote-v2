@@ -23,6 +23,7 @@ export function normalizeMcpTokenConfig(value: unknown, now: number): McpTokenCo
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   if (!Array.isArray(input.permissions) || input.permissions.some((permission) => !isPermission(permission))) return null;
+  if (input.permissions.includes("memory:write") && !input.permissions.includes("memory:read")) return null;
   if (typeof input.includeMemos !== "boolean" || typeof input.allowUrl !== "boolean") return null;
   if (typeof input.ratePerMinute !== "number" || !Number.isInteger(input.ratePerMinute) || input.ratePerMinute < 1 || input.ratePerMinute > 10_000) return null;
   if (input.expiresAt !== null && (typeof input.expiresAt !== "number" || !Number.isSafeInteger(input.expiresAt) || input.expiresAt <= now)) return null;
