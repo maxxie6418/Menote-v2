@@ -1,4 +1,5 @@
 import { ChevronRight, Zap } from "../../icons";
+import type { Ref } from "react";
 import type { Item } from "@menote/shared";
 import { heatGrid, memoCalendar, memoStats, memoText, onThisDay, tagCounts, type MemoRange } from "./memoView";
 import { MemoViewToggle, type MemoView } from "./MemoBar";
@@ -11,6 +12,7 @@ const RANGES: Array<{ id: MemoRange; label: string }> = [
 ];
 
 interface MemoWorkbarProps {
+  ref?: Ref<HTMLElement>;
   memos: Item[];
   range: MemoRange;
   tag: string | null;
@@ -24,7 +26,7 @@ interface MemoWorkbarProps {
 }
 
 /** 工作栏：概述、热力图、随机漫步、那年今日、日期、标签。两视图共用，切换时不卸载。 */
-export function MemoWorkbar({ memos, range, tag, onRange, onTag, onWander, onOpen, onClose, view, onView }: MemoWorkbarProps) {
+export function MemoWorkbar({ ref, memos, range, tag, onRange, onTag, onWander, onOpen, onClose, view, onView }: MemoWorkbarProps) {
   const stats = memoStats(memos);
   const heat = heatGrid(memos);
   const tags = tagCounts(memos);
@@ -37,7 +39,7 @@ export function MemoWorkbar({ memos, range, tag, onRange, onTag, onWander, onOpe
   const averageWords = weekMemos.length ? Math.round(weekMemos.reduce((sum, memo) => sum + memoText(memo).length, 0) / weekMemos.length) : 0;
   const uncategorized = weekMemos.filter((memo) => memo.tags.length === 0).length;
   return (
-    <aside className="mn-memo-work" aria-label="Memo 工作栏">
+    <aside ref={ref} id="mn-memo-workbar" className="mn-memo-work" aria-label="Memo 工作栏">
       <button type="button" className="mn-memo-work-close" aria-label="关闭 Memo 侧记栏" onClick={onClose}>关闭</button>
       <section className="mn-memo-work-block mn-memo-view-block">
         <MemoViewToggle view={view} onView={onView} />

@@ -79,7 +79,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const previewHostRef = useRef<HTMLDivElement>(null);
   const [versionRows, setVersionRows] = useState<VersionRow[]>([]);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [inspectorTab, setInspectorTab] = useState<NoteInspectorTab | null>(null);
+  const [inspectorTab, setInspectorTab] = useState<NoteInspectorTab>("annotations");
+  const inspectorPropertiesRef = useRef<HTMLDivElement>(null);
   const closeInspector = useCallback(() => setInspectorOpen(false), []);
   const [selectedQuote, setSelectedQuote] = useState("");
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -174,8 +175,6 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
   const [recoveryText, setRecoveryText] = useState<string | null>(null);
   // 设置·外观：属性位置（顶部 / 页边注）与工具栏位置（顶部 / 底部浮动），随偏好即时切换。
   const [propsPos, setPropsPos] = useState(getPropsPlacement);
-  const defaultInspectorTab = propsPos === "side" ? "properties" : "outline";
-  const activeInspectorTab = inspectorTab === "properties" ? defaultInspectorTab : inspectorTab ?? defaultInspectorTab;
   const [toolbarPos, setToolbarPos] = useState(resolveToolbar);
   const [formatDock, setFormatDock] = useState<HTMLDivElement | null>(null);
   useEffect(() => subscribeDocLayout(() => {
@@ -789,9 +788,11 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
         <NoteInspector
           open={inspectorOpen}
           onClose={closeInspector}
-          tab={activeInspectorTab}
+          tab={inspectorTab}
           onTabChange={setInspectorTab}
-          properties={propsPos === "side" && <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} onMoveToTop={movePropertiesToTop} />}
+          properties={propsPos === "side" && <div ref={inspectorPropertiesRef} className="mn-inspector-section">
+            <PropertyPanel userId={userId} itemId={item.id} markdown={draft ?? plain.markdown} onSave={saveFullMarkdown} onMoveToTop={movePropertiesToTop} />
+          </div>}
           outline={<OutlinePanel hostRef={mode === "preview" ? previewHostRef : outlineHostRef} kind={mode === "preview" ? "preview" : editorKind} variant="inspector" onNavigate={closeInspector} />}
           annotations={(
             <section className="mn-inspector-section mn-inspector-marginalia" aria-label="页边注">
@@ -811,7 +812,7 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           )}
           versions={(
             <section className="mn-inspector-section mn-inspector-versions" aria-label="版本">
-              <header className="mn-inspector-section-head"><button type="button" className="mn-textbtn" onClick={() => { closeInspector(); setHistory(true); }}>查看全部版本</button></header>
+              <header className="mn-inspector-section-head"><h2 className="mn-inspector-heading">版本</h2><button type="button" className="mn-textbtn" onClick={() => { closeInspector(); setHistory(true); }}>查看全部版本</button></header>
               {versionRows.length === 0 ? <p className="mn-outline-empty">保存后会在这里保留版本记录</p> : versionRows.slice(0, 3).map((version) => <button type="button" className="mn-inspector-version" key={version.id} onClick={() => { closeInspector(); setHistory(true); }}>
                 <time dateTime={new Date(version.createdAt).toISOString()}>{formatDocumentUpdate(version.createdAt)}</time><span>{version.reason === "manual" ? "手动保存" : version.reason === "restore" ? "恢复前存档" : version.reason === "session" ? "会话存档" : "自动保存"}</span>
               </button>)}
@@ -842,8 +843,8 @@ export function NoteDocument({ userId, noteId, topics, onBack, showBack, crumb, 
           onApplySummary={async (summary) => {
             const saved = await saveFullMarkdown(writeSummaryProperty(latestFullMarkdown(), summary));
             if (saved && propsPos === "side") {
-              setInspectorTab("properties");
               setInspectorOpen(true);
+              requestAnimationFrame(() => inspectorPropertiesRef.current?.scrollIntoView({ block: "start" }));
             }
             return saved;
           }}

@@ -1,22 +1,8 @@
 /* ============================================================================
- * 滚动条（DESIGN §4.3 · 常态隐形 · 指针进入滚动区才浮现）
+ * 滚动条（DESIGN §4.3）
  * ----------------------------------------------------------------------------
- * 形态：轨道透明，滑块可见宽 5 像素（槽宽 9 像素，内缩 2 像素），两端全圆角。
- *
- * 两档可见度：
- *   常态   8% / 9% 半透明墨（浅/深），对纸面约 1.2:1 —— 日常浏览时几乎不可见，
- *          只在大面积竖块上隐约成立，不与正文争夺注意力。
- *   浮现   指针进入滚动区域（或正在滚动、或拖拽滑块），升到 浅 3.29:1 / 深 3.46:1，
- *          达到 WCAG 2.2 SC 1.4.11 非文本对比度门槛；指针离开、停止滚动即回落到常态。
- *          标记由 lib/scrollHot.ts 打在滚动容器上（data-scroll-hot）。
- *
- * 为什么常态用半透明而不是实色：同一个 alpha 在纸面（浅表面）与侧栏（深表面）
- * 上合成后差值接近，滑块不会因为落到更深的一层而突然变显眼。实色滑块在
- * 三栏里会因底色不同呈现不同强度，这正是上一轮「还是很重」的来源之一。
- *
- * 2026-11-11 两轮弱化（负责人：视觉太重 → 日常不明显、悬停才看见）：
- *   第一轮 槽 10→9、可见 6→5，常态实色各退一档；
- *   第二轮 常态改半透明（约 1.2:1），悬停判定从「指到滑块」放宽到「指到滚动区」。
+ * 轨道透明，9px 槽内可见滑块宽 3px。静置时淡显，滚动区受指向或正在滚动时
+ * 由 data-scroll-hot 略加深，指针直接悬停或拖动滑块时使用清晰的交互色。
  *
  * 作用域：全局。界面里有 11 处原生滚动容器（侧栏、清单、文档、编辑器、
  * Memo 时间线、todo 侧板、状态页、设置对话框、代码块、表格、版本对比），
@@ -49,8 +35,7 @@ html::-webkit-scrollbar {
   background: var(--app-scrollbar-track);
 }
 
-/* 滑块：2 像素透明边内缩，可见宽 6 像素；background-clip 让背景只落在可见部分，
-   圆角随之收紧，不会被透明边吃掉。 */
+/* 透明边保持鼠标命中宽度，颜色只绘制在滑块中间。 */
 *::-webkit-scrollbar-thumb {
   background-color: var(--app-scrollbar-thumb);
   border: var(--app-scrollbar-inset) solid transparent;
@@ -58,11 +43,10 @@ html::-webkit-scrollbar {
   border-radius: var(--app-radius-pill);
 }
 
-/* 指针落在滚动区（或正在滚动）：滑块浮现到可辨识的 3:1 档。
-   标记由 lib/scrollHot.ts 打在滚动容器上——Chromium 不支持
-   「容器 :hover 驱动 ::-webkit-scrollbar-*」，纯 CSS 做不到按区域浮出。
-   这条也覆盖指针压在滑块上、以及拖拽中的情形，三档合一。 */
-[data-scroll-hot]::-webkit-scrollbar-thumb,
+/* 区域热态由 lib/scrollHot.ts 标记，滑块自身的交互覆盖区域热态。 */
+[data-scroll-hot]::-webkit-scrollbar-thumb {
+  background-color: var(--app-scrollbar-thumb-hot);
+}
 *::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:active {
   background-color: var(--app-scrollbar-thumb-hover);
@@ -80,9 +64,9 @@ html::-webkit-scrollbar {
     scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
   }
   /* 标准属性没有滑块级 hover，只能整条切换颜色；
-     由 lib/scrollHot.ts 打的 data-scroll-hot 保持与 Chromium 一致的行为。 */
+     保留与 Chromium 相同的区域热态。 */
   [data-scroll-hot] {
-    scrollbar-color: var(--app-scrollbar-thumb-hover) var(--app-scrollbar-track);
+    scrollbar-color: var(--app-scrollbar-thumb-hot) var(--app-scrollbar-track);
   }
 }
 

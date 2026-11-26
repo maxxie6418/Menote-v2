@@ -347,7 +347,7 @@ export function PropertyPanel({ markdown, userId, itemId, onSave, onMoveToTop }:
   return (
     <section ref={sectionRef} className="mn-props" data-columns={sidebar ? 1 : columns} data-placement={sidebar ? "side" : undefined} aria-label="属性区">
       <div className="mn-props-head">
-        {!sidebar && <span className="mn-props-title">属性</span>}
+        {sidebar ? <h2 className="mn-props-title">属性</h2> : <span className="mn-props-title">属性</span>}
         <span className="mn-props-count">{rows.length}{sidebar && " 项"}</span>
         {sidebar && <button type="button" className="mn-textbtn mn-props-move" onClick={onMoveToTop}>移至顶部</button>}
         <button

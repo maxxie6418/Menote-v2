@@ -346,6 +346,8 @@
   --app-memo-todo-width: 13.5rem;
   --app-memo-composer-height: 6.25rem; /* 100px v3 输入卡片高度 */
   --app-memo-work-min: 13rem;
+  --app-memo-feed-min: 20rem;
+  --app-memo-resize-hit: var(--app-space-12);
   --app-memo-todo-min: 10rem;
   --app-memo-todo-width-compact: 11.75rem;
   --app-memo-todo-width-tablet: 10.5rem;
@@ -391,14 +393,13 @@
      槽宽 9px；滑块以 2px 透明边内缩，可见宽 5px，两端圆角。
      常态用 8% 半透明墨色而非实色：同一 alpha 在纸面（浅）与侧栏（深）上
      合成后都只剩约 1.2:1，滑块不会因为落到更深的那一层表面而突然变显眼。
-     指针进入滚动区（容器 :hover）才升到可辨识的 3.29:1，离开即隐去。
-     2026-11-11：负责人连续两轮弱化——先收窄（10→9px、6→5px），
-     再把常态改为半透明、悬停判定放宽到容器。 */
+     指针进入滚动区或实际滚动时略加深，直接悬停或拖拽滑块时使用清晰色。 */
   --app-scrollbar-size: 9px;         /* 槽宽（纵向为 width，横向为 height） */
-  --app-scrollbar-inset: 2px;        /* 滑块与槽边的透明内缩 */
+  --app-scrollbar-inset: 3px;        /* 滑块与槽边的透明内缩 */
   --app-scrollbar-track: transparent;
-  --app-scrollbar-thumb: rgba(26, 27, 24, 0.08);      /* 常态：约 1.2:1，日常浏览几乎不可见 */
-  --app-scrollbar-thumb-hover: #8e8e8a;               /* 指针进入滚动区 / 拖拽：3.29:1 */
+  --app-scrollbar-thumb: rgba(26, 27, 24, 0.045);
+  --app-scrollbar-thumb-hot: rgba(26, 27, 24, 0.21);
+  --app-scrollbar-thumb-hover: #8e8e8a;
   /* 动效（DESIGN §4.6 关键 CSS） */
   --app-motion-fast: 130ms;
   --app-ease: cubic-bezier(0.2, 0.6, 0.3, 1);
@@ -591,7 +592,8 @@
   /* 分段选中项的抬升阴影：深色下槽底与纸面差小，靠阴影把选中项托起来 */
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, 0.42);
   /* 滚动条深色：常态 9% 白光（约 1.2:1），指针进入滚动区才升到 3.46:1 */
-  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.055);
+  --app-scrollbar-thumb-hot: rgba(255, 255, 255, 0.19);
   --app-scrollbar-thumb-hover: #6b7176;
 }
 /* 登录检查屏加载动画（keyframes 属 CSS 语法结构非样式值） */
@@ -787,7 +789,8 @@
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .16), 0 1px 2px rgba(20, 24, 33, .12);
   --app-focus-ring: 0 0 0 0.1875rem rgba(246, 130, 31, .35);
   --app-focus-outline: 0.1875rem solid rgba(246, 130, 31, .35);
-  --app-scrollbar-thumb: rgba(20, 24, 33, 0.08);
+  --app-scrollbar-thumb: rgba(20, 24, 33, 0.045);
+  --app-scrollbar-thumb-hot: rgba(20, 24, 33, 0.21);
   --app-scrollbar-thumb-hover: #8f96a3;
   --app-overlay-bg: rgba(18, 22, 30, .42);
   /* 角与字：控件 6、容器 8、弹层 12；标题位交回界面字体（全站无衬线） */
@@ -872,7 +875,8 @@
   --app-shadow-seg-lift: 0 1px 2px rgba(0, 0, 0, .48);
   --app-dock-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 12px 28px -14px #000;
   --app-btn-sheen: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(0, 0, 0, .40);
-  --app-scrollbar-thumb: rgba(255, 255, 255, 0.09);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.055);
+  --app-scrollbar-thumb-hot: rgba(255, 255, 255, 0.19);
   --app-scrollbar-thumb-hover: #59616e;
   --app-overlay-bg: rgba(4, 6, 10, .62);
   --app-text-color-red: #f0948a;

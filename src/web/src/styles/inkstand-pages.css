@@ -125,7 +125,7 @@
 .mn-appearance-preview-frame[data-measure="wide"] .mn-appearance-preview-paper { max-width: var(--app-doc-measure-wide); }
 .mn-appearance-preview-frame[data-measure="full"] .mn-appearance-preview-paper { width: var(--app-full-size); max-width: var(--app-full-size); }
 
-/* 正文与侧栏各自滚动，工具页签始终留在侧栏顶端。 */
+/* 正文与侧栏各自滚动，属性、大纲和其他文档信息纵向排列。 */
 .mn-doc-frame {
   display: grid;
   flex: 1;
@@ -149,18 +149,26 @@
   color: var(--app-fg);
 }
 .mn-inspector-mobile-head { display: none; }
-.mn-inspector-tabs { display: flex; flex: 1; flex-direction: column; min-height: var(--app-zero); }
+.mn-inspector-scroll {
+  flex: 1;
+  min-height: var(--app-zero);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--app-space-12) var(--app-space-12) var(--app-space-14);
+  scrollbar-gutter: stable;
+}
+.mn-inspector-scroll > .mn-inspector-section + .mn-inspector-section {
+  margin-block-start: var(--app-space-12);
+  padding-block-start: var(--app-space-10);
+  border-block-start: var(--app-line) solid var(--app-border-subtle);
+}
 .mn-inspector-tablist {
   display: flex;
-  flex: none;
-  gap: var(--app-space-2);
-  padding-inline: var(--app-space-8);
-  border-bottom: var(--app-line) solid var(--app-border-subtle);
+  gap: var(--app-space-8);
 }
 .mn-inspector-tab {
-  flex: 1;
   min-height: var(--app-inspector-tab-height);
-  padding-inline: var(--app-space-4);
+  padding-inline: var(--app-space-6);
   border: var(--app-zero);
   border-bottom: var(--app-space-2) solid transparent;
   background: transparent;
@@ -173,14 +181,8 @@
 .mn-inspector-tab:hover { color: var(--app-fg); background: var(--app-hover); }
 .mn-inspector-tab[data-active] { border-bottom-color: var(--app-accent); color: var(--app-fg); font-weight: var(--app-weight-medium); }
 .mn-inspector-tab:focus-visible, .mn-inspector-panel:focus-visible { outline: var(--app-focus-outline); outline-offset: calc(var(--app-line) * -1); }
-.mn-inspector-panel {
-  flex: 1;
-  min-height: var(--app-zero);
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: var(--app-space-10) var(--app-space-12) var(--app-space-14);
-  scrollbar-gutter: stable;
-}
+.mn-inspector-panel { padding-block-start: var(--app-space-8); }
+.mn-inspector-heading, .mn-props[data-placement="side"] .mn-props-title { margin: var(--app-zero); color: var(--app-fg); font-size: var(--app-size-button); font-weight: var(--app-weight-medium); }
 .mn-inspector-section-head { display: flex; align-items: center; gap: var(--app-space-4); margin-bottom: var(--app-space-4); }
 .mn-inspector-section-head > span { color: var(--app-fg-subtle); font-size: var(--app-size-chip); }
 .mn-inspector-section-head .mn-textbtn { margin-inline-start: auto; font-size: var(--app-size-chip); }

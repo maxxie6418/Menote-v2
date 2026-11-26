@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu } from "../../icons";
 import type { LayoutMode } from "../../lib/layout";
 import { useMemos, useTopics } from "../../services/contentHooks";
@@ -7,6 +7,7 @@ import { MemoBar, MemoViewToggle, type MemoView } from "./MemoBar";
 import { MemoGallery } from "./MemoGallery";
 import { MemoTimeline } from "./MemoTimeline";
 import { MemoWorkbar } from "./MemoWorkbar";
+import { MemoWorkbarResize } from "./MemoWorkbarResize";
 import { TodoSidePanel } from "./TodoSidePanel";
 import { filterMemos, memoImages, pickRandomMemo, type MemoRange } from "./memoView";
 import { QuickComposer } from "./QuickComposer";
@@ -43,6 +44,7 @@ function MemoWorkspaceContent({ userId, username, layout, initialTag = null, tod
   const [tag, setTag] = useState<string | null>(initialTag);
   const [view, setView] = useState<MemoView>("timeline");
   const [workbarOpen, setWorkbarOpen] = useState(false);
+  const workbarRef = useRef<HTMLElement>(null);
   const visible = filterMemos(memos, range, tag);
   const images = memoImages(visible);
   const singlePane = layout === "tablet" || layout === "mobile";
@@ -87,13 +89,14 @@ function MemoWorkspaceContent({ userId, username, layout, initialTag = null, tod
       />
       <div className={`mn-memo-stage${workbarOpen ? " is-work-open" : ""}${view === "timeline" && todoOpen ? " is-todo-open" : ""}`}>
         <MemoWorkbar
-          memos={memos} range={range} tag={tag} onRange={setRange} onTag={setTag}
+          ref={workbarRef} memos={memos} range={range} tag={tag} onRange={setRange} onTag={setTag}
           onWander={() => { const picked = pickRandomMemo(visible); if (picked) openMemo(picked.id); }}
           onOpen={openMemo}
           onClose={() => setWorkbarOpen(false)}
           view={view}
           onView={setView}
         />
+        <MemoWorkbarResize key={userId} userId={userId} paneRef={workbarRef} />
         <section className="mn-memo-scroll" aria-label={view === "gallery" ? "Memo 图册" : "Memo 时间线"}>
           {singlePane && (
             <div className="mn-memo-mobile-controls">

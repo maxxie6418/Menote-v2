@@ -63,6 +63,7 @@ export function OutlinePanel({ hostRef, kind, variant = "popover", onNavigate }:
   };
 
   if (variant === "inspector") return <section className="mn-inspector-section mn-inspector-outline" aria-label="文档大纲">
+    <header className="mn-inspector-section-head"><h2 className="mn-inspector-heading">大纲</h2></header>
     <nav className="mn-outline-inspector">
       {entries.length === 0 ? <p className="mn-outline-empty">添加标题后会显示在这里</p> : entries.map((entry) => <button key={`${entry.index}-${entry.text}`} type="button" className="mn-outline-entry" data-level={entry.level} onClick={() => goTo(entry)}>{entry.text}</button>)}
     </nav>

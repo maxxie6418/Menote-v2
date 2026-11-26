@@ -3,18 +3,50 @@
 :root .mn-memo-bar { min-height: var(--app-topbar-height); height: auto; padding-inline: var(--app-space-14); border-color: var(--app-border-subtle); }
 :root .mn-memo-bar-title { font-family: var(--app-font); font-size: var(--app-size-nav); font-weight: var(--app-weight-medium); text-transform: none; color: var(--app-fg); }
 :root .mn-memo-bar-count { font-size: var(--app-size-chip); }
-:root .mn-memo-stage { --app-memo-todo-active-width: var(--app-memo-todo-width); display: grid; grid-template-columns: minmax(var(--app-memo-work-min), var(--app-memo-work-width)) minmax(0, 1fr); }
+:root .mn-memo-stage {
+  --app-memo-todo-active-width: var(--app-memo-todo-width);
+  --app-memo-todo-reserve: var(--app-zero);
+  --app-memo-work-preferred: var(--mn-memo-workbar-width, var(--app-memo-work-width));
+  --app-memo-work-column: clamp(var(--app-memo-work-min), var(--app-memo-work-preferred), calc(var(--app-full-size) - var(--app-memo-feed-min) - var(--app-memo-todo-reserve)));
+  display: grid;
+  grid-template-columns: var(--app-memo-work-column) minmax(0, 1fr);
+}
+:root .mn-memo-stage.is-todo-open { --app-memo-todo-reserve: calc(var(--app-memo-todo-active-width) + var(--app-space-14)); }
 :root .mn-memo-work { position: relative; inset: auto; grid-column: 1; grid-row: 1; width: auto; min-width: 0; z-index: auto; padding: var(--app-space-14) var(--app-space-10); border: 0; border-right: var(--app-line) solid var(--app-border-subtle); border-radius: 0; background: var(--app-surface-sunken); box-shadow: none; }
 :root .mn-memo-scroll { grid-column: 2; grid-row: 1; background: var(--app-canvas-bg, var(--app-surface-sunken)); }
 :root .mn-memo-todo { position: absolute; inset: var(--app-space-10) var(--app-space-14) auto auto; width: min(var(--app-memo-todo-active-width), calc(var(--app-full-size) - var(--app-space-14) - var(--app-space-14))); min-width: 0; max-height: calc(var(--app-full-size) - var(--app-space-18)); z-index: var(--app-mobile-z-workbar); padding: var(--app-space-10) var(--app-space-xs) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: var(--app-shadow-card); overflow-y: auto; }
 :root .mn-memo-todo-toggle { position: absolute; inset: var(--app-space-10) var(--app-space-14) auto auto; z-index: var(--app-mobile-z-workbar); margin: 0; box-shadow: var(--app-shadow-card); }
-:root[data-memo-workbar-side="right"] .mn-memo-stage { grid-template-columns: minmax(0, 1fr) minmax(var(--app-memo-work-min), var(--app-memo-work-width)); }
+:root[data-memo-workbar-side="right"] .mn-memo-stage { grid-template-columns: minmax(0, 1fr) var(--app-memo-work-column); }
 :root[data-memo-workbar-side="right"] .mn-memo-scroll { grid-column: 1; }
 :root[data-memo-workbar-side="right"] .mn-memo-work { grid-column: 2; border-right: 0; border-left: var(--app-line) solid var(--app-border-subtle); }
 :root[data-memo-workbar-side="right"] .mn-memo-todo,
 :root[data-memo-workbar-side="right"] .mn-memo-todo-toggle { right: auto; left: var(--app-space-14); }
-:root .mn-shell:not([data-layout="mobile"]) .mn-memo-stage.is-todo-open .mn-memo-scroll { padding-inline-end: calc(var(--app-memo-todo-active-width) + var(--app-space-14)); }
-:root[data-memo-workbar-side="right"] .mn-shell:is([data-layout="full"], [data-layout="compact"]) .mn-memo-stage.is-todo-open .mn-memo-scroll { padding-inline: calc(var(--app-memo-todo-active-width) + var(--app-space-14)) var(--app-zero); }
+:root .mn-shell:not([data-layout="mobile"]) .mn-memo-stage.is-todo-open .mn-memo-scroll { padding-inline-end: var(--app-memo-todo-reserve); }
+:root[data-memo-workbar-side="right"] .mn-shell:is([data-layout="full"], [data-layout="compact"]) .mn-memo-stage.is-todo-open .mn-memo-scroll { padding-inline: var(--app-memo-todo-reserve) var(--app-zero); }
+
+.mn-memo-work-resize {
+  display: grid;
+  grid-area: 1 / 1;
+  justify-self: end;
+  width: var(--app-memo-resize-hit);
+  margin-inline-end: calc(var(--app-memo-resize-hit) / -2);
+  place-items: stretch center;
+  z-index: var(--app-mobile-z-filter);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+:root[data-memo-workbar-side="right"] .mn-memo-work-resize { grid-column: 2; justify-self: start; margin-inline: calc(var(--app-memo-resize-hit) / -2) var(--app-zero); }
+.mn-memo-work-resize:is(:hover, :focus-visible, [data-resize-active])::after { content: ""; width: var(--app-line); background: var(--app-fg-faint); }
+.mn-memo-work-resize:focus-visible { outline: var(--app-line) solid transparent; }
+.mn-memo-work-resize:focus-visible::after {
+  align-self: center;
+  width: var(--app-space-2);
+  height: var(--app-space-24);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-fg-subtle);
+}
+.mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-work-resize { display: none; }
 :root .mn-memo-inline-editor { border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-md); background: var(--app-surface); padding: var(--app-space-10); }
 :root .mn-memo-comment { padding: var(--app-space-8) 0; border-bottom: var(--app-line) solid var(--app-border-subtle); }
 :root .mn-memo-comment-head { min-height: var(--app-space-20); }
@@ -36,15 +68,13 @@
 :root .mn-memo-quote-tags { display: flex; align-items: center; flex-wrap: wrap; gap: var(--app-space-4); margin-top: var(--app-space-8); color: var(--app-fg-faint); font-size: var(--app-size-chip); }
 :root .mn-memo-quote-tags button { padding: var(--app-space-2) var(--app-space-6); border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-pill); background: var(--app-surface-sunken); color: var(--app-fg-muted); font: inherit; cursor: pointer; }
 :root .mn-memo-quote-tags button[aria-pressed="true"] { border-color: var(--app-accent); background: var(--app-accent-subtle); color: var(--app-accent-fg); }
-:root .mn-shell[data-layout="compact"] .mn-memo-stage { --app-memo-todo-active-width: var(--app-memo-todo-width-compact); grid-template-columns: minmax(var(--app-memo-work-min), var(--app-memo-work-width)) minmax(0, 1fr); }
-:root[data-memo-workbar-side="right"] .mn-shell[data-layout="compact"] .mn-memo-stage { grid-template-columns: minmax(0, 1fr) minmax(var(--app-memo-work-min), var(--app-memo-work-width)); }
-:root[data-memo-workbar-side="right"] .mn-shell[data-layout="compact"] .mn-memo-work { grid-column: 2; }
+:root .mn-shell[data-layout="compact"] .mn-memo-stage { --app-memo-todo-active-width: var(--app-memo-todo-width-compact); }
 
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage {
   grid-template-columns: minmax(0, 1fr);
 }
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-work { display: none; }
-:root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { position: fixed; inset-block: var(--app-topbar-height) var(--app-zero); inset-inline-start: var(--app-zero); display: flex; width: min(var(--app-memo-work-width), var(--app-full-size)); max-height: none; overflow: auto; z-index: var(--app-mobile-z-workbar); border: 0; border-right: var(--app-line) solid var(--app-border); background: var(--app-surface-sunken); box-shadow: var(--app-shadow-card); }
+:root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { position: fixed; inset-block: var(--app-topbar-height) var(--app-zero); inset-inline-start: var(--app-zero); display: flex; width: min(var(--app-memo-work-preferred), calc(var(--app-full-size) - var(--app-space-xl))); max-height: none; overflow: auto; z-index: var(--app-mobile-z-workbar); border: 0; border-right: var(--app-line) solid var(--app-border); background: var(--app-surface-sunken); box-shadow: var(--app-shadow-card); }
 :root[data-memo-workbar-side="right"] .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { inset-inline-start: auto; inset-inline-end: var(--app-zero); border-right: 0; border-left: var(--app-line) solid var(--app-border); }
 :root .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-work-close { display: block; align-self: flex-end; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg-subtle); font: inherit; font-size: var(--app-size-chip); }
 :root .mn-memo-work-backdrop { position: fixed; inset: var(--app-zero); z-index: var(--app-mobile-z-sheet); border: 0; background: var(--app-overlay-bg); }
@@ -76,7 +106,7 @@
 /* Responsive access is structural and applies to both selectable visual skins. */
 .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage { grid-template-columns: minmax(0, 1fr); }
 .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-work { display: none; }
-.mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { position: fixed; inset-block: var(--app-topbar-height) var(--app-zero); inset-inline-start: var(--app-zero); display: flex; width: min(var(--app-memo-work-width), var(--app-full-size)); max-height: none; overflow: auto; z-index: var(--app-mobile-z-workbar); border: var(--app-zero); border-right: var(--app-line) solid var(--app-border); border-radius: var(--app-zero); background: var(--app-surface-sunken); box-shadow: var(--app-shadow-card); }
+.mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { position: fixed; inset-block: var(--app-topbar-height) var(--app-zero); inset-inline-start: var(--app-zero); display: flex; width: min(var(--app-memo-work-preferred), calc(var(--app-full-size) - var(--app-space-xl))); max-height: none; overflow: auto; z-index: var(--app-mobile-z-workbar); border: var(--app-zero); border-right: var(--app-line) solid var(--app-border); border-radius: var(--app-zero); background: var(--app-surface-sunken); box-shadow: var(--app-shadow-card); }
 :root[data-memo-workbar-side="right"] .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-stage.is-work-open .mn-memo-work { inset-inline-start: auto; inset-inline-end: var(--app-zero); border-right: var(--app-zero); border-left: var(--app-line) solid var(--app-border); }
 .mn-shell:is([data-layout="tablet"], [data-layout="mobile"]) .mn-memo-work-close { display: block; align-self: flex-end; border: var(--app-line) solid var(--app-border-subtle); border-radius: var(--app-radius-sm); background: var(--app-surface); color: var(--app-fg-subtle); font: inherit; font-size: var(--app-size-chip); }
 .mn-memo-work-close { display: none; }

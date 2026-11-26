@@ -5,12 +5,21 @@ import { newId } from "../lib/hash";
 
 export interface WorkspaceSettings {
   sidebarWidth: number;
+  memoWorkbarWidth: number;
   topicOrder: string[];
   groupOrder: Record<string, string[]>;
 }
 
-export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = { sidebarWidth: 248, topicOrder: [], groupOrder: {} };
+/** 宽度按标准密度档的像素同步，渲染时换算成 rem。 */
+export const MEMO_WORKBAR_WIDTH = { min: 208, initial: 232, max: 384 };
+export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = { sidebarWidth: 248, memoWorkbarWidth: MEMO_WORKBAR_WIDTH.initial, topicOrder: [], groupOrder: {} };
 const SETTING_KEY = "workspace";
+
+export function normalizeMemoWorkbarWidth(width: unknown): number {
+  const { min, initial, max } = MEMO_WORKBAR_WIDTH;
+  if (typeof width !== "number" || !Number.isFinite(width)) return initial;
+  return Math.max(min, Math.min(max, Math.round(width)));
+}
 
 function normalize(value: unknown): WorkspaceSettings {
   if (typeof value !== "object" || value === null) return DEFAULT_WORKSPACE_SETTINGS;
@@ -18,6 +27,7 @@ function normalize(value: unknown): WorkspaceSettings {
   const groupOrder = typeof raw.groupOrder === "object" && raw.groupOrder !== null ? raw.groupOrder : {};
   return {
     sidebarWidth: typeof raw.sidebarWidth === "number" ? Math.max(200, Math.min(420, raw.sidebarWidth)) : 248,
+    memoWorkbarWidth: normalizeMemoWorkbarWidth(raw.memoWorkbarWidth),
     topicOrder: Array.isArray(raw.topicOrder) ? raw.topicOrder.filter((id): id is string => typeof id === "string") : [],
     groupOrder: Object.fromEntries(Object.entries(groupOrder).map(([id, rows]) => [id, Array.isArray(rows) ? rows.filter((row): row is string => typeof row === "string") : []])),
   };
@@ -57,10 +67,14 @@ export async function updateWorkspaceSettings(userId: string, patch: Partial<Wor
 export async function applyPulledWorkspaceSettings(userId: string, settings: UserSetting[]): Promise<void> {
   const remote = settings.find((row) => row.key === SETTING_KEY && row.sensitivity === "ordinary");
   if (!remote || remote.sensitivity !== "ordinary") return;
-  const pending = await localDb.outbox.where("userId").equals(userId).and((row) => row.entity === "setting" && row.entityId === SETTING_KEY).count();
-  if (pending > 0) return;
-  await localDb.settings.put(remote);
-  applyWorkspaceSettings(normalize(remote.value));
+  const applied = await localDb.transaction("rw", localDb.settings, localDb.outbox, async () => {
+    const pending = await localDb.outbox.where("userId").equals(userId)
+      .and((row) => row.entity === "setting" && row.entityId === SETTING_KEY).count();
+    if (pending > 0) return false;
+    await localDb.settings.put(remote);
+    return true;
+  });
+  if (applied) applyWorkspaceSettings(normalize(remote.value));
 }
 
 export function orderIds(ids: string[], preferred: string[]): string[] {

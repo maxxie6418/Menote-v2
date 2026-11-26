@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import { X } from "../../icons";
 
-export type NoteInspectorTab = "properties" | "outline" | "annotations" | "versions";
+export type NoteInspectorTab = "annotations" | "scripts";
 
 interface NoteInspectorProps {
   open: boolean;
@@ -60,18 +60,19 @@ export function NoteInspector({ open, onClose, tab, onTabChange, properties, out
           <strong>文档侧栏</strong>
           <button ref={closeRef} type="button" className="mn-iconbtn" aria-label="关闭侧栏" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
-        <Tabs.Root className="mn-inspector-tabs" value={tab} onValueChange={onTabChange}>
-          <Tabs.List className="mn-inspector-tablist" aria-label="文档工具">
-            {properties && <Tabs.Tab className="mn-inspector-tab" value="properties">属性</Tabs.Tab>}
-            <Tabs.Tab className="mn-inspector-tab" value="outline">大纲</Tabs.Tab>
-            <Tabs.Tab className="mn-inspector-tab" value="annotations">批注</Tabs.Tab>
-            <Tabs.Tab className="mn-inspector-tab" value="versions">版本</Tabs.Tab>
-          </Tabs.List>
-          {properties && <Tabs.Panel className="mn-inspector-panel" value="properties">{properties}</Tabs.Panel>}
-          <Tabs.Panel className="mn-inspector-panel" value="outline">{outline}</Tabs.Panel>
-          <Tabs.Panel className="mn-inspector-panel" value="annotations">{annotations}</Tabs.Panel>
-          <Tabs.Panel className="mn-inspector-panel" value="versions">{versions}</Tabs.Panel>
-        </Tabs.Root>
+        <div className="mn-inspector-scroll">
+          {properties}
+          {outline}
+          <Tabs.Root className="mn-inspector-section" value={tab} onValueChange={onTabChange}>
+            <Tabs.List className="mn-inspector-tablist" aria-label="批注与脚本">
+              <Tabs.Tab className="mn-inspector-tab" value="annotations">批注</Tabs.Tab>
+              <Tabs.Tab className="mn-inspector-tab" value="scripts">脚本</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel className="mn-inspector-panel" value="annotations">{annotations}</Tabs.Panel>
+            <Tabs.Panel className="mn-inspector-panel" value="scripts"><p className="mn-outline-empty">暂无可显示的脚本</p></Tabs.Panel>
+          </Tabs.Root>
+          {versions}
+        </div>
       </aside>
     </>
   );
